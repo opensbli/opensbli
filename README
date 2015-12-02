@@ -1,0 +1,9 @@
+Author Satya P Jammy
+This software is provided by Dr. Satya P Jammy
+
+The automatic code generator expands teh equations written in Einstien notation
+and writes the code in OPSC and Fortran serial version
+
+Known issues
+1. Fortran to be fixed
+
