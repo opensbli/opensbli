@@ -1,0 +1,27 @@
+# WARNING please don’t add extra comments to this file #  Time stepping scheme type, order
+RK,3
+# dt (const or local)
+const
+# Spatial scheme type, ooa
+central_diff,4
+# ceval 0 save all 1000 compute all
+0
+# work_array_names
+wk
+
+# Bc's
+periodic, periodic
+periodic, periodic
+
+
+
+# Output language (OPSC, OPSF, C, F)
+OPSC
+# Multiblock
+SB
+# Spatial filtering
+F,F
+
+# end filtering
+
+
