@@ -264,7 +264,7 @@ def defdec_lang(inp,alg):
   if alg.lang == 'OPSC':
     # Define inputs to the code
     blkname = inp.blkname
-    totblock = inp.block.upper - inp.block.lower +1
+    totblock = inp.block.upper - inp.block.lower 
     ind = inp.blockdims
     inputs = []
     inputs = inputs + ['int %s = %d %s'%(totblock,inp.nblocks,lend[lang])]
