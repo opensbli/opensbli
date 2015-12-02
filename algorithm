@@ -3,9 +3,9 @@ RK,3
 # dt (const or local)
 const
 # Spatial scheme type, ooa
-central_diff,4
+central_diff,2
 # ceval 0 save all 1000 compute all
-0
+10
 # work_array_names
 wk
 

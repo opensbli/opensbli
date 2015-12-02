@@ -157,24 +157,28 @@ def derform(inp,alg):
   return
 def apply_der(der,inp):
   order = len(der.args) -1
-  var = der.args[0].base
-  index = der.args[0].indices
-  dire = der.args[1]
   temp = []
   lwr = inp.block.lower
   upr = inp.block.upper
   for ind in inp.fd_points:
-    ind = str(index[0]).replace('%s'%str(dire),'%s'%str(dire + ind))
-    ind = Idx(ind,(lwr,upr))
-    temp = temp + [var[ind]]
-  #pprint(temp)
+    outderivative = der.args[0]
+    for d in der.args[0].atoms(Indexed):
+      var = d.base
+      index = d.indices
+      dire = der.args[1]
+      ind1 = str(index[0]).replace('%s'%str(dire),'%s'%str(dire + ind))
+      ind1 = Idx(ind1,(lwr,upr))
+      outderivative = outderivative.subs(d,var[ind1])
+    temp = temp + [outderivative]
   derivative = 0
   N = len(inp.fd_points)- 1
   for nu in range(0, len(inp.fd_points)):
     derivative += inp.fd_wghts[order][N][nu]*temp[nu]
-  derivative = derivative.simplify()
-  derivative = ratsimp(derivative)
-
+    #derivative = derivative.simplify()
+    #derivative = ratsimp(derivative)
+    #derivative = derivative.simplify()
+    #derivative = ratsimp(derivative)
+    #outderivative = outderivative.subs(d, derivative)
   if order == 1:
     derivative = derivative/(Symbol('d%s'%str(dire)))
     inp.const = inp.const + [Symbol('d%s'%str(dire))]
@@ -183,10 +187,10 @@ def apply_der(der,inp):
     inp.const = inp.const + [Symbol('d%s'%str(dire))]
   else:
     raise ValueError('Implement the order of derivative')
-  derivative = derivative.simplify()
-  derivative = ratsimp(derivative)
-
-
+  # easydebug
+  #derivative = derivative.simplify()
+  #derivative = ratsimp(derivative)
+  # end easydebug
   return derivative
 class exp_filter_coeff():
   coeffs = {}
@@ -328,7 +332,8 @@ class prepareeq():
     for va in variab:
       val = form_dict.get(va)
       count = countineq(va,self.inpeq)
-      if count > alginp.ceval:
+      count = alginp.ceval
+      if count >= alginp.ceval:
         if val:
           form_evals.append(Eq(va,val))
           self.dats = self.dats + [va]
@@ -336,7 +341,7 @@ class prepareeq():
           raise ValueError('I dont know the formula for %s '%va)
       else:
         substis[va] = val
-        raise ValueError('Implement how to do for count > ceval')
+        #raise ValueError('Implement how to do for count > ceval')
     if  alginp.time_sch == 'RK':
 
       rkloop = Idx('nrk',(l,alginp.time_ooa))
@@ -364,12 +369,12 @@ class prepareeq():
       if alginp.ceval == 0:
         count = 100
       elif alginp.ceval == 1000:
-        count = 1001
+        count = 999
       else:
         count = countineq(der,self.inpeq)
       order = len(der.args) - 1
       if val:
-        if order == 1 and count > alginp.ceval:
+        if order == 1 and count >= alginp.ceval:
           if der.args[1] != Symbol('t'):
             if substis.get(der):
               pass
@@ -400,7 +405,7 @@ class prepareeq():
 
 
           # substitute RK3 routine now
-        elif order ==2 and count > alginp.ceval:
+        elif order ==2 and count >= alginp.ceval:
           if der.args[1] == der.args[2]:
             var = der.subs(der.args[0], val)
             temp = alginp.wrkarr %(wrkindex); wrkindex = wrkindex + 1
@@ -434,9 +439,59 @@ class prepareeq():
               der_evals.append(Eq(new,derf))
               substis[der] = new
               self.dats = self.dats + [new]
+        elif order == 1 and count < alginp.ceval:
+          if der.args[1] != Symbol('t'):
+            if substis.get(der):
+              pass
+            else:
+              var = der.subs(der.args[0], val)
+              derf = apply_der(var,self)
+              substis[der] = derf
+          else:
+            if  alginp.time_sch == 'RK':
+              con = der.args[0]
+              temp = '%s_old'%con.base
+              old = Indexed('%s'%str(temp),varform)
+              if alginp.const_timestep:
+                time = Symbol('dt')
+                self.const = self.const + [time]
+              else:
+                time = Indexed('dt',varform)
+                self.dats = self.dats + [time]
+              rkfor = (con - old)/(rk*time)
+              conser_old.append(old)
+              self.dats = self.dats + [old]
+              substis[der] = rkfor
+              saveeq.append(Eq(old, con))
+        elif order ==2 and count < alginp.ceval:
+          if der.args[1] == der.args[2]:
+            var = der.subs(der.args[0], val)
+            derf = apply_der(var,self)
+            substis[der] = derf
+          else:
+            expr = Derivative(der.args[0],der.args[2])
+            if substis.get(expr):
+              var = der.subs(expr, substis.get(expr))
+              derf = apply_der(var,self)
+              #easy_debug
+              derf = derf.simplify()
+              #easy_debug
+              substis[der] = derf
+            else:
+              derf = apply_der(expr,self)
+              var = der.subs(expr,derf)
+              derf = apply_der(var,self)
+              #for atom in list(derf.atoms(Indexed)):
+                #var = der.subs(expr,atom)
+                #derivative = apply_der(var,self)
+                #derf = derf.subs(atom,derivative)
+              #easy_debug
+              derf = derf.simplify()
+              #easy_debug
+              substis[der] = derf
         else:
-          raise ValueError('Implement what to do for counting')
-      elif count > alginp.ceval:
+          raise ValueError('No know;')
+      elif count >= alginp.ceval:
         temp = alginp.wrkarr %(wrkindex); wrkindex = wrkindex + 1
         new = Indexed('%s'%str(temp),varform)
         self.dats = self.dats + [new]
@@ -450,6 +505,12 @@ class prepareeq():
         der_evals.append(Eq(new,derf))
         substis[der] = new
         self.dats = self.dats + [new]
+      elif count < alginp.ceval:
+        derf = apply_der(der,self)
+        substis[der] = derf
+      else:
+        pprint(var)
+        raise ValueError('This is wrong')
 
 
     evaluations = {}
@@ -477,6 +538,7 @@ class prepareeq():
     for key,value in substis.iteritems():
       for eqno in range(len(self.inpeq)):
         self.inpeq[eqno] = self.inpeq[eqno].xreplace({key:value})
+
     # get the final rk update equations
     tempdict = eqto_dict(saveeq)
     savedic = dict (zip(tempdict.values(),tempdict.keys()))
@@ -487,6 +549,7 @@ class prepareeq():
       nrdr = fraction(lh)
       temp = solve(Eq(lh,0),self.conser[eqno])
       eqn = nrdr[1]*rh + temp[0]
+      #eqn = eqn.simplify()
       #eqn = solve(self.inpeq[eqno], self.conser[eqno])
       eqn1 = eqn.xreplace({rk:a1})
       final_eqs = final_eqs + [Eq(self.conser[eqno],eqn1)]
@@ -494,9 +557,6 @@ class prepareeq():
       eqn1 = eqn.xreplace({rk:a2})
       final_eqs = final_eqs + [Eq(old,eqn1)]
     # Apply filtering to the equations
-
-
-
 
 
     f.write('The equations after substitutions are\n\n')
