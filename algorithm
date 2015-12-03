@@ -3,15 +3,16 @@ RK,3
 # dt (const or local)
 const
 # Spatial scheme type, ooa
-central_diff,2
+central_diff,4
 # ceval 0 save all 1000 compute all
-10
+0
 # work_array_names
 wk
 
 # Bc's
 periodic, periodic
 periodic, periodic
+
 
 
 

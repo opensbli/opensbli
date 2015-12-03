@@ -4,6 +4,7 @@ from sympy import *
 from sympy.parsing.sympy_parser import (parse_expr, standard_transformations,implicit_application)
 transformations = standard_transformations + (implicit_application,)
 import re
+import textwrap
 def latex_article_header(inp):
   header_article = []
   header_article.append('\\documentclass{article}')
@@ -41,7 +42,7 @@ def write_latex(fname,inp,varform=None):
   elif isinstance(inp, list):
     out = out + ['The values are a list\n\n']
     for l in inp:
-      out = out +[latex(l, mode='equation',  long_frac_ratio=2,mul_symbol="ldot")]
+      out = out +[latex(l, mode='equation',  long_frac_ratio=3,mul_symbol="ldot")]
     out = out + ['The list ends here\n\n']
 
   for o in range(len(out)):
@@ -55,6 +56,8 @@ def write_latex(fname,inp,varform=None):
     out[o] = out[o].replace('x_{0}','x').replace('x_{1}','y').replace('x_{2}','z')
     out[o] = out[o].replace('\operatorname','')
   out = out + ['']
-  write = '\n'.join(out)
+  out = ' \n'.join(out)
+  out =  ' \n'.join(textwrap.wrap(out,width=70,break_long_words=False))
+  write = out
   fname.write(write)
   return

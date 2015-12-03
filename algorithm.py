@@ -474,7 +474,7 @@ class prepareeq():
               var = der.subs(expr, substis.get(expr))
               derf = apply_der(var,self)
               #easy_debug
-              derf = derf.simplify()
+              #derf = derf.simplify()
               #easy_debug
               substis[der] = derf
             else:
@@ -486,7 +486,7 @@ class prepareeq():
                 #derivative = apply_der(var,self)
                 #derf = derf.subs(atom,derivative)
               #easy_debug
-              derf = derf.simplify()
+              #derf = derf.simplify()
               #easy_debug
               substis[der] = derf
         else:
@@ -546,9 +546,11 @@ class prepareeq():
     for eqno in range(len(self.inpeq)):
       lh = self.inpeq[eqno].lhs
       rh = self.inpeq[eqno].rhs
+      eqn = Symbol('eqn%d'%eqno)
+      final_eqs = final_eqs + [Eq(eqn,rh)]
       nrdr = fraction(lh)
       temp = solve(Eq(lh,0),self.conser[eqno])
-      eqn = nrdr[1]*rh + temp[0]
+      eqn = nrdr[1]*eqn + temp[0]
       #eqn = eqn.simplify()
       #eqn = solve(self.inpeq[eqno], self.conser[eqno])
       eqn1 = eqn.xreplace({rk:a1})
@@ -597,8 +599,15 @@ class prepareeq():
       kerns = kerns + kern
       final_alg[alg_template.get('a06')] = call
       init_eq = []
-      for con in self.conser:
-        init_eq = init_eq + [Eq(con,parse_expr('(x - 0.25)', evaluate = False))]
+      # TODO this is for TWOD need to change this to 3D some how
+      init_eq = init_eq + [parse_expr('Eq(x, dx0)')]
+      init_eq = init_eq + [parse_expr('Eq(y, dx1)')]
+      init_eq = init_eq + [parse_expr('Eq(u, sin(x)* cos(y))')]
+      init_eq = init_eq + [parse_expr('Eq(v, -cos(x)* sin(y))')]
+      init_eq = init_eq + [Eq(self.conser[0],parse_expr('1.0', evaluate = False))]
+      init_eq = init_eq + [Eq(self.conser[1],self.conser[0] * parse_expr('u', evaluate = False))]
+      init_eq = init_eq + [Eq(self.conser[2],self.conser[0] * parse_expr('v', evaluate = False))]
+      init_eq = init_eq + [Eq(self.conser[3],parse_expr('1 + 0.5*(u**2 + v**2)', evaluate = False))]
 
       write_latex(f,init_eq,varform)
       call, kern = OPSC_write_kernel(init_eq,self)
