@@ -237,6 +237,9 @@ class prepareeq():
     self.dats = []
     self.const = const
     self.grid = []
+    # Race_check
+    self.race_check = True
+
 
     if alginp.lang == 'OPSC':
       l = 0
@@ -542,24 +545,51 @@ class prepareeq():
     # get the final rk update equations
     tempdict = eqto_dict(saveeq)
     savedic = dict (zip(tempdict.values(),tempdict.keys()))
-    final_eqs = []
+    # for race_check errors
+    # 1. Find the residue,
+    # 2. Upadte conserve
+    # 3. Update old conservative so that there will be no race_errors
+    if self.race_check :
+      final_eqs = {}
+      resdue_eq = []
+      upd_conser = []
+      upd_old_cons = []
+      race_ind = 0
+    else:
+      final_eqs = []
     for eqno in range(len(self.inpeq)):
       lh = self.inpeq[eqno].lhs
       rh = self.inpeq[eqno].rhs
-      eqn = Symbol('eqn%d'%eqno)
-      final_eqs = final_eqs + [Eq(eqn,rh)]
-      nrdr = fraction(lh)
-      temp = solve(Eq(lh,0),self.conser[eqno])
-      eqn = nrdr[1]*eqn + temp[0]
-      #eqn = eqn.simplify()
-      #eqn = solve(self.inpeq[eqno], self.conser[eqno])
-      eqn1 = eqn.xreplace({rk:a1})
-      final_eqs = final_eqs + [Eq(self.conser[eqno],eqn1)]
-      old = savedic.get(self.conser[eqno])
-      eqn1 = eqn.xreplace({rk:a2})
-      final_eqs = final_eqs + [Eq(old,eqn1)]
+      if self.race_check :
+        race_ind =race_ind + 1; temp = 'race_eq%d'%race_ind;
+        new = Indexed('%s'%str(temp),varform)
+        self.dats = self.dats + [new]
+        resdue_eq = resdue_eq + [Eq(new,rh)]
+        temp = solve(Eq(lh,0),self.conser[eqno])
+        nrdr = fraction(lh)
+        eqn = nrdr[1]*new + temp[0]
+        eqn1 = eqn.xreplace({rk:a1})
+        upd_conser = upd_conser + [Eq(self.conser[eqno],eqn1)]
+        old = savedic.get(self.conser[eqno])
+        eqn1 = eqn.xreplace({rk:a2})
+        upd_old_cons = upd_old_cons + [Eq(old,eqn1)]
+      else:
+        eqn = Symbol('eqn%d'%eqno)
+        final_eqs = final_eqs + [Eq(eqn,rh)]
+        nrdr = fraction(lh)
+        temp = solve(Eq(lh,0),self.conser[eqno])
+        eqn = nrdr[1]*eqn + temp[0]
+        eqn1 = eqn.xreplace({rk:a1})
+        final_eqs = final_eqs + [Eq(self.conser[eqno],eqn1)]
+        old = savedic.get(self.conser[eqno])
+        eqn1 = eqn.xreplace({rk:a2})
+        final_eqs = final_eqs + [Eq(old,eqn1)]
     # Apply filtering to the equations
-
+    if self.race_check:
+      race_ind = 0
+      final_eqs[race_ind] = resdue_eq; race_ind = race_ind+1
+      final_eqs[race_ind] = upd_conser; race_ind = race_ind+1
+      final_eqs[race_ind] = upd_old_cons; race_ind = race_ind+1
 
     f.write('The equations after substitutions are\n\n')
     write_latex(f,self.inpeq,varform)
