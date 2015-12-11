@@ -5,15 +5,20 @@ from sympy.parsing.sympy_parser import (parse_expr, standard_transformations,imp
 transformations = standard_transformations + (implicit_application,)
 import re
 import textwrap
+#from algorithm import eqto_dict as eqtd
 line_comment = {}
 line_comment['OPSC'] = '//'
 line_comment['F90'] = '!'
 lend = {}
 lend['OPSC'] = ';'
 lend['F90'] = ''
-#class rk3():
-  #a1 = [2.0/3.0, 5.0/12.0, 3.0/5.0]
-  #a2 = [1.0/4.0, 3.0/20.0, 3.0/5.0]
+def eqto_dict(inp):
+  lh = list(eq.lhs for eq in inp)
+  rh = list(eq.rhs for eq in inp)
+  dict_list = zip(lh,rh)
+  diction = dict(dict_list)
+  #print(diction)
+  return diction
 def OPSC_write_kernel(eqs, inp):
   def get_kernel(evals):
     lh = flatten(list(list(eq.lhs.atoms(Indexed)) for eq in evals))
@@ -25,7 +30,23 @@ def OPSC_write_kernel(eqs, inp):
     outs = libs.difference(inouts)
     inouts= list(inouts); ins =list(ins); outs = list(outs)
     tot_base = ins+outs+inouts
+    symbs = flatten(list(list(eq.atoms(Symbol)) for eq in evals))
+    Idxs = list(set(list(i.indices for i in (lh+rh))))
+    Idxs = flatten(list(i) for i in Idxs)
+    labes = list(set(list(i.label for i in Idxs)))
+    for i in Idxs:
+      labes = labes + [i.lower, i.upper]
+    symbs = list(set(symbs).difference(set(labes)).difference(set(inp.const)).difference(set(tot_base)))
+    symbs = list(set(symbs))
     out = []
+    symdec = []
+    evdict = eqto_dict(evals)
+    for sym in symbs:
+      symdec = symdec + ['double %s;'%sym]
+      if evdict.get(sym):
+        pass
+      else:
+        raise ValueError("I dont know the formula for %s"%sym)
     # grid range
     lower = []
     upper = []
@@ -136,7 +157,7 @@ def OPSC_write_kernel(eqs, inp):
       kercall =  ['int iter_range%d[] = {%s};\n'%(inp.iterrange,iter_range)] +kercall
       inp.iterrange = inp.iterrange + 1
       kerheader = head + ', '.join(kerheader) + '){'
-      kernel = [kerheader] + out + ['}']; #kernel = '\n'.join(kernel)
+      kernel = [kerheader] + symdec + out + ['}']; #kernel = '\n'.join(kernel)
     else:
       print(tot_base)
       pass
@@ -264,7 +285,7 @@ def defdec_lang(inp,alg):
   if alg.lang == 'OPSC':
     # Define inputs to the code
     blkname = inp.blkname
-    totblock = inp.block.upper - inp.block.lower +1
+    totblock = inp.block.upper - inp.block.lower
     ind = inp.blockdims
     inputs = []
     inputs = inputs + ['int %s = %d %s'%(totblock,inp.nblocks,lend[lang])]
@@ -290,7 +311,7 @@ def defdec_lang(inp,alg):
         tot = 0
         for inde in con.shape:
           tot = tot + inde
-        for no in range(tot):
+        for no in range(tot-1):
           inputs = inputs + ['%s[%d] = %s'%(con.base,no, lend[lang])]
     for con in inp.const:
       if con.is_Symbol:

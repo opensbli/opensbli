@@ -62,7 +62,7 @@ def F90_write_kernel(eqs, inp,alg):
               else:
                 new = '%s'%(indexes[inde])
               old = ('%s'%(variabind[inde]))
-              out[ou] = out[ou].replace(old, new)
+              #out[ou] = out[ou].replace(old, new)
           for dim in range(inp.ndim):
             indexes = list(str(te).replace('i%d'%dim,'0') for te in indexes)
           indexes = list(parse_expr(v) for v in indexes)
@@ -106,20 +106,20 @@ def F90_write_kernel(eqs, inp,alg):
         kerheader = [kerheader] + ['subroutine %s'%(kername)] + ['use param_mod']+ ['IMPLICIT NONE'] +['\n']
         kercall = kercall + [' '*n_inden + 'call %s'%(kername)]
 
-      if len(indi) - len(inpargs) == 1:
-        inde = ','.join(list('i%d'%dim for dim in range(inp.ndim)))
-        new = ','.join(list(':' for dim in range(inp.ndim)))
-        for ou in range(len(out)):
-          out[ou] = out[ou].replace(inde,new)
+      #if len(indi) - len(inpargs) == 1:
+        #inde = ','.join(list('i%d'%dim for dim in range(inp.ndim)))
+        #new = ','.join(list(':' for dim in range(inp.ndim)))
+        #for ou in range(len(out)):
+          #out[ou] = out[ou].replace(inde,new)
         #kerheader =[kerheader]
-      else:
-        kerheader =[kerheader] + ['integer :: %s'%(','.join(list('i%d'%dim for dim in range(inp.ndim))))]
-        #kerheader =[kerheader] +  ['IMPLICIT NONE'] +['\n']
-        newdims = []
-        for dim in range(inp.ndim):
-          newdims = newdims + [Idx('i%d'%dim,(lower[dim], upper[dim]))]
-        st,en = loop(newdims,alg)
-        out = st  + out +en
+      #else:
+      kerheader =[kerheader] + ['integer :: %s'%(','.join(list('x%d'%dim for dim in range(inp.ndim))))]
+      #kerheader =[kerheader] +  ['IMPLICIT NONE'] +['\n']
+      newdims = []
+      for dim in range(inp.ndim):
+        newdims = newdims + [Idx('x%d'%dim,(lower[dim], upper[dim]))]
+      st,en = loop(newdims,alg)
+      out = st  + out +en
 
       kernel = ['%s Start  sub routine \n'%line_comment['F90']]
       kernel = kernel + kerheader + out + ['end subroutine']; #kernel = '\n'.join(kernel)
