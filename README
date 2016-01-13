@@ -1,10 +1,15 @@
 Author Satya P Jammy
 This software is provided by Dr. Satya P Jammy
 
-The automatic code generator expands teh equations written in Einstien notation
+The automatic code generator expands the equations written in Einstien notation
 and writes the code in OPSC and Fortran serial version
 
-Known issues
-1. Fortran to be fixed
+Known issues (13/01/2016)
+1. The iteration range does not work properly for re-evaluation version - this is modified but will be updated in the next push
 
-Adding reevaluation and storage to the file
+
+
+Fixed by (13/01/2016):
+Fortran serial version, adding reevaluation or storage of derivatives and race condition errors while running on GPU's or Shared memory architectures are fixed
+
+
