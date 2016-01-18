@@ -12,7 +12,6 @@ from einstien_expansion import *
 from algorithm import *
 from utils import *
 
-import re
 from re import *
 import time
 # check inputs
