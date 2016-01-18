@@ -13,3 +13,6 @@ Fixed by (13/01/2016):
 Fortran serial version, adding reevaluation or storage of derivatives and race condition errors while running on GPU's or Shared memory architectures are fixed
 
 
+## Dependencies
+* Python 2.7
+* astyle
