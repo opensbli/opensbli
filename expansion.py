@@ -86,7 +86,7 @@ def expand_equations(equations_file):
 
 if(__name__ == "__main__"):
    # Parse the command line arguments provided by the user
-   parser = argparse.ArgumentParser(prog="codegen", description="")
+   parser = argparse.ArgumentParser(prog="codegen", description="An automatic code generator which expands the equations written in Einstein notation, and writes out model code in OPSC or Fortran (serial) format.")
    parser.add_argument("equations_file", help="The path to the file containing the equations.", action="store", type=str)
    args = parser.parse_args()
    
