@@ -16,3 +16,4 @@ Fortran serial version, adding reevaluation or storage of derivatives and race c
 ## Dependencies
 * Python 2.7
 * astyle
+* Sympy >= 0.7.6.1
