@@ -1,11 +1,18 @@
-''' This contains the routines used for algorithm generation
+''' This contains utility routines for e.g. writing out expanded equations in LaTeX format.
 '''
 from sympy import *
 from sympy.parsing.sympy_parser import (parse_expr, standard_transformations,implicit_application)
 transformations = standard_transformations + (implicit_application,)
 import re
 import textwrap
+
 def latex_article_header(inp):
+  """ Create the header of the LaTeX article file. 
+  
+  :arg list inp: a list containing the document's title, author and description.
+  :returns: the header and \end{document} statement.
+  :rtype: tuple
+  """
   header_article = []
   header_article.append('\\documentclass{article}')
   header_article.append('\\title{%s}\n\\author{%s\\\\ %s}'%(inp[0],inp[1],inp[2]))
@@ -20,6 +27,12 @@ def latex_article_header(inp):
   return header_article,end_article
 
 def write_latex(fname,inp,varform=None):
+  """ Write out the equations in nice LaTeX format.
+  
+  :arg fname: the .tex file to write to.
+  :arg inp: the list of equations.
+  """
+
   out = []
 
   if isinstance(inp, dict):

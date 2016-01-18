@@ -1,8 +1,13 @@
+#!/bin/sh
+
+echo ">>> Cleaning up any existing generated files..."
 rm -f alg.tex equations.tex *.cpp *.h *.f90
-echo ">>> Expanding equations..."
-python expansion.py equations
 echo ">>> Done."
-# sleep 2s
+
+echo ">>> Expanding equations..."
+./expansion.py equations
+echo ">>> Done."
+
 echo ">>> LaTeX post-processing..."
 astyle -s2 --style=gnu   --max-code-length=80 --convert-tabs auto_kernel.h
 # astyle -s2 --style=allman --indent=spaces=2  --max-code-length=80 --break-after-logical auto_kernel.h
