@@ -16,6 +16,8 @@ from einstein_expansion import *
 from algorithm import *
 from utils import *
 
+LATEX_FILE = "equations.tex"
+
 def expand_equations(equations_file):
    """ Perform an expansion of the equations, provided by the user, and written in Einstein notation.
    
@@ -25,7 +27,6 @@ def expand_equations(equations_file):
    # Remove leading and trailing white spaces and empty lines
    with open(equations_file) as f:
       read_file = [line for line in f.read().splitlines() if line]
-
    comm_lineno = [] # Line numbers of each (Python) comment line, which we want to ignore
 
    # Get all the comments in the file
@@ -34,7 +35,7 @@ def expand_equations(equations_file):
        comm_lineno.append(ind)
 
    inp = inputs() # Define the inputs
-
+   
    # Read inputs from the file
    inp.eq = read_file[comm_lineno[0]+1:comm_lineno[1]]
    inp.substi = read_file[comm_lineno[1]+1:comm_lineno[2]]
@@ -67,22 +68,19 @@ def expand_equations(equations_file):
    print ('The time taken for tensor expansion of equations in %d Dimensions  is %s'%(inp.ndim,end - start))
 
    # Output equations in LaTeX format.
-   f = open('equations.tex','w')
-   temp = []
-   for eq in eqs:
-     temp = temp + [eq.parsed]
-   inp = ['Algorithm', 'Satya P Jammy','University of Southampton']
-   header , end = latex_article_header(inp)
-   f.write(header)
-   #temp = flatten(temp)
-   #write_latex(f,temp)
-   temp = []
-   for eq in eqs:
-     temp = temp + [eq.expandedeq]
-   temp = flatten(temp)
-   write_latex(f,temp)
-   f.write(end)
-   f.close()
+   with open(LATEX_FILE,'w') as latex_file:
+      temp = []
+      for eq in eqs:
+        temp = temp + [eq.parsed]
+      inp = ['Algorithm', 'Satya P Jammy','University of Southampton']
+      header , end = latex_article_header(inp)
+      latex_file.write(header)
+      temp = []
+      for eq in eqs:
+        temp = temp + [eq.expandedeq]
+      temp = flatten(temp)
+      write_latex(latex_file, temp)
+      latex_file.write(end)
    
    return
 
@@ -92,6 +90,6 @@ if(__name__ == "__main__"):
    parser.add_argument("equations_file", help="The path to the file containing the equations.", action="store", type=str)
    args = parser.parse_args()
    
-   expand(args.equations_file)
+   expand_equations(args.equations_file)
    
 
