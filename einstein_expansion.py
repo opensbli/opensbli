@@ -10,22 +10,6 @@ transformations = standard_transformations + (implicit_application,)
 import re
 from utils import *
 
-def check_args(self):
-  """ Checks the number of arguments supplied to the python script"""
-  if(len(self) == 1):
-    print('Enter file name with equations')
-    sys.exit()
-  elif len(self) != 2:
-    print('Enter only one file name with equations')
-    sys.exit()
-  else:
-    print('Using input file %s\n\n'%self[1])
-  return
-def read_inp(self):
-  src_file = str(sys.argv[1])
-  # remove leading and trailing white spaces and empty lines
-  read_file = [line for line in open(src_file, "r").read().splitlines() if line]
-  return
 def tensor_indices(self):
   """ Finds the tensor indices in all the input equations and returns a list of set of indices
   >>> indices = tensor_indices(equations)
