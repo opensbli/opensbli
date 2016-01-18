@@ -1,7 +1,7 @@
 Author Satya P Jammy
 This software is provided by Dr. Satya P Jammy
 
-The automatic code generator expands the equations written in Einstien notation
+The automatic code generator expands the equations written in Einstein notation
 and writes the code in OPSC and Fortran serial version
 
 Known issues (13/01/2016)
