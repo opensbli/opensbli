@@ -23,8 +23,10 @@ def expand_equations(equations_file):
    """
    
    # Remove leading and trailing white spaces and empty lines
-   read_file = [line for line in open(equations_file, "r").read().splitlines() if line]
-   comm_lineno = []
+   with open(equations_file) as f:
+      read_file = [line for line in f.read().splitlines() if line]
+
+   comm_lineno = [] # Line numbers of each (Python) comment line, which we want to ignore
 
    # Get all the comments in the file
    for ind,line in enumerate(read_file):
