@@ -4,7 +4,6 @@ import datetime
 import os
 from re import *
 import time
-import argparse
 
 # Symbolic-related functions
 from sympy import *
@@ -12,9 +11,9 @@ from sympy.parsing.sympy_parser import *
 init_printing(use_latex=True)
 
 # Import local utility functions
-from einstein_expansion import *
-from algorithm import *
-from utils import *
+from ..einstein_expansion import *
+from ..algorithm import *
+from ..utils import *
 
 LATEX_FILE = "equations.tex"
 
@@ -83,13 +82,3 @@ def expand_equations(equations_file):
       latex_file.write(end)
    
    return
-
-if(__name__ == "__main__"):
-   # Parse the command line arguments provided by the user
-   parser = argparse.ArgumentParser(prog="codegen", description="An automatic code generator which expands the equations written in Einstein notation, and writes out model code in OPSC or Fortran (serial) format.")
-   parser.add_argument("equations_file", help="The path to the file containing the equations.", action="store", type=str)
-   args = parser.parse_args()
-   
-   expand_equations(args.equations_file)
-   
-
