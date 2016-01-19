@@ -10,6 +10,14 @@ setup(name='autofd',
       packages=['autofd'],
       package_dir = {'autofd': 'autofd'},
       scripts=["bin/autofd-generate", "bin/autofd-clean"],
-      data_files=[]
+      classifiers=[
+         'Development Status :: 2 - Pre-Alpha',
+         'Environment :: Console',
+         'Intended Audience :: Science/Research',
+         'Natural Language :: English',
+         'Programming Language :: Python :: 2.7',
+         'Topic :: Scientific/Engineering :: Physics',
+         'Topic :: Software Development :: Code Generators',
+         ]
      )
 
