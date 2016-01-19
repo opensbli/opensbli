@@ -13,6 +13,9 @@ from .fortran_subroutine import *
 
 BUILD_DIR = os.getcwd()
 
+import logging
+LOG = logging.getLogger(__name__)
+
 class alg_inputs():
   time_sch =[]
   time_ooa = []

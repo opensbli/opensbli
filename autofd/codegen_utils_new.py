@@ -6,6 +6,10 @@ transformations = standard_transformations + (implicit_application,)
 import re
 import textwrap
 #from algorithm import eqto_dict as eqtd
+
+import logging
+LOG = logging.getLogger(__name__)
+
 line_comment = {}
 line_comment['OPSC'] = '//'
 line_comment['F90'] = '!'
@@ -17,7 +21,7 @@ def eqto_dict(inp):
   rh = list(eq.rhs for eq in inp)
   dict_list = zip(lh,rh)
   diction = dict(dict_list)
-  #print(diction)
+  #LOG.debug(diction)
   return diction
 def OPSC_write_kernel(eqs, inp):
   def get_kernel(evals):
@@ -53,7 +57,7 @@ def OPSC_write_kernel(eqs, inp):
     for dim in range(inp.ndim):
       lower = lower + [inp.blockdims[dim].lower - inp.halos[dim]]
       upper = upper + [inp.blockdims[dim].upper + inp.halos[dim]+1]
-    #print(lower,upper)
+    #LOG.debug(lower,upper)
     for ev in evals:
       code = ccode(ev)
       code = code.replace('==','=') + lend['OPSC']
@@ -159,7 +163,7 @@ def OPSC_write_kernel(eqs, inp):
       kerheader = head + ', '.join(kerheader) + '){'
       kernel = [kerheader] + symdec + out + ['}']; #kernel = '\n'.join(kernel)
     else:
-      print(tot_base)
+      LOG.debug(tot_base)
       pass
     return kercall, kernel
   allcalls = [];  allkernels = []
@@ -231,7 +235,7 @@ def header_code(inp,alg):
           dobs = dobs + ['%s'%con]
       elif isinstance(con, Indexed):
         tot = 0
-        print(fcode(con))
+        LOG.debug(fcode(con))
         for ind in con.shape:
           tot = tot + ind
         if con.is_integer:
@@ -469,7 +473,7 @@ def bcs(inp, alg):
       out = []
       iter_size = list( te for te in inp.gridhalo)
 
-      print('periodic bc in x%d- direction'%dim)
+      LOG.debug('periodic bc in x%d- direction'%dim)
       halo = inp.halos[dim] # get the number of halo points
       iter_size[dim] = halo # the no of halos to be transfered
       from_base = list(-halo for te in range(inp.ndim))
@@ -543,7 +547,7 @@ def bcs(inp, alg):
         out = out +['int to_base[] = {%s}%s'%(te1,lend[lang])]
         out = out +['int dir[] = {%s}%s'%(','.join(str(i) for i in range(1,inp.ndim+1)),lend[lang])]
         halo_decl = '%s[off++] = ops_decl_halo(%%s[%%s],%%s[%%s],halo_iter, from_base, to_base, dir, dir);'%bcloc
-        print(bcloc)
+        LOG.debug(bcloc)
         if bound == 'symmetry':
           raise ValueError('Implementation %s bc'%bound)
         elif bound == 'zero_grad':
@@ -551,8 +555,8 @@ def bcs(inp, alg):
           iter_size[dim] = 1
           structu = '%s[%d] = %s%s'
           out = out + [structu%('halo_iter',dim,iter_size[dim],lend[lang])]
-          print(bound,halo,val)
-          print('from is', val - dire*1)
+          LOG.debug(bound,halo,val)
+          LOG.debug('from is', val - dire*1)
           for d in range(0, halo+1):
             from_base[dim] = val - dire*1
             to_base[dim] = val + dire*d
