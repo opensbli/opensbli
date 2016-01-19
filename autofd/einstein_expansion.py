@@ -112,6 +112,7 @@ class Equation(Inputs):
     else:
       self.expandedeq = self.expandedeq + [self.parsed]
     self.constants = list(Symbol(con) for con in inp.const)
+
     def fin_terms(expr,indices):
       terms = []
       if any(str(expr).count(str(ind)) for ind in indices ):

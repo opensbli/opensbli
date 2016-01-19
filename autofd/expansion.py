@@ -69,7 +69,7 @@ def expand_equations(equations_file):
    read_file = [line for line in open(algorithm_file_path, "r").read().splitlines() if line]
    alg = read_alg(read_file)
    start = time.time()
-   fineq = prepareeq(eqs, formulas, alg)
+   final_equation = PreparedEquations(eqs, formulas, alg)
    end = time.time()
    LOG.debug('The time taken for tensor expansion of equations in %d Dimensions is %s seconds.' % (inp.ndim, end - start))
 
