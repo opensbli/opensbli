@@ -6,8 +6,8 @@ echo ">>> Cleaning up any existing generated files..."
 rm -f alg.tex equations.tex *.cpp *.h *.f90
 echo ">>> Done."
 
-echo ">>> Expanding equations..."
-./expansion.py equations
+echo ">>> Generating code for equations..."
+./generate.py equations
 echo ">>> Done."
 
 if [ -f $EQUATIONS_FILE ];

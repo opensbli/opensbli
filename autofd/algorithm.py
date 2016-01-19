@@ -4,9 +4,15 @@ from sympy import *
 from sympy.parsing.sympy_parser import (parse_expr, standard_transformations,implicit_application)
 transformations = standard_transformations + (implicit_application,)
 import re
-from utils import *
-from codegen_utils_new import *
-from fortran_subroutine import *
+import os
+
+# AutoFD functions
+from .utils import *
+from .codegen_utils_new import *
+from .fortran_subroutine import *
+
+BUILD_DIR = os.getenv('AUTOFD_BUILD_DIR', default=".")
+
 class alg_inputs():
   time_sch =[]
   time_ooa = []
@@ -63,7 +69,7 @@ def read_alg(read_file):
     raise ValueError('ceval wrong')
   alg_inp.wrkarr = '%s%%d'%temp[0]
   temp = read_file[comm_lineno[5]+1:comm_lineno[6]]
-# read the boundary conditions
+  # read the boundary conditions
   for te in temp:
     te = te.replace(' ','')
     alg_inp.bcs = alg_inp.bcs + [tuple(te.strip().split(','))]
@@ -137,6 +143,7 @@ def sort_evals(inp, evald):
       if not ter.difference(set(evald)):
         out.append(te); inpcopy.remove(te); evald.append(te.lhs)
   return out, evald
+
 def derform(inp,alg):
   ooa = alg.sp_ooa
   sch = alg.sp_sch
@@ -155,6 +162,7 @@ def derform(inp,alg):
   else:
     raise ValueError('Implement %s scheme in derivative formulation'%sch)
   return
+
 def apply_der(der,inp):
   order = len(der.args) -1
   temp = []
@@ -192,10 +200,12 @@ def apply_der(der,inp):
   #derivative = ratsimp(derivative)
   # end easydebug
   return derivative
+
 class exp_filter_coeff():
   coeffs = {}
   coeffs[2] = [-1,2,-1]
   coeffs[4] = [-1,4,-6,4,-1]
+
 def expfiltering(alg,inp, savedic):
   ''' Implemented from the NASA PAPER'''
   coeff = exp_filter_coeff();
@@ -223,6 +233,7 @@ def expfiltering(alg,inp, savedic):
       else:
         raise ValueError('Implement spatial filtering coefficients in exp_filter_coeff class for order of accuracy ', ooa)
   return filtereqs
+
 class prepareeq():
 
   def __init__(self, eqs, forms, alginp):
@@ -272,8 +283,8 @@ class prepareeq():
     if alginp.lang == 'OPSC':
       if self.MB:
         raise ValueError('Implement Multi Block code implementation for OPSC')
-      code_file = open('OPSC_nssolver.cpp', 'w')
-      kernel_file = open('auto_kernel.h', 'w')
+      code_file = open(BUILD_DIR+'OPSC_nssolver.cpp', 'w')
+      kernel_file = open(BUILD_DIR+'auto_kernel.h', 'w')
       self.stencils = {}
       self.sten_ind = 0
       self.sten_name = 'stencil%dD_%%d'%self.ndim
@@ -286,9 +297,9 @@ class prepareeq():
     elif alginp.lang == 'F90':
       if self.MB:
         raise ValueError('Implement Multi Block code implementation for F90')
-      code_file = open('F_serial.f90', 'w')
-      kernel_file = open('subroutines.f90', 'w')
-      modulefile = open('param_mod.f90','w')
+      code_file = open(BUILD_DIR+'F_serial.f90', 'w')
+      kernel_file = open(BUILD_DIR+'subroutines.f90', 'w')
+      modulefile = open(BUILD_DIR+'param_mod.f90','w')
       self.module = []
       for dim in range(self.ndim):
         temp = Idx('i%d'%dim, (1,Symbol('nx%dp'%dim, integer = True)))
@@ -524,7 +535,7 @@ class prepareeq():
       evaluations[evalind] = der; evalind = evalind+1
     # final rk equations
 
-    f = open('alg.tex', 'w')
+    f = open(BUILD_DIR+'alg.tex', 'w')
     inp = ['Algorithm', 'Satya P Jammy','University of Southampton']
     header , end = latex_article_header(inp)
     f.write(header)

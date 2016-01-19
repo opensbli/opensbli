@@ -11,5 +11,9 @@ if(__name__ == "__main__"):
    parser.add_argument("equations_file", help="The path to the file containing the equations.", action="store", type=str)
    args = parser.parse_args()
    
-   expand_equations(args.equations_file)
+   # Make this an absolute path
+   abspath_to_equations_file = os.path.realpath(args.equations_file)
+   
+   # Expand out the equations
+   expand_equations(abspath_to_equations_file)
 
