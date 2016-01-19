@@ -6,6 +6,9 @@ transformations = standard_transformations + (implicit_application,)
 import re
 import textwrap
 
+import logging
+LOG = logging.getLogger(__name__)
+
 def latex_article_header(inp):
   """ Create the header of the LaTeX article file. 
   

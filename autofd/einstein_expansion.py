@@ -10,6 +10,9 @@ transformations = standard_transformations + (implicit_application,)
 import re
 from utils import *
 
+import logging
+LOG = logging.getLogger(__name__)
+
 def tensor_indices(self):
   """ Finds the tensor indices in all the input equations and returns a list of set of indices
   >>> indices = tensor_indices(equations)

@@ -15,6 +15,9 @@ from .einstein_expansion import *
 from .algorithm import *
 from .utils import *
 
+import logging
+LOG = logging.getLogger(__name__)
+
 BUILD_DIR = os.getcwd()
 
 def expand_equations(equations_file):

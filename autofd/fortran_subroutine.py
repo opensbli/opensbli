@@ -11,6 +11,8 @@ lend = {}
 lend['OPSC'] = ';'
 lend['F90'] = ''
 
+import logging
+LOG = logging.getLogger(__name__)
 
 def F90_write_kernel(eqs, inp,alg):
   def get_kernel(evals):
@@ -33,7 +35,7 @@ def F90_write_kernel(eqs, inp,alg):
     for dim in range(inp.ndim):
       lower = lower + [inp.blockdims[dim].lower - inp.halos[dim]]
       upper = upper + [inp.blockdims[dim].upper + inp.halos[dim]]
-    #print(lower,upper)
+    #LOG.debug(lower,upper)
     for ev in evals:
       code = fcode(ev,source_format = 'free', standard = 95)
       code = code.replace('==','=') + lend['F90']
@@ -125,7 +127,7 @@ def F90_write_kernel(eqs, inp,alg):
       kernel = kernel + kerheader + out + ['end subroutine']; #kernel = '\n'.join(kernel)
       kernel = kernel + ['%s End sub routine \n\n\n'%line_comment['F90']]
     else:
-      print(tot_base)
+      LOG.debug(tot_base)
       pass
     return kercall, kernel
   allcalls = [];  allkernels = []
