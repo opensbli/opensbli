@@ -11,7 +11,7 @@ from .utils import *
 from .codegen_utils_new import *
 from .fortran_subroutine import *
 
-BUILD_DIR = os.getenv('AUTOFD_BUILD_DIR', default=".")
+BUILD_DIR = os.getenv('AUTOFD_BUILD_DIR', default="/tmp")
 
 class alg_inputs():
   time_sch =[]
@@ -283,8 +283,8 @@ class prepareeq():
     if alginp.lang == 'OPSC':
       if self.MB:
         raise ValueError('Implement Multi Block code implementation for OPSC')
-      code_file = open(BUILD_DIR+'OPSC_nssolver.cpp', 'w')
-      kernel_file = open(BUILD_DIR+'auto_kernel.h', 'w')
+      code_file = open(BUILD_DIR+'/OPSC_nssolver.cpp', 'w')
+      kernel_file = open(BUILD_DIR+'/auto_kernel.h', 'w')
       self.stencils = {}
       self.sten_ind = 0
       self.sten_name = 'stencil%dD_%%d'%self.ndim
@@ -297,9 +297,9 @@ class prepareeq():
     elif alginp.lang == 'F90':
       if self.MB:
         raise ValueError('Implement Multi Block code implementation for F90')
-      code_file = open(BUILD_DIR+'F_serial.f90', 'w')
-      kernel_file = open(BUILD_DIR+'subroutines.f90', 'w')
-      modulefile = open(BUILD_DIR+'param_mod.f90','w')
+      code_file = open(BUILD_DIR+'/F_serial.f90', 'w')
+      kernel_file = open(BUILD_DIR+'/subroutines.f90', 'w')
+      modulefile = open(BUILD_DIR+'/param_mod.f90','w')
       self.module = []
       for dim in range(self.ndim):
         temp = Idx('i%d'%dim, (1,Symbol('nx%dp'%dim, integer = True)))
@@ -535,7 +535,7 @@ class prepareeq():
       evaluations[evalind] = der; evalind = evalind+1
     # final rk equations
 
-    f = open(BUILD_DIR+'alg.tex', 'w')
+    f = open(BUILD_DIR+'/alg.tex', 'w')
     inp = ['Algorithm', 'Satya P Jammy','University of Southampton']
     header , end = latex_article_header(inp)
     f.write(header)
