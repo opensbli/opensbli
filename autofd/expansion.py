@@ -15,7 +15,7 @@ from .einstein_expansion import *
 from .algorithm import *
 from .utils import *
 
-BUILD_DIR = os.getenv('AUTOFD_BUILD_DIR', default="/tmp")
+BUILD_DIR = os.getcwd()
 
 def expand_equations(equations_file):
    """ Perform an expansion of the equations, provided by the user, and written in Einstein notation.

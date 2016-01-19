@@ -11,7 +11,7 @@ from .utils import *
 from .codegen_utils_new import *
 from .fortran_subroutine import *
 
-BUILD_DIR = os.getenv('AUTOFD_BUILD_DIR', default="/tmp")
+BUILD_DIR = os.getcwd()
 
 class alg_inputs():
   time_sch =[]
