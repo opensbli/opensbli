@@ -4,25 +4,27 @@ import datetime
 import os
 from re import *
 import time
-import argparse
 
 # Symbolic-related functions
 from sympy import *
 from sympy.parsing.sympy_parser import *
 init_printing(use_latex=True)
 
-# Import local utility functions
-from einstein_expansion import *
-from algorithm import *
-from utils import *
+# AutoFD functions
+from .einstein_expansion import *
+from .algorithm import *
+from .utils import *
 
-LATEX_FILE = "equations.tex"
+BUILD_DIR = os.getcwd()
 
 def expand_equations(equations_file):
    """ Perform an expansion of the equations, provided by the user, and written in Einstein notation.
    
    :arg str equations_file: The path to the equations file.
    """
+   
+   # Find out the path of the directory that the equations_file is in.
+   base_path = os.path.dirname(equations_file)
    
    # Remove leading and trailing white spaces and empty lines
    with open(equations_file) as f:
@@ -60,7 +62,8 @@ def expand_equations(equations_file):
    print ('The time taken for tensor expansion of equations in %d Dimensions  is %s'%(inp.ndim,end - start))
    
    # Prepare equations for algorithm
-   read_file = [line for line in open("algorithm", "r").read().splitlines() if line]
+   algorithm_file_path = base_path+"/algorithm"
+   read_file = [line for line in open(algorithm_file_path, "r").read().splitlines() if line]
    alg = read_alg(read_file)
    start = time.time()
    fineq = prepareeq(eqs,forms,alg)
@@ -68,7 +71,8 @@ def expand_equations(equations_file):
    print ('The time taken for tensor expansion of equations in %d Dimensions  is %s'%(inp.ndim,end - start))
 
    # Output equations in LaTeX format.
-   with open(LATEX_FILE,'w') as latex_file:
+   latex_file_path = BUILD_DIR + "/equations.tex"
+   with open(latex_file_path, 'w') as latex_file:
       temp = []
       for eq in eqs:
         temp = temp + [eq.parsed]
@@ -83,13 +87,3 @@ def expand_equations(equations_file):
       latex_file.write(end)
    
    return
-
-if(__name__ == "__main__"):
-   # Parse the command line arguments provided by the user
-   parser = argparse.ArgumentParser(prog="codegen", description="An automatic code generator which expands the equations written in Einstein notation, and writes out model code in OPSC or Fortran (serial) format.")
-   parser.add_argument("equations_file", help="The path to the file containing the equations.", action="store", type=str)
-   args = parser.parse_args()
-   
-   expand_equations(args.equations_file)
-   
-
