@@ -1,6 +1,6 @@
 #!/bin/sh
 
-.PHONY: clean install test
+.PHONY: clean install test docs
 
 install:
 	@echo ">>> Installing..."
@@ -14,3 +14,6 @@ test:
 	@echo ">>> Running test suite..."
 	py.test tests
 
+docs:
+	@echo ">>> Building documentation..."
+	cd docs; make html; cd ..
