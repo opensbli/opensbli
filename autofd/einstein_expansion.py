@@ -11,6 +11,19 @@ from utils import *
 import logging
 LOG = logging.getLogger(__name__)
 
+class EquationInput(object):
+    """ This is a class for equation inputs, stuff that are added to the input
+    file are to be defined here """
+    
+    def __init__(self):
+        self.equations = []
+        self.substitutions = []
+        self.ndim = []
+        self.constants = []
+        self.coordinate_symbol = []
+        self.metrics = []
+        self.formulas = []
+        return
 
 def tensor_indices(equations):
     """ Finds the tensor indices in all the input equations and returns a list of the set of indices.
@@ -30,20 +43,6 @@ def tensor_indices(equations):
         index = index + list(set(re.compile(r'\_\S', re.I).findall(eq)))
     index = list(set(index))
     return index
-
-
-class Inputs(object):
-    """ This is a class for equation inputs, stuff that are added to the input
-    file are to be defined here """
-    
-    def __init__(self):
-        self.eq = []
-        self.substi = []
-        self.ndim = []
-        self.const = []
-        self.coord = []
-        self.formula = []
-        return
 
  
 def expand_ind(term,ndim,index,equation):
@@ -87,13 +86,13 @@ def expand_ind(term,ndim,index,equation):
       return equation
 
 
-class Equation(Inputs):
+class Equation(object):
   global indterm
   def __init__(self, eq, inp):
     self.inpeq = eq
     # perform substitutions if any
-    if inp.substi:
-      for form in inp.substi:
+    if inp.substitutions:
+      for form in inp.substitutions:
         temp = parse_expr(form)
         self.inpeq = self.inpeq.replace(str(temp.lhs),str(temp.rhs))
     # parse the equation
@@ -111,7 +110,7 @@ class Equation(Inputs):
           self.expandedeq = self.expandedeq + [eqn]
     else:
       self.expandedeq = self.expandedeq + [self.parsed]
-    self.constants = list(Symbol(con) for con in inp.const)
+    self.constants = list(Symbol(con) for con in inp.constants)
 
     def fin_terms(expr,indices):
       terms = []
