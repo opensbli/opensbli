@@ -3,3 +3,4 @@
 *.mod
 autofd/*.pyc
 bin/*.pyc
+tests/__pycache__

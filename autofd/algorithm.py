@@ -16,7 +16,7 @@ BUILD_DIR = os.getcwd()
 import logging
 LOG = logging.getLogger(__name__)
 
-class AlgorithmInputs(object):
+class AlgorithmInput(object):
     def __init__(self):
         self.time_sch = [] # Temporal discretisation scheme (e.g. RK3).
         self.time_ooa = [] # Temporal order of accuracy
@@ -39,7 +39,7 @@ def read_alg(read_file):
   for ind,line in enumerate(read_file):
     if line[0] == '#':
       comm_lineno.append(ind)
-  alg_inp = AlgorithmInputs()
+  alg_inp = AlgorithmInput()
 
   temp = read_file[comm_lineno[0]+1:comm_lineno[1]]
   if len(temp)>1:
