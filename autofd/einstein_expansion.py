@@ -1,7 +1,5 @@
-"""
-utility functions for expanding the equations
+""" Utility functions for expanding the equations. """
 
-"""
 import sys
 import ast
 from sympy import *
@@ -13,32 +11,41 @@ from utils import *
 import logging
 LOG = logging.getLogger(__name__)
 
-def tensor_indices(self):
-  """ Finds the tensor indices in all the input equations and returns a list of set of indices
-  >>> indices = tensor_indices(equations)
-  equations can be a string, symbolic equations or a list of strings or list os symbolic equations
-  """
-  index = []
-  if type(self) == list:
-    for eq in self:
-      eq = str(eq)
-      index = index + list(set(re.compile(r'\_\S', re.I).findall(eq)))
-  else:
-    eq = str(self)
-    index = index + list(set(re.compile(r'\_\S', re.I).findall(eq)))
-  index = list(set(index))
-  return index
-class inputs():
-  ''' This is a class for equation inputs, stuff that are added to the input
-  file are to be defined here '''
-  def __init__(self):
-    eq = []
-    substi = []
-    ndim = []
-    const = []
-    coord = []
-    formula = []
-    return
+
+def tensor_indices(equations):
+    """ Finds the tensor indices in all the input equations and returns a list of the set of indices.
+    
+    :arg equations: a string, symbolic equations, a list of strings, or a list of symbolic equations.
+    :returns: a list of the set of indices.
+    :rtype: list
+    """
+    
+    index = []
+    if type(equations) == list:
+        for eq in equations:
+            eq = str(eq)
+            index = index + list(set(re.compile(r'\_\S', re.I).findall(eq)))
+    else:
+        eq = str(equations)
+        index = index + list(set(re.compile(r'\_\S', re.I).findall(eq)))
+    index = list(set(index))
+    return index
+
+
+class Inputs(object):
+    """ This is a class for equation inputs, stuff that are added to the input
+    file are to be defined here """
+    
+    def __init__(self):
+        self.eq = []
+        self.substi = []
+        self.ndim = []
+        self.const = []
+        self.coord = []
+        self.formula = []
+        return
+
+ 
 def expand_ind(term,ndim,index,equation):
       fin = ''
       if term.is_Mul:
@@ -80,7 +87,7 @@ def expand_ind(term,ndim,index,equation):
       return equation
 
 
-class equations(inputs):
+class Equation(Inputs):
   global indterm
   def __init__(self, eq, inp):
     self.inpeq = eq
@@ -105,6 +112,7 @@ class equations(inputs):
     else:
       self.expandedeq = self.expandedeq + [self.parsed]
     self.constants = list(Symbol(con) for con in inp.const)
+
     def fin_terms(expr,indices):
       terms = []
       if any(str(expr).count(str(ind)) for ind in indices ):
@@ -142,9 +150,11 @@ class equations(inputs):
         indterm.append(terms)
       #pprint(terms)
       return
+
     def conser(inp):
       out = parse_expr('Derivative(%s,%s)'%(inp.args[0],inp.args[1]))
       return out
+
     def skew(inp):
       global indterm
       # This is to be done
@@ -163,11 +173,13 @@ class equations(inputs):
         for term in indterm:
           out = expand_ind(term,ndim,index,out)
       return out
+
     def der(inp):
       lhs = parse_expr(str(inp.lhs).replace('Der(','diff('))
       rhs = parse_expr(str(inp.rhs).replace('Der(','diff('))
       out = Eq(lhs,rhs)
       return out
+
     global indterm
     indterm =[]
 
@@ -207,6 +219,7 @@ class equations(inputs):
           #pprint(indterm)
           for term in indterm:
             self.expandedeq[eqno] = expand_ind(term,inp.ndim,index,self.expandedeq[eqno])
+
     self.variables = []
     self.conser = []
     for eqno,eq in enumerate(self.expandedeq):
@@ -230,9 +243,5 @@ class equations(inputs):
       #pprint(eq)
       self.ndim = inp.ndim
 
-
     return
-
-
-
 

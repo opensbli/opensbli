@@ -39,7 +39,7 @@ def expand_equations(equations_file):
      if line[0] == '#':
        comm_lineno.append(ind)
 
-   inp = inputs() # Define the inputs
+   inp = Inputs() # Define the inputs
    
    # Read inputs from the file
    inp.eq = read_file[comm_lineno[0]+1:comm_lineno[1]]
@@ -55,23 +55,23 @@ def expand_equations(equations_file):
    start = time.time()
    eqs = []
    for eq in inp.eq:
-     eqs.append(equations(eq, inp))
-   forms = []
-   for form in inp.formula:
-     forms.append(equations(form, inp))
+     eqs.append(Equation(eq, inp))
+   formulas = []
+   for formula in inp.formula:
+     formulas.append(Equation(formula, inp))
    #for eq in eqs:
      #pprint(eq.expandedeq)
    end = time.time()
-   print ('The time taken for tensor expansion of equations in %d Dimensions  is %s'%(inp.ndim,end - start))
+   LOG.debug('The time taken for tensor expansion of equations in %d Dimensions is %s seconds.' % (inp.ndim, end - start))
    
    # Prepare equations for algorithm
    algorithm_file_path = base_path+"/algorithm"
    read_file = [line for line in open(algorithm_file_path, "r").read().splitlines() if line]
    alg = read_alg(read_file)
    start = time.time()
-   fineq = prepareeq(eqs,forms,alg)
+   final_equation = PreparedEquations(eqs, formulas, alg)
    end = time.time()
-   print ('The time taken for tensor expansion of equations in %d Dimensions  is %s'%(inp.ndim,end - start))
+   LOG.debug('The time taken for tensor expansion of equations in %d Dimensions is %s seconds.' % (inp.ndim, end - start))
 
    # Output equations in LaTeX format.
    latex_file_path = BUILD_DIR + "/equations.tex"
@@ -79,7 +79,7 @@ def expand_equations(equations_file):
       temp = []
       for eq in eqs:
         temp = temp + [eq.parsed]
-      inp = ['Algorithm', 'Satya P Jammy','University of Southampton']
+      inp = ['Equations', 'Satya P Jammy', 'University of Southampton']
       header , end = latex_article_header(inp)
       latex_file.write(header)
       temp = []

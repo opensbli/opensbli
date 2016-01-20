@@ -16,27 +16,30 @@ BUILD_DIR = os.getcwd()
 import logging
 LOG = logging.getLogger(__name__)
 
-class alg_inputs():
-  time_sch =[]
-  time_ooa = []
-  const_timestep = True
-  sp_sch = []
-  sp_ooa = []
-  wrkarr = []
-  ceval = []
-  bcs = []
-  lang = []
-  MB = False
-  nblocks = 1
-  expfilter = []
+class AlgorithmInputs(object):
+    def __init__(self):
+        self.time_sch = [] # Temporal discretisation scheme (e.g. RK3).
+        self.time_ooa = [] # Temporal order of accuracy
+        self.const_timestep = True # Constant timestep.
+        self.sp_sch = [] # Spatial discretisation scheme
+        self.sp_ooa = [] # Spatial order of accuracy
+        self.wrkarr = [] # Work array
+        self.ceval = [] # Evaluation count
+        self.bcs = [] # Boundary conditions
+        self.lang = [] # Generated code's language
+        self.MB = False # Multi-block
+        self.nblocks = 1 # Number of blocks
+        self.expfilter = [] # Explicit filter
+        return
+
 
 def read_alg(read_file):
   comm_lineno = []
-  #get all the comments in the file
+  # Get all the comments in the file
   for ind,line in enumerate(read_file):
     if line[0] == '#':
       comm_lineno.append(ind)
-  alg_inp = alg_inputs()
+  alg_inp = AlgorithmInputs()
 
   temp = read_file[comm_lineno[0]+1:comm_lineno[1]]
   if len(temp)>1:
@@ -72,14 +75,14 @@ def read_alg(read_file):
     raise ValueError('ceval wrong')
   alg_inp.wrkarr = '%s%%d'%temp[0]
   temp = read_file[comm_lineno[5]+1:comm_lineno[6]]
-  # read the boundary conditions
+  # Read the boundary conditions
   for te in temp:
     te = te.replace(' ','')
     alg_inp.bcs = alg_inp.bcs + [tuple(te.strip().split(','))]
-  # language
+  # Language
   temp = read_file[comm_lineno[6]+1:comm_lineno[7]]
   alg_inp.lang = temp[0]
-  # Multi block stuff
+  # Multi-block stuff
   temp = read_file[comm_lineno[7]+1:comm_lineno[8]]
   if len(temp)>1:
     raise ValueError('Blocks defined wrongly in the code')
@@ -92,6 +95,7 @@ def read_alg(read_file):
     alg_inp.nblocks = Symbol('nblocks')
   else:
     raise ValueError('Blocks can be SB for single block or MB for Multi-block')
+
   # Spatial filtering of conservative varibles
   temp = read_file[comm_lineno[8]+1:comm_lineno[9]]
   temp = temp[0].split(',')
@@ -103,9 +107,10 @@ def read_alg(read_file):
       alg_inp.expfilter.append(False)
     else:
       raise ValueError('Filter can be T or F only')
-  # various checks performed on the algorithm
+  # Various checks performed on the algorithm
 
   return alg_inp
+
 def perform_alg_checks(alg, inp):
   if len(alg.bcs) == inp.ndim:
     pass
@@ -121,26 +126,27 @@ def perform_alg_checks(alg, inp):
   elif (len(alg.expfilter) < inp.ndim):
     raise ValueError('There are less options for filter than number of dimension')
 
-
   return
+
 def countineq(va,inpeq):
   count = 0
   for eq in inpeq:
     count = count + eq.count(va)
-
   return count
+
 def eqto_dict(inp):
   lh = list(eq.lhs for eq in inp)
   rh = list(eq.rhs for eq in inp)
   dict_list = zip(lh,rh)
   diction = dict(dict_list)
-  #print(diction)
+  #LOG.debug(diction)
   return diction
+
 def sort_evals(inp, evald):
   inpcopy = [te for te in inp]
   out = []
   while inpcopy:
-    #print('in while loop')
+    #LOG.debug('in while loop')
     for te in inpcopy:
       ter = te.rhs.atoms(Indexed)
       if not ter.difference(set(evald)):
@@ -204,40 +210,44 @@ def apply_der(der,inp):
   # end easydebug
   return derivative
 
-class exp_filter_coeff():
-  coeffs = {}
-  coeffs[2] = [-1,2,-1]
-  coeffs[4] = [-1,4,-6,4,-1]
 
-def expfiltering(alg,inp, savedic):
-  ''' Implemented from the NASA PAPER'''
-  coeff = exp_filter_coeff();
-  filtereqs = []
-  for dire,fil in enumerate(alg.expfilter):
-    if fil:
-      ooa = alg.sp_ooa
-      alphaD = (-1)**(int(ooa/2) + 1) * (2)** (-ooa)
-      if coeff.coeffs.get(ooa):
-        muls = coeff.coeffs.get(ooa)
-        temp = list(con.base for con in inp.conser)
-        out = [con for con in inp.conser]
-        #out = 0
-        direction = Symbol('x%d'%dire)
-        for num,ind in enumerate(inp.fd_points):
-          repl = '%s'%str(direction +ind)
-          index = str(inp.varform).replace(str(direction),repl)
-          index = Idx(index,Symbol('nblock',integer= True))
-          for nv in range(len(temp)):
-            varib = temp[nv]
-            out[nv] += alphaD *muls[num] * varib[index]
-        for nv in range(len(temp)):
-          out[nv] = Eq(savedic.get(inp.conser[nv]),out[nv])
-        filtereqs.append(out)
-      else:
-        raise ValueError('Implement spatial filtering coefficients in exp_filter_coeff class for order of accuracy ', ooa)
-  return filtereqs
+class ExplicitFilter(object):
+    """ Explicit filter implemented from the NASA PAPER. """
+    
+    def __init__(self):
+        self.coeffs = {}
+        self.coeffs[2] = [-1,2,-1]
+        self.coeffs[4] = [-1,4,-6,4,-1]
 
-class prepareeq():
+    def filter_equations(self, alg):
+        """ Returns the filter equations. """
+        filtereqs = []
+        for dire, fil in enumerate(alg.expfilter):
+            if fil:
+                ooa = alg.sp_ooa
+                alphaD = (-1)**(int(ooa/2) + 1) * (2)** (-ooa)
+                if self.coeffs.get(ooa):
+                    muls = self.coeffs.get(ooa)
+                    temp = list(con.base for con in inp.conser)
+                    out = [con for con in inp.conser]
+                    #out = 0
+                    direction = Symbol('x%d'%dire)
+                    for num,ind in enumerate(inp.fd_points):
+                        repl = '%s'%str(direction +ind)
+                        index = str(inp.varform).replace(str(direction),repl)
+                        index = Idx(index, Symbol('nblock',integer = True))
+                        for nv in range(len(temp)):
+                            varib = temp[nv]
+                            out[nv] += alphaD *muls[num] * varib[index]
+                    for nv in range(len(temp)):
+                        out[nv] = Eq(savedic.get(inp.conser[nv]),out[nv])
+                    filtereqs.append(out)
+            else:
+                raise ValueError('Implement spatial filtering coefficients for order of accuracy %d', ooa)
+        return filtereqs
+
+
+class PreparedEquations(object):
 
   def __init__(self, eqs, forms, alginp):
     self.inpeq = (flatten(list(eq.expandedeq for eq in eqs)))

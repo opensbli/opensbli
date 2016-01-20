@@ -12,6 +12,8 @@ First ensure that the following dependencies are satisfied:
 * Sympy >= 0.7.6.1
 
 ### Installation
+
+#### System-wide
 AutoFD is a Python package and can be installed system-wide by running
 
 ```
@@ -19,6 +21,13 @@ sudo python setup.py install
 ```
 
 from the AutoFD base directory (i.e. the same directory this README file is in).
+
+#### Local builds
+Alternatively, you can just add AutoFD to your `PYTHONPATH` environment variable using
+
+```
+export PYTHONPATH=$PYTHONPATH:/path/to/autofd/base/directory
+```
 
 ## Contact
 If you wish to report a bug with the software, please contact [Satya P Jammy](mailto:S.P.Jammy@soton.ac.uk) or [Christian T. Jacobs](mailto:c.jacobs10@imperial.ac.uk).
