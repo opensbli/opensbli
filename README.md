@@ -11,6 +11,7 @@ First ensure that the following dependencies are satisfied:
 * astyle
 * Sympy >= 0.7.6.1
 * pytest (for running the test suite)
+* Sphinx (to build the documentation)
 
 ### Installation
 
