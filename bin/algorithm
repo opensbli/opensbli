@@ -17,7 +17,7 @@ periodic, periodic
 
 
 
-# Output language (OPSC, OPSF, C, F)
+# Output language (OPSC, F90)
 OPSC
 # Multiblock
 SB
