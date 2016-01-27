@@ -1,11 +1,9 @@
 from sympy import *
 from sympy.parsing.sympy_parser import (parse_expr, standard_transformations, implicit_application)
 transformations = standard_transformations + (implicit_application,)
-from .codegen_utils import loop
 
-# Language-specific delimiters
-COMMENT_DELIMITER = {"OPSC":"//", "F90":"!"}
-END_OF_STATEMENT_DELIMITER = {"OPSC":";", "F90":""}
+# AutoFD functions
+from .codegen_utils import loop, COMMENT_DELIMITER, END_OF_STATEMENT_DELIMITER
 
 import logging
 LOG = logging.getLogger(__name__)
