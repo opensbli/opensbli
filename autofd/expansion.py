@@ -76,26 +76,24 @@ def expand_equations(equations_file):
     # Prepare equations for algorithm
     algorithm_file_path = base_path + "/algorithm"
     read_file = [line for line in open(algorithm_file_path, "r").read().splitlines() if line]
-    algorithm = read_alg(read_file)
+    algorithm = read_algorithm(read_file)
     start = time.time()
     final_equation = PreparedEquations(equations, formulas, algorithm)
     end = time.time()
     LOG.debug('The time taken for tensor expansion of equations in %d Dimensions is %.2f seconds.' % (inp.ndim, end - start))
 
     # Output equations in LaTeX format.
-    latex_file_path = BUILD_DIR + "/equations.tex"
-    with open(latex_file_path, 'w') as latex_file:
-        temp = []
-        for e in equations:
-            temp = temp + [e.parsed]
-        metadata = {"title":"Equations", "author":"Satya P Jammy", "institution":"University of Southampton"}
-        header, footer = latex_article_header(metadata)
-        latex_file.write(header)
-        temp = []
-        for e in equations:
-            temp = temp + [e.expandedeq]
-        temp = flatten(temp)
-        write_latex(latex_file, temp)
-        latex_file.write(footer)
+    latex = LatexWriter()
+    latex.open(path=BUILD_DIR + "/equations.tex")
+
+    metadata = {"title":"Equations", "author":"Satya P Jammy", "institution":"University of Southampton"}
+    latex.write_header(metadata)
+    temp = []
+    for e in equations:
+        temp = temp + [e.expandedeq]
+    temp = flatten(temp)
+    latex.write_equations(temp)
+    latex.write_footer()
+    latex.close()
 
     return

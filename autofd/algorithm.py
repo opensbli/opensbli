@@ -8,7 +8,8 @@ import os
 # AutoFD functions
 from .utils import *
 from .codegen_utils import *
-from .fortran_subroutine import *
+from .fortran import *
+from .opsc import *
 
 BUILD_DIR = os.getcwd()
 
@@ -34,23 +35,29 @@ class AlgorithmInput(object):
         return
 
 
-def read_alg(read_file):
-    comm_lineno = []
+def read_algorithm(read_file):
+
     # Get all the comments in the file
+    comment_lineno = []
     for ind, line in enumerate(read_file):
         if line[0] == '#':
-            comm_lineno.append(ind)
+            comment_lineno.append(ind)
     alg_inp = AlgorithmInput()
 
-    temp = read_file[comm_lineno[0]+1:comm_lineno[1]]
+    # Time-stepping scheme
+    temp = read_file[comment_lineno[0]+1:comment_lineno[1]]
     if len(temp) > 1:
         raise ValueError('Temporal scheme is defined wrongly in algorithm text file')
     temp = temp[0].split(',')
     if temp[0] != 'RK':
         raise ValueError('Implement %s time stepping scheme' % temp[0])
     alg_inp.time_sch = temp[0]
+
+    # Temporal order of accuracy
     alg_inp.time_ooa = int(temp[1])
-    temp = read_file[comm_lineno[1]+1:comm_lineno[2]]
+
+    # Constant or local time-step
+    temp = read_file[comment_lineno[1]+1:comment_lineno[2]]
     if len(temp) > 1:
         raise ValueError('Time step can be const or local only')
     if temp[0] == 'const':
@@ -59,32 +66,41 @@ def read_alg(read_file):
         alg_inp.const_timestep = False
     else:
         raise ValueError('Time step can be const or local only')
-    temp = read_file[comm_lineno[2]+1:comm_lineno[3]]
+
+    # Spatial discretisation scheme
+    temp = read_file[comment_lineno[2]+1:comment_lineno[3]]
     if len(temp) > 1:
         raise ValueError('Spatial scheme is defined wrongly in algorithm text file')
     temp = temp[0].split(',')
     if temp[0] != 'central_diff':
         raise ValueError('Implement %s spatial scheme' % temp[0])
     alg_inp.sp_sch = temp[0]
+
+    # Spatial order of accuracy
     alg_inp.sp_ooa = int(temp[1])
-    temp = read_file[comm_lineno[3]+1:comm_lineno[4]]
+
+    # Evaluation count
+    temp = read_file[comment_lineno[3]+1:comment_lineno[4]]
     if len(temp) > 1:
         raise ValueError('ceval wrong')
     alg_inp.ceval = int(temp[0])
-    temp = read_file[comm_lineno[4]+1:comm_lineno[5]]
+    temp = read_file[comment_lineno[4]+1:comment_lineno[5]]
     if len(temp) > 1:
         raise ValueError('ceval wrong')
     alg_inp.wrkarr = '%s%%d' % temp[0]
-    temp = read_file[comm_lineno[5]+1:comm_lineno[6]]
+    temp = read_file[comment_lineno[5]+1:comment_lineno[6]]
+
     # Read the boundary conditions
     for te in temp:
         te = te.replace(' ', '')
         alg_inp.bcs = alg_inp.bcs + [tuple(te.strip().split(','))]
+
     # Language
-    temp = read_file[comm_lineno[6]+1:comm_lineno[7]]
+    temp = read_file[comment_lineno[6]+1:comment_lineno[7]]
     alg_inp.lang = temp[0]
+
     # Multi-block stuff
-    temp = read_file[comm_lineno[7]+1:comm_lineno[8]]
+    temp = read_file[comment_lineno[7]+1:comment_lineno[8]]
     if len(temp) > 1:
         raise ValueError('Blocks defined wrongly in the code')
     temp = temp[0]
@@ -98,7 +114,7 @@ def read_alg(read_file):
         raise ValueError('Blocks can be SB for single block or MB for Multi-block')
 
     # Spatial filtering of conservative varibles
-    temp = read_file[comm_lineno[8]+1:comm_lineno[9]]
+    temp = read_file[comment_lineno[8]+1:comment_lineno[9]]
     temp = temp[0].split(',')
     for te in temp:
         te = te.strip()
@@ -114,6 +130,7 @@ def read_alg(read_file):
 
 
 def perform_algorithm_checks(alg, inp):
+    """ Perform sanity checks on the algorithm input. """
     if len(alg.bcs) == inp.ndim:
         pass
     elif (len(alg.bcs) > inp.ndim):
@@ -372,8 +389,8 @@ class PreparedEquations(object):
             self.conser = self.conser + [new]
             self.dats = self.dats + [new]
         variab = variab.difference(set(evaluated))
-        # Finished preparing all the stuff now prepare the equations, now the evaluations of primitive
-        # Variables
+
+        # Finished preparing all the stuff now prepare the equations, now the evaluations of primitive variables
         form_evals = []
 
         for va in variab:
@@ -404,7 +421,8 @@ class PreparedEquations(object):
         ders = flatten(list(eq.atoms(Derivative) for eq in self.inpeq))
         ders = list(set(ders))
         der_evals = []
-        # get the coefficients of finite differences
+
+        # Get the coefficients of finite differences
         derform(self, alginp)
         tempder = []
         for no, der in enumerate(ders):
@@ -575,18 +593,20 @@ class PreparedEquations(object):
             evalind = evalind+1
         # final rk equations
 
-        f = open(BUILD_DIR+'/alg.tex', 'w')
+        # Write out algorithm in LaTeX form
+        latex = LatexWriter()
+        latex.open(path=BUILD_DIR+'/alg.tex')
         metadata = {"title":"Algorithm", "author":"Satya P Jammy", "institution":"University of Southampton"}
-        header, footer = latex_article_header(metadata)
-        f.write(header)
-        f.write('The equations are\n\n')
-        write_latex(f, self.inpeq, varform)
-        f.write('The save state equations are\n\n')
-        write_latex(f, saveeq, varform)
-        f.write('The evaluations performed are\n\n')
-        write_latex(f, evaluations, varform)
-        f.write('The substitutions in the equations are\n\n')
-        write_latex(f, substis, varform)
+        latex.write_header(metadata)
+
+        latex.write_string("The equations are\n\n")
+        latex.write_equations(self.inpeq, varform)
+        latex.write_string('The save state equations are\n\n')
+        latex.write_equations(saveeq, varform)
+        latex.write_string('The evaluations performed are\n\n')
+        latex.write_equations(evaluations, varform)
+        latex.write_string('The substitutions in the equations are\n\n')
+        latex.write_equations(substis, varform)
 
         for key, value in substis.iteritems():
             for eqno in range(len(self.inpeq)):
@@ -635,6 +655,7 @@ class PreparedEquations(object):
                 old = savedic.get(self.conser[eqno])
                 eqn1 = eqn.xreplace({rk: a2})
                 final_eqs = final_eqs + [Eq(old, eqn1)]
+
         # Apply filtering to the equations
         if self.race_check:
             race_ind = 0
@@ -645,17 +666,17 @@ class PreparedEquations(object):
             final_eqs[race_ind] = upd_old_cons
             race_ind = race_ind+1
 
-        f.write('The equations after substitutions are\n\n')
-        write_latex(f, self.inpeq, varform)
+        latex.write_string('The equations after substitutions are\n\n')
+        latex.write_equations(self.inpeq, varform)
 
-        f.write('The final rk3 update equations are\n\n')
-        write_latex(f, final_eqs, varform)
+        latex.write_string('The final rk3 update equations are\n\n')
+        latex.write_equations(final_eqs, varform)
 
         if any(alginp.expfilter):
             self.filtereqs = expfiltering(alginp, self, savedic)
             f.write('The filter equations are\n\n')
             for eq in self.filtereqs:
-                write_latex(f, eq, varform)
+                latex.write_equations(eq, varform)
 
         alg_template = {'a00': 'header', 'a01': 'defdec', 'a02': 'grid', 'a03': 'init', 'a04': 'Bcst'}
         alg_template['a05'] = 'timeloop'
@@ -692,7 +713,7 @@ class PreparedEquations(object):
             kerns = kerns + kern
             final_alg[alg_template.get('a06')] = call
             init_eq = []
-            # TODO this is for TWOD need to change this to 3D some how
+            # TODO this is for 2D need to change this to 3D some how
             init_eq = init_eq + [parse_expr('Eq(x, dx0)')]
             init_eq = init_eq + [parse_expr('Eq(y, dx1)')]
             init_eq = init_eq + [parse_expr('Eq(u, sin(x)* cos(y))')]
@@ -702,10 +723,11 @@ class PreparedEquations(object):
             init_eq = init_eq + [Eq(self.conser[2], self.conser[0] * parse_expr('v', evaluate=False))]
             init_eq = init_eq + [Eq(self.conser[3], parse_expr('1 + 0.5*(u**2 + v**2)', evaluate=False))]
 
-            write_latex(f, init_eq, varform)
+            latex.write_equations(init_eq, varform)
             call, kern = OPSC_write_kernel(init_eq, self)
             kerns = kerns + kern
             final_alg[alg_template.get('a03')] = call
+
         elif alginp.lang == 'F90':
             calls = []
             kerns = []
@@ -728,7 +750,7 @@ class PreparedEquations(object):
             init_eq = init_eq + [Eq(self.conser[2], parse_expr('-cos(x)* sin(y)', evaluate=False))]
             init_eq = init_eq + [Eq(self.conser[3], parse_expr('1 + 0.5*(u**2 + v**2)', evaluate=False))]
 
-            write_latex(f, init_eq, varform)
+            latex.write_equations(init_eq, varform)
             call, kern = F90_write_kernel(init_eq, self, alginp)
             kerns = kerns + kern
             final_alg[alg_template.get('a03')] = call
@@ -755,19 +777,12 @@ class PreparedEquations(object):
         final_alg[alg_template.get('a00')] = header_code(self, alginp)
         final_alg[alg_template.get('a01')] = defdec(self, alginp)
         final_alg[alg_template['a04']] = self.bccall
-
         final_alg[alg_template['a09']] = self.bccall
 
-        line_comment = {}
-        line_comment['OPSC'] = '//'
-        line_comment['F90'] = '!'
-        lend = {}
-        lend['OPSC'] = ';'
-        lend['F90'] = ''
-        temp = '%sWrite the grid here if required' % line_comment[alginp.lang]
-        temp = temp + '\n\n\n' + '%sGrid writing ends here' % line_comment[alginp.lang]
+        temp = '%s Write the grid here if required' % COMMENT_DELIMITER[alginp.lang]
+        temp = temp + '\n\n\n' + '%s Grid writing ends here' % COMMENT_DELIMITER[alginp.lang]
         final_alg[alg_template.get('a02')] = [temp]
-        final_alg[alg_template.get('a11')] = ['%s after  after inner time loop' % line_comment[alginp.lang]]
+        final_alg[alg_template.get('a11')] = ['%s after  after inner time loop' % COMMENT_DELIMITER[alginp.lang]]
 
         tloop, tenloop = loop([time_loop], alginp)
         final_alg[alg_template.get('a05')] = tloop
@@ -777,7 +792,7 @@ class PreparedEquations(object):
         final_alg[alg_template.get('a07')] = tloop
         final_alg[alg_template.get('a10')] = tenloop
 
-        # write the coservative variables to files (including halos)
+        # Write the conservative variables to files (including halos)
         final_alg[alg_template.get('a13')] = after_time(self, alginp)
         final_alg[alg_template.get('a14')] = footer_code(self, alginp)
 
@@ -790,7 +805,7 @@ class PreparedEquations(object):
         code_file.close()
         kernel_file.close()
 
-        f.write(footer)
-        f.close()
+        latex.write_footer()
+        latex.close()
 
         return
