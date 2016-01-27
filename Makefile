@@ -3,22 +3,22 @@
 .PHONY: clean install test lint docs
 
 install:
-	echo ">>> Installing..."
+	@echo ">>> Installing..."
 	python setup.py install
 
 clean:
-	echo ">>> Cleaning..."
+	@echo ">>> Cleaning..."
 	python setup.py clean
 
 lint:
-	echo ">>> Linting..."
+	@echo ">>> Linting..."
 	flake8 autofd
 	flake8 bin
 
 test: lint
-	echo ">>> Running test suite..."
+	@echo ">>> Running test suite..."
 	py.test tests
 
 docs:
-	echo ">>> Building documentation..."
+	@echo ">>> Building documentation..."
 	cd docs; make html; cd ..
