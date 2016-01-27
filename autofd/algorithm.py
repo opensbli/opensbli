@@ -1,12 +1,12 @@
-''' This contains the routines used for algorithm generation
-'''
+""" Routines for algorithm generation """
+
 from sympy import *
 from sympy.parsing.sympy_parser import (parse_expr, standard_transformations, implicit_application)
 transformations = standard_transformations + (implicit_application,)
 import os
 
 # AutoFD functions
-from .utils import *
+from .latex import LatexWriter
 from .codegen_utils import *
 from .fortran import *
 from .opsc import *
@@ -17,7 +17,7 @@ import logging
 LOG = logging.getLogger(__name__)
 
 
-class AlgorithmInput(object):
+class Algorithm(object):
 
     def __init__(self):
         self.time_sch = []  # Temporal discretisation scheme (e.g. RK3).
@@ -34,118 +34,121 @@ class AlgorithmInput(object):
         self.expfilter = []  # Explicit filter
         return
 
+    def read_input(self, path):
+        """ Read the algorithm input from the algorithm file.
+        
+        :arg str path: the path to the algorithm file.
+        """
+        lines = [line for line in open(path, "r").read().splitlines() if line]
 
-def read_algorithm(read_file):
+        # Get all the comments in the file
+        comment_lineno = []
+        for ind, line in enumerate(lines):
+            if line[0] == '#':
+                comment_lineno.append(ind)
 
-    # Get all the comments in the file
-    comment_lineno = []
-    for ind, line in enumerate(read_file):
-        if line[0] == '#':
-            comment_lineno.append(ind)
-    alg_inp = AlgorithmInput()
+        # Time-stepping scheme
+        temp = lines[comment_lineno[0]+1:comment_lineno[1]]
+        if len(temp) > 1:
+            raise ValueError('Temporal scheme is defined wrongly in algorithm text file')
+        temp = temp[0].split(',')
+        if temp[0] != 'RK':
+            raise ValueError('Implement %s time stepping scheme' % temp[0])
+        self.time_sch = temp[0]
 
-    # Time-stepping scheme
-    temp = read_file[comment_lineno[0]+1:comment_lineno[1]]
-    if len(temp) > 1:
-        raise ValueError('Temporal scheme is defined wrongly in algorithm text file')
-    temp = temp[0].split(',')
-    if temp[0] != 'RK':
-        raise ValueError('Implement %s time stepping scheme' % temp[0])
-    alg_inp.time_sch = temp[0]
+        # Temporal order of accuracy
+        self.time_ooa = int(temp[1])
 
-    # Temporal order of accuracy
-    alg_inp.time_ooa = int(temp[1])
-
-    # Constant or local time-step
-    temp = read_file[comment_lineno[1]+1:comment_lineno[2]]
-    if len(temp) > 1:
-        raise ValueError('Time step can be const or local only')
-    if temp[0] == 'const':
-        alg_inp.const_timestep = True
-    elif temp[0] == 'local':
-        alg_inp.const_timestep = False
-    else:
-        raise ValueError('Time step can be const or local only')
-
-    # Spatial discretisation scheme
-    temp = read_file[comment_lineno[2]+1:comment_lineno[3]]
-    if len(temp) > 1:
-        raise ValueError('Spatial scheme is defined wrongly in algorithm text file')
-    temp = temp[0].split(',')
-    if temp[0] != 'central_diff':
-        raise ValueError('Implement %s spatial scheme' % temp[0])
-    alg_inp.sp_sch = temp[0]
-
-    # Spatial order of accuracy
-    alg_inp.sp_ooa = int(temp[1])
-
-    # Evaluation count
-    temp = read_file[comment_lineno[3]+1:comment_lineno[4]]
-    if len(temp) > 1:
-        raise ValueError('ceval wrong')
-    alg_inp.ceval = int(temp[0])
-    temp = read_file[comment_lineno[4]+1:comment_lineno[5]]
-    if len(temp) > 1:
-        raise ValueError('ceval wrong')
-    alg_inp.wrkarr = '%s%%d' % temp[0]
-    temp = read_file[comment_lineno[5]+1:comment_lineno[6]]
-
-    # Read the boundary conditions
-    for te in temp:
-        te = te.replace(' ', '')
-        alg_inp.bcs = alg_inp.bcs + [tuple(te.strip().split(','))]
-
-    # Language
-    temp = read_file[comment_lineno[6]+1:comment_lineno[7]]
-    alg_inp.lang = temp[0]
-
-    # Multi-block stuff
-    temp = read_file[comment_lineno[7]+1:comment_lineno[8]]
-    if len(temp) > 1:
-        raise ValueError('Blocks defined wrongly in the code')
-    temp = temp[0]
-    if temp == 'SB':
-        alg_inp.multiblock = False
-        alg_inp.nblocks = 1
-    elif temp == 'MB':
-        alg_inp.multiblock = True
-        alg_inp.nblocks = Symbol('nblocks')
-    else:
-        raise ValueError('Blocks can be SB for single block or MB for Multi-block')
-
-    # Spatial filtering of conservative varibles
-    temp = read_file[comment_lineno[8]+1:comment_lineno[9]]
-    temp = temp[0].split(',')
-    for te in temp:
-        te = te.strip()
-        if te == 'T':
-            alg_inp.expfilter.append(True)
-        elif te == 'F':
-            alg_inp.expfilter.append(False)
+        # Constant or local time-step
+        temp = lines[comment_lineno[1]+1:comment_lineno[2]]
+        if len(temp) > 1:
+            raise ValueError('Time step can be const or local only')
+        if temp[0] == 'const':
+            self.const_timestep = True
+        elif temp[0] == 'local':
+            self.const_timestep = False
         else:
-            raise ValueError('Filter can be T or F only')
-    # Various checks performed on the algorithm
+            raise ValueError('Time step can be const or local only')
 
-    return alg_inp
+        # Spatial discretisation scheme
+        temp = lines[comment_lineno[2]+1:comment_lineno[3]]
+        if len(temp) > 1:
+            raise ValueError('Spatial scheme is defined wrongly in algorithm text file')
+        temp = temp[0].split(',')
+        if temp[0] != 'central_diff':
+            raise ValueError('Implement %s spatial scheme' % temp[0])
+        self.sp_sch = temp[0]
+
+        # Spatial order of accuracy
+        self.sp_ooa = int(temp[1])
+
+        # Evaluation count
+        temp = lines[comment_lineno[3]+1:comment_lineno[4]]
+        if len(temp) > 1:
+            raise ValueError('ceval wrong')
+        self.ceval = int(temp[0])
+        temp = lines[comment_lineno[4]+1:comment_lineno[5]]
+        if len(temp) > 1:
+            raise ValueError('ceval wrong')
+        self.wrkarr = '%s%%d' % temp[0]
+        temp = lines[comment_lineno[5]+1:comment_lineno[6]]
+
+        # Read the boundary conditions
+        for te in temp:
+            te = te.replace(' ', '')
+            self.bcs = self.bcs + [tuple(te.strip().split(','))]
+
+        # Language
+        temp = lines[comment_lineno[6]+1:comment_lineno[7]]
+        self.lang = temp[0]
+
+        # Multi-block stuff
+        temp = lines[comment_lineno[7]+1:comment_lineno[8]]
+        if len(temp) > 1:
+            raise ValueError('Blocks defined wrongly in the code')
+        temp = temp[0]
+        if temp == 'SB':
+            self.multiblock = False
+            self.nblocks = 1
+        elif temp == 'MB':
+            self.multiblock = True
+            self.nblocks = Symbol('nblocks')
+        else:
+            raise ValueError('Blocks can be SB for single block or MB for Multi-block')
+
+        # Spatial filtering of conservative varibles
+        temp = lines[comment_lineno[8]+1:comment_lineno[9]]
+        temp = temp[0].split(',')
+        for te in temp:
+            te = te.strip()
+            if te == 'T':
+                self.expfilter.append(True)
+            elif te == 'F':
+                self.expfilter.append(False)
+            else:
+                raise ValueError('Filter can be T or F only')
+        # Various checks performed on the algorithm
+
+        return
 
 
-def perform_algorithm_checks(alg, inp):
-    """ Perform sanity checks on the algorithm input. """
-    if len(alg.bcs) == inp.ndim:
-        pass
-    elif (len(alg.bcs) > inp.ndim):
-        raise ValueError('There are more boundary conditions than the number of dimensions')
-    elif (len(alg.bcs) < inp.ndim):
-        raise ValueError('There are less boundary conditions than the number of dimensions')
+    def sanity_check(self, inp):
+        """ Perform sanity checks on the algorithm input. """
+        if len(self.bcs) == inp.ndim:
+            pass
+        elif (len(self.bcs) > inp.ndim):
+            raise ValueError('There are more boundary conditions than the number of dimensions')
+        elif (len(self.bcs) < inp.ndim):
+            raise ValueError('There are less boundary conditions than the number of dimensions')
 
-    if len(alg.expfilter) == inp.ndim:
-        pass
-    elif (len(alg.expfilter) > inp.ndim):
-        raise ValueError('There are more options for filter than number of dimension')
-    elif (len(alg.expfilter) < inp.ndim):
-        raise ValueError('There are less options for filter than number of dimension')
+        if len(self.expfilter) == inp.ndim:
+            pass
+        elif (len(self.expfilter) > inp.ndim):
+            raise ValueError('There are more options for filter than number of dimension')
+        elif (len(self.expfilter) < inp.ndim):
+            raise ValueError('There are less options for filter than number of dimension')
 
-    return
+        return
 
 
 def count_input_equations(variable, equations):
@@ -290,7 +293,7 @@ class ExplicitFilter(object):
 
 class PreparedEquations(object):
 
-    def __init__(self, eqs, forms, alginp):
+    def __init__(self, eqs, forms, algorithm):
         self.inpeq = (flatten(list(eq.expandedeq for eq in eqs)))
         self.forms = flatten(list(eq.expandedeq for eq in forms))
         var = flatten(list(eq.variables for eq in eqs))
@@ -305,9 +308,9 @@ class PreparedEquations(object):
         # Race_check
         self.race_check = True
 
-        if alginp.lang == 'OPSC':
+        if algorithm.lang == 'OPSC':
             l = 0
-        elif alginp.lang == 'F90':
+        elif algorithm.lang == 'F90':
             l = 1
 
         indi = []
@@ -321,8 +324,8 @@ class PreparedEquations(object):
 
         self.block = Idx('blk', (l, Symbol('nblock', integer=True)))
         self.grid = self.grid + [self.block.upper]
-        self.nblocks = alginp.nblocks
-        self.multiblock = alginp.multiblock
+        self.nblocks = algorithm.nblocks
+        self.multiblock = algorithm.multiblock
         self.blockdims = []
         self.halos = []
         self.gridhalo = []
@@ -330,7 +333,7 @@ class PreparedEquations(object):
         self.iterrange = 0
         self.kernel_ind = 0
 
-        if alginp.lang == 'OPSC':
+        if algorithm.lang == 'OPSC':
             if self.multiblock:
                 raise ValueError('Implement Multi Block code implementation for OPSC')
             code_file = open(BUILD_DIR+'/OPSC_nssolver.cpp', 'w')
@@ -344,7 +347,7 @@ class PreparedEquations(object):
                 temp = Idx('i%d' % dim, Symbol('nx%dp[blk]' % dim, integer=True))
                 self.blockdims.append(temp)
                 self.grid = self.grid + [temp.upper+1]
-        elif alginp.lang == 'F90':
+        elif algorithm.lang == 'F90':
             if self.multiblock:
                 raise ValueError('Implement Multi Block code implementation for F90')
             code_file = open(BUILD_DIR+'/F_serial.f90', 'w')
@@ -357,8 +360,9 @@ class PreparedEquations(object):
                 self.grid = self.grid + [temp.upper]
             self.kername = 'subroutine_%d'
         else:
-            raise ValueError('Implement indexing for language  %s' % (alginp.lang))
-        perform_algorithm_checks(alginp, self)
+            raise ValueError('Implement indexing for language  %s' % (algorithm.lang))
+
+        algorithm.sanity_check(self)
         variab = []
 
         for va in totvar:
@@ -366,7 +370,8 @@ class PreparedEquations(object):
             variab = variab + [Indexed('%s' % str(va), varform)]
             for eq in range(len(self.inpeq)):
                 self.inpeq[eq] = self.inpeq[eq].subs(va, new)
-        # prepare the formulas
+
+        # Prepare the formulas
         formvar = flatten(list(eq.conser for eq in forms))
         formvar = formvar + flatten(list(eq.variables for eq in forms))
         formvar = list(set(formvar))
@@ -396,8 +401,8 @@ class PreparedEquations(object):
         for va in variab:
             val = form_dict.get(va)
             count = count_input_equations(va, self.inpeq)
-            count = alginp.ceval
-            if count >= alginp.ceval:
+            count = algorithm.ceval
+            if count >= algorithm.ceval:
                 if val:
                     form_evals.append(Eq(va, val))
                     self.dats = self.dats + [va]
@@ -406,13 +411,13 @@ class PreparedEquations(object):
             else:
                 substis[va] = val
                 # raise ValueError('Implement how to do for count > ceval')
-        if alginp.time_sch == 'RK':
+        if algorithm.time_sch == 'RK':
 
-            rkloop = Idx('nrk', (l, alginp.time_ooa))
+            rkloop = Idx('nrk', (l, algorithm.time_ooa))
             time_loop = Idx('iter', (l, Symbol('niter', integer=True)))
-            a1 = Indexed('a1', Idx('nrk', (l, alginp.time_ooa)))
-            a2 = Indexed('a2', Idx('nrk', (l, alginp.time_ooa)))
-            rk = Indexed('rk', Idx('nrk', (l, alginp.time_ooa)))
+            a1 = Indexed('a1', Idx('nrk', (l, algorithm.time_ooa)))
+            a2 = Indexed('a2', Idx('nrk', (l, algorithm.time_ooa)))
+            rk = Indexed('rk', Idx('nrk', (l, algorithm.time_ooa)))
             self.const = self.const + [a1, a2, time_loop.upper+1]
             saveeq = []
             conser_old = []
@@ -422,8 +427,8 @@ class PreparedEquations(object):
         ders = list(set(ders))
         der_evals = []
 
-        # Get the coefficients of finite differences
-        derform(self, alginp)
+        # Get the coefficients of finite difference scheme
+        derform(self, algorithm)
         tempder = []
         for no, der in enumerate(ders):
             tempder = tempder + [der]
@@ -431,21 +436,21 @@ class PreparedEquations(object):
                 val = der.args[0]
             else:
                 val = substis.get(der.args[0])
-            if alginp.ceval == 0:
+            if algorithm.ceval == 0:
                 count = 100
-            elif alginp.ceval == 1000:
+            elif algorithm.ceval == 1000:
                 count = 999
             else:
                 count = count_input_equations(der, self.inpeq)
             order = len(der.args) - 1
             if val:
-                if order == 1 and count >= alginp.ceval:
+                if order == 1 and count >= algorithm.ceval:
                     if der.args[1] != Symbol('t'):
                         if substis.get(der):
                             pass
                         else:
                             var = der.subs(der.args[0], val)
-                            temp = alginp.wrkarr % (wrkindex)
+                            temp = algorithm.wrkarr % (wrkindex)
                             wrkindex = wrkindex + 1
                             new = Indexed('%s' % str(temp), varform)
                             derf = apply_der(var, self)
@@ -453,11 +458,11 @@ class PreparedEquations(object):
                             substis[der] = new
                             self.dats = self.dats + [new]
                     else:
-                        if alginp.time_sch == 'RK':
+                        if algorithm.time_sch == 'RK':
                             con = der.args[0]
                             temp = '%s_old' % con.base
                             old = Indexed('%s' % str(temp), varform)
-                            if alginp.const_timestep:
+                            if algorithm.const_timestep:
                                 time = Symbol('dt')
                                 self.const = self.const + [time]
                             else:
@@ -470,10 +475,10 @@ class PreparedEquations(object):
                             saveeq.append(Eq(old, con))
 
                     # substitute RK3 routine now
-                elif order == 2 and count >= alginp.ceval:
+                elif order == 2 and count >= algorithm.ceval:
                     if der.args[1] == der.args[2]:
                         var = der.subs(der.args[0], val)
-                        temp = alginp.wrkarr % (wrkindex)
+                        temp = algorithm.wrkarr % (wrkindex)
                         wrkindex = wrkindex + 1
                         new = Indexed('%s' % str(temp), varform)
                         self.dats = self.dats + [new]
@@ -484,7 +489,7 @@ class PreparedEquations(object):
                         expr = Derivative(der.args[0], der.args[2])
                         if substis.get(expr):
                             var = der.subs(expr, substis.get(expr))
-                            temp = alginp.wrkarr % (wrkindex)
+                            temp = algorithm.wrkarr % (wrkindex)
                             wrkindex = wrkindex + 1
                             new = Indexed('%s' % str(temp), varform)
                             derf = apply_der(var, self)
@@ -492,7 +497,7 @@ class PreparedEquations(object):
                             substis[der] = new
                             self.dats = self.dats + [new]
                         else:
-                            temp = alginp.wrkarr % (wrkindex)
+                            temp = algorithm.wrkarr % (wrkindex)
                             wrkindex = wrkindex + 1
                             new = Indexed('%s' % str(temp), varform)
                             derf = apply_der(expr, self)
@@ -501,14 +506,14 @@ class PreparedEquations(object):
                             self.dats = self.dats + [new]
                             # substis[expr] = new
                             var = der.subs(expr, new)
-                            temp = alginp.wrkarr % (wrkindex)
+                            temp = algorithm.wrkarr % (wrkindex)
                             wrkindex = wrkindex + 1
                             new = Indexed('%s' % str(temp), varform)
                             derf = apply_der(var, self)
                             der_evals.append(Eq(new, derf))
                             substis[der] = new
                             self.dats = self.dats + [new]
-                elif order == 1 and count < alginp.ceval:
+                elif order == 1 and count < algorithm.ceval:
                     if der.args[1] != Symbol('t'):
                         if substis.get(der):
                             pass
@@ -517,11 +522,11 @@ class PreparedEquations(object):
                             derf = apply_der(var, self)
                             substis[der] = derf
                     else:
-                        if alginp.time_sch == 'RK':
+                        if algorithm.time_sch == 'RK':
                             con = der.args[0]
                             temp = '%s_old' % con.base
                             old = Indexed('%s' % str(temp), varform)
-                            if alginp.const_timestep:
+                            if algorithm.const_timestep:
                                 time = Symbol('dt')
                                 self.const = self.const + [time]
                             else:
@@ -532,7 +537,7 @@ class PreparedEquations(object):
                             self.dats = self.dats + [old]
                             substis[der] = rkfor
                             saveeq.append(Eq(old, con))
-                elif order == 2 and count < alginp.ceval:
+                elif order == 2 and count < algorithm.ceval:
                     if der.args[1] == der.args[2]:
                         var = der.subs(der.args[0], val)
                         derf = apply_der(var, self)
@@ -560,8 +565,9 @@ class PreparedEquations(object):
                             substis[der] = derf
                 else:
                     raise ValueError('No know;')
-            elif count >= alginp.ceval:
-                temp = alginp.wrkarr % (wrkindex)
+
+            elif count >= algorithm.ceval:
+                temp = algorithm.wrkarr % (wrkindex)
                 wrkindex = wrkindex + 1
                 new = Indexed('%s' % str(temp), varform)
                 self.dats = self.dats + [new]
@@ -569,14 +575,14 @@ class PreparedEquations(object):
                 form_evals.append(Eq(new, var))
                 # substis[var] = new
                 var = der.subs(var, new)
-                temp = alginp.wrkarr % (wrkindex)
+                temp = algorithm.wrkarr % (wrkindex)
                 wrkindex = wrkindex + 1
                 new = Indexed('%s' % str(temp), varform)
                 derf = apply_der(var, self)
                 der_evals.append(Eq(new, derf))
                 substis[der] = new
                 self.dats = self.dats + [new]
-            elif count < alginp.ceval:
+            elif count < algorithm.ceval:
                 derf = apply_der(der, self)
                 substis[der] = derf
             else:
@@ -591,7 +597,7 @@ class PreparedEquations(object):
         for der in der_evals:
             evaluations[evalind] = der
             evalind = evalind+1
-        # final rk equations
+        # Final Runge-Kutta step
 
         # Write out algorithm in LaTeX form
         latex = LatexWriter()
@@ -672,8 +678,8 @@ class PreparedEquations(object):
         latex.write_string('The final rk3 update equations are\n\n')
         latex.write_equations(final_eqs, varform)
 
-        if any(alginp.expfilter):
-            self.filtereqs = expfiltering(alginp, self, savedic)
+        if any(algorithm.expfilter):
+            self.filtereqs = expfiltering(algorithm, self, savedic)
             f.write('The filter equations are\n\n')
             for eq in self.filtereqs:
                 latex.write_equations(eq, varform)
@@ -695,8 +701,8 @@ class PreparedEquations(object):
         self.dats = list(set(self.dats))
 
         # Writing kernels and kernel calls
-        # bcs(self,alginp)
-        if alginp.lang == 'OPSC':
+        # bcs(self,algorithm)
+        if algorithm.lang == 'OPSC':
             calls = []
             kerns = []
             if evaluations:
@@ -728,20 +734,20 @@ class PreparedEquations(object):
             kerns = kerns + kern
             final_alg[alg_template.get('a03')] = call
 
-        elif alginp.lang == 'F90':
+        elif algorithm.lang == 'F90':
             calls = []
             kerns = []
             if evaluations:
-                call, kern = F90_write_kernel(evaluations, self, alginp)  # Evaluations
+                call, kern = F90_write_kernel(evaluations, self, algorithm)  # Evaluations
                 calls = calls + call
                 kerns = kerns + kern
-            call, kern = F90_write_kernel(final_eqs, self, alginp)  # Evaluations
+            call, kern = F90_write_kernel(final_eqs, self, algorithm)  # Evaluations
             calls = calls + call
             kerns = kerns + kern
 
             final_alg[alg_template.get('a08')] = calls
 
-            call, kern = F90_write_kernel(saveeq, self, alginp)
+            call, kern = F90_write_kernel(saveeq, self, algorithm)
             kerns = kerns + kern
             final_alg[alg_template.get('a06')] = call
             init_eq = []
@@ -751,13 +757,13 @@ class PreparedEquations(object):
             init_eq = init_eq + [Eq(self.conser[3], parse_expr('1 + 0.5*(u**2 + v**2)', evaluate=False))]
 
             latex.write_equations(init_eq, varform)
-            call, kern = F90_write_kernel(init_eq, self, alginp)
+            call, kern = F90_write_kernel(init_eq, self, algorithm)
             kerns = kerns + kern
             final_alg[alg_template.get('a03')] = call
 
         # The algortihm
        # Commented for checking Fortran subroutine write
-        # if any(alginp.expfilter):
+        # if any(algorithm.expfilter):
             # for eq in self.filtereqs:
                 # call, kern = OPSC_write_kernel(eq,self)
                 # final_alg[alg_template.get('a11')] = final_alg[alg_template.get('a11')] + [call]
@@ -769,37 +775,37 @@ class PreparedEquations(object):
             # final_alg[alg_template.get('a11')] = final_alg[alg_template.get('a11')] + [call]
             # kerns = kerns + kern
         # TODO
-        if alginp.lang == 'OPSC':
-            bcs(self, alginp)
-        elif alginp.lang == 'F90':
+        if algorithm.lang == 'OPSC':
+            bcs(self, algorithm)
+        elif algorithm.lang == 'F90':
             self.bccall = ['']
 
-        final_alg[alg_template.get('a00')] = header_code(self, alginp)
-        final_alg[alg_template.get('a01')] = defdec(self, alginp)
+        final_alg[alg_template.get('a00')] = header_code(self, algorithm)
+        final_alg[alg_template.get('a01')] = defdec(self, algorithm)
         final_alg[alg_template['a04']] = self.bccall
         final_alg[alg_template['a09']] = self.bccall
 
-        temp = '%s Write the grid here if required' % COMMENT_DELIMITER[alginp.lang]
-        temp = temp + '\n\n\n' + '%s Grid writing ends here' % COMMENT_DELIMITER[alginp.lang]
+        temp = '%s Write the grid here if required' % COMMENT_DELIMITER[algorithm.lang]
+        temp = temp + '\n\n\n' + '%s Grid writing ends here' % COMMENT_DELIMITER[algorithm.lang]
         final_alg[alg_template.get('a02')] = [temp]
-        final_alg[alg_template.get('a11')] = ['%s after  after inner time loop' % COMMENT_DELIMITER[alginp.lang]]
+        final_alg[alg_template.get('a11')] = ['%s after  after inner time loop' % COMMENT_DELIMITER[algorithm.lang]]
 
-        tloop, tenloop = loop([time_loop], alginp)
+        tloop, tenloop = loop([time_loop], algorithm)
         final_alg[alg_template.get('a05')] = tloop
         final_alg[alg_template.get('a12')] = tenloop
-        tloop, tenloop = loop([rkloop], alginp)
+        tloop, tenloop = loop([rkloop], algorithm)
 
         final_alg[alg_template.get('a07')] = tloop
         final_alg[alg_template.get('a10')] = tenloop
 
         # Write the conservative variables to files (including halos)
-        final_alg[alg_template.get('a13')] = after_time(self, alginp)
-        final_alg[alg_template.get('a14')] = footer_code(self, alginp)
+        final_alg[alg_template.get('a13')] = after_time(self, algorithm)
+        final_alg[alg_template.get('a14')] = footer_code(self, algorithm)
 
         final_alg['kernels'] = kerns
 
-        write_final_code(alg_template, final_alg, code_file, kernel_file, alginp.lang)
-        if alginp.lang == 'F90':
+        write_final_code(alg_template, final_alg, code_file, kernel_file, algorithm.lang)
+        if algorithm.lang == 'F90':
             write_module(self.module, modulefile)
             modulefile.close()
         code_file.close()

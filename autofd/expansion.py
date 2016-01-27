@@ -6,7 +6,6 @@ import time
 # Symbolic-related functions
 from sympy import *
 from sympy.parsing.sympy_parser import *
-init_printing(use_latex=True)
 
 # AutoFD functions
 from .einstein_expansion import *
@@ -75,12 +74,12 @@ def expand_equations(equations_file):
 
     # Prepare equations for algorithm
     algorithm_file_path = base_path + "/algorithm"
-    read_file = [line for line in open(algorithm_file_path, "r").read().splitlines() if line]
-    algorithm = read_algorithm(read_file)
+    algorithm = Algorithm()
+    algorithm.read_input(algorithm_file_path)
     start = time.time()
     final_equation = PreparedEquations(equations, formulas, algorithm)
     end = time.time()
-    LOG.debug('The time taken for tensor expansion of equations in %d Dimensions is %.2f seconds.' % (inp.ndim, end - start))
+    LOG.debug('The time taken to prepare the equations in %d Dimensions is %.2f seconds.' % (inp.ndim, end - start))
 
     # Output equations in LaTeX format.
     latex = LatexWriter()

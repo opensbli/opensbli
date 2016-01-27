@@ -1,8 +1,8 @@
 """ This contains utility routines not related to code generationm, such as writing out expanded equations in LaTeX format. """
 
 from sympy import *
-from sympy.parsing.sympy_parser import standard_transformations, implicit_application
-transformations = standard_transformations + (implicit_application,)
+from sympy.parsing.sympy_parser import *
+init_printing(use_latex=True)
 import re
 import textwrap
 
@@ -10,7 +10,7 @@ import logging
 LOG = logging.getLogger(__name__)
 
 
-class LatexWriter(object):
+class LatexWriter(File):
 
     """ Handles writing of equations and arbitrary strings in LaTeX format. """
 
