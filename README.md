@@ -32,7 +32,7 @@ export PYTHONPATH=$PYTHONPATH:/path/to/autofd/base/directory
 ```
 
 ## Contact
-If you wish to report a bug with the software, please contact [Satya P Jammy](mailto:S.P.Jammy@soton.ac.uk) or [Christian T. Jacobs](mailto:c.jacobs10@imperial.ac.uk).
+If you wish to report a bug with the software, please contact [Satya P Jammy](mailto:S.P.Jammy@soton.ac.uk) or [Christian T. Jacobs](mailto:C.T.Jacobs@soton.ac.uk).
 
 ## Known issues
 * (13/01/2016) The iteration range does not work properly for re-evaluation version - this is modified but will be updated in the next push
