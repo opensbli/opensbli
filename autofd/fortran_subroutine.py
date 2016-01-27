@@ -2,12 +2,10 @@ from sympy import *
 from sympy.parsing.sympy_parser import (parse_expr, standard_transformations, implicit_application)
 transformations = standard_transformations + (implicit_application,)
 from .codegen_utils import loop
-line_comment = {}
-line_comment['OPSC'] = '//'
-line_comment['F90'] = '!'
-lend = {}
-lend['OPSC'] = ';'
-lend['F90'] = ''
+
+# Language-specific delimiters
+COMMENT_DELIMITER = {"OPSC":"//", "F90":"!"}
+END_OF_STATEMENT_DELIMITER = {"OPSC":";", "F90":""}
 
 import logging
 LOG = logging.getLogger(__name__)
@@ -40,7 +38,7 @@ def F90_write_kernel(eqs, inp, alg):
         # LOG.debug(lower,upper)
         for ev in evals:
             code = fcode(ev, source_format='free', standard=95)
-            code = code.replace('==', '=') + lend['F90']
+            code = code.replace('==', '=') + END_OF_STATEMENT_DELIMITER['F90']
             out = out + [code]
         kercall = []
         kerheader = []
@@ -126,10 +124,10 @@ def F90_write_kernel(eqs, inp, alg):
             st, en = loop(newdims, alg)
             out = st + out + en
 
-            kernel = ['%s Start  sub routine \n' % line_comment['F90']]
+            kernel = ['%s Start  sub routine \n' % COMMENT_DELIMITER['F90']]
             kernel = kernel + kerheader + out + ['end subroutine']
             # kernel = '\n'.join(kernel)
-            kernel = kernel + ['%s End sub routine \n\n\n' % line_comment['F90']]
+            kernel = kernel + ['%s End sub routine \n\n\n' % COMMENT_DELIMITER['F90']]
         else:
             LOG.debug(tot_base)
             pass

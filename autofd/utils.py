@@ -10,16 +10,16 @@ import logging
 LOG = logging.getLogger(__name__)
 
 
-def latex_article_header(inp):
+def latex_article_header(metadata):
     """ Create the header of the LaTeX article file.
 
-    :arg list inp: a list containing the document's title, author and description.
-    :returns: the header and \end{document} statement.
+    :arg list metadata: a list containing the title, author and institution.
+    :returns: the header and footer statements.
     :rtype: tuple
     """
     header_article = []
     header_article.append('\\documentclass{article}')
-    header_article.append('\\title{%s}\n\\author{%s\\\\ %s}' % (inp[0], inp[1], inp[2]))
+    header_article.append('\\title{%s}\n\\author{%s\\\\ %s}' % (metadata["title"], metadata["author"], metadata["institution"]))
     # header_article.append('\\date{\\today}')
     header_article.append('\\usepackage{color}\n\\usepackage{breqn}')
     header_article.append('\\begin{document}')
@@ -27,22 +27,22 @@ def latex_article_header(inp):
     header_article.append('')
     header_article = '\n'.join(header_article)
 
-    end_article = '\\end{document}'
-    return header_article, end_article
+    footer_article = '\\end{document}'
+    return header_article, footer_article
 
 
-def write_latex(fname, inp, varform=None):
+def write_latex(filename, equations):
     """ Write out the equations in nice LaTeX format.
 
-    :arg fname: the .tex file to write to.
-    :arg inp: the list of equations.
+    :arg filename: the .tex file to write to.
+    :arg equations: the list of equations.
     """
 
     out = []
 
-    if isinstance(inp, dict):
+    if isinstance(equations, dict):
         out = out + ['The input is a Dictionary\n\n']
-        for key, value in inp.iteritems():
+        for key, value in equations.iteritems():
             if isinstance(value, list):
                 out = out + ['The values are a list\n\n']
                 for l in value:
@@ -57,10 +57,10 @@ def write_latex(fname, inp, varform=None):
                 out = out + [temp]
                 # out = out + ['The values are not a list and end here\n\n']
 
-    elif isinstance(inp, list):
+    elif isinstance(equations, list):
         out = out + ['The values are a list\n\n']
-        for l in inp:
-            out = out + [latex(l, mode='equation', long_frac_ratio=3, mul_symbol="ldot")]
+        for e in equations:
+            out = out + [latex(e, mode='equation', long_frac_ratio=3, mul_symbol="ldot")]
         out = out + ['The list ends here\n\n']
 
     for o in range(len(out)):

@@ -10,12 +10,9 @@ import textwrap
 import logging
 LOG = logging.getLogger(__name__)
 
-line_comment = {}
-line_comment['OPSC'] = '//'
-line_comment['F90'] = '!'
-lend = {}
-lend['OPSC'] = ';'
-lend['F90'] = ''
+# Language-specific delimiters
+COMMENT_DELIMITER = {"OPSC":"//", "F90":"!"}
+END_OF_STATEMENT_DELIMITER = {"OPSC":";", "F90":""}
 
 
 def eqto_dict(inp):
@@ -67,7 +64,7 @@ def OPSC_write_kernel(eqs, inp):
         # LOG.debug(lower,upper)
         for ev in evals:
             code = ccode(ev)
-            code = code.replace('==', '=') + lend['OPSC']
+            code = code.replace('==', '=') + END_OF_STATEMENT_DELIMITER['OPSC']
             out = out + [code]
         kercall = []
         kerheader = []
@@ -211,7 +208,7 @@ def header_code(inp, alg):
         out = out + ['#include <string.h>']
         out = out + ['#include <math.h>']
 
-        out.append('%s Global Constants in the equations are' % line_comment[lang])
+        out.append('%s Global Constants in the equations are' % COMMENT_DELIMITER[lang])
         dobs = []
         ints = []
         for con in inp.const:
@@ -229,15 +226,15 @@ def header_code(inp, alg):
                 else:
                     dobs = dobs + ['%s[%d]' % (con.base, tot)]
         if ints:
-            out = out + ['int %s %s' % (', '.join(ints), lend[lang])]
+            out = out + ['int %s %s' % (', '.join(ints), END_OF_STATEMENT_DELIMITER[lang])]
         if dobs:
-            out = out + ['double %s %s' % (', '.join(dobs), lend[lang])]
+            out = out + ['double %s %s' % (', '.join(dobs), END_OF_STATEMENT_DELIMITER[lang])]
 
         out = out + ['// OPS header file']
         out = out + ['#define OPS_%sD' % inp.ndim]
         out = out + ['#include "ops_seq.h"']
         out = out + ['#include "auto_kernel.h"']
-        out = out + ['%s main program start' % line_comment[lang]]
+        out = out + ['%s main program start' % COMMENT_DELIMITER[lang]]
         out = out + ['int main (int argc, char **argv) {']
     elif lang == 'F90':
         dobs = []
@@ -258,9 +255,9 @@ def header_code(inp, alg):
                 else:
                     dobs = dobs + ['%s(%d)' % (con.base, tot)]
         if ints:
-            out = out + ['integer :: %s %s' % (', '.join(ints), lend[lang])]
+            out = out + ['integer :: %s %s' % (', '.join(ints), END_OF_STATEMENT_DELIMITER[lang])]
         if dobs:
-            out = out + ['real(8) :: %s %s' % (', '.join(dobs), lend[lang])]
+            out = out + ['real(8) :: %s %s' % (', '.join(dobs), END_OF_STATEMENT_DELIMITER[lang])]
         inp.module.append('\n'.join(out))
         out = []
         # TODO spj change module name later as of now using the same module name parammod
@@ -269,83 +266,96 @@ def header_code(inp, alg):
         out = out + ['IMPLICIT NONE']
 
     else:
-        raise ValueError('Implement %s in the header declaration' % lang)
+        raise ValueError('Implement header declaration for the %s language' % lang)
 
     return out
 
 
 def loop(indices, alg):
-    ''' this reuqires an index as input'''
-    lstart = []
-    lend = []
+    """ Generate a 'for' loop in the desired output language.
+    
+    :arg indices: the loop indices.
+    :returns: headers and footers of the loops.
+    """
+
+    header = []
+    footer = []
+
     if alg.lang == 'OPSC':
-        comm = '%s loop start %s' % (line_comment.get(alg.lang), indices[0])
-        lstart.append(comm)
+        comment = '%s loop start %s' % (COMMENT_DELIMITER[alg.lang], indices[0])
+        header.append(comment)
         for dim in range(0, len(indices)):
             temp = indices[dim]
-            lstart.append('for(int %s=%s; %s<%s; %s++){' % (temp, temp.lower, temp, temp.upper, temp))
-            lend.append('}')
-        comm = '%s loop end %s' % (line_comment.get(alg.lang), indices[0])
-        lend.append(comm)
+            header.append('for(int %s=%s; %s<%s; %s++){' % (temp, temp.lower, temp, temp.upper, temp))
+            footer.append('}')
+        comment = '%s loop end %s' % (COMMENT_DELIMITER[alg.lang], indices[0])
+        footer.append(comment)
+
     elif alg.lang == 'F90':
-        comm = '%s loop start %s' % (line_comment.get(alg.lang), indices[0])
-        lstart.append(comm)
+        comment = '%s loop start %s' % (COMMENT_DELIMITER[alg.lang], indices[0])
+        header.append(comment)
         for dim in reversed(range(0, len(indices))):
             temp = indices[dim]
-            lstart.append('do %s=%s,%s' % (temp, temp.lower, temp.upper))
-            lend.append('enddo')
-        comm = '%s loop end %s' % (line_comment.get(alg.lang), indices[0])
-        lend.append(comm)
+            header.append('do %s=%s,%s' % (temp, temp.lower, temp.upper))
+            footer.append('enddo')
+        comment = '%s loop end %s' % (COMMENT_DELIMITER[alg.lang], indices[0])
+        footer.append(comment)
 
     else:
-        raise ValueError('Implement %s in the loop declaration' % alg.lang)
-    return lstart, lend
+        raise ValueError('Implement loop declaration for the %s language.' % alg.lang)
+
+    return header, footer
 
 
-def defdec_lang(inp, alg):
+def defdec(inp, alg):
+    """ Define and declare variables. """
+
     out = []
     lang = alg.lang
+
     if alg.lang == 'OPSC':
         # Define inputs to the code
         blkname = inp.blkname
         totblock = inp.block.upper - inp.block.lower
         ind = inp.blockdims
         inputs = []
-        inputs = inputs + ['int %s = %d %s' % (totblock, inp.nblocks, lend[lang])]
-        # change this
-        inputs = inputs + ['int %s %s' % (','.join(list('%s[%s]' % ('nx%dp' % dim, totblock) for dim in range(inp.ndim))), lend[lang])]
+        inputs = inputs + ['int %s = %d %s' % (totblock, inp.nblocks, END_OF_STATEMENT_DELIMITER[lang])]
 
-        if not inp.MB:
-            inputs = inputs + ['int %s = %d%s' % (inp.block, inp.nblocks-1, lend[lang])]
+        # change this
+        inputs = inputs + ['int %s %s' % (','.join(list('%s[%s]' % ('nx%dp' % dim, totblock) for dim in range(inp.ndim))), END_OF_STATEMENT_DELIMITER[lang])]
+
+        if not inp.multiblock:
+            inputs = inputs + ['int %s = %d%s' % (inp.block, inp.nblocks-1, END_OF_STATEMENT_DELIMITER[lang])]
             inputs = inputs + ['\n'.join(list('%s = ;' % inp.grid[dim+1] for dim in range(inp.ndim)))]
         else:
-            inputs = inputs + ['%s Write the block dimensions here' % (line_comment[lang])]
+            inputs = inputs + ['%s Write the block dimensions here' % (COMMENT_DELIMITER[lang])]
             inputs = inputs + ['\n\n']
-            inputs = inputs + ['%s Writing the block dimensions  ends here' % (line_comment[lang])]
+            inputs = inputs + ['%s Writing the block dimensions ends here' % (COMMENT_DELIMITER[lang])]
         # inputs
 
         # Declare Constants in OPS format
-        out = out + ['ops_init(argc,argv,1)%s' % lend[lang]]
-        for con in inp.const:
-            if isinstance(con, Symbol):
-                inputs = inputs + ['%s = %s' % (con, lend[lang])]
-            elif isinstance(con, Indexed):
+        out = out + ['ops_init(argc,argv,1)%s' % END_OF_STATEMENT_DELIMITER[lang]]
+        for constant in inp.const:
+            if isinstance(constant, Symbol):
+                inputs = inputs + ['%s = %s' % (constant, END_OF_STATEMENT_DELIMITER[lang])]
+            elif isinstance(constant, Indexed):
                 tot = 0
-                for inde in con.shape:
+                for inde in constant.shape:
                     tot = tot + inde
                 for no in range(tot-1):
-                    inputs = inputs + ['%s[%d] = %s' % (con.base, no, lend[lang])]
+                    inputs = inputs + ['%s[%d] = %s' % (constant.base, no, END_OF_STATEMENT_DELIMITER[lang])]
         for con in inp.const:
             if con.is_Symbol:
                 if con.is_integer:
                     dtype = 'int'
                 else:
                     dtype = 'double'
-                out = out + ['ops_decl_const(\"%s\" , 1, \"%s\", &%s)%s' % (con, dtype, con, lend[lang])]
+                out = out + ['ops_decl_const(\"%s\" , 1, \"%s\", &%s)%s' % (con, dtype, con, END_OF_STATEMENT_DELIMITER[lang])]
+
         # Declare block
         out.append('ops_block *%s = (ops_block *)malloc(%s*sizeof(ops_block*));' % (blkname, totblock))
         out.append('char buf[100];')
-        if inp.MB:
+        if inp.multiblock:
             stloop, enloop = loop([inp.block], alg)
         else:
             stloop = ['\n']
@@ -379,26 +389,26 @@ def defdec_lang(inp, alg):
             else:
                 raise ValueError('number of points are not a multiple of dimensions')
             tname = 'sten_%s' % value
-            out = out + ['int %s[] = {%s}%s' % (tname, key, lend[lang])]
+            out = out + ['int %s[] = {%s}%s' % (tname, key, END_OF_STATEMENT_DELIMITER[lang])]
             sname = 'ops_stencil %s = ops_decl_stencil(%d, %d, %s, \"%s\")%s'
-            out = out + [sname % (value, inp.ndim, npts[0], tname, tname, lend[lang])]
+            out = out + [sname % (value, inp.ndim, npts[0], tname, tname, END_OF_STATEMENT_DELIMITER[lang])]
         out = out + ['\n\n']+inp.bcdecl + ['\n\n'] + ['ops_partition("");']
         out = inputs + out
 
     elif lang == 'F90':
         inputs = []
-        # these are the grid dimensions etc..
-        inputs = inputs + ['integer :: %s %s' % (','.join(list('%s' % ('nx%dp' % dim) for dim in range(inp.ndim))), lend[lang])]
+        # These are the grid dimensions etc..
+        inputs = inputs + ['integer :: %s %s' % (','.join(list('%s' % ('nx%dp' % dim) for dim in range(inp.ndim))), END_OF_STATEMENT_DELIMITER[lang])]
         inputs = inputs + ['\n'.join(list('%s = ' % inp.grid[dim+1] for dim in range(inp.ndim)))]
         for con in inp.const:
             if isinstance(con, Symbol):
-                inputs = inputs + ['%s = %s' % (con, lend[lang])]
+                inputs = inputs + ['%s = %s' % (con, END_OF_STATEMENT_DELIMITER[lang])]
             elif isinstance(con, Indexed):
                 tot = 0
                 for inde in con.shape:
                     tot = tot + inde
                 for no in range(tot):
-                    inputs = inputs + ['%s(%d) = %s' % (con.base, no, lend[lang])]
+                    inputs = inputs + ['%s(%d) = %s' % (con.base, no, END_OF_STATEMENT_DELIMITER[lang])]
         out = []
         dimen = ','.join(list(':' for dim in range(inp.ndim)))
 
@@ -408,7 +418,7 @@ def defdec_lang(inp, alg):
         out = ' &\n'.join(textwrap.wrap(out, width=70, break_long_words=False))
         inp.module.append(out)
         out = []
-        # allocate stuff
+        # Allocate stuff
         ind = inp.blockdims
         sz = []
         for dim in range(inp.ndim):
@@ -424,6 +434,7 @@ def defdec_lang(inp, alg):
         # out = '\n'.join(out)
         # print(out)
         # TODO write this to take care of long allocations
+
     else:
         raise ValueError('Implement %s in the Definitions and declaration' % alg.lang)
 
@@ -432,21 +443,24 @@ def defdec_lang(inp, alg):
 
 def footer_code(inp, alg):
     out = []
-    lang = alg.lang
     if alg.lang == 'OPSC':
         out = out + ['ops_printf(\" finished running the code\\n\");', 'ops_exit();', '}']
-    elif lang == 'F90':
+    elif alg.lang == 'F90':
         out = out + ['end program']
     else:
         raise ValueError('Implement %s in the footer code' % alg.lang)
     return out
 
 
-def indent_code(self, code):
-    """Accepts a string of code or a list of code lines"""
+def indent_code(code):
+    """ Indent the code.
+    
+    :arg code: a string of code or a list of code lines.
+    :returns: the indented code
+    """
 
     if isinstance(code, string_types):
-        code_lines = self.indent_code(code.splitlines(True))
+        code_lines = indent_code(code.splitlines(True))
         return ''.join(code_lines)
 
     tab = "   "
@@ -490,7 +504,7 @@ def bcs(inp, alg):
     inp.bc_appl = []
     for dim in range(inp.ndim):
         bc = alg.bcs[dim]
-        if bc[0] == bc[1] and bc[0] == 'periodic' and alg.lang == 'OPSC' and not inp.MB:
+        if bc[0] == bc[1] and bc[0] == 'periodic' and alg.lang == 'OPSC' and not inp.multiblock:
             out = []
             iter_size = list(te for te in inp.gridhalo)
 
@@ -513,10 +527,10 @@ def bcs(inp, alg):
             stloop, enloop = loop([inp.block], alg)
             out = out + stloop
             out = out + ['int off = 0;']
-            out = out + ['int halo_iter[] = {%s}%s' % (iter_size, lend[alg.lang])]
-            out = out + ['int from_base[] = {%s}%s' % (fro, lend[alg.lang])]
-            out = out + ['int to_base[] = {%s}%s' % (to, lend[alg.lang])]
-            out = out + ['int dir[] = {%s}%s' % (dire, lend[alg.lang])]
+            out = out + ['int halo_iter[] = {%s}%s' % (iter_size, END_OF_STATEMENT_DELIMITER[alg.lang])]
+            out = out + ['int from_base[] = {%s}%s' % (fro, END_OF_STATEMENT_DELIMITER[alg.lang])]
+            out = out + ['int to_base[] = {%s}%s' % (to, END_OF_STATEMENT_DELIMITER[alg.lang])]
+            out = out + ['int dir[] = {%s}%s' % (dire, END_OF_STATEMENT_DELIMITER[alg.lang])]
             haloname = 'halos_x%d_%s' % (dim, bc[0])
             # halos[off++] = ops_decl_halo(u[i-1+ngrid_x*j], u[i+ngrid_x*j], halo_iter, base_from, base_to, dir, dir);
             halo_decl = '%s[off++] = ops_decl_halo(%%s[%%s],%%s[%%s],halo_iter, from_base, to_base, dir, dir);' % haloname
@@ -530,8 +544,8 @@ def bcs(inp, alg):
             to_base[dim] = u
             fro = ','.join(list(str(te) for te in from_base))
             to = ','.join(list(str(te) for te in to_base))
-            out = out + ['from_base[%d] = %s%s' % (dim, l, lend[alg.lang])]
-            out = out + ['to_base[%d] = %s%s' % (dim, u, lend[alg.lang])]
+            out = out + ['from_base[%d] = %s%s' % (dim, l, END_OF_STATEMENT_DELIMITER[alg.lang])]
+            out = out + ['to_base[%d] = %s%s' % (dim, u, END_OF_STATEMENT_DELIMITER[alg.lang])]
             for con in inp.conser:
                 out = out + [halo_decl % (con.base.label, inp.block, con.base.label, inp.block)]
                 halo_count = halo_count + 1
@@ -560,16 +574,16 @@ def bcs(inp, alg):
                 else:
                     raise ValueError('undefined bc')
                 stloop, enloop = loop([inp.block], alg)
-                out = out + ['%s\n%s Boundary condition %s\n%s' % (line_comment[lang], line_comment[lang], bcloc, line_comment[lang])]
+                out = out + ['%s\n%s Boundary condition %s\n%s' % (COMMENT_DELIMITER[lang], COMMENT_DELIMITER[lang], bcloc, COMMENT_DELIMITER[lang])]
                 out = out + stloop
                 te1 = ','.join(list(str(te) for te in iter_size))
                 out = out + ['int off = 0;']
-                out = out + ['int halo_iter[] = {%s}%s' % (te1, lend[lang])]
+                out = out + ['int halo_iter[] = {%s}%s' % (te1, END_OF_STATEMENT_DELIMITER[lang])]
                 te1 = ','.join(list(str(te) for te in from_base))
-                out = out + ['int from_base[] = {%s}%s' % (te1, lend[lang])]
+                out = out + ['int from_base[] = {%s}%s' % (te1, END_OF_STATEMENT_DELIMITER[lang])]
                 te1 = ','.join(list(str(te) for te in to_base))
-                out = out + ['int to_base[] = {%s}%s' % (te1, lend[lang])]
-                out = out + ['int dir[] = {%s}%s' % (','.join(str(i) for i in range(1, inp.ndim+1)), lend[lang])]
+                out = out + ['int to_base[] = {%s}%s' % (te1, END_OF_STATEMENT_DELIMITER[lang])]
+                out = out + ['int dir[] = {%s}%s' % (','.join(str(i) for i in range(1, inp.ndim+1)), END_OF_STATEMENT_DELIMITER[lang])]
                 halo_decl = '%s[off++] = ops_decl_halo(%%s[%%s],%%s[%%s],halo_iter, from_base, to_base, dir, dir);' % bcloc
                 LOG.debug(bcloc)
                 if bound == 'symmetry':
@@ -578,14 +592,14 @@ def bcs(inp, alg):
                     # change the values depending on the direction
                     iter_size[dim] = 1
                     structu = '%s[%d] = %s%s'
-                    out = out + [structu % ('halo_iter', dim, iter_size[dim], lend[lang])]
+                    out = out + [structu % ('halo_iter', dim, iter_size[dim], END_OF_STATEMENT_DELIMITER[lang])]
                     LOG.debug(bound, halo, val)
                     LOG.debug('from is', val - dire*1)
                     for d in range(0, halo+1):
                         from_base[dim] = val - dire*1
                         to_base[dim] = val + dire*d
-                        out = out + [structu % ('from_base', dim, from_base[dim], lend[lang])]
-                        out = out + [structu % ('to_base', dim, to_base[dim], lend[lang])]
+                        out = out + [structu % ('from_base', dim, from_base[dim], END_OF_STATEMENT_DELIMITER[lang])]
+                        out = out + [structu % ('to_base', dim, to_base[dim], END_OF_STATEMENT_DELIMITER[lang])]
                         for con in inp.conser:
                             out = out + [halo_decl % (con.base.label, inp.block, con.base.label, inp.block)]
                             halo_count = halo_count + 1
@@ -610,7 +624,7 @@ def after_time(inp, alg):
         for con in inp.conser:
             out = out + [writing % (con.base.label, inp.block, con.base.label)]
     elif lang == 'F90':
-        out = out + ['%swrite data file output here' % line_comment[lang]]
+        out = out + ['%swrite data file output here' % COMMENT_DELIMITER[lang]]
     else:
         raise ValueError('Implement output writing for lanuage %s' % alg.lang)
     return out
@@ -627,7 +641,7 @@ def write_final_code(template, codes, main, routines, lang):
             va = flatten(va)
             main_code = main_code + va + ['\n']
         else:
-            main_code = main_code + ['%s There is no code provided for %s part in the algorithm\n' % (line_comment[lang], val)] + ['\n']
+            main_code = main_code + ['%s There is no code provided for %s part in the algorithm\n' % (COMMENT_DELIMITER[lang], val)] + ['\n']
 
     main_code = flatten(main_code)
     main.write('\n'.join(main_code))

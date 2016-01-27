@@ -28,7 +28,7 @@ class AlgorithmInput(object):
         self.ceval = []  # Evaluation count
         self.bcs = []  # Boundary conditions
         self.lang = []  # Generated code's language
-        self.MB = False  # Multi-block
+        self.multiblock = False  # Multi-block
         self.nblocks = 1  # Number of blocks
         self.expfilter = []  # Explicit filter
         return
@@ -89,10 +89,10 @@ def read_alg(read_file):
         raise ValueError('Blocks defined wrongly in the code')
     temp = temp[0]
     if temp == 'SB':
-        alg_inp.MB = False
+        alg_inp.multiblock = False
         alg_inp.nblocks = 1
     elif temp == 'MB':
-        alg_inp.MB = True
+        alg_inp.multiblock = True
         alg_inp.nblocks = Symbol('nblocks')
     else:
         raise ValueError('Blocks can be SB for single block or MB for Multi-block')
@@ -113,7 +113,7 @@ def read_alg(read_file):
     return alg_inp
 
 
-def perform_alg_checks(alg, inp):
+def perform_checks(alg, inp):
     if len(alg.bcs) == inp.ndim:
         pass
     elif (len(alg.bcs) > inp.ndim):
@@ -131,20 +131,32 @@ def perform_alg_checks(alg, inp):
     return
 
 
-def countineq(va, inpeq):
+def count_input_equations(variable, equations):
+    """ Return the number of input equations containing a particular variable.
+    
+    :arg variable: the variable under consideration.
+    :arg equations: the equations to search.
+    :returns: the number of equations containing the variable.
+    :rtype: int
+    """
     count = 0
-    for eq in inpeq:
-        count = count + eq.count(va)
+    for e in equations:
+        count = count + e.count(variable)
     return count
 
 
-def eqto_dict(inp):
-    lh = list(eq.lhs for eq in inp)
-    rh = list(eq.rhs for eq in inp)
-    dict_list = zip(lh, rh)
-    diction = dict(dict_list)
-    # LOG.debug(diction)
-    return diction
+def equations_to_dict(equations):
+    """ Get the LHS and RHS of each equation, and return them in dictionary form.
+    
+    :arg equations: the equations to consider.
+    :returns: a dictionary of (LHS, RHS) pairs.
+    :rtype: dict
+    """
+    lhs = list(e.lhs for e in equations)
+    rhs = list(e.rhs for e in equations)
+    d = dict(zip(lhs, rhs))
+    LOG.debug(d)
+    return d
 
 
 def sort_evals(inp, evald):
@@ -291,7 +303,7 @@ class PreparedEquations(object):
         self.block = Idx('blk', (l, Symbol('nblock', integer=True)))
         self.grid = self.grid + [self.block.upper]
         self.nblocks = alginp.nblocks
-        self.MB = alginp.MB
+        self.multiblock = alginp.multiblock
         self.blockdims = []
         self.halos = []
         self.gridhalo = []
@@ -300,7 +312,7 @@ class PreparedEquations(object):
         self.kernel_ind = 0
 
         if alginp.lang == 'OPSC':
-            if self.MB:
+            if self.multiblock:
                 raise ValueError('Implement Multi Block code implementation for OPSC')
             code_file = open(BUILD_DIR+'/OPSC_nssolver.cpp', 'w')
             kernel_file = open(BUILD_DIR+'/auto_kernel.h', 'w')
@@ -314,7 +326,7 @@ class PreparedEquations(object):
                 self.blockdims.append(temp)
                 self.grid = self.grid + [temp.upper+1]
         elif alginp.lang == 'F90':
-            if self.MB:
+            if self.multiblock:
                 raise ValueError('Implement Multi Block code implementation for F90')
             code_file = open(BUILD_DIR+'/F_serial.f90', 'w')
             kernel_file = open(BUILD_DIR+'/subroutines.f90', 'w')
@@ -344,7 +356,7 @@ class PreparedEquations(object):
             new = Indexed('%s' % str(va), varform)
             for eq in range(len(self.forms)):
                 self.forms[eq] = self.forms[eq].subs(va, new)
-        form_dict = eqto_dict(self.forms)
+        form_dict = equations_to_dict(self.forms)
         # pprint(self.inpeq)
         variab = set(variab)
         substis = {}
@@ -364,7 +376,7 @@ class PreparedEquations(object):
 
         for va in variab:
             val = form_dict.get(va)
-            count = countineq(va, self.inpeq)
+            count = count_input_equations(va, self.inpeq)
             count = alginp.ceval
             if count >= alginp.ceval:
                 if val:
@@ -404,7 +416,7 @@ class PreparedEquations(object):
             elif alginp.ceval == 1000:
                 count = 999
             else:
-                count = countineq(der, self.inpeq)
+                count = count_input_equations(der, self.inpeq)
             order = len(der.args) - 1
             if val:
                 if order == 1 and count >= alginp.ceval:
@@ -563,7 +575,7 @@ class PreparedEquations(object):
 
         f = open(BUILD_DIR+'/alg.tex', 'w')
         inp = ['Algorithm', 'Satya P Jammy', 'University of Southampton']
-        header, end = latex_article_header(inp)
+        header, footer = latex_article_header(inp)
         f.write(header)
         f.write('The equations are\n\n')
         write_latex(f, self.inpeq, varform)
@@ -578,12 +590,12 @@ class PreparedEquations(object):
             for eqno in range(len(self.inpeq)):
                 self.inpeq[eqno] = self.inpeq[eqno].xreplace({key: value})
 
-        # get the final rk update equations
-        tempdict = eqto_dict(saveeq)
+        # Get the final Runge-Kutta update equations
+        tempdict = equations_to_dict(saveeq)
         savedic = dict(zip(tempdict.values(), tempdict.keys()))
         # for race_check errors
         # 1. Find the residue,
-        # 2. Upadte conserve
+        # 2. Update conserve
         # 3. Update old conservative so that there will be no race_errors
         if self.race_check:
             final_eqs = {}
@@ -739,7 +751,7 @@ class PreparedEquations(object):
             self.bccall = ['']
 
         final_alg[alg_template.get('a00')] = header_code(self, alginp)
-        final_alg[alg_template.get('a01')] = defdec_lang(self, alginp)
+        final_alg[alg_template.get('a01')] = defdec(self, alginp)
         final_alg[alg_template['a04']] = self.bccall
 
         final_alg[alg_template['a09']] = self.bccall
@@ -776,7 +788,7 @@ class PreparedEquations(object):
         code_file.close()
         kernel_file.close()
 
-        f.write(end)
+        f.write(footer)
         f.close()
 
         return

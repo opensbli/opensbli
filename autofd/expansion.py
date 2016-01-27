@@ -90,14 +90,14 @@ def expand_equations(equations_file):
         temp = []
         for e in equations:
             temp = temp + [e.parsed]
-        inp = ['Equations', 'Satya P Jammy', 'University of Southampton']
-        header, end = latex_article_header(inp)
+        metadata = {"title":"Equations", "author":"Satya P Jammy", "institution":"University of Southampton"]
+        header, footer = latex_article_header(metadata)
         latex_file.write(header)
         temp = []
         for e in equations:
             temp = temp + [e.expandedeq]
         temp = flatten(temp)
         write_latex(latex_file, temp)
-        latex_file.write(end)
+        latex_file.write(footer)
 
     return
