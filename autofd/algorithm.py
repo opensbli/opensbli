@@ -7,7 +7,7 @@ import os
 
 # AutoFD functions
 from .utils import *
-from .codegen_utils_new import *
+from .codegen_utils import *
 from .fortran_subroutine import *
 
 BUILD_DIR = os.getcwd()

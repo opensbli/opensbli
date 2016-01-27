@@ -1,7 +1,7 @@
 from sympy import *
 from sympy.parsing.sympy_parser import (parse_expr, standard_transformations, implicit_application)
 transformations = standard_transformations + (implicit_application,)
-from .codegen_utils_new import loop
+from .codegen_utils import loop
 line_comment = {}
 line_comment['OPSC'] = '//'
 line_comment['F90'] = '!'
