@@ -1,4 +1,4 @@
-''' This contains the routines used for codegeneration
+''' This contains utility routines for code generation.
 '''
 from sympy import *
 from sympy.parsing.sympy_parser import (parse_expr, standard_transformations, implicit_application)
@@ -480,7 +480,6 @@ def bcs(inp, alg):
     inp.bcdecl = []
     inp.bccall = []
     inp.bcexind = 0
-    finbc = {}
     lang = alg.lang
     if len(alg.bcs) == inp.ndim:
         pass
@@ -615,7 +614,6 @@ def after_time(inp, alg):
     else:
         raise ValueError('Implement output writing for lanuage %s' % alg.lang)
     return out
-import itertools
 
 
 def write_final_code(template, codes, main, routines, lang):

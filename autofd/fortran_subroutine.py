@@ -1,8 +1,6 @@
 from sympy import *
 from sympy.parsing.sympy_parser import (parse_expr, standard_transformations, implicit_application)
 transformations = standard_transformations + (implicit_application,)
-import re
-import textwrap
 from .codegen_utils_new import loop
 line_comment = {}
 line_comment['OPSC'] = '//'
@@ -49,7 +47,6 @@ def F90_write_kernel(eqs, inp, alg):
         kernel = []
         kername = inp.kername % inp.kernel_ind
         inp.kernel_ind = inp.kernel_ind + 1
-        kerca = 'call %s' % kername
         inpargs = []
         # kerheader = kerheader+ [''*78]+ [''*14subroutine %s'%kername]
         if tot_base:

@@ -1,7 +1,5 @@
 """ Utility functions for expanding the equations. """
 
-import sys
-import ast
 from sympy import *
 from sympy.parsing.sympy_parser import (parse_expr, standard_transformations, implicit_application)
 transformations = standard_transformations + (implicit_application,)

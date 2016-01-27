@@ -1,6 +1,4 @@
 #!/usr/bin/env python
-import sys
-import datetime
 import os
 from re import *
 import time

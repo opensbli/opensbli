@@ -3,7 +3,6 @@
 from sympy import *
 from sympy.parsing.sympy_parser import (parse_expr, standard_transformations, implicit_application)
 transformations = standard_transformations + (implicit_application,)
-import re
 import os
 
 # AutoFD functions
@@ -386,7 +385,7 @@ class PreparedEquations(object):
             self.const = self.const + [a1, a2, time_loop.upper+1]
             saveeq = []
             conser_old = []
-            fineq = []
+
         form_evals, evaluated = sort_evals(form_evals, evaluated)
         ders = flatten(list(eq.atoms(Derivative) for eq in self.inpeq))
         ders = list(set(ders))

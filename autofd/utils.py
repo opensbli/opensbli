@@ -1,7 +1,7 @@
-''' This contains utility routines for e.g. writing out expanded equations in LaTeX format.
+''' This contains utility routines not related to code generationm, such as writing out expanded equations in LaTeX format.
 '''
 from sympy import *
-from sympy.parsing.sympy_parser import (parse_expr, standard_transformations, implicit_application)
+from sympy.parsing.sympy_parser import standard_transformations, implicit_application
 transformations = standard_transformations + (implicit_application,)
 import re
 import textwrap
