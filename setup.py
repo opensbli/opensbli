@@ -8,16 +8,15 @@ setup(name='autofd',
       author='Satya P. Jammy, Christian T. Jacobs',
       url='https://bitbucket.org/spjammy/codegen',
       packages=['autofd'],
-      package_dir = {'autofd': 'autofd'},
+      package_dir={'autofd': 'autofd'},
       scripts=["bin/autofd-generate", "bin/autofd-clean"],
       classifiers=[
-         'Development Status :: 2 - Pre-Alpha',
-         'Environment :: Console',
-         'Intended Audience :: Science/Research',
-         'Natural Language :: English',
-         'Programming Language :: Python :: 2.7',
-         'Topic :: Scientific/Engineering :: Physics',
-         'Topic :: Software Development :: Code Generators',
-         ]
-     )
-
+      'Development Status :: 2 - Pre-Alpha',
+      'Environment :: Console',
+      'Intended Audience :: Science/Research',
+      'Natural Language :: English',
+      'Programming Language :: Python :: 2.7',
+      'Topic :: Scientific/Engineering :: Physics',
+      'Topic :: Software Development :: Code Generators',
+      ]
+      )

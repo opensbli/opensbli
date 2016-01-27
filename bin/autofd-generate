@@ -7,23 +7,22 @@ import autofd
 from autofd.expansion import *
 
 if(__name__ == "__main__"):
-   autofd.LOG.info("Parsing user input from the command-line...")
+    autofd.LOG.info("Parsing user input from the command-line...")
 
-   # Parse the command line arguments provided by the user
-   parser = argparse.ArgumentParser(prog="codegen", description="An automatic code generator which expands the equations written in Einstein notation, and writes out model code in OPSC or Fortran (serial) format.")
-   parser.add_argument("equations_file", help="The path to the file containing the equations.", action="store", type=str)
-   parser.add_argument("-l", "--log-level", action="store", type=str, metavar="LEVEL", default=None, choices=['critical', 'error', 'warning', 'info', 'debug'], help=("Log verbosity level. Defaults to %s" % (logging.getLevelName(autofd.LOG.level).lower())))
-   args = parser.parse_args()
-   
-   # Override the default logging verbosity level.
-   if(args.log_level):
-      level = getattr(logging, args.log_level.upper())
-      autofd.LOG.setLevel(level)
-   
-   # Make this an absolute path
-   abspath_to_equations_file = os.path.realpath(args.equations_file)
-   
-   # Expand out the equations
-   autofd.LOG.info("Expanding equations...")
-   expand_equations(abspath_to_equations_file)
+    # Parse the command line arguments provided by the user
+    parser = argparse.ArgumentParser(prog="codegen", description="An automatic code generator which expands the equations written in Einstein notation, and writes out model code in OPSC or Fortran (serial) format.")
+    parser.add_argument("equations_file", help="The path to the file containing the equations.", action="store", type=str)
+    parser.add_argument("-l", "--log-level", action="store", type=str, metavar="LEVEL", default=None, choices=['critical', 'error', 'warning', 'info', 'debug'], help=("Log verbosity level. Defaults to %s" % (logging.getLevelName(autofd.LOG.level).lower())))
+    args = parser.parse_args()
 
+    # Override the default logging verbosity level.
+    if(args.log_level):
+        level = getattr(logging, args.log_level.upper())
+        autofd.LOG.setLevel(level)
+
+    # Make this an absolute path
+    abspath_to_equations_file = os.path.realpath(args.equations_file)
+
+    # Expand out the equations
+    autofd.LOG.info("Expanding equations...")
+    expand_equations(abspath_to_equations_file)
