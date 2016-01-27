@@ -2,11 +2,7 @@
 
 from sympy import *
 from sympy.parsing.sympy_parser import (parse_expr, standard_transformations, implicit_application)
-transformations = standard_transformations + (implicit_application,)
 import re
-
-# AutoFD functions
-from .utils import *
 
 import logging
 LOG = logging.getLogger(__name__)

@@ -10,7 +10,7 @@ from sympy.parsing.sympy_parser import *
 # AutoFD functions
 from .einstein_expansion import *
 from .algorithm import *
-from .utils import *
+from .latex import LatexWriter
 
 import logging
 LOG = logging.getLogger(__name__)
