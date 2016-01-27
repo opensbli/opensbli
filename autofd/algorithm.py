@@ -113,7 +113,7 @@ def read_alg(read_file):
     return alg_inp
 
 
-def perform_checks(alg, inp):
+def perform_algorithm_checks(alg, inp):
     if len(alg.bcs) == inp.ndim:
         pass
     elif (len(alg.bcs) > inp.ndim):
@@ -139,6 +139,7 @@ def count_input_equations(variable, equations):
     :returns: the number of equations containing the variable.
     :rtype: int
     """
+
     count = 0
     for e in equations:
         count = count + e.count(variable)
@@ -152,6 +153,7 @@ def equations_to_dict(equations):
     :returns: a dictionary of (LHS, RHS) pairs.
     :rtype: dict
     """
+
     lhs = list(e.lhs for e in equations)
     rhs = list(e.rhs for e in equations)
     d = dict(zip(lhs, rhs))
@@ -339,7 +341,7 @@ class PreparedEquations(object):
             self.kername = 'subroutine_%d'
         else:
             raise ValueError('Implement indexing for language  %s' % (alginp.lang))
-        perform_alg_checks(alginp, self)
+        perform_algorithm_checks(alginp, self)
         variab = []
 
         for va in totvar:
@@ -574,8 +576,8 @@ class PreparedEquations(object):
         # final rk equations
 
         f = open(BUILD_DIR+'/alg.tex', 'w')
-        inp = ['Algorithm', 'Satya P Jammy', 'University of Southampton']
-        header, footer = latex_article_header(inp)
+        metadata = {"title":"Algorithm", "author":"Satya P Jammy", "institution":"University of Southampton"}
+        header, footer = latex_article_header(metadata)
         f.write(header)
         f.write('The equations are\n\n')
         write_latex(f, self.inpeq, varform)

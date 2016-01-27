@@ -13,7 +13,7 @@ LOG = logging.getLogger(__name__)
 def latex_article_header(metadata):
     """ Create the header of the LaTeX article file.
 
-    :arg list metadata: a list containing the title, author and institution.
+    :arg dict metadata: a dictionary containing the title, author and institution.
     :returns: the header and footer statements.
     :rtype: tuple
     """
@@ -31,10 +31,10 @@ def latex_article_header(metadata):
     return header_article, footer_article
 
 
-def write_latex(filename, equations):
+def write_latex(f, equations, varform=None):
     """ Write out the equations in nice LaTeX format.
 
-    :arg filename: the .tex file to write to.
+    :arg f: the .tex file to write to, opened in write-mode.
     :arg equations: the list of equations.
     """
 
@@ -76,6 +76,7 @@ def write_latex(filename, equations):
     out = out + ['']
     out = ' \n'.join(out)
     out = ' \n'.join(textwrap.wrap(out, width=70, break_long_words=False))
-    write = out
-    fname.write(write)
+    f.write(out)
+
     return
+

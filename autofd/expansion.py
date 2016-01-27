@@ -70,8 +70,6 @@ def expand_equations(equations_file):
     formulas = []
     for f in inp.formulas:
         formulas.append(Equation(f, inp))
-    # for eq in eqs:
-        # pprint(eq.expandedeq)
     end = time.time()
     LOG.debug('The time taken for tensor expansion of equations in %d Dimensions is %.2f seconds.' % (inp.ndim, end - start))
 
@@ -90,7 +88,7 @@ def expand_equations(equations_file):
         temp = []
         for e in equations:
             temp = temp + [e.parsed]
-        metadata = {"title":"Equations", "author":"Satya P Jammy", "institution":"University of Southampton"]
+        metadata = {"title":"Equations", "author":"Satya P Jammy", "institution":"University of Southampton"}
         header, footer = latex_article_header(metadata)
         latex_file.write(header)
         temp = []
