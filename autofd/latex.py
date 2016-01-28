@@ -19,7 +19,7 @@ class LatexWriter(object):
 
     def open(self, path):
         """ Open the LaTeX file for writing.
-        
+
         :arg str path: the path to the LaTeX file.
         :returns: None
         """
@@ -27,8 +27,8 @@ class LatexWriter(object):
         return
 
     def close(self):
-        """ Close the LaTeX file. 
-        
+        """ Close the LaTeX file.
+
         :returns None
         """
         self.f.close()
@@ -36,7 +36,7 @@ class LatexWriter(object):
 
     def write_string(self, s):
         """ Write an arbitrary user-provided string.
-        
+
         :arg str s: a user-provided string.
         :returns: None
         """
@@ -61,7 +61,6 @@ class LatexWriter(object):
         header = '\n'.join(header)
 
         self.f.write(header)
-        footer_article = '\\end{document}'
         return
 
     def write_footer(self):
@@ -124,4 +123,3 @@ class LatexWriter(object):
         self.f.write(out)
 
         return
-
