@@ -117,7 +117,7 @@ class Algorithm(object):
             self.multiblock = True
             self.nblocks = Symbol('nblocks')
         else:
-            raise ValueError('Blocks can be SB for single block or MB for Multi-block')
+            raise ValueError('Blocks can be SB for single block or MB for multi-block')
 
         # Spatial filtering of conservative varibles
         temp = lines[comment_lineno[8]+1:comment_lineno[9]]
@@ -130,13 +130,13 @@ class Algorithm(object):
                 self.expfilter.append(False)
             else:
                 raise ValueError('Filter can be T or F only')
-        # Various checks performed on the algorithm
 
         return
 
 
     def sanity_check(self, inp):
         """ Perform sanity checks on the algorithm input. """
+
         if len(self.bcs) == inp.ndim:
             pass
         elif (len(self.bcs) > inp.ndim):
@@ -177,8 +177,8 @@ def derform(inp, alg):
         points = list(i for i in range(-ooa/2, ooa/2+1))
         if len(points) < order+1:
             raise ValueError("Too few points for derivative of order %d" % order)
-        wghts = finite_diff_weights(order, points, 0)
-        inp.fd_wghts = wghts
+        weights = finite_diff_weights(order, points, 0)
+        inp.fd_weights = weights
         inp.fd_points = points
         for dim in range(inp.ndim):
             inp.halos.append(int(ooa/2))
@@ -206,7 +206,7 @@ def apply_der(der, inp):
     derivative = 0
     N = len(inp.fd_points) - 1
     for nu in range(0, len(inp.fd_points)):
-        derivative += inp.fd_wghts[order][N][nu]*temp[nu]
+        derivative += inp.fd_weights[order][N][nu]*temp[nu]
         # derivative = derivative.simplify()
         # derivative = ratsimp(derivative)
         # derivative = derivative.simplify()
