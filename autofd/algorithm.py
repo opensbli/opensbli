@@ -8,6 +8,7 @@ import os
 # AutoFD functions
 from .latex import LatexWriter
 from .codegen_utils import *
+from .equation_utils import *
 from .fortran import *
 from .opsc import *
 
@@ -149,36 +150,6 @@ class Algorithm(object):
             raise ValueError('There are less options for filter than number of dimension')
 
         return
-
-
-def count_input_equations(variable, equations):
-    """ Return the number of input equations containing a particular variable.
-    
-    :arg variable: the variable under consideration.
-    :arg equations: the equations to search.
-    :returns: the number of equations containing the variable.
-    :rtype: int
-    """
-
-    count = 0
-    for e in equations:
-        count = count + e.count(variable)
-    return count
-
-
-def equations_to_dict(equations):
-    """ Get the LHS and RHS of each equation, and return them in dictionary form.
-    
-    :arg equations: the equations to consider.
-    :returns: a dictionary of (LHS, RHS) pairs.
-    :rtype: dict
-    """
-
-    lhs = list(e.lhs for e in equations)
-    rhs = list(e.rhs for e in equations)
-    d = dict(zip(lhs, rhs))
-    LOG.debug(d)
-    return d
 
 
 def sort_evals(inp, evald):
@@ -400,7 +371,7 @@ class PreparedEquations(object):
 
         for va in variab:
             val = form_dict.get(va)
-            count = count_input_equations(va, self.inpeq)
+            count = variable_count(va, self.inpeq)
             count = algorithm.ceval
             if count >= algorithm.ceval:
                 if val:
@@ -441,7 +412,7 @@ class PreparedEquations(object):
             elif algorithm.ceval == 1000:
                 count = 999
             else:
-                count = count_input_equations(der, self.inpeq)
+                count = variable_count(der, self.inpeq)
             order = len(der.args) - 1
             if val:
                 if order == 1 and count >= algorithm.ceval:

@@ -10,7 +10,7 @@ import logging
 LOG = logging.getLogger(__name__)
 
 
-class LatexWriter(File):
+class LatexWriter(object):
 
     """ Handles writing of equations and arbitrary strings in LaTeX format. """
 

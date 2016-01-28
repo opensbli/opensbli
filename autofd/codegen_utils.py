@@ -1,8 +1,6 @@
 ''' This contains utility routines for code generation.
 '''
 from sympy import *
-from sympy.parsing.sympy_parser import (parse_expr, standard_transformations, implicit_application)
-transformations = standard_transformations + (implicit_application,)
 import re
 import textwrap
 

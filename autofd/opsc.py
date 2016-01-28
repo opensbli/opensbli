@@ -1,9 +1,11 @@
 from sympy import *
 from sympy.parsing.sympy_parser import (parse_expr, standard_transformations, implicit_application)
 transformations = standard_transformations + (implicit_application,)
+import re
 
 # AutoFD functions
 from .codegen_utils import COMMENT_DELIMITER, END_OF_STATEMENT_DELIMITER
+from .equation_utils import equations_to_dict
 
 import logging
 LOG = logging.getLogger(__name__)
@@ -38,14 +40,15 @@ def OPSC_write_kernel(eqs, inp):
             if evdict.get(sym):
                 pass
             else:
-                raise ValueError("I dont know the formula for %s" % sym)
-        # grid range
+                raise ValueError("I don't know the formula for %s" % sym)
+
+        # Grid range
         lower = []
         upper = []
         for dim in range(inp.ndim):
             lower = lower + [inp.blockdims[dim].lower - inp.halos[dim]]
             upper = upper + [inp.blockdims[dim].upper + inp.halos[dim]+1]
-        # LOG.debug(lower,upper)
+
         for ev in evals:
             code = ccode(ev)
             code = code.replace('==', '=') + END_OF_STATEMENT_DELIMITER['OPSC']
@@ -69,7 +72,7 @@ def OPSC_write_kernel(eqs, inp):
                     opstype = 'OPS_RW'
                     headty = 'double *%s'
                 else:
-                    raise ValueError('Dont know what the base is %s' % v)
+                    raise ValueError("Don't know what the base is %s" % v)
                 varib = flatten(list(v1 for v1 in tot_indexed if v1.base.label == v))
                 varib = list(set(varib))
                 variabind = flatten(list(v1.indices) for v1 in varib)
