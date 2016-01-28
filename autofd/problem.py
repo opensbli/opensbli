@@ -21,17 +21,16 @@ class Problem(object):
         self.coordinate_symbol = []
         self.metrics = []
         self.formulas = []
-        self.algorithm = Algorithm()
         return
 
-    def read_input(self, base_path):
+    def read_input(self, equation_file_path):
         """ Read the equations and algorithm files and extract their parameters.
 
-        :arg str path: The path to the directory containing the input file.
+        :arg str equation_file_path: The path to the equations file.
         """
 
         # Remove leading and trailing white spaces and empty lines
-        with open(base_path+"/equations") as f:
+        with open(equation_file_path) as f:
             read_file = [line for line in f.read().splitlines() if line]
         comment_lineno = []  # Line numbers of each (Python) comment line, which we want to ignore
 
@@ -49,9 +48,6 @@ class Problem(object):
         self.metrics = read_file[comment_lineno[5]+1:comment_lineno[6]]
         self.formulas = read_file[comment_lineno[6]+1:comment_lineno[7]]
 
-        # Prepare the algorithm
-        algorithm_file_path = base_path + "/algorithm"
-        self.algorithm.read_input(algorithm_file_path)
         return
 
     def expand(self):

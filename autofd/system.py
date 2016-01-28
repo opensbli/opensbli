@@ -11,6 +11,7 @@ from .algorithm import *
 from .codegen_utils import *
 from .fortran import *
 from .opsc import *
+from .latex import LatexWriter
 
 BUILD_DIR = os.getcwd()
 

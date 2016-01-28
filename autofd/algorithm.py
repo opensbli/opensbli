@@ -7,10 +7,6 @@ from sympy.parsing.sympy_parser import (parse_expr, standard_transformations, im
 transformations = standard_transformations + (implicit_application,)
 import os
 
-# AutoFD functions
-from .latex import LatexWriter
-from .equations import *
-
 BUILD_DIR = os.getcwd()
 
 import logging

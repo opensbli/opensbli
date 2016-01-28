@@ -31,8 +31,13 @@ if(__name__ == "__main__"):
     
     # Define the problem and expand the equations
     problem = Problem()
-    problem.read_input(base_path)
+    problem.read_input(base_path + "/equation")
     expanded_equations, expanded_formulas = problem.expand()
+
+    # Prepare the algorithm
+    algorithm = Algorithm()
+    algorithm_file_path = base_path + "/algorithm"
+    algorithm.read_input(algorithm_file_path)
 
     # Output equations in LaTeX format.
     latex = LatexWriter()
@@ -47,6 +52,6 @@ if(__name__ == "__main__"):
     # Prepare the computational system and generate the code
     start = time.time()
     system = System()
-    system.prepare(expanded_equations, expanded_formulas, problem.algorithm)
+    system.prepare(expanded_equations, expanded_formulas, algorithm)
     end = time.time()
     LOG.debug('The time taken to prepare the system in %d Dimensions is %.2f seconds.' % (problem.ndim, end - start))
