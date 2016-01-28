@@ -1,6 +1,6 @@
 #!/bin/sh
 
-.PHONY: clean install test docs
+.PHONY: clean install test lint docs
 
 install:
 	@echo ">>> Installing..."
@@ -9,8 +9,13 @@ install:
 clean:
 	@echo ">>> Cleaning..."
 	python setup.py clean
-	
-test:
+
+lint:
+	@echo ">>> Linting..."
+	flake8 autofd
+	flake8 bin
+
+test: lint
 	@echo ">>> Running test suite..."
 	py.test tests
 

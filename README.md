@@ -11,6 +11,7 @@ First ensure that the following dependencies are satisfied:
 * astyle
 * Sympy >= 0.7.6.1
 * pytest (for running the test suite)
+* python-flake8 (for linting the code base)
 * Sphinx (to build the documentation)
 
 ### Installation

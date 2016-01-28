@@ -6,4 +6,4 @@ _FORMATTER = logging.Formatter(fmt="%(asctime)s : %(module)s : %(levelname)s : %
 _HANDLER.setFormatter(_FORMATTER)
 LOG.addHandler(_HANDLER)
 del(_HANDLER)
-LOG.setLevel(logging.DEBUG) # Default to DEBUG level.
+LOG.setLevel(logging.DEBUG)  # Default to DEBUG level.
