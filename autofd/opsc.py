@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 from sympy import *
 from sympy.parsing.sympy_parser import (parse_expr, standard_transformations, implicit_application)
 transformations = standard_transformations + (implicit_application,)

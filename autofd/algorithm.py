@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 """ Routines for algorithm generation """
 
 from sympy import *

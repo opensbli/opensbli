@@ -1,4 +1,4 @@
-""" This contains utility routines not related to code generationm, such as writing out expanded equations in LaTeX format. """
+#!/usr/bin/env python
 
 from sympy import *
 from sympy.parsing.sympy_parser import *

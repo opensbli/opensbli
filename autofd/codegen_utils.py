@@ -1,5 +1,7 @@
-''' This contains utility routines for code generation.
-'''
+#!/usr/bin/env python
+
+""" This contains utility routines for code generation. """
+
 from sympy import *
 import re
 import textwrap

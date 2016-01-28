@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 """ Contains equation-related utility routines. """
 
 import logging
