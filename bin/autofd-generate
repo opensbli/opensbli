@@ -31,7 +31,7 @@ if(__name__ == "__main__"):
     
     # Define the problem and expand the equations
     problem = Problem()
-    problem.read_input(base_path + "/equation")
+    problem.read_input(base_path + "/equations")
     expanded_equations, expanded_formulas = problem.expand()
 
     # Prepare the algorithm

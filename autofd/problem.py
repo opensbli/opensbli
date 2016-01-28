@@ -23,14 +23,14 @@ class Problem(object):
         self.formulas = []
         return
 
-    def read_input(self, equation_file_path):
-        """ Read the equations and algorithm files and extract their parameters.
+    def read_input(self, equations_file_path):
+        """ Read the equations file and extract the parameters.
 
-        :arg str equation_file_path: The path to the equations file.
+        :arg str equations_file_path: The path to the equations file.
         """
 
         # Remove leading and trailing white spaces and empty lines
-        with open(equation_file_path) as f:
+        with open(equations_file_path) as f:
             read_file = [line for line in f.read().splitlines() if line]
         comment_lineno = []  # Line numbers of each (Python) comment line, which we want to ignore
 
