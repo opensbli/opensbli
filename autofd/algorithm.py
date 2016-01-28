@@ -23,15 +23,15 @@ LOG = logging.getLogger(__name__)
 class Algorithm(object):
 
     def __init__(self):
-        self.time_sch = []  # Temporal discretisation scheme (e.g. RK3).
-        self.time_ooa = []  # Temporal order of accuracy
-        self.const_timestep = True  # Constant timestep.
-        self.sp_sch = []  # Spatial discretisation scheme
-        self.sp_ooa = []  # Spatial order of accuracy
-        self.wrkarr = []  # Work array
-        self.ceval = []  # Evaluation count
+        self.temporal_scheme = []  # Temporal discretisation scheme (e.g. RK3).
+        self.temporal_order = []  # Temporal order of accuracy
+        self.constant_timestep = True  # Constant timestep.
+        self.spatial_scheme = []  # Spatial discretisation scheme
+        self.spatial_order = []  # Spatial order of accuracy
+        self.work_array = []  # Work array
+        self.evaluation_count = []  # Evaluation count
         self.bcs = []  # Boundary conditions
-        self.lang = []  # Generated code's language
+        self.language = []  # Generated code's language
         self.multiblock = False  # Multi-block
         self.nblocks = 1  # Number of blocks
         self.expfilter = []  # Explicit filter
@@ -57,19 +57,19 @@ class Algorithm(object):
         temp = temp[0].split(',')
         if temp[0] != 'RK':
             raise ValueError('Implement %s time stepping scheme' % temp[0])
-        self.time_sch = temp[0]
+        self.temporal_scheme = temp[0]
 
         # Temporal order of accuracy
-        self.time_ooa = int(temp[1])
+        self.temporal_order = int(temp[1])
 
         # Constant or local time-step
         temp = lines[comment_lineno[1]+1:comment_lineno[2]]
         if len(temp) > 1:
             raise ValueError('Time step can be const or local only')
         if temp[0] == 'const':
-            self.const_timestep = True
+            self.constant_timestep = True
         elif temp[0] == 'local':
-            self.const_timestep = False
+            self.constant_timestep = False
         else:
             raise ValueError('Time step can be const or local only')
 
@@ -80,20 +80,20 @@ class Algorithm(object):
         temp = temp[0].split(',')
         if temp[0] != 'central_diff':
             raise ValueError('Implement %s spatial scheme' % temp[0])
-        self.sp_sch = temp[0]
+        self.spatial_scheme = temp[0]
 
         # Spatial order of accuracy
-        self.sp_ooa = int(temp[1])
+        self.spatial_order = int(temp[1])
 
         # Evaluation count
         temp = lines[comment_lineno[3]+1:comment_lineno[4]]
         if len(temp) > 1:
-            raise ValueError('ceval wrong')
-        self.ceval = int(temp[0])
+            raise ValueError('The evaluation count provided is wrong')
+        self.evaluation_count = int(temp[0])
         temp = lines[comment_lineno[4]+1:comment_lineno[5]]
         if len(temp) > 1:
-            raise ValueError('ceval wrong')
-        self.wrkarr = '%s%%d' % temp[0]
+            raise ValueError('The evaluation count provided is wrong')
+        self.work_array = '%s%%d' % temp[0]
         temp = lines[comment_lineno[5]+1:comment_lineno[6]]
 
         # Read the boundary conditions
@@ -103,7 +103,7 @@ class Algorithm(object):
 
         # Language
         temp = lines[comment_lineno[6]+1:comment_lineno[7]]
-        self.lang = temp[0]
+        self.language = temp[0]
 
         # Multi-block stuff
         temp = lines[comment_lineno[7]+1:comment_lineno[8]]
@@ -169,8 +169,8 @@ def sort_evals(inp, evald):
 
 
 def derform(inp, alg):
-    ooa = alg.sp_ooa
-    sch = alg.sp_sch
+    ooa = alg.spatial_order
+    sch = alg.spatial_scheme
     points = []
     order = 2
     if sch == 'central_diff':
@@ -241,7 +241,7 @@ class ExplicitFilter(object):
         filtereqs = []
         for dire, fil in enumerate(alg.expfilter):
             if fil:
-                ooa = alg.sp_ooa
+                ooa = alg.spatial_order
                 alphaD = (-1)**(int(ooa/2) + 1) * (2) ** (-ooa)
                 if self.coeffs.get(ooa):
                     muls = self.coeffs.get(ooa)
@@ -281,9 +281,9 @@ class PreparedEquations(object):
         # Race_check
         self.race_check = True
 
-        if algorithm.lang == 'OPSC':
+        if algorithm.language == 'OPSC':
             l = 0
-        elif algorithm.lang == 'F90':
+        elif algorithm.language == 'F90':
             l = 1
 
         indi = []
@@ -306,7 +306,7 @@ class PreparedEquations(object):
         self.iterrange = 0
         self.kernel_ind = 0
 
-        if algorithm.lang == 'OPSC':
+        if algorithm.language == 'OPSC':
             if self.multiblock:
                 raise ValueError('Implement Multi Block code implementation for OPSC')
             code_file = open(BUILD_DIR+'/OPSC_nssolver.cpp', 'w')
@@ -320,7 +320,7 @@ class PreparedEquations(object):
                 temp = Idx('i%d' % dim, Symbol('nx%dp[blk]' % dim, integer=True))
                 self.blockdims.append(temp)
                 self.grid = self.grid + [temp.upper+1]
-        elif algorithm.lang == 'F90':
+        elif algorithm.language == 'F90':
             if self.multiblock:
                 raise ValueError('Implement Multi Block code implementation for F90')
             code_file = open(BUILD_DIR+'/F_serial.f90', 'w')
@@ -333,7 +333,7 @@ class PreparedEquations(object):
                 self.grid = self.grid + [temp.upper]
             self.kername = 'subroutine_%d'
         else:
-            raise ValueError('Implement indexing for language  %s' % (algorithm.lang))
+            raise ValueError('Implement indexing for language  %s' % (algorithm.language))
 
         algorithm.sanity_check(self)
         variab = []
@@ -374,8 +374,8 @@ class PreparedEquations(object):
         for va in variab:
             val = form_dict.get(va)
             count = variable_count(va, self.inpeq)
-            count = algorithm.ceval
-            if count >= algorithm.ceval:
+            count = algorithm.evaluation_count
+            if count >= algorithm.evaluation_count:
                 if val:
                     form_evals.append(Eq(va, val))
                     self.dats = self.dats + [va]
@@ -383,14 +383,14 @@ class PreparedEquations(object):
                     raise ValueError('I dont know the formula for %s ' % va)
             else:
                 substis[va] = val
-                # raise ValueError('Implement how to do for count > ceval')
-        if algorithm.time_sch == 'RK':
+                # raise ValueError('Implement how to do for count > evaluation_count')
+        if algorithm.temporal_scheme == 'RK':
 
-            rkloop = Idx('nrk', (l, algorithm.time_ooa))
+            rkloop = Idx('nrk', (l, algorithm.temporal_order))
             time_loop = Idx('iter', (l, Symbol('niter', integer=True)))
-            a1 = Indexed('a1', Idx('nrk', (l, algorithm.time_ooa)))
-            a2 = Indexed('a2', Idx('nrk', (l, algorithm.time_ooa)))
-            rk = Indexed('rk', Idx('nrk', (l, algorithm.time_ooa)))
+            a1 = Indexed('a1', Idx('nrk', (l, algorithm.temporal_order)))
+            a2 = Indexed('a2', Idx('nrk', (l, algorithm.temporal_order)))
+            rk = Indexed('rk', Idx('nrk', (l, algorithm.temporal_order)))
             self.const = self.const + [a1, a2, time_loop.upper+1]
             saveeq = []
             conser_old = []
@@ -409,21 +409,21 @@ class PreparedEquations(object):
                 val = der.args[0]
             else:
                 val = substis.get(der.args[0])
-            if algorithm.ceval == 0:
+            if algorithm.evaluation_count == 0:
                 count = 100
-            elif algorithm.ceval == 1000:
+            elif algorithm.evaluation_count == 1000:
                 count = 999
             else:
                 count = variable_count(der, self.inpeq)
             order = len(der.args) - 1
             if val:
-                if order == 1 and count >= algorithm.ceval:
+                if order == 1 and count >= algorithm.evaluation_count:
                     if der.args[1] != Symbol('t'):
                         if substis.get(der):
                             pass
                         else:
                             var = der.subs(der.args[0], val)
-                            temp = algorithm.wrkarr % (wrkindex)
+                            temp = algorithm.work_array % (wrkindex)
                             wrkindex = wrkindex + 1
                             new = Indexed('%s' % str(temp), varform)
                             derf = apply_der(var, self)
@@ -431,11 +431,11 @@ class PreparedEquations(object):
                             substis[der] = new
                             self.dats = self.dats + [new]
                     else:
-                        if algorithm.time_sch == 'RK':
+                        if algorithm.temporal_scheme == 'RK':
                             con = der.args[0]
                             temp = '%s_old' % con.base
                             old = Indexed('%s' % str(temp), varform)
-                            if algorithm.const_timestep:
+                            if algorithm.constant_timestep:
                                 time = Symbol('dt')
                                 self.const = self.const + [time]
                             else:
@@ -448,10 +448,10 @@ class PreparedEquations(object):
                             saveeq.append(Eq(old, con))
 
                     # substitute RK3 routine now
-                elif order == 2 and count >= algorithm.ceval:
+                elif order == 2 and count >= algorithm.evaluation_count:
                     if der.args[1] == der.args[2]:
                         var = der.subs(der.args[0], val)
-                        temp = algorithm.wrkarr % (wrkindex)
+                        temp = algorithm.work_array % (wrkindex)
                         wrkindex = wrkindex + 1
                         new = Indexed('%s' % str(temp), varform)
                         self.dats = self.dats + [new]
@@ -462,7 +462,7 @@ class PreparedEquations(object):
                         expr = Derivative(der.args[0], der.args[2])
                         if substis.get(expr):
                             var = der.subs(expr, substis.get(expr))
-                            temp = algorithm.wrkarr % (wrkindex)
+                            temp = algorithm.work_array % (wrkindex)
                             wrkindex = wrkindex + 1
                             new = Indexed('%s' % str(temp), varform)
                             derf = apply_der(var, self)
@@ -470,7 +470,7 @@ class PreparedEquations(object):
                             substis[der] = new
                             self.dats = self.dats + [new]
                         else:
-                            temp = algorithm.wrkarr % (wrkindex)
+                            temp = algorithm.work_array % (wrkindex)
                             wrkindex = wrkindex + 1
                             new = Indexed('%s' % str(temp), varform)
                             derf = apply_der(expr, self)
@@ -479,14 +479,14 @@ class PreparedEquations(object):
                             self.dats = self.dats + [new]
                             # substis[expr] = new
                             var = der.subs(expr, new)
-                            temp = algorithm.wrkarr % (wrkindex)
+                            temp = algorithm.work_array % (wrkindex)
                             wrkindex = wrkindex + 1
                             new = Indexed('%s' % str(temp), varform)
                             derf = apply_der(var, self)
                             der_evals.append(Eq(new, derf))
                             substis[der] = new
                             self.dats = self.dats + [new]
-                elif order == 1 and count < algorithm.ceval:
+                elif order == 1 and count < algorithm.evaluation_count:
                     if der.args[1] != Symbol('t'):
                         if substis.get(der):
                             pass
@@ -495,11 +495,11 @@ class PreparedEquations(object):
                             derf = apply_der(var, self)
                             substis[der] = derf
                     else:
-                        if algorithm.time_sch == 'RK':
+                        if algorithm.temporal_scheme == 'RK':
                             con = der.args[0]
                             temp = '%s_old' % con.base
                             old = Indexed('%s' % str(temp), varform)
-                            if algorithm.const_timestep:
+                            if algorithm.constant_timestep:
                                 time = Symbol('dt')
                                 self.const = self.const + [time]
                             else:
@@ -510,7 +510,7 @@ class PreparedEquations(object):
                             self.dats = self.dats + [old]
                             substis[der] = rkfor
                             saveeq.append(Eq(old, con))
-                elif order == 2 and count < algorithm.ceval:
+                elif order == 2 and count < algorithm.evaluation_count:
                     if der.args[1] == der.args[2]:
                         var = der.subs(der.args[0], val)
                         derf = apply_der(var, self)
@@ -539,8 +539,8 @@ class PreparedEquations(object):
                 else:
                     raise ValueError('No know;')
 
-            elif count >= algorithm.ceval:
-                temp = algorithm.wrkarr % (wrkindex)
+            elif count >= algorithm.evaluation_count:
+                temp = algorithm.work_array % (wrkindex)
                 wrkindex = wrkindex + 1
                 new = Indexed('%s' % str(temp), varform)
                 self.dats = self.dats + [new]
@@ -548,14 +548,14 @@ class PreparedEquations(object):
                 form_evals.append(Eq(new, var))
                 # substis[var] = new
                 var = der.subs(var, new)
-                temp = algorithm.wrkarr % (wrkindex)
+                temp = algorithm.work_array % (wrkindex)
                 wrkindex = wrkindex + 1
                 new = Indexed('%s' % str(temp), varform)
                 derf = apply_der(var, self)
                 der_evals.append(Eq(new, derf))
                 substis[der] = new
                 self.dats = self.dats + [new]
-            elif count < algorithm.ceval:
+            elif count < algorithm.evaluation_count:
                 derf = apply_der(der, self)
                 substis[der] = derf
             else:
@@ -675,7 +675,7 @@ class PreparedEquations(object):
 
         # Writing kernels and kernel calls
         # bcs(self,algorithm)
-        if algorithm.lang == 'OPSC':
+        if algorithm.language == 'OPSC':
             calls = []
             kerns = []
             if evaluations:
@@ -707,7 +707,7 @@ class PreparedEquations(object):
             kerns = kerns + kern
             final_alg[alg_template.get('a03')] = call
 
-        elif algorithm.lang == 'F90':
+        elif algorithm.language == 'F90':
             calls = []
             kerns = []
             if evaluations:
@@ -748,9 +748,9 @@ class PreparedEquations(object):
             # final_alg[alg_template.get('a11')] = final_alg[alg_template.get('a11')] + [call]
             # kerns = kerns + kern
         # TODO
-        if algorithm.lang == 'OPSC':
+        if algorithm.language == 'OPSC':
             bcs(self, algorithm)
-        elif algorithm.lang == 'F90':
+        elif algorithm.language == 'F90':
             self.bccall = ['']
 
         final_alg[alg_template.get('a00')] = header_code(self, algorithm)
@@ -758,10 +758,10 @@ class PreparedEquations(object):
         final_alg[alg_template['a04']] = self.bccall
         final_alg[alg_template['a09']] = self.bccall
 
-        temp = '%s Write the grid here if required' % COMMENT_DELIMITER[algorithm.lang]
-        temp = temp + '\n\n\n' + '%s Grid writing ends here' % COMMENT_DELIMITER[algorithm.lang]
+        temp = '%s Write the grid here if required' % COMMENT_DELIMITER[algorithm.language]
+        temp = temp + '\n\n\n' + '%s Grid writing ends here' % COMMENT_DELIMITER[algorithm.language]
         final_alg[alg_template.get('a02')] = [temp]
-        final_alg[alg_template.get('a11')] = ['%s after  after inner time loop' % COMMENT_DELIMITER[algorithm.lang]]
+        final_alg[alg_template.get('a11')] = ['%s after  after inner time loop' % COMMENT_DELIMITER[algorithm.language]]
 
         tloop, tenloop = loop([time_loop], algorithm)
         final_alg[alg_template.get('a05')] = tloop
@@ -777,8 +777,8 @@ class PreparedEquations(object):
 
         final_alg['kernels'] = kerns
 
-        write_final_code(alg_template, final_alg, code_file, kernel_file, algorithm.lang)
-        if algorithm.lang == 'F90':
+        write_final_code(alg_template, final_alg, code_file, kernel_file, algorithm.language)
+        if algorithm.language == 'F90':
             write_module(self.module, modulefile)
             modulefile.close()
         code_file.close()

@@ -18,8 +18,8 @@ def header_code(inp, alg):
     """ Generate header code, containing include/import statements and main program routine, in the language of choice. """
 
     out = []
-    lang = alg.lang
-    if alg.lang == 'OPSC':
+    lang = alg.language
+    if alg.language == 'OPSC':
         out = out + ['#include <stdlib.h>']
         out = out + ['#include <string.h>']
         out = out + ['#include <math.h>']
@@ -97,28 +97,28 @@ def loop(indices, alg):
     header = []
     footer = []
 
-    if alg.lang == 'OPSC':
-        comment = '%s loop start %s' % (COMMENT_DELIMITER[alg.lang], indices[0])
+    if alg.language == 'OPSC':
+        comment = '%s loop start %s' % (COMMENT_DELIMITER[alg.language], indices[0])
         header.append(comment)
         for dim in range(0, len(indices)):
             temp = indices[dim]
             header.append('for(int %s=%s; %s<%s; %s++){' % (temp, temp.lower, temp, temp.upper, temp))
             footer.append('}')
-        comment = '%s loop end %s' % (COMMENT_DELIMITER[alg.lang], indices[0])
+        comment = '%s loop end %s' % (COMMENT_DELIMITER[alg.language], indices[0])
         footer.append(comment)
 
-    elif alg.lang == 'F90':
-        comment = '%s loop start %s' % (COMMENT_DELIMITER[alg.lang], indices[0])
+    elif alg.language == 'F90':
+        comment = '%s loop start %s' % (COMMENT_DELIMITER[alg.language], indices[0])
         header.append(comment)
         for dim in reversed(range(0, len(indices))):
             temp = indices[dim]
             header.append('do %s=%s,%s' % (temp, temp.lower, temp.upper))
             footer.append('enddo')
-        comment = '%s loop end %s' % (COMMENT_DELIMITER[alg.lang], indices[0])
+        comment = '%s loop end %s' % (COMMENT_DELIMITER[alg.language], indices[0])
         footer.append(comment)
 
     else:
-        raise ValueError('Implement loop declaration for the %s language.' % alg.lang)
+        raise ValueError('Implement loop declaration for the %s language.' % alg.language)
 
     return header, footer
 
@@ -127,9 +127,9 @@ def defdec(inp, alg):
     """ Define and declare variables. """
 
     out = []
-    lang = alg.lang
+    lang = alg.language
 
-    if alg.lang == 'OPSC':
+    if alg.language == 'OPSC':
         # Define inputs to the code
         blkname = inp.blkname
         totblock = inp.block.upper - inp.block.lower
@@ -252,19 +252,19 @@ def defdec(inp, alg):
         # TODO write this to take care of long allocations
 
     else:
-        raise ValueError('Implement %s in the Definitions and declaration' % alg.lang)
+        raise ValueError('Implement %s in the Definitions and declaration' % alg.language)
 
     return out
 
 
 def footer_code(inp, alg):
     out = []
-    if alg.lang == 'OPSC':
+    if alg.language == 'OPSC':
         out = out + ['ops_printf(\" finished running the code\\n\");', 'ops_exit();', '}']
-    elif alg.lang == 'F90':
+    elif alg.language == 'F90':
         out = out + ['end program']
     else:
-        raise ValueError('Implement %s in the footer code' % alg.lang)
+        raise ValueError('Implement %s in the footer code' % alg.language)
     return out
 
 
@@ -312,7 +312,7 @@ def bcs(inp, alg):
     inp.bcdecl = []
     inp.bccall = []
     inp.bcexind = 0
-    lang = alg.lang
+    lang = alg.language
     if len(alg.bcs) == inp.ndim:
         pass
     elif (len(alg.bcs) > inp.ndim):
@@ -322,7 +322,7 @@ def bcs(inp, alg):
     inp.bc_appl = []
     for dim in range(inp.ndim):
         bc = alg.bcs[dim]
-        if bc[0] == bc[1] and bc[0] == 'periodic' and alg.lang == 'OPSC' and not inp.multiblock:
+        if bc[0] == bc[1] and bc[0] == 'periodic' and alg.language == 'OPSC' and not inp.multiblock:
             out = []
             iter_size = list(te for te in inp.gridhalo)
 
@@ -346,10 +346,10 @@ def bcs(inp, alg):
             stloop, enloop = loop([inp.block], alg)
             out = out + stloop
             out = out + ['int off = 0;']
-            out = out + ['int halo_iter[] = {%s}%s' % (iter_size, END_OF_STATEMENT_DELIMITER[alg.lang])]
-            out = out + ['int from_base[] = {%s}%s' % (fro, END_OF_STATEMENT_DELIMITER[alg.lang])]
-            out = out + ['int to_base[] = {%s}%s' % (to, END_OF_STATEMENT_DELIMITER[alg.lang])]
-            out = out + ['int dir[] = {%s}%s' % (dire, END_OF_STATEMENT_DELIMITER[alg.lang])]
+            out = out + ['int halo_iter[] = {%s}%s' % (iter_size, END_OF_STATEMENT_DELIMITER[alg.language])]
+            out = out + ['int from_base[] = {%s}%s' % (fro, END_OF_STATEMENT_DELIMITER[alg.language])]
+            out = out + ['int to_base[] = {%s}%s' % (to, END_OF_STATEMENT_DELIMITER[alg.language])]
+            out = out + ['int dir[] = {%s}%s' % (dire, END_OF_STATEMENT_DELIMITER[alg.language])]
             haloname = 'halos_x%d_%s' % (dim, bc[0])
             # halos[off++] = ops_decl_halo(u[i-1+ngrid_x*j], u[i+ngrid_x*j], halo_iter, base_from, base_to, dir, dir);
             halo_decl = '%s[off++] = ops_decl_halo(%%s[%%s],%%s[%%s],halo_iter, from_base, to_base, dir, dir);' % haloname
@@ -364,8 +364,8 @@ def bcs(inp, alg):
             to_base[dim] = u
             fro = ','.join(list(str(te) for te in from_base))
             to = ','.join(list(str(te) for te in to_base))
-            out = out + ['from_base[%d] = %s%s' % (dim, l, END_OF_STATEMENT_DELIMITER[alg.lang])]
-            out = out + ['to_base[%d] = %s%s' % (dim, u, END_OF_STATEMENT_DELIMITER[alg.lang])]
+            out = out + ['from_base[%d] = %s%s' % (dim, l, END_OF_STATEMENT_DELIMITER[alg.language])]
+            out = out + ['to_base[%d] = %s%s' % (dim, u, END_OF_STATEMENT_DELIMITER[alg.language])]
             for con in inp.conser:
                 out = out + [halo_decl % (con.base.label, inp.block, con.base.label, inp.block)]
                 halo_count = halo_count + 1
@@ -439,15 +439,15 @@ def bcs(inp, alg):
 
 def after_time(inp, alg):
     out = []
-    lang = alg.lang
-    if alg.lang == 'OPSC':
+    lang = alg.language
+    if alg.language == 'OPSC':
         writing = 'ops_print_dat_to_txtfile(%s[%s], "%s_final.dat");'
         for con in inp.conser:
             out = out + [writing % (con.base.label, inp.block, con.base.label)]
     elif lang == 'F90':
         out = out + ['%s Write data file output here' % COMMENT_DELIMITER[lang]]
     else:
-        raise ValueError('Implement output writing for language %s' % alg.lang)
+        raise ValueError('Implement output writing for language %s' % alg.language)
     return out
 
 
