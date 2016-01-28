@@ -10,7 +10,7 @@ import os
 # AutoFD functions
 from .latex import LatexWriter
 from .codegen_utils import *
-from .equation_utils import *
+from .equations import *
 from .fortran import *
 from .opsc import *
 
@@ -654,7 +654,7 @@ class PreparedEquations(object):
 
         if any(algorithm.expfilter):
             self.filtereqs = expfiltering(algorithm, self, savedic)
-            f.write('The filter equations are\n\n')
+            latex.write_string('The filter equations are\n\n')
             for eq in self.filtereqs:
                 latex.write_equations(eq, varform)
 

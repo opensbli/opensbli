@@ -10,101 +10,26 @@ import logging
 LOG = logging.getLogger(__name__)
 
 
-class EquationInput(object):
-
-    """ This is a class for equation inputs, stuff that are added to the input
-    file are to be defined here """
-
-    def __init__(self):
-        self.equations = []
-        self.substitutions = []
-        self.ndim = []
-        self.constants = []
-        self.coordinate_symbol = []
-        self.metrics = []
-        self.formulas = []
-        return
-
-
-def tensor_indices(equations):
-    """ Finds the tensor indices in all the input equations and returns a list of the set of indices.
-
-    :arg equations: a string, symbolic equations, a list of strings, or a list of symbolic equations.
-    :returns: a list of the set of indices.
-    :rtype: list
-    """
-
-    index = []
-    if isinstance(equations, list):
-        for eq in equations:
-            eq = str(eq)
-            index = index + list(set(re.compile(r'\_\S', re.I).findall(eq)))
-    else:
-        eq = str(equations)
-        index = index + list(set(re.compile(r'\_\S', re.I).findall(eq)))
-    index = list(set(index))
-    return index
-
-
-def expand_ind(term, ndim, index, equation):
-    fin = ''
-    if term.is_Mul:
-        out = str(term)
-        # index = tensor_indices(self)
-        for ind in index:
-            for dim in range(0, int(ndim)):
-                fin = fin + '+' + str(out).replace(str(ind), str(dim))
-            out = fin
-            fin = ''
-    elif term.is_Add:
-        fin1 = ''
-        for te in term.as_ordered_terms():
-            fin = ''
-            # pprint(te)
-            out = str(te)
-            # index = tensor_indices(te)
-            for ind in index:
-                for dim in range(0, int(ndim)):
-                    fin = fin + '+' + str(out).replace(str(ind), str(dim))
-                out = fin
-                fin = ''
-            fin1 = fin1 + '+' + out
-        out = fin1
-    else:
-        out = str(term)
-        # index = tensor_indices(self)
-        for ind in index:
-            for dim in range(0, int(ndim)):
-                fin = fin + '+' + str(out).replace(str(ind), str(dim))
-            out = fin
-            fin = ''
-    # pprint(out)
-    out = parse_expr(out)
-    # pprint(out)
-    # pprint(term)
-    # pprint(out)
-    equation = equation.subs(term, out)
-    return equation
-
-
 class Equation(object):
     global indterm
 
-    def __init__(self, eq, inp):
+    def __init__(self, eq, system):
         self.inpeq = eq
-        # perform substitutions if any
-        if inp.substitutions:
-            for form in inp.substitutions:
+
+        # Perform substitutions if any
+        if system.substitutions:
+            for form in system.substitutions:
                 temp = parse_expr(form)
                 self.inpeq = self.inpeq.replace(str(temp.lhs), str(temp.rhs))
-        # parse the equation
+
+        # Parse the equation
         self.parsed = parse_expr(self.inpeq)
         self.expandedeq = []
 
         index = tensor_indices(self.parsed.lhs.atoms(Symbol))
-        ndim = inp.ndim
+        ndim = system.ndim
         if index:
-            for dim in range(0, inp.ndim):
+            for dim in range(0, system.ndim):
                 for ind in index:
                     lhs = parse_expr(str(self.parsed.lhs).replace(str(ind), str(dim)))
                     rhs = parse_expr(str(self.parsed.rhs).replace(str(ind), str(dim)))
@@ -112,7 +37,7 @@ class Equation(object):
                     self.expandedeq = self.expandedeq + [eqn]
         else:
             self.expandedeq = self.expandedeq + [self.parsed]
-        self.constants = list(Symbol(con) for con in inp.constants)
+        self.constants = list(Symbol(con) for con in system.constants)
 
         def fin_terms(expr, indices):
             terms = []
@@ -219,7 +144,7 @@ class Equation(object):
                     # pprint(ind)
                     # pprint(indterm)
                     for term in indterm:
-                        self.expandedeq[eqno] = expand_ind(term, inp.ndim, index, self.expandedeq[eqno])
+                        self.expandedeq[eqno] = expand_ind(term, system.ndim, index, self.expandedeq[eqno])
 
         self.variables = []
         self.conser = []
@@ -242,6 +167,94 @@ class Equation(object):
 
             self.const = list(flatten(list(eq.atoms(Symbol).difference(set(self.variables[eqno] + fn_args + self.conser)))))
             # pprint(eq)
-            self.ndim = inp.ndim
+            self.ndim = system.ndim
 
         return
+
+def tensor_indices(equations):
+    """ Finds the tensor indices in all the input equations and returns a list of the set of indices.
+
+    :arg equations: a string, symbolic equations, a list of strings, or a list of symbolic equations.
+    :returns: a list of the set of indices.
+    :rtype: list
+    """
+
+    index = []
+    if isinstance(equations, list):
+        for eq in equations:
+            eq = str(eq)
+            index = index + list(set(re.compile(r'\_\S', re.I).findall(eq)))
+    else:
+        eq = str(equations)
+        index = index + list(set(re.compile(r'\_\S', re.I).findall(eq)))
+    index = list(set(index))
+    return index
+
+
+def expand_ind(term, ndim, index, equation):
+    fin = ''
+    if term.is_Mul:
+        out = str(term)
+        # index = tensor_indices(self)
+        for ind in index:
+            for dim in range(0, int(ndim)):
+                fin = fin + '+' + str(out).replace(str(ind), str(dim))
+            out = fin
+            fin = ''
+    elif term.is_Add:
+        fin1 = ''
+        for te in term.as_ordered_terms():
+            fin = ''
+            # pprint(te)
+            out = str(te)
+            # index = tensor_indices(te)
+            for ind in index:
+                for dim in range(0, int(ndim)):
+                    fin = fin + '+' + str(out).replace(str(ind), str(dim))
+                out = fin
+                fin = ''
+            fin1 = fin1 + '+' + out
+        out = fin1
+    else:
+        out = str(term)
+        # index = tensor_indices(self)
+        for ind in index:
+            for dim in range(0, int(ndim)):
+                fin = fin + '+' + str(out).replace(str(ind), str(dim))
+            out = fin
+            fin = ''
+    # pprint(out)
+    out = parse_expr(out)
+    # pprint(out)
+    equation = equation.subs(term, out)
+    return equation
+
+
+def variable_count(variable, equations):
+    """ Return the number of input equations containing a particular variable.
+    
+    :arg variable: the variable under consideration.
+    :arg equations: the equations to search.
+    :returns: the number of equations containing the variable.
+    :rtype: int
+    """
+
+    count = 0
+    for e in equations:
+        count = count + e.count(variable)
+    return count
+
+
+def equations_to_dict(equations):
+    """ Get the LHS and RHS of each equation, and return them in dictionary form.
+    
+    :arg equations: the equations to consider.
+    :returns: a dictionary of (LHS, RHS) pairs.
+    :rtype: dict
+    """
+
+    lhs = list(e.lhs for e in equations)
+    rhs = list(e.rhs for e in equations)
+    d = dict(zip(lhs, rhs))
+    LOG.debug(d)
+    return d
