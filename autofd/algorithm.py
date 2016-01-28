@@ -308,7 +308,7 @@ class PreparedEquations(object):
 
         if algorithm.language == 'OPSC':
             if self.multiblock:
-                raise ValueError('Implement Multi Block code implementation for OPSC')
+                raise NotImplementedError("Implement Multi-Block code for OPSC")
             code_file = open(BUILD_DIR+'/OPSC_nssolver.cpp', 'w')
             kernel_file = open(BUILD_DIR+'/auto_kernel.h', 'w')
             self.stencils = {}
@@ -322,7 +322,7 @@ class PreparedEquations(object):
                 self.grid = self.grid + [temp.upper+1]
         elif algorithm.language == 'F90':
             if self.multiblock:
-                raise ValueError('Implement Multi Block code implementation for F90')
+                raise NotImplementedError("Implement Multi-Block code for F90")
             code_file = open(BUILD_DIR+'/F_serial.f90', 'w')
             kernel_file = open(BUILD_DIR+'/subroutines.f90', 'w')
             modulefile = open(BUILD_DIR+'/param_mod.f90', 'w')
@@ -333,7 +333,7 @@ class PreparedEquations(object):
                 self.grid = self.grid + [temp.upper]
             self.kername = 'subroutine_%d'
         else:
-            raise ValueError('Implement indexing for language  %s' % (algorithm.language))
+            raise NotImplementedError('Implement indexing for language %s' % (algorithm.language))
 
         algorithm.sanity_check(self)
         variab = []
@@ -384,8 +384,9 @@ class PreparedEquations(object):
             else:
                 substis[va] = val
                 # raise ValueError('Implement how to do for count > evaluation_count')
-        if algorithm.temporal_scheme == 'RK':
 
+        # Runge-Kutta timestepping scheme
+        if algorithm.temporal_scheme == 'RK':
             rkloop = Idx('nrk', (l, algorithm.temporal_order))
             time_loop = Idx('iter', (l, Symbol('niter', integer=True)))
             a1 = Indexed('a1', Idx('nrk', (l, algorithm.temporal_order)))
@@ -400,7 +401,7 @@ class PreparedEquations(object):
         ders = list(set(ders))
         der_evals = []
 
-        # Get the coefficients of finite difference scheme
+        # Get the coefficients of the finite difference scheme
         derform(self, algorithm)
         tempder = []
         for no, der in enumerate(ders):

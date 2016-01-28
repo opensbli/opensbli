@@ -93,8 +93,8 @@ def OPSC_write_kernel(eqs, inp):
                                 new = '%s[OPS_ACC%d(%s)]' % (v, ind, indexes[inde])
                             old = ('%s\[%s\]' % (v, variabind[inde])).replace('+', '\+')
                             out[ou] = re.sub(r"\b(%s)" % old, new, out[ou])
-                            # out[ou] = out[ou].replace(old, new)
-                    # get the stencil name to be written
+
+                    # Get the stencil name to be written
                     indexes = indexes + [parse_expr(', '.join(list(str(0) for dim in range(inp.ndim))))]
                     indexes = list(set(indexes))
                     if inp.ndim > 1:
@@ -113,7 +113,7 @@ def OPSC_write_kernel(eqs, inp):
                         inp.stencils[sten] = sten_na
                         inp.sten_ind = inp.sten_ind + 1
 
-                    # update range on which the loop to be iterated
+                    # Update range on which the loop to be iterated
                     if len(indexes) == 1:
                         for dim in range(inp.ndim):
                             lower[dim] = lower[dim] - indexes[0][dim]
@@ -152,12 +152,10 @@ def OPSC_write_kernel(eqs, inp):
             for indno in range(len(kercall)-1):
                 kercall[indno] = kercall[indno] + ','
             kercall[-1] = kercall[-1] + ');'
-            # kercall = ',\n'.join(kercall)
             kercall = ['int iter_range%d[] = {%s};\n' % (inp.iterrange, iter_range)] + kercall
             inp.iterrange = inp.iterrange + 1
             kerheader = head + ', '.join(kerheader) + '){'
             kernel = [kerheader] + symdec + out + ['}']
-            # kernel = '\n'.join(kernel)
         else:
             LOG.debug(tot_base)
             pass
