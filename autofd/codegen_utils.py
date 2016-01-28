@@ -26,7 +26,7 @@ def header_code(inp, alg):
         out.append('%s Global Constants in the equations are' % COMMENT_DELIMITER[lang])
         dobs = []
         ints = []
-        for con in inp.const:
+        for con in inp.constants:
             if isinstance(con, Symbol):
                 if con.is_integer:
                     ints = ints + ['%s' % con]
@@ -54,7 +54,7 @@ def header_code(inp, alg):
     elif lang == 'F90':
         dobs = []
         ints = []
-        for con in inp.const:
+        for con in inp.constants:
             if isinstance(con, Symbol):
                 if con.is_integer:
                     ints = ints + ['%s' % con]
@@ -150,7 +150,7 @@ def defdec(inp, alg):
 
         # Declare Constants in OPS format
         out = out + ['ops_init(argc,argv,1)%s' % END_OF_STATEMENT_DELIMITER[lang]]
-        for constant in inp.const:
+        for constant in inp.constants:
             if isinstance(constant, Symbol):
                 inputs = inputs + ['%s = %s' % (constant, END_OF_STATEMENT_DELIMITER[lang])]
             elif isinstance(constant, Indexed):
@@ -159,7 +159,7 @@ def defdec(inp, alg):
                     tot = tot + inde
                 for no in range(tot-1):
                     inputs = inputs + ['%s[%d] = %s' % (constant.base, no, END_OF_STATEMENT_DELIMITER[lang])]
-        for con in inp.const:
+        for con in inp.constants:
             if con.is_Symbol:
                 if con.is_integer:
                     dtype = 'int'
@@ -215,7 +215,7 @@ def defdec(inp, alg):
         # These are the grid dimensions etc..
         inputs = inputs + ['integer :: %s %s' % (','.join(list('%s' % ('nx%dp' % dim) for dim in range(inp.ndim))), END_OF_STATEMENT_DELIMITER[lang])]
         inputs = inputs + ['\n'.join(list('%s = ' % inp.grid[dim+1] for dim in range(inp.ndim)))]
-        for con in inp.const:
+        for con in inp.constants:
             if isinstance(con, Symbol):
                 inputs = inputs + ['%s = %s' % (con, END_OF_STATEMENT_DELIMITER[lang])]
             elif isinstance(con, Indexed):

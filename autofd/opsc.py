@@ -7,7 +7,7 @@ import re
 
 # AutoFD functions
 from .codegen_utils import END_OF_STATEMENT_DELIMITER
-from .equation_utils import equations_to_dict
+from .equations import equations_to_dict
 
 import logging
 LOG = logging.getLogger(__name__)
@@ -32,7 +32,7 @@ def OPSC_write_kernel(eqs, inp):
         labes = list(set(list(i.label for i in Idxs)))
         for i in Idxs:
             labes = labes + [i.lower, i.upper]
-        symbs = list(set(symbs).difference(set(labes)).difference(set(inp.const)).difference(set(tot_base)))
+        symbs = list(set(symbs).difference(set(labes)).difference(set(inp.constants)).difference(set(tot_base)))
         symbs = list(set(symbs))
         out = []
         symdec = []

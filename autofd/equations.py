@@ -17,7 +17,7 @@ class Equation(object):
     def __init__(self, eq, system):
         self.inpeq = eq
 
-        # Perform substitutions if any
+        # Perform substitutions, if any
         if system.substitutions:
             for form in system.substitutions:
                 temp = parse_expr(form)

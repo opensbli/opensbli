@@ -9,10 +9,7 @@ import os
 
 # AutoFD functions
 from .latex import LatexWriter
-from .codegen_utils import *
 from .equations import *
-from .fortran import *
-from .opsc import *
 
 BUILD_DIR = os.getcwd()
 
@@ -133,26 +130,24 @@ class Algorithm(object):
 
         return
 
-
-    def sanity_check(self, inp):
-        """ Perform sanity checks on the algorithm input. """
-
-        if len(self.bcs) == inp.ndim:
-            pass
-        elif (len(self.bcs) > inp.ndim):
-            raise ValueError('There are more boundary conditions than the number of dimensions')
-        elif (len(self.bcs) < inp.ndim):
-            raise ValueError('There are less boundary conditions than the number of dimensions')
-
-        if len(self.expfilter) == inp.ndim:
-            pass
-        elif (len(self.expfilter) > inp.ndim):
-            raise ValueError('There are more options for filter than number of dimension')
-        elif (len(self.expfilter) < inp.ndim):
-            raise ValueError('There are less options for filter than number of dimension')
-
-        return
-
+def derivative_formula(system, algorithm):
+    ooa = algorithm.spatial_order
+    scheme = algorithm.spatial_scheme
+    points = []
+    order = 2
+    if scheme == 'central_diff':
+        points = list(i for i in range(-ooa/2, ooa/2+1))
+        if len(points) < order+1:
+            raise ValueError("Too few points for derivative of order %d" % order)
+        weights = finite_diff_weights(order, points, 0)
+        system.fd_weights = weights
+        system.fd_points = points
+        for dim in range(system.ndim):
+            system.halos.append(int(ooa/2))
+            system.gridhalo = system.gridhalo + [system.grid[dim+1]+2*system.halos[dim]]
+    else:
+        raise ValueError("Implement %s scheme in derivative formulation" % scheme)
+    return
 
 def sort_evals(inp, evald):
     inpcopy = [te for te in inp]
@@ -166,27 +161,6 @@ def sort_evals(inp, evald):
                 inpcopy.remove(te)
                 evald.append(te.lhs)
     return out, evald
-
-
-def derform(inp, alg):
-    ooa = alg.spatial_order
-    sch = alg.spatial_scheme
-    points = []
-    order = 2
-    if sch == 'central_diff':
-        points = list(i for i in range(-ooa/2, ooa/2+1))
-        if len(points) < order+1:
-            raise ValueError("Too few points for derivative of order %d" % order)
-        weights = finite_diff_weights(order, points, 0)
-        inp.fd_weights = weights
-        inp.fd_points = points
-        for dim in range(inp.ndim):
-            inp.halos.append(int(ooa/2))
-            inp.gridhalo = inp.gridhalo + [inp.grid[dim+1]+2*inp.halos[dim]]
-    else:
-        raise ValueError('Implement %s scheme in derivative formulation' % sch)
-    return
-
 
 def apply_der(der, inp):
     order = len(der.args) - 1
@@ -214,10 +188,10 @@ def apply_der(der, inp):
         # outderivative = outderivative.subs(d, derivative)
     if order == 1:
         derivative = derivative/(Symbol('d%s' % str(dire)))
-        inp.const = inp.const + [Symbol('d%s' % str(dire))]
+        inp.constants += [Symbol('d%s' % str(dire))]
     elif order == 2:
         derivative = derivative/(Symbol('d%s' % str(dire))*Symbol('d%s' % str(dire)))
-        inp.const = inp.const + [Symbol('d%s' % str(dire))]
+        inp.constants += [Symbol('d%s' % str(dire))]
     else:
         raise NotImplementedError('Implement the derivative of order %d' % order)
     # easydebug
