@@ -1,7 +1,7 @@
 #!/bin/sh
 
 EQUATIONS_FILE="equations.tex"
-ALGORITHM_FILE="alg.tex"
+ALGORITHM_FILE="algorithm.tex"
 
 # Clean up any old build files
 echo ">>> Cleaning all build files..."

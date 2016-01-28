@@ -45,6 +45,7 @@ class System(object):
     
     def expand_equations(self):
         """ Find the tensor indices in the equations, and then expand the equations. """
+
         start = time.time()
         expanded_equations = []
         for e in self.equations:

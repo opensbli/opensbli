@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 
-""" Utility functions for expanding the equations. """
-
 from sympy import *
 from sympy.parsing.sympy_parser import parse_expr
 import re
@@ -11,6 +9,9 @@ LOG = logging.getLogger(__name__)
 
 
 class Equation(object):
+
+    """ Describes an equation we want to solve. """
+
     global indterm
 
     def __init__(self, eq, system):
@@ -171,6 +172,43 @@ class Equation(object):
 
         return
 
+class ExplicitFilter(object):
+
+    """ Explicit filter implemented from the NASA PAPER. """
+
+    def __init__(self):
+        self.coeffs = {}
+        self.coeffs[2] = [-1, 2, -1]
+        self.coeffs[4] = [-1, 4, -6, 4, -1]
+
+    def filter_equations(self, alg):
+        """ Returns the filter equations. """
+        filtereqs = []
+        for dire, fil in enumerate(alg.expfilter):
+            if fil:
+                ooa = alg.spatial_order
+                alphaD = (-1)**(int(ooa/2) + 1) * (2) ** (-ooa)
+                if self.coeffs.get(ooa):
+                    muls = self.coeffs.get(ooa)
+                    temp = list(con.base for con in inp.conser)
+                    out = [con for con in inp.conser]
+                    # out = 0
+                    direction = Symbol('x%d' % dire)
+                    for num, ind in enumerate(inp.fd_points):
+                        repl = '%s' % str(direction + ind)
+                        index = str(inp.varform).replace(str(direction), repl)
+                        index = Idx(index, Symbol('nblock', integer=True))
+                        for nv in range(len(temp)):
+                            varib = temp[nv]
+                            out[nv] += alphaD * muls[num] * varib[index]
+                    for nv in range(len(temp)):
+                        out[nv] = Eq(savedic.get(inp.conser[nv]), out[nv])
+                    filtereqs.append(out)
+            else:
+                raise NotImplementedError('Implement spatial filtering coefficients for order of accuracy %d' % ooa)
+        return filtereqs
+
+
 def tensor_indices(equations):
     """ Finds the tensor indices in all the input equations and returns a list of the set of indices.
 
@@ -192,6 +230,8 @@ def tensor_indices(equations):
 
 
 def expand_ind(term, ndim, index, equation):
+    """ Utility function to expand a given equations """
+
     fin = ''
     if term.is_Mul:
         out = str(term)
