@@ -3,15 +3,14 @@
 """ This contains utility routines for code generation. """
 
 from sympy import *
-import re
 import textwrap
 
 import logging
 LOG = logging.getLogger(__name__)
 
 # Language-specific delimiters
-COMMENT_DELIMITER = {"OPSC":"//", "F90":"!"}
-END_OF_STATEMENT_DELIMITER = {"OPSC":";", "F90":""}
+COMMENT_DELIMITER = {"OPSC": "//", "F90": "!"}
+END_OF_STATEMENT_DELIMITER = {"OPSC": ";", "F90": ""}
 
 
 def header_code(inp, alg):

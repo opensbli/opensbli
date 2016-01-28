@@ -6,7 +6,7 @@ transformations = standard_transformations + (implicit_application,)
 import re
 
 # AutoFD functions
-from .codegen_utils import COMMENT_DELIMITER, END_OF_STATEMENT_DELIMITER
+from .codegen_utils import END_OF_STATEMENT_DELIMITER
 from .equation_utils import equations_to_dict
 
 import logging

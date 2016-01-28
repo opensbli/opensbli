@@ -85,7 +85,7 @@ def expand_equations(equations_file):
     latex = LatexWriter()
     latex.open(path=BUILD_DIR + "/equations.tex")
 
-    metadata = {"title":"Equations", "author":"Satya P Jammy", "institution":"University of Southampton"}
+    metadata = {"title": "Equations", "author": "Satya P Jammy", "institution": "University of Southampton"}
     latex.write_header(metadata)
     temp = []
     for e in equations:

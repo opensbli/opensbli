@@ -219,7 +219,7 @@ def apply_der(der, inp):
         derivative = derivative/(Symbol('d%s' % str(dire))*Symbol('d%s' % str(dire)))
         inp.const = inp.const + [Symbol('d%s' % str(dire))]
     else:
-        raise ValueError('Implement the order of derivative')
+        raise NotImplementedError('Implement the derivative of order %d' % order)
     # easydebug
     # derivative = derivative.simplify()
     # derivative = ratsimp(derivative)
@@ -260,7 +260,7 @@ class ExplicitFilter(object):
                         out[nv] = Eq(savedic.get(inp.conser[nv]), out[nv])
                     filtereqs.append(out)
             else:
-                raise ValueError('Implement spatial filtering coefficients for order of accuracy %d', ooa)
+                raise NotImplementedError('Implement spatial filtering coefficients for order of accuracy %d' % ooa)
         return filtereqs
 
 
@@ -576,7 +576,7 @@ class PreparedEquations(object):
         # Write out algorithm in LaTeX form
         latex = LatexWriter()
         latex.open(path=BUILD_DIR+'/alg.tex')
-        metadata = {"title":"Algorithm", "author":"Satya P Jammy", "institution":"University of Southampton"}
+        metadata = {"title": "Algorithm", "author": "Satya P Jammy", "institution": "University of Southampton"}
         latex.write_header(metadata)
 
         latex.write_string("The equations are\n\n")
