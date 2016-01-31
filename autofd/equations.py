@@ -296,5 +296,4 @@ def equations_to_dict(equations):
     lhs = list(e.lhs for e in equations)
     rhs = list(e.rhs for e in equations)
     d = dict(zip(lhs, rhs))
-    LOG.debug(d)
     return d
