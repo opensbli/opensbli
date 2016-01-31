@@ -4,7 +4,10 @@ import argparse
 
 # Import local utility functions
 import autofd
-from autofd.expansion import *
+from autofd.problem import *
+from autofd.algorithm import *
+from autofd.latex import LatexWriter
+from autofd.system import *
 
 if(__name__ == "__main__"):
     autofd.LOG.info("Parsing user input from the command-line...")
@@ -23,6 +26,32 @@ if(__name__ == "__main__"):
     # Make this an absolute path
     abspath_to_equations_file = os.path.realpath(args.equations_file)
 
-    # Expand out the equations
-    autofd.LOG.info("Expanding equations...")
-    expand_equations(abspath_to_equations_file)
+    # Find out the path of the directory that the equations file is in.
+    base_path = os.path.dirname(os.path.realpath(args.equations_file))
+    
+    # Define the problem and expand the equations
+    problem = Problem()
+    problem.read_input(base_path + "/equations")
+    expanded_equations, expanded_formulas = problem.expand()
+
+    # Prepare the algorithm
+    algorithm = Algorithm()
+    algorithm_file_path = base_path + "/algorithm"
+    algorithm.read_input(algorithm_file_path)
+
+    # Output equations in LaTeX format.
+    latex = LatexWriter()
+    latex.open(path=BUILD_DIR + "/equations.tex")
+    metadata = {"title": "Equations", "author": "Satya P Jammy", "institution": "University of Southampton"}
+    latex.write_header(metadata)
+    temp = flatten([e.expandedeq for e in expanded_equations])
+    latex.write_equations(temp)
+    latex.write_footer()
+    latex.close()
+
+    # Prepare the computational system and generate the code
+    start = time.time()
+    system = System()
+    system.prepare(expanded_equations, expanded_formulas, algorithm)
+    end = time.time()
+    LOG.debug('The time taken to prepare the system in %d Dimensions is %.2f seconds.' % (problem.ndim, end - start))
