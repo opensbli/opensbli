@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from sympy import *
+from sympy.printing.ccode import CCodePrinter
 from sympy.parsing.sympy_parser import (parse_expr, standard_transformations, implicit_application)
 transformations = standard_transformations + (implicit_application,)
 import re
@@ -53,7 +54,6 @@ def OPSC_write_kernel(eqs, inp):
 
         for ev in evals:
             code = ccode(ev)
-            code = evaluate_fractions(code)
             code = code.replace('==', '=') + END_OF_STATEMENT_DELIMITER['OPSC']
             out = out + [code]
         kercall = []
@@ -186,14 +186,11 @@ def OPSC_write_kernel(eqs, inp):
     # pprint('\n Call is')
     # print('\n\n'.join(allcalls))
     return allcalls, allkernels
-    
-def evaluate_fractions(code):
-    def replace(match):
-        numerator, denominator = match.group(0).split("/")
-        # Remove the 'L' character.
-        numerator = float(numerator[:-1])
-        denominator = float(denominator[:-1])
-        # Evaluate the fraction to obtain a float, and then return its string representation.
-        return str(numerator/denominator)
-    evaluated = re.sub(r"[0-9]+\.[0-9]*L\/[0-9]+\.[0-9]*L", replace, code)
-    return evaluated
+
+class OPSCCodePrinter(CCodePrinter):
+    def _print_Rational(self, expr):
+        p, q = int(expr.p), int(expr.q)
+        return str(float(p)/float(q))
+
+def ccode(expr):
+    return OPSCCodePrinter().doprint(expr)
