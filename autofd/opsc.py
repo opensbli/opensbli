@@ -196,5 +196,4 @@ def evaluate_fractions(code):
         # Evaluate the fraction to obtain a float, and then return its string representation.
         return str(numerator/denominator)
     evaluated = re.sub(r"[0-9]+\.[0-9]*L\/[0-9]+\.[0-9]*L", replace, code)
-    print evaluated
     return evaluated
