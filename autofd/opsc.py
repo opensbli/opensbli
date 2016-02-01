@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from sympy import *
+from sympy.printing.ccode import CCodePrinter
 from sympy.parsing.sympy_parser import (parse_expr, standard_transformations, implicit_application)
 transformations = standard_transformations + (implicit_application,)
 import re
@@ -185,3 +186,11 @@ def OPSC_write_kernel(eqs, inp):
     # pprint('\n Call is')
     # print('\n\n'.join(allcalls))
     return allcalls, allkernels
+
+class OPSCCodePrinter(CCodePrinter):
+    def _print_Rational(self, expr):
+        p, q = int(expr.p), int(expr.q)
+        return str(float(p)/float(q))
+
+def ccode(expr):
+    return OPSCCodePrinter().doprint(expr)

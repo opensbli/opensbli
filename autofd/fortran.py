@@ -58,14 +58,6 @@ def F90_write_kernel(eqs, inp, alg):
                     indexes = list(va for va in variabind)
                     for dim in range(inp.ndim):
                         indexes = list(str(te).replace('x%d' % dim, 'i%d' % dim) for te in indexes)
-                    for inde in range(len(indexes)):
-                        for ou in range(len(out)):
-                            if isinstance(indexes[inde], tuple):
-                                new = '%s' % (indexes[inde])
-                            else:
-                                new = '%s' % (indexes[inde])
-                            old = ('%s' % (variabind[inde]))
-                            # out[ou] = out[ou].replace(old, new)
                     for dim in range(inp.ndim):
                         indexes = list(str(te).replace('i%d' % dim, '0') for te in indexes)
                     indexes = list(parse_expr(v) for v in indexes)
