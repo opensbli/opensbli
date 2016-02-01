@@ -8,6 +8,8 @@ In order to compile the generated code, you will need to set up your OPS install
 ```
 export OPS_INSTALL_PATH=~/OPS/ops
 export OPS_COMPILER=gnu
+export MPI_INSTALL_PATH=/usr/
+export HDF5_INSTALL_PATH=/usr/
 ```
 
 Compiling the generated code
