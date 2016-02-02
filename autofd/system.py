@@ -69,7 +69,7 @@ class System(object):
             self.stencils = {}
             self.sten_ind = 0
             self.sten_name = 'stencil%dD_%%d' % self.ndim
-            self.blkname = 'auto_block_OPSC'
+            self.block_name = 'auto_block_OPSC'
             self.kername = 'auto_kernel_%d'
             for dim in range(self.ndim):
                 temp = Idx('i%d' % dim, Symbol('nx%dp[blk]' % dim, integer=True))
