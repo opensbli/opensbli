@@ -51,8 +51,8 @@ class Algorithm(object):
             self.temporal_scheme = temp[0]
             # Temporal order of accuracy
             self.temporal_order = int(temp[1])
-		else:
-			raise ValueError('Implement %s time stepping scheme' % temp[0])
+        else:
+            raise ValueError('Implement %s time stepping scheme' % temp[0])
 
         # Constant or local time-step
         temp = lines[comment_lineno[1]+1:comment_lineno[2]]
@@ -74,8 +74,8 @@ class Algorithm(object):
             self.spatial_scheme = temp[0]
             # Spatial order of accuracy
             self.spatial_order = int(temp[1])
-		else:
-			raise ValueError('Implement %s spatial scheme' % temp[0])
+        else:
+            raise ValueError('Implement %s spatial scheme' % temp[0])
 
         # Evaluation count
         temp = lines[comment_lineno[3]+1:comment_lineno[4]]
@@ -130,10 +130,10 @@ class Algorithm(object):
         return
 
 def derivative_formula(system, algorithm):
-	''' finds the finite difference weights for the spatial scheme and order of
+    ''' finds the finite difference weights for the spatial scheme and order of
 	accuracy provided in the algorithm. Updates the fd_weights and fd_points
 	in the system
-	
+
 	:args system, algorithm
 	:returns none
 
@@ -179,6 +179,7 @@ def sort_evals(inp, evald):
 def apply_der(der, inp):
 	''' Applies the derivatives formula depending on the finite difference weights
 	evaluated in derivative_formula
+	
 	: derivative_formula should be called before this
 	:args derivative, inputs
 	:returns the formula of the derivative in symbolic notation
