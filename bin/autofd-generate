@@ -16,6 +16,7 @@ if(__name__ == "__main__"):
     parser = argparse.ArgumentParser(prog="codegen", description="An automatic code generator which expands the equations written in Einstein notation, and writes out model code in OPSC or Fortran (serial) format.")
     parser.add_argument("equations_file", help="The path to the file containing the equations.", action="store", type=str)
     parser.add_argument("-l", "--log-level", action="store", type=str, metavar="LEVEL", default=None, choices=['critical', 'error', 'warning', 'info', 'debug'], help=("Log verbosity level. Defaults to %s" % (logging.getLevelName(autofd.LOG.level).lower())))
+    parser.add_argument("-c", "--compile", help="Compile the code after automatically generating it.", action="store_true", default=False)
     args = parser.parse_args()
 
     # Override the default logging verbosity level.
@@ -55,3 +56,9 @@ if(__name__ == "__main__"):
     system.prepare(expanded_equations, expanded_formulas, algorithm)
     end = time.time()
     LOG.debug('The time taken to prepare the system in %d Dimensions is %.2f seconds.' % (problem.ndim, end - start))
+    
+    if args.compile:
+        LOG.info("Compiling generated code...")
+        system.compile(algorithm)
+
+    return

@@ -10,7 +10,7 @@ echo ">>> Done."
 
 # Code generation step
 echo ">>> Generating code for equations..."
-./autofd-generate equations
+./autofd-generate -c equations
 echo ">>> Done."
 
 # Make the generated code look pretty.

@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import os
+import subprocess
 from sympy import *
 from sympy.parsing.sympy_parser import *
 
@@ -563,4 +564,14 @@ class System(object):
         elif (len(algorithm.expfilter) < self.ndim):
             raise ValueError('There are less options for filter than the number of dimensions')
 
+        return
+
+    def compile(self, algorithm):
+        if algorithm.language == 'OPSC':
+            # First translate the generated code using the OPSC translator.
+            LOG.debug("Translating OPSC code...")
+            exit_code = subprocess.call("python $OPS_INSTALL_PATH/../translator/python/c/ops.py OPSC_nssolver.cpp", shell=True)
+            if(exit_code != 0):
+                # Something went wrong
+                LOG.error("Unable to translate OPSC code. Check OPS_INSTALL_PATH?")
         return

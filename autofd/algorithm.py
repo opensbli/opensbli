@@ -157,14 +157,14 @@ def derivative_formula(system, algorithm):
     return
 
 def sort_evals(inp, evald):
-	'''
-	Sorts a list of formulas depending on the evaluation i.e. the equations are sorted in
-	a way that all the terms in the RHS are evaluated before the equation is evaluated
+    '''
+    Sorts a list of formulas depending on the evaluation i.e. the equations are sorted in
+    a way that all the terms in the RHS are evaluated before the equation is evaluated
 
-	:args list of equations and the variables evaluated previously
-	:returns evaluated variables and sorted list
-	# TODO break if the loop runs for ever
-	'''
+    :args list of equations and the variables evaluated previously
+    :returns evaluated variables and sorted list
+    # TODO break if the loop runs for ever
+    '''
     inpcopy = [te for te in inp]
     out = []
     while inpcopy:
@@ -177,13 +177,13 @@ def sort_evals(inp, evald):
     return out, evald
 
 def apply_der(der, inp):
-	''' Applies the derivatives formula depending on the finite difference weights
-	evaluated in derivative_formula
-	
-	: derivative_formula should be called before this
-	:args derivative, inputs
-	:returns the formula of the derivative in symbolic notation
-	'''
+    ''' Applies the derivatives formula depending on the finite difference weights
+    evaluated in derivative_formula
+
+    : derivative_formula should be called before this
+    :args derivative, inputs
+    :returns the formula of the derivative in symbolic notation
+    '''
     order = len(der.args) - 1
     temp = []
     lwr = inp.block.lower
