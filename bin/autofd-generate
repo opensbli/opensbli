@@ -60,5 +60,3 @@ if(__name__ == "__main__"):
     if args.compile:
         LOG.info("Compiling generated code...")
         system.compile(algorithm)
-
-    return

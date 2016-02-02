@@ -82,6 +82,13 @@ def plot(path):
     plt.imshow(u_error)
     plt.show()
 
+#import h5py
+#f = h5py.File("output.h5", 'r')
+#group = f["auto_block_OPSC[0]"]
+#dataset = group.values()[0]
+#dataset.value
+
+
 if(__name__ == "__main__"):
     # Parse the command line arguments provided by the user
     parser = argparse.ArgumentParser(prog="tgv_2d_error")
