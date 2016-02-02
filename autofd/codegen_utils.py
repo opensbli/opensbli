@@ -451,7 +451,7 @@ def write_state(inp, alg):
 
         # Then write out each field.
         for c in inp.conser:
-            convervative_variable_to_hdf5 = "ops_fetch_dat_hdf5_file(%s[%s], \"output.h5\");" % (c.base.label, inp.block)
+            convervative_variable_to_hdf5 = "ops_fetch_dat_hdf5_file(%s[%s], \"state.h5\");" % (c.base.label, inp.block)
             out.append(convervative_variable_to_hdf5)
 
     elif alg.language == 'F90':
