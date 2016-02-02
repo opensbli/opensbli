@@ -30,7 +30,7 @@ class Algorithm(object):
 
     def read_input(self, path):
         """ Read the algorithm input from the algorithm file.
-        
+
         :arg str path: the path to the algorithm file.
         """
         lines = [line for line in open(path, "r").read().splitlines() if line]
@@ -46,12 +46,13 @@ class Algorithm(object):
         if len(temp) > 1:
             raise ValueError('Temporal scheme is defined wrongly in algorithm text file')
         temp = temp[0].split(',')
-        if temp[0] != 'RK':
-            raise ValueError('Implement %s time stepping scheme' % temp[0])
-        self.temporal_scheme = temp[0]
-
-        # Temporal order of accuracy
-        self.temporal_order = int(temp[1])
+        # If scheme is Runge-Kutta
+        if temp[0] == 'RK':
+            self.temporal_scheme = temp[0]
+            # Temporal order of accuracy
+            self.temporal_order = int(temp[1])
+		else:
+			raise ValueError('Implement %s time stepping scheme' % temp[0])
 
         # Constant or local time-step
         temp = lines[comment_lineno[1]+1:comment_lineno[2]]
@@ -69,12 +70,12 @@ class Algorithm(object):
         if len(temp) > 1:
             raise ValueError('Spatial scheme is defined wrongly in algorithm text file')
         temp = temp[0].split(',')
-        if temp[0] != 'central_diff':
-            raise ValueError('Implement %s spatial scheme' % temp[0])
-        self.spatial_scheme = temp[0]
-
-        # Spatial order of accuracy
-        self.spatial_order = int(temp[1])
+        if temp[0] == 'central_diff':
+            self.spatial_scheme = temp[0]
+            # Spatial order of accuracy
+            self.spatial_order = int(temp[1])
+		else:
+			raise ValueError('Implement %s spatial scheme' % temp[0])
 
         # Evaluation count
         temp = lines[comment_lineno[3]+1:comment_lineno[4]]
@@ -88,12 +89,16 @@ class Algorithm(object):
         temp = lines[comment_lineno[5]+1:comment_lineno[6]]
 
         # Read the boundary conditions
+        # TODO What if it is a Multi-Block code??
+        # All the boundary conditions should be read from the Algorithm file or should
+        # we move boundary conditions to a new file ??
         for te in temp:
             te = te.replace(' ', '')
             self.bcs = self.bcs + [tuple(te.strip().split(','))]
 
         # Language
         temp = lines[comment_lineno[6]+1:comment_lineno[7]]
+        # TODO Add language check here it self
         self.language = temp[0]
 
         # Multi-block stuff
@@ -125,6 +130,14 @@ class Algorithm(object):
         return
 
 def derivative_formula(system, algorithm):
+	''' finds the finite difference weights for the spatial scheme and order of
+	accuracy provided in the algorithm. Updates the fd_weights and fd_points
+	in the system
+	
+	:args system, algorithm
+	:returns none
+
+	'''
     ooa = algorithm.spatial_order
     scheme = algorithm.spatial_scheme
     points = []
@@ -144,10 +157,17 @@ def derivative_formula(system, algorithm):
     return
 
 def sort_evals(inp, evald):
+	'''
+	Sorts a list of formulas depending on the evaluation i.e. the equations are sorted in
+	a way that all the terms in the RHS are evaluated before the equation is evaluated
+
+	:args list of equations and the variables evaluated previously
+	:returns evaluated variables and sorted list
+	# TODO break if the loop runs for ever
+	'''
     inpcopy = [te for te in inp]
     out = []
     while inpcopy:
-        # LOG.debug('in while loop')
         for te in inpcopy:
             ter = te.rhs.atoms(Indexed)
             if not ter.difference(set(evald)):
@@ -157,6 +177,12 @@ def sort_evals(inp, evald):
     return out, evald
 
 def apply_der(der, inp):
+	''' Applies the derivatives formula depending on the finite difference weights
+	evaluated in derivative_formula
+	: derivative_formula should be called before this
+	:args derivative, inputs
+	:returns the formula of the derivative in symbolic notation
+	'''
     order = len(der.args) - 1
     temp = []
     lwr = inp.block.lower
@@ -175,11 +201,7 @@ def apply_der(der, inp):
     N = len(inp.fd_points) - 1
     for nu in range(0, len(inp.fd_points)):
         derivative += inp.fd_weights[order][N][nu]*temp[nu]
-        # derivative = derivative.simplify()
-        # derivative = ratsimp(derivative)
-        # derivative = derivative.simplify()
-        # derivative = ratsimp(derivative)
-        # outderivative = outderivative.subs(d, derivative)
+
     if order == 1:
         derivative = derivative/(Symbol('d%s' % str(dire)))
         inp.constants += [Symbol('d%s' % str(dire))]
@@ -188,8 +210,4 @@ def apply_der(der, inp):
         inp.constants += [Symbol('d%s' % str(dire))]
     else:
         raise NotImplementedError('Implement the derivative of order %d' % order)
-    # easydebug
-    # derivative = derivative.simplify()
-    # derivative = ratsimp(derivative)
-    # end easydebug
     return derivative
