@@ -41,23 +41,3 @@ from within the base directory of AutoFD. Alternatively, particularly for develo
 
     export PYTHONPATH=$PYTHONPATH:~/autofd
 
-Compiling the generated code
-----------------------------
-In the directory where the generated code resides, first copy the generated code into a new ``src`` directory:
-
-.. code-block:: bash
-
-    mkdir src
-    cp OPSC_nssolver.cpp src/
-    cp auto_kernel.h src/
-    cd src
-
-In the copied source, insert the simulation parameters in ``OPSC_nssolver.cpp``, and then translate this code with the OPS translator using:
-
-.. code-block:: bash
-
-    python ~/OPS/translator/python/c/ops.py OPSC_nssolver.cpp
-
-This will give you the code targetted towards different backends, e.g. CUDA, MPI, OpenMP, etc.
-
-Finally, copy across the ``Makefile`` from one of the OPS ``apps``, and modify it so that it will compile the source for your simulation setup.
