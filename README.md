@@ -21,7 +21,7 @@ First ensure that the following dependencies are satisfied:
 AutoFD is a Python package and can be installed system-wide by running
 
 ```
-sudo python setup.py install
+sudo make install
 ```
 
 from the AutoFD base directory (i.e. the same directory this README file is in).
@@ -32,6 +32,15 @@ Alternatively, you can just add AutoFD to your `PYTHONPATH` environment variable
 ```
 export PYTHONPATH=$PYTHONPATH:/path/to/autofd/base/directory
 ```
+
+## Documentation
+The documentation for AutoFD can be built using Sphinx via the following command:
+
+```
+make docs
+```
+
+This will build the documentation in HTML format and can be opened in a Web browser.
 
 ## Contact
 If you wish to report a bug with the software, please contact [Satya P Jammy](mailto:S.P.Jammy@soton.ac.uk) or [Christian T. Jacobs](mailto:C.T.Jacobs@soton.ac.uk).
