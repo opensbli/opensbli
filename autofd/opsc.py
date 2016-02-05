@@ -61,7 +61,7 @@ def OPSC_write_kernel(eqs, inp):
         kernel = []
         kername = inp.kername % inp.kernel_ind
         inp.kernel_ind = inp.kernel_ind + 1
-        kerca = 'ops_par_loop(%s, \"%s\", %s[%s], %d, %%s' % (kername, kername, inp.blkname, inp.block, inp.ndim)
+        kerca = 'ops_par_loop(%s, \"%s\", %s[%s], %d, %%s' % (kername, kername, inp.block_name, inp.block, inp.ndim)
         head = 'void %s(' % kername
         if tot_base:
             for ind, v in enumerate(tot_base):

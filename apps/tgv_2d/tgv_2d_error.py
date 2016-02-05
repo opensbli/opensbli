@@ -5,24 +5,7 @@ import argparse
 import numpy
 from math import pi, exp, cos, sin
 import matplotlib.pyplot as plt
-
-def read_data(filename):
-    delimiter = ' ' 
-    data = []   
-    with open(filename, 'r') as f:
-        for line in f:
-            if line[0] != delimiter:
-                # Skip header lines
-                continue
-            else:
-                l = line.split(delimiter)
-                l.pop(0) # The first element will always be an empty string as the delimiter is the first character in each row. Let's remove it.
-                for i in range(len(l)):
-                    l[i] = float(l[i]) # Cast from str to float
-                row = numpy.array(l)
-                data.append(row)
-          
-    return numpy.array(data)
+import h5py
 
 def plot(path):
     # Number of grid points in the x and y directions
@@ -36,16 +19,17 @@ def plot(path):
     gamma = 1.4
 
     # Read in the simulation output
-    u_im = read_data(path + '/rhou0_final.dat')
-    v_im = read_data(path + '/rhou1_final.dat')
-    r = read_data(path + '/rho_final.dat')
-    E = read_data(path + '/rhoE_final.dat')
+    f = h5py.File(path + "/state.h5", 'r')
+    group = f["auto_block_OPSC[0]"]
+    
+    u_im = r = group["rhou0[0]"].value
+    v_im = r = group["rhou1[0]"].value
+    r = group["rho[0]"].value
+    E = group["rhoE[0]"].value
 
     # Obtain the velocity field by dividing the momentum through by the density.
-    for i in range(len(u_im)):
-        for j in range(len(u_im[i])):
-            u_im[i,j] = u_im[i,j] / r[i,j]
-            v_im[i,j] = v_im[i,j] / r[i,j]
+    u_im /= r
+    v_im /= r
     
     # Ignore the 2 halo nodes at either end of the domain
     u = u_im[halo:nx+halo, halo:ny+halo]
@@ -78,9 +62,10 @@ def plot(path):
             u_error[i,j] = u[i,j] - u_analytical[i,j]
             v_error[i,j] = v[i,j] - v_analytical[i,j]
 
-    print u_error
-    plt.imshow(u_error)
+    print u_analytical
+    plt.imshow(u)
     plt.show()
+
 
 if(__name__ == "__main__"):
     # Parse the command line arguments provided by the user

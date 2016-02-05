@@ -10,6 +10,7 @@ First ensure that the following dependencies are satisfied:
 * Python 2.7
 * astyle
 * Sympy >= 0.7.6.1
+* python-h5py
 * pytest (for running the test suite)
 * python-flake8 (for linting the code base)
 * Sphinx (to build the documentation)

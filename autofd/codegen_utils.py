@@ -130,7 +130,7 @@ def defdec(inp, alg):
 
     if alg.language == 'OPSC':
         # Define inputs to the code
-        blkname = inp.blkname
+        block_name = inp.block_name
         totblock = inp.block.upper - inp.block.lower
         ind = inp.blockdims
         inputs = []
@@ -168,7 +168,7 @@ def defdec(inp, alg):
                 out = out + ['ops_decl_const(\"%s\" , 1, \"%s\", &%s)%s' % (con, dtype, con, END_OF_STATEMENT_DELIMITER[lang])]
 
         # Declare block
-        out.append('ops_block *%s = (ops_block *)malloc(%s*sizeof(ops_block*));' % (blkname, totblock))
+        out.append('ops_block *%s = (ops_block *)malloc(%s*sizeof(ops_block*));' % (block_name, totblock))
         out.append('char buf[100];')
         if inp.multiblock:
             stloop, enloop = loop([inp.block], alg)
@@ -176,8 +176,8 @@ def defdec(inp, alg):
             stloop = ['\n']
             enloop = ['\n']
         out = out + stloop
-        out.append('sprintf(buf,\"%s[%%d]\",%s);' % (blkname, inp.block))
-        out.append('%s[%s] = ops_decl_block(%d,buf);' % (blkname, inp.block, inp.ndim))
+        out.append('sprintf(buf,\"%s[%%d]\",%s);' % (block_name, inp.block))
+        out.append('%s[%s] = ops_decl_block(%d,buf);' % (block_name, inp.block, inp.ndim))
 
         out = out + enloop
 
@@ -194,7 +194,7 @@ def defdec(inp, alg):
         out = out + ['int size[%d] = {%s};' % (inp.ndim, size)]
         for da in inp.dats:
             out.append('sprintf(buf,\"%s[%%d]\",%s);' % (da.base, inp.block))
-            out = out + ['%s[%s] = ops_decl_dat(%s[%s], 1, size, base, d_m, d_p, temp, "double", buf);' % (da.base, inp.block, blkname, inp.block)]
+            out = out + ['%s[%s] = ops_decl_dat(%s[%s], 1, size, base, d_m, d_p, temp, "double", buf);' % (da.base, inp.block, block_name, inp.block)]
         out = out + enloop
 
         for key, value in inp.stencils.iteritems():
@@ -438,15 +438,28 @@ def bcs(inp, alg):
 
 def after_time(inp, alg):
     out = []
-    lang = alg.language
+    out = out + write_state(inp, alg)
+    return out
+
+def write_state(inp, alg):
+    """ Write the current state of the simulation (i.e. all of the fields/conservative variables) to disk in HDF5 format. """
+    out = []
     if alg.language == 'OPSC':
-        writing = 'ops_print_dat_to_txtfile(%s[%s], "%s_final.dat");'
-        for con in inp.conser:
-            out = out + [writing % (con.base.label, inp.block, con.base.label)]
-    elif lang == 'F90':
-        out = out + ['%s Write data file output here' % COMMENT_DELIMITER[lang]]
+        # First write out the block(s)
+        block_to_hdf5 = "ops_fetch_block_hdf5_file(%s[%s], \"state.h5\");" % (inp.block_name, inp.block)
+        out.append(block_to_hdf5)
+
+        # Then write out each field.
+        for c in inp.conser:
+            convervative_variable_to_hdf5 = "ops_fetch_dat_hdf5_file(%s[%s], \"state.h5\");" % (c.base.label, inp.block)
+            out.append(convervative_variable_to_hdf5)
+
+    elif alg.language == 'F90':
+        #TODO: Write HDF5 output for Fortran 90.
+        out = out + ['%s Write data file output here' % COMMENT_DELIMITER[alg.language]]
     else:
         raise ValueError('Implement output writing for language %s' % alg.language)
+
     return out
 
 
