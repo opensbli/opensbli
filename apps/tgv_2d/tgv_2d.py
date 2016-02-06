@@ -10,29 +10,40 @@ from autofd.latex import LatexWriter
 from autofd.system import *
 
 if(__name__ == "__main__"):
-    autofd.LOG.info("Parsing user input from the command-line...")
+    autofd.LOG.info("Generating code for the 2D Taylor-Green Vortex simulation...")
 
-    # Parse the command line arguments provided by the user
-    parser = argparse.ArgumentParser(prog="codegen", description="An automatic code generator which expands the equations written in Einstein notation, and writes out model code in OPSC or Fortran (serial) format.")
-    parser.add_argument("equations_file", help="The path to the file containing the equations.", action="store", type=str)
-    parser.add_argument("-l", "--log-level", action="store", type=str, metavar="LEVEL", default=None, choices=['critical', 'error', 'warning', 'info', 'debug'], help=("Log verbosity level. Defaults to %s" % (logging.getLevelName(autofd.LOG.level).lower())))
-    parser.add_argument("-c", "--compile", help="Compile the code after automatically generating it.", action="store_true", default=False)
-    args = parser.parse_args()
+    # Problem dimension
+    ndim = 2
 
-    # Override the default logging verbosity level.
-    if(args.log_level):
-        level = getattr(logging, args.log_level.upper())
-        autofd.LOG.setLevel(level)
+    # Define the compresible Navier-Stokes equations in Einstein notation.
+    mass = "Eq(Der(rho,t),- conser(rhou_j,x_j))"
+    momentum = "Eq(Der(rhou_i,t) ,-conser(rhou_i*u_j + p* KroneckerDelta(_i,_j),x_j) + Der(tau_i_j,x_j) )"
+    energy = "Eq(Der(rhoE,t),-conser((p+rhoE)*u_j,x_j) -Der(q_i,x_i) + Der(u_i*tau_i_j ,x_j) )"
+    equations = [mass, momentum, energy]
 
-    # Make this an absolute path
-    abspath_to_equations_file = os.path.realpath(args.equations_file)
+    # Substitutions
+    stress_tensor = "Eq(tau_i_j, (mu/Re)*(Der(u_i,x_j) + Der(u_j,x_i) - (2/3) * KroneckerDelta(_i,_j)*Der(u_k,x_k)))"
+    heat_flux = "Eq(q_i, -(mu/((gama-1)*Minf*Minf*Pr*Re))*Der(T,x_i))"
+    substitutions = [stress_tensor, heat_flux]
 
-    # Find out the path of the directory that the equations file is in.
-    base_path = os.path.dirname(os.path.realpath(args.equations_file))
+    # Define all the constants in the equations
+    constants = ["Re", "Pr", "mu", "gama", "Minf", "C23"]
     
-    # Define the problem and expand the equations
-    problem = Problem()
-    problem.read_input(base_path + "/equations")
+    # Define coordinate direction symbol (x) this will be x_i, x_j,x_k
+    coordinate_symbol = "x"
+    
+    # Metrics
+    metrics = ["False", "False"]
+    
+    # Formulas for the variables used in the equations
+    velocity = "Eq(u_i, rhou_i/rho)"
+    pressure = "Eq(p, (gama-1)*(rhoE - (1/(2*rho))*(rhou_j**2)))"
+    temperature = "Eq(T, p*gama*Minf*Minf/(rho))"
+    viscosity = "Eq(mu, T**(2/3))"
+    formulas = [velocity, pressure, temperature, viscosity]
+
+    # Create the TGV problem and expand the equations.
+    problem = Problem(equations, substitutions, ndim, constants, coordinate_symbol, metrics, formulas)
     expanded_equations, expanded_formulas = problem.expand()
 
     # Prepare the algorithm
@@ -41,14 +52,14 @@ if(__name__ == "__main__"):
     algorithm.read_input(algorithm_file_path)
 
     # Output equations in LaTeX format.
-    latex = LatexWriter()
-    latex.open(path=BUILD_DIR + "/equations.tex")
-    metadata = {"title": "Equations", "author": "Satya P Jammy", "institution": "University of Southampton"}
-    latex.write_header(metadata)
-    temp = flatten([e.expandedeq for e in expanded_equations])
-    latex.write_equations(temp)
-    latex.write_footer()
-    latex.close()
+#    latex = LatexWriter()
+#    latex.open(path=BUILD_DIR + "/equations.tex")
+#    metadata = {"title": "Equations", "author": "Satya P Jammy", "institution": "University of Southampton"}
+#    latex.write_header(metadata)
+#    temp = flatten([e.expandedeq for e in expanded_equations])
+#    latex.write_equations(temp)
+#    latex.write_footer()
+#    latex.close()
 
     # Prepare the computational system and generate the code
     start = time.time()
@@ -57,6 +68,6 @@ if(__name__ == "__main__"):
     end = time.time()
     LOG.debug('The time taken to prepare the system in %d Dimensions is %.2f seconds.' % (problem.ndim, end - start))
     
-    if args.compile:
-        LOG.info("Compiling generated code...")
-        system.compile(algorithm)
+    # Translate and compile the generated code
+    LOG.info("Compiling generated code...")
+    system.compile(algorithm)
