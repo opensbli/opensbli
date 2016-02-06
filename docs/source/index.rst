@@ -13,6 +13,7 @@ Contents:
 
    introduction
    getting_started
+   problem
 
 
 Indices and tables
