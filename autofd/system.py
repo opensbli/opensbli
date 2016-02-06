@@ -409,7 +409,7 @@ class System(object):
         latex.write_string('The final rk3 update equations are\n\n')
         latex.write_equations(final_equations, variable_indices)
 
-        if any(algorithm.expfilter):
+        if any(algorithm.explicit_filter):
             self.filtereqs = expfiltering(algorithm, self, savedic)
             latex.write_string('The filter equations are\n\n')
             for e in self.filtereqs:
@@ -557,11 +557,11 @@ class System(object):
         elif (len(algorithm.bcs) < self.ndim):
             raise ValueError('There are less boundary conditions than the number of dimensions')
 
-        if len(algorithm.expfilter) == self.ndim:
+        if len(algorithm.explicit_filter) == self.ndim:
             pass
-        elif (len(algorithm.expfilter) > self.ndim):
+        elif (len(algorithm.explicit_filter) > self.ndim):
             raise ValueError('There are more options for filter than the number of dimensions')
-        elif (len(algorithm.expfilter) < self.ndim):
+        elif (len(algorithm.explicit_filter) < self.ndim):
             raise ValueError('There are less options for filter than the number of dimensions')
 
         return

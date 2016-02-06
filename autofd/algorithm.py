@@ -13,119 +13,39 @@ LOG = logging.getLogger(__name__)
 
 class Algorithm(object):
 
-    def __init__(self):
-        self.temporal_scheme = []  # Temporal discretisation scheme (e.g. RK3).
-        self.temporal_order = []  # Temporal order of accuracy
-        self.constant_timestep = True  # Constant timestep.
-        self.spatial_scheme = []  # Spatial discretisation scheme
-        self.spatial_order = []  # Spatial order of accuracy
-        self.work_array = []  # Work array
-        self.evaluation_count = []  # Evaluation count
-        self.bcs = []  # Boundary conditions
-        self.language = []  # Generated code's language
-        self.multiblock = False  # Multi-block
-        self.nblocks = 1  # Number of blocks
-        self.expfilter = []  # Explicit filter
-        return
-
-    def read_input(self, path):
-        """ Read the algorithm input from the algorithm file.
-
-        :arg str path: the path to the algorithm file.
-        """
-        lines = [line for line in open(path, "r").read().splitlines() if line]
-
-        # Get all the comments in the file
-        comment_lineno = []
-        for ind, line in enumerate(lines):
-            if line[0] == '#':
-                comment_lineno.append(ind)
-
-        # Time-stepping scheme
-        temp = lines[comment_lineno[0]+1:comment_lineno[1]]
-        if len(temp) > 1:
-            raise ValueError('Temporal scheme is defined wrongly in algorithm text file')
-        temp = temp[0].split(',')
-        # If scheme is Runge-Kutta
-        if temp[0] == 'RK':
-            self.temporal_scheme = temp[0]
-            # Temporal order of accuracy
-            self.temporal_order = int(temp[1])
-        else:
-            raise ValueError('Implement %s time stepping scheme' % temp[0])
-
-        # Constant or local time-step
-        temp = lines[comment_lineno[1]+1:comment_lineno[2]]
-        if len(temp) > 1:
-            raise ValueError('Time step can be const or local only')
-        if temp[0] == 'const':
-            self.constant_timestep = True
-        elif temp[0] == 'local':
-            self.constant_timestep = False
-        else:
-            raise ValueError('Time step can be const or local only')
-
-        # Spatial discretisation scheme
-        temp = lines[comment_lineno[2]+1:comment_lineno[3]]
-        if len(temp) > 1:
-            raise ValueError('Spatial scheme is defined wrongly in algorithm text file')
-        temp = temp[0].split(',')
-        if temp[0] == 'central_diff':
-            self.spatial_scheme = temp[0]
-            # Spatial order of accuracy
-            self.spatial_order = int(temp[1])
-        else:
-            raise ValueError('Implement %s spatial scheme' % temp[0])
-
-        # Evaluation count
-        temp = lines[comment_lineno[3]+1:comment_lineno[4]]
-        if len(temp) > 1:
-            raise ValueError('The evaluation count provided is wrong')
-        self.evaluation_count = int(temp[0])
-        temp = lines[comment_lineno[4]+1:comment_lineno[5]]
-        if len(temp) > 1:
-            raise ValueError('The evaluation count provided is wrong')
-        self.work_array = '%s%%d' % temp[0]
-        temp = lines[comment_lineno[5]+1:comment_lineno[6]]
-
-        # Read the boundary conditions
-        # TODO What if it is a Multi-Block code??
-        # All the boundary conditions should be read from the Algorithm file or should
-        # we move boundary conditions to a new file ??
-        for te in temp:
-            te = te.replace(' ', '')
-            self.bcs = self.bcs + [tuple(te.strip().split(','))]
-
-        # Language
-        temp = lines[comment_lineno[6]+1:comment_lineno[7]]
-        # TODO Add language check here it self
-        self.language = temp[0]
-
+    def __init__(self, temporal_scheme, temporal_order, constant_timestep, spatial_scheme, spatial_order, work_array,
+                 evaluation_count, bcs, language, multiblock, explicit_filter):
+        self.temporal_scheme = temporal_scheme  # Temporal discretisation scheme (e.g. RK3).
+        self.temporal_order = temporal_order  # Temporal order of accuracy
+        self.constant_timestep = constant_timestep  # Constant timestep.
+        self.spatial_scheme = spatial_scheme  # Spatial discretisation scheme
+        self.spatial_order = spatial_order  # Spatial order of accuracy
+        self.work_array = work_array + "%d" # Work array
+        self.evaluation_count = evaluation_count  # Evaluation count
+        self.bcs = bcs  # Boundary conditions
+        self.language = language  # Generated code's language
+        self.multiblock = multiblock  # Multi-block
         # Multi-block stuff
-        temp = lines[comment_lineno[7]+1:comment_lineno[8]]
-        if len(temp) > 1:
-            raise ValueError('Blocks defined wrongly in the code')
-        temp = temp[0]
-        if temp == 'SB':
-            self.multiblock = False
-            self.nblocks = 1
-        elif temp == 'MB':
-            self.multiblock = True
+        if self.multiblock:
             self.nblocks = Symbol('nblocks')
         else:
-            raise ValueError('Blocks can be SB for single block or MB for multi-block')
+            self.nblocks = 1
+        self.explicit_filter = explicit_filter  # Explicit filter
+        
+        # Check the input
+        self.sanity_check()
+        return
 
-        # Spatial filtering of conservative varibles
-        temp = lines[comment_lineno[8]+1:comment_lineno[9]]
-        temp = temp[0].split(',')
-        for te in temp:
-            te = te.strip()
-            if te == 'T':
-                self.expfilter.append(True)
-            elif te == 'F':
-                self.expfilter.append(False)
-            else:
-                raise ValueError('Filter can be T or F only')
+    def sanity_check(self):
+        """ Check the algorithm options. """
+
+        # If scheme is Runge-Kutta
+        if not self.temporal_scheme in ['RK']:
+            raise NotImplementedError('Implement %s time stepping scheme' % self.temporal_scheme)
+
+        # Spatial discretisation scheme
+        if not self.spatial_scheme in ['central_diff']:
+            raise NotImplementedError('Implement %s spatial discretisation scheme' % self.spatial_scheme)
 
         return
 
