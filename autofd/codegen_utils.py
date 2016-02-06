@@ -24,14 +24,14 @@ def header_code(inp, alg):
         out = out + ['#include <math.h>']
 
         out.append('%s Global Constants in the equations are' % COMMENT_DELIMITER[lang])
-        dobs = []
+        doubles = []
         ints = []
         for con in inp.constants:
             if isinstance(con, Symbol):
                 if con.is_integer:
                     ints = ints + ['%s' % con]
                 else:
-                    dobs = dobs + ['%s' % con]
+                    doubles = doubles + ['%s' % con]
             elif isinstance(con, Indexed):
                 tot = 0
                 for ind in con.shape:
@@ -39,11 +39,11 @@ def header_code(inp, alg):
                 if con.is_integer:
                     ints = ints + ['%s[%d]' % (con.base, tot)]
                 else:
-                    dobs = dobs + ['%s[%d]' % (con.base, tot)]
+                    doubles = doubles + ['%s[%d]' % (con.base, tot)]
         if ints:
             out = out + ['int %s %s' % (', '.join(ints), END_OF_STATEMENT_DELIMITER[lang])]
-        if dobs:
-            out = out + ['double %s %s' % (', '.join(dobs), END_OF_STATEMENT_DELIMITER[lang])]
+        if doubles:
+            out = out + ['double %s %s' % (', '.join(doubles), END_OF_STATEMENT_DELIMITER[lang])]
 
         out = out + ['// OPS header file']
         out = out + ['#define OPS_%sD' % inp.ndim]
@@ -52,14 +52,14 @@ def header_code(inp, alg):
         out = out + ['%s main program start' % COMMENT_DELIMITER[lang]]
         out = out + ['int main (int argc, char **argv) {']
     elif lang == 'F90':
-        dobs = []
+        doubles = []
         ints = []
         for con in inp.constants:
             if isinstance(con, Symbol):
                 if con.is_integer:
                     ints = ints + ['%s' % con]
                 else:
-                    dobs = dobs + ['%s' % con]
+                    doubles = doubles + ['%s' % con]
             elif isinstance(con, Indexed):
                 tot = 0
                 LOG.debug(fcode(con))
@@ -68,11 +68,11 @@ def header_code(inp, alg):
                 if con.is_integer:
                     ints = ints + ['%s(%d)' % (con.base, tot)]
                 else:
-                    dobs = dobs + ['%s(%d)' % (con.base, tot)]
+                    doubles = doubles + ['%s(%d)' % (con.base, tot)]
         if ints:
             out = out + ['integer :: %s %s' % (', '.join(ints), END_OF_STATEMENT_DELIMITER[lang])]
-        if dobs:
-            out = out + ['real(8) :: %s %s' % (', '.join(dobs), END_OF_STATEMENT_DELIMITER[lang])]
+        if doubles:
+            out = out + ['real(8) :: %s %s' % (', '.join(doubles), END_OF_STATEMENT_DELIMITER[lang])]
         inp.module.append('\n'.join(out))
         out = []
         # TODO spj change module name later as of now using the same module name parammod
