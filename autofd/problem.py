@@ -13,41 +13,14 @@ class Problem(object):
 
     """ Describes the system we want to generate code for. """
 
-    def __init__(self):
-        self.equations = []
-        self.substitutions = []
-        self.ndim = []
-        self.constants = []
-        self.coordinate_symbol = []
-        self.metrics = []
-        self.formulas = []
-        return
-
-    def read_input(self, equations_file_path):
-        """ Read the equations file and extract the parameters.
-
-        :arg str equations_file_path: The path to the equations file.
-        """
-
-        # Remove leading and trailing white spaces and empty lines
-        with open(equations_file_path) as f:
-            read_file = [line for line in f.read().splitlines() if line]
-        comment_lineno = []  # Line numbers of each (Python) comment line, which we want to ignore
-
-        # Get all the comments in the file
-        for ind, line in enumerate(read_file):
-            if line[0] == '#':
-                comment_lineno.append(ind)
-
-        # Read inputs from the file
-        self.equations = read_file[comment_lineno[0]+1:comment_lineno[1]]
-        self.substitutions = read_file[comment_lineno[1]+1:comment_lineno[2]]
-        self.ndim = int(read_file[comment_lineno[2]+1])
-        self.constants = read_file[comment_lineno[3]+1:comment_lineno[4]]
-        self.coordinate_symbol = read_file[comment_lineno[4]+1:comment_lineno[5]]
-        self.metrics = read_file[comment_lineno[5]+1:comment_lineno[6]]
-        self.formulas = read_file[comment_lineno[6]+1:comment_lineno[7]]
-
+    def __init__(self, equations, substitutions, ndim, constants, coordinate_symbol, metrics, formulas):
+        self.equations = equations
+        self.substitutions = substitutions
+        self.ndim = ndim
+        self.constants = constants
+        self.coordinate_symbol = coordinate_symbol
+        self.metrics = metrics
+        self.formulas = formulas
         return
 
     def expand(self):
