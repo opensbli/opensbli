@@ -5,12 +5,12 @@ ALGORITHM_FILE="algorithm.tex"
 
 # Clean up any old build files
 echo ">>> Cleaning all build files..."
-./autofd-clean --include-generated-code .
+../../bin/autofd-clean --include-generated-code .
 echo ">>> Done."
 
 # Code generation step
 echo ">>> Generating code for equations..."
-./autofd-generate -c equations
+./tgv_2d.py
 echo ">>> Done."
 
 # Make the generated code look pretty.
@@ -41,5 +41,5 @@ echo ">>> Done."
 
 # Clean up the build files (except the newly-generated code).
 echo ">>> Cleaning up build files (excluding the generated model code)..."
-./autofd-clean .
+../../bin/autofd-clean .
 echo ">>> Done."
