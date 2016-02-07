@@ -139,6 +139,7 @@ def defdec(inp, alg, simulation_parameters):
         # change this
         inputs = inputs + ['int %s %s' % (','.join(list('%s[%s]' % ('nx%dp' % dim, totblock) for dim in range(inp.ndim))), END_OF_STATEMENT_DELIMITER[lang])]
 
+        # Block dimensions
         if not inp.multiblock:
             inputs = inputs + ['int %s = %d%s' % (inp.block, inp.nblocks-1, END_OF_STATEMENT_DELIMITER[lang])]
             inputs = inputs + ['\n'.join(list('%s = %s;' % (inp.grid[dim+1], simulation_parameters[str(inp.grid[dim+1])]) for dim in range(inp.ndim)))]
@@ -147,8 +148,7 @@ def defdec(inp, alg, simulation_parameters):
             inputs = inputs + ['\n\n']
             inputs = inputs + ['%s Writing the block dimensions ends here' % (COMMENT_DELIMITER[lang])]
 
-        # Declare Constants in OPS format
-        out = out + ['ops_init(argc,argv,1)%s' % END_OF_STATEMENT_DELIMITER[lang]]
+        # All other simulation parameters
         for constant in inp.constants:
             if isinstance(constant, Symbol):
                 inputs = inputs + ['%s = %s%s' % (constant, simulation_parameters[str(constant)], END_OF_STATEMENT_DELIMITER[lang])]
@@ -158,13 +158,16 @@ def defdec(inp, alg, simulation_parameters):
                     tot = tot + inde
                 for no in range(tot-1):
                     inputs = inputs + ['%s[%d] = %s%s' % (constant.base, no, simulation_parameters[str(constant.base)][no], END_OF_STATEMENT_DELIMITER[lang])]
-        for con in inp.constants:
-            if con.is_Symbol:
-                if con.is_integer:
+        
+        # Declare Constants in OPS format
+        out = out + ['ops_init(argc,argv,1)%s' % END_OF_STATEMENT_DELIMITER[lang]]
+        for constant in inp.constants:
+            if constant.is_Symbol:
+                if constant.is_integer:
                     dtype = 'int'
                 else:
                     dtype = 'double'
-                out = out + ['ops_decl_const(\"%s\" , 1, \"%s\", &%s)%s' % (con, dtype, con, END_OF_STATEMENT_DELIMITER[lang])]
+                out = out + ['ops_decl_const(\"%s\" , 1, \"%s\", &%s)%s' % (constant, dtype, constant, END_OF_STATEMENT_DELIMITER[lang])]
 
         # Declare block
         out.append('ops_block *%s = (ops_block *)malloc(%s*sizeof(ops_block*));' % (block_name, totblock))

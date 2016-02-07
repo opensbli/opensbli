@@ -73,7 +73,9 @@ latex.close()
 start = time.time()
 system = System()
 
-simulation_parameters = {"name":"tgv2d", "Lx0":"2.0*M_PI", "Lx1":"2.0*M_PI", "nx0p[blk]":"32", "nx1p[blk]":"32", "dt":"0.0005", "Minf":"0.1", "mu":"1.0", "a1":["2.0/3.0", "5.0/12.0", "3.0/5.0"], "a2":["1.0/4.0", "3.0/20.0", "3.0/5.0"], "gama":"1.4", "niter":"100", "Pr":"0.71", "dx0":"Lx0/nx0p[blk]", "dx1":"Lx1/nx1p[blk]", "Re":"1600"}
+Lx0 = "2.0*M_PI"
+Lx1 = "2.0*M_PI"
+simulation_parameters = {"name":"tgv_2d", "Lx0":Lx0, "Lx1":Lx1, "nx0p[blk]":"32", "nx1p[blk]":"32", "dt":"0.0005", "Minf":"0.1", "mu":"1.0", "a1":["2.0/3.0", "5.0/12.0", "3.0/5.0"], "a2":["1.0/4.0", "3.0/20.0", "3.0/5.0"], "gama":"1.4", "niter":"100", "Pr":"0.71", "Re":"1600", "dx0":"%s/nx0p[blk]" % Lx0, "dx1":"%s/nx1p[blk]" % Lx1}
 
 system.prepare(expanded_equations, expanded_formulas, algorithm, simulation_parameters)
 end = time.time()
