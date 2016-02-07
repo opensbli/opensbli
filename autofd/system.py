@@ -22,7 +22,7 @@ class System(object):
     def __init__(self):
         return
 
-    def prepare(self, equations, formulas, algorithm):
+    def prepare(self, equations, formulas, algorithm, simulation_parameters):
         expanded_equations = flatten(list(e.expandedeq for e in equations))
         expanded_formulas = flatten(list(f.expandedeq for f in formulas))
         variables = flatten(list(e.variables for e in equations))
@@ -64,7 +64,7 @@ class System(object):
         if algorithm.language == 'OPSC':
             if self.multiblock:
                 raise NotImplementedError("Implement Multi-Block code for OPSC")
-            code_file = open(BUILD_DIR+'/OPSC_nssolver.cpp', 'w')
+            code_file = open(BUILD_DIR+'/%s.cpp' % simulation_parameters["name"], 'w')
             kernel_file = open(BUILD_DIR+'/auto_kernel.h', 'w')
             self.stencils = {}
             self.sten_ind = 0
@@ -78,7 +78,7 @@ class System(object):
         elif algorithm.language == 'F90':
             if self.multiblock:
                 raise NotImplementedError("Implement Multi-Block code for F90")
-            code_file = open(BUILD_DIR+'/F_serial.f90', 'w')
+            code_file = open(BUILD_DIR+'/%s.f90' % simulation_parameters["name"], 'w')
             kernel_file = open(BUILD_DIR+'/subroutines.f90', 'w')
             module_file = open(BUILD_DIR+'/param_mod.f90', 'w')
             self.module = []
@@ -512,7 +512,7 @@ class System(object):
             self.bccall = ['']
 
         final_algorithm[algorithm_template.get('a00')] = header_code(self, algorithm)
-        final_algorithm[algorithm_template.get('a01')] = defdec(self, algorithm)
+        final_algorithm[algorithm_template.get('a01')] = defdec(self, algorithm, simulation_parameters)
         final_algorithm[algorithm_template['a04']] = self.bccall
         final_algorithm[algorithm_template['a09']] = self.bccall
 
@@ -566,11 +566,11 @@ class System(object):
 
         return
 
-    def compile(self, algorithm):
+    def compile(self, algorithm, simulation_parameters):
         if algorithm.language == 'OPSC':
             # First translate the generated code using the OPSC translator.
             LOG.debug("Translating OPSC code...")
-            exit_code = subprocess.call("python $OPS_INSTALL_PATH/../translator/python/c/ops.py OPSC_nssolver.cpp", shell=True)
+            exit_code = subprocess.call("python $OPS_INSTALL_PATH/../translator/python/c/ops.py %s.cpp" % simulation_parameters["name"], shell=True)
             if(exit_code != 0):
                 # Something went wrong
                 LOG.error("Unable to translate OPSC code. Check OPS_INSTALL_PATH?")

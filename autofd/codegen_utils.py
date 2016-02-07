@@ -122,7 +122,7 @@ def loop(indices, alg):
     return header, footer
 
 
-def defdec(inp, alg):
+def defdec(inp, alg, simulation_parameters):
     """ Define and declare variables. """
 
     out = []
@@ -141,24 +141,23 @@ def defdec(inp, alg):
 
         if not inp.multiblock:
             inputs = inputs + ['int %s = %d%s' % (inp.block, inp.nblocks-1, END_OF_STATEMENT_DELIMITER[lang])]
-            inputs = inputs + ['\n'.join(list('%s = ;' % inp.grid[dim+1] for dim in range(inp.ndim)))]
+            inputs = inputs + ['\n'.join(list('%s = %s;' % (inp.grid[dim+1], simulation_parameters[str(inp.grid[dim+1])]) for dim in range(inp.ndim)))]
         else:
             inputs = inputs + ['%s Write the block dimensions here' % (COMMENT_DELIMITER[lang])]
             inputs = inputs + ['\n\n']
             inputs = inputs + ['%s Writing the block dimensions ends here' % (COMMENT_DELIMITER[lang])]
-        # inputs
 
         # Declare Constants in OPS format
         out = out + ['ops_init(argc,argv,1)%s' % END_OF_STATEMENT_DELIMITER[lang]]
         for constant in inp.constants:
             if isinstance(constant, Symbol):
-                inputs = inputs + ['%s = %s' % (constant, END_OF_STATEMENT_DELIMITER[lang])]
+                inputs = inputs + ['%s = %s%s' % (constant, simulation_parameters[str(constant)], END_OF_STATEMENT_DELIMITER[lang])]
             elif isinstance(constant, Indexed):
                 tot = 0
                 for inde in constant.shape:
                     tot = tot + inde
                 for no in range(tot-1):
-                    inputs = inputs + ['%s[%d] = %s' % (constant.base, no, END_OF_STATEMENT_DELIMITER[lang])]
+                    inputs = inputs + ['%s[%d] = %s%s' % (constant.base, no, simulation_parameters[str(constant.base)][no], END_OF_STATEMENT_DELIMITER[lang])]
         for con in inp.constants:
             if con.is_Symbol:
                 if con.is_integer:
