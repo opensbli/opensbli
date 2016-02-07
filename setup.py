@@ -9,7 +9,7 @@ setup(name='AutoFD',
       url='https://bitbucket.org/spjammy/codegen',
       packages=['autofd'],
       package_dir={'autofd': 'autofd'},
-      scripts=["bin/autofd-generate", "bin/autofd-clean"],
+      scripts=["bin/autofd-clean"],
       classifiers=[
       'Development Status :: 2 - Pre-Alpha',
       'Environment :: Console',
