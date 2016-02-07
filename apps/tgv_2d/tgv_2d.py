@@ -25,7 +25,7 @@ heat_flux = "Eq(q_i, -(mu/((gama-1)*Minf*Minf*Pr*Re))*Der(T,x_i))"
 substitutions = [stress_tensor, heat_flux]
 
 # Define all the constants in the equations
-constants = ["Re", "Pr", "mu", "gama", "Minf", "Lx0", "Lx1"]
+constants = ["Re", "Pr", "mu", "gama", "Minf", "Lx0", "Lx1", "niter"]
 
 # Define coordinate direction symbol (x) this will be x_i, x_j,x_k
 coordinate_symbol = "x"
@@ -75,7 +75,7 @@ system = System()
 
 Lx0 = "2.0*M_PI"
 Lx1 = "2.0*M_PI"
-simulation_parameters = {"name":"tgv_2d", "Lx0":Lx0, "Lx1":Lx1, "nx0p[blk]":"32", "nx1p[blk]":"32", "dt":"0.0005", "Minf":"0.1", "mu":"1.0", "a1":["2.0/3.0", "5.0/12.0", "3.0/5.0"], "a2":["1.0/4.0", "3.0/20.0", "3.0/5.0"], "gama":"1.4", "niter":"100", "Pr":"0.71", "Re":"1600", "dx0":"%s/nx0p[blk]" % Lx0, "dx1":"%s/nx1p[blk]" % Lx1}
+simulation_parameters = {"name":"tgv_2d", "Lx0":Lx0, "Lx1":Lx1, "nx0p[blk]":"32", "nx1p[blk]":"32", "dt":"0.0005", "niter":"1000", "Minf":"0.1", "mu":"1.0", "a1":["2.0/3.0", "5.0/12.0", "3.0/5.0"], "a2":["1.0/4.0", "3.0/20.0", "3.0/5.0"], "gama":"1.4", "niter":"100", "Pr":"0.71", "Re":"1600", "dx0":"%s/nx0p[blk]" % Lx0, "dx1":"%s/nx1p[blk]" % Lx1}
 
 system.prepare(expanded_equations, expanded_formulas, algorithm, simulation_parameters)
 end = time.time()
