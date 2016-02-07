@@ -43,3 +43,11 @@ echo ">>> Done."
 echo ">>> Cleaning up build files (excluding the generated model code)..."
 ../../bin/autofd-clean .
 echo ">>> Done."
+
+echo ">>> Compiling the generated code and targetting it towards a sequential CPU backend..."
+make tgv_2d_seq
+echo ">>> Done."
+
+echo ">>> Running simulation..."
+./tgv_2d_seq
+echo ">>> Done."
