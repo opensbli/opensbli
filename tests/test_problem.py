@@ -11,7 +11,7 @@ def test_expand():
 
     equations = ["Eq(Der(rho,t), -c*conser(rho,x))"]
     substitutions = []
-    ndim = 3
+    ndim = 1
     constants = ["c"]
     coordinate_symbol = ["x"]
     metrics = [False, False]
