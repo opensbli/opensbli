@@ -22,8 +22,8 @@ def plot(path):
     f = h5py.File(path + "/state.h5", 'r')
     group = f["auto_block_OPSC[0]"]
     
-    u_im = r = group["rhou0[0]"].value
-    v_im = r = group["rhou1[0]"].value
+    u_im = group["rhou0[0]"].value
+    v_im = group["rhou1[0]"].value
     r = group["rho[0]"].value
     E = group["rhoE[0]"].value
 
