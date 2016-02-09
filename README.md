@@ -44,3 +44,7 @@ This will build the documentation in HTML format and can be opened in a Web brow
 
 ## Contact
 If you wish to report a bug with the software, please contact [Satya P Jammy](mailto:S.P.Jammy@soton.ac.uk) or [Christian T. Jacobs](mailto:C.T.Jacobs@soton.ac.uk).
+
+## Licence
+AutoFD is released under the GNU General Public License. See the file called `LICENSE` for more information.
+
