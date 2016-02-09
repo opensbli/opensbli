@@ -23,8 +23,8 @@ class System(object):
         return
 
     def prepare(self, equations, formulas, algorithm, simulation_parameters):
-        expanded_equations = flatten(list(e.expandedeq for e in equations))
-        expanded_formulas = flatten(list(f.expandedeq for f in formulas))
+        expanded_equations = flatten(list(e.expanded for e in equations))
+        expanded_formulas = flatten(list(f.expanded for f in formulas))
         variables = flatten(list(e.variables for e in equations))
         conser = flatten(list(e.conser for e in equations))
         constants = list(set(flatten(list(e.constants for e in equations))))
