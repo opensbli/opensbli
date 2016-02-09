@@ -31,63 +31,76 @@ class Equation(object):
     """ Describes an equation we want to solve. """
 
     def __init__(self, equation, system):
-        self.original = equation
+        """ Set up an equation, written in Einstein notation, and expand the indices.
 
-        # Perform substitutions, if any
+        :arg str equation: An equation, written in Einstein notation, and specified in string form.
+        :returns: None
+        """
+
+        self.original = equation
+        self.ndim = system.ndim
+
+        # Perform substitutions, if any.
         if system.substitutions:
             for sub in system.substitutions:
                 temp = parse_expr(sub)
                 self.original = self.original.replace(str(temp.lhs), str(temp.rhs))
 
-        # Parse the equation
+        # Parse the equation.
         self.parsed = parse_expr(self.original)
         self.expanded = []
 
-        index = find_indices(self.parsed.lhs.atoms(Symbol))
-        ndim = system.ndim
-        if index:
+        indices = find_indices(self.parsed.lhs.atoms(Symbol))
+        if indices:
             for dim in range(0, system.ndim):
-                for ind in index:
-                    lhs = parse_expr(str(self.parsed.lhs).replace(str(ind), str(dim)))
-                    rhs = parse_expr(str(self.parsed.rhs).replace(str(ind), str(dim)))
+                for i in indices:
+                    lhs = parse_expr(str(self.parsed.lhs).replace(str(i), str(dim)))
+                    rhs = parse_expr(str(self.parsed.rhs).replace(str(i), str(dim)))
                     e = self.parsed.replace(self.parsed.lhs, lhs).replace(self.parsed.rhs, rhs)
                     self.expanded = self.expanded + [e]
         else:
             self.expanded = self.expanded + [self.parsed]
 
+        # Get all constants and convert them to Symbols.
         self.constants = list(Symbol(c) for c in system.constants)
 
         # Treat special operators such as conser and skew.
         for equation_number in range(len(self.expanded)):
             e = self.expanded[equation_number]
-            indices = find_indices(e.rhs.atoms(Symbol))
-
+            
+            # Get a list of all function calls in the equation under consideration.
             all_operators = list(e.atoms(Function('conser'))) + list(e.atoms(Function('Der'))) + list(e.atoms(Function('Skew')))
-
             if all_operators:
+                # Get the list of arguments for all the function calls.
                 operator_args = flatten(list(set(o.args[1:] for o in all_operators)))
             else:
                 operator_args = []
+
+            # Find the index (e.g. i and j) of each symbol (e.g. x and y).
+            indices = find_indices(e.rhs.atoms(Symbol))
             if indices:
-                syms = list(flatten(list(e.atoms(Symbol).difference(set(self.constants + operator_args + list(Symbol(ind) for ind in indices))))))
+                symbols = list(flatten(list(e.atoms(Symbol).difference(set(self.constants + operator_args + list(Symbol(index) for index in indices))))))
                 if operator_args:
                     temp = list(str(o) for o in operator_args)
-                    fndef = ','.join(temp)
-                    fns = []
+                    args = ','.join(temp)
+                    functions = []
+                    # conser
                     for atom in self.expanded[equation_number].atoms(Function('conser')):
                         out = conser(atom)
                         self.expanded[equation_number] = self.expanded[equation_number].replace(atom, out)
+                    # Skew
                     for atom in self.expanded[equation_number].atoms(Function('Skew')):
                         out = skew(atom)
                         self.expanded[equation_number] = self.expanded[equation_number].replace(atom, out)
-                    for sym in syms:
-                        fn = parse_expr('%s(%s)' % (sym, fndef))
-                        fns = fns + [fn]
-                        self.expanded[equation_number] = self.expanded[equation_number].replace(sym, fn)
+                    # All other function calls
+                    for s in symbols:
+                        f = parse_expr('%s(%s)' % (s, args))
+                        functions += [f]
+                        self.expanded[equation_number] = self.expanded[equation_number].replace(s, f)
 
                     self.expanded[equation_number] = der(self.expanded[equation_number])
-                    for no in range(len(syms)):
-                        self.expanded[equation_number] = self.expanded[equation_number].subs(fns[no], syms[no])
+                    for i in range(len(symbols)):
+                        self.expanded[equation_number] = self.expanded[equation_number].subs(functions[i], symbols[i])
                 
                 # Find the terms containing index i.
                 for i in indices:
@@ -95,10 +108,12 @@ class Equation(object):
                     for term in terms:
                         self.expanded[equation_number] = expand_ind(term, system.ndim, [i], self.expanded[equation_number])
 
+        # Expand derivatives
         self.variables = []
         self.conser = []
         for equation_number, e in enumerate(self.expanded):
             e = self.expanded[equation_number]
+            # Derivatives on the LHS
             derivatives = list(e.lhs.atoms(Derivative))
             if len(derivatives) > 1:
                 raise ValueError('More than one derivative in LHS')
@@ -106,6 +121,8 @@ class Equation(object):
                 pass
             else:
                 self.conser.append(derivatives[0].args[0])
+            
+            # All derivatives
             all_derivatives = list(e.atoms(Derivative))
             if all_derivatives:
                 derivative_args = flatten(list(set(d.args[1:] for d in all_derivatives)))
@@ -114,44 +131,56 @@ class Equation(object):
             symvar = list(flatten(list(e.atoms(Symbol).difference(set(self.constants + derivative_args + self.conser)))))
             self.variables.append(symvar)
 
-            self.const = list(flatten(list(e.atoms(Symbol).difference(set(self.variables[equation_number] + derivative_args + self.conser)))))
-            self.ndim = system.ndim
-
         return
 
-def find_terms(expr, indices):
+def find_terms(expression, indices):
+    """ Find all terms in a given expression with given indices.
+    
+    :arg str expression: the string expression containing the equation to consider
+    :arg list indices: the list of indices (represented as strings) to look out for
+    :returns: a list of terms with particular indices
+    :rtype: list
+    """
+
     terms = []
-    if any(str(expr).count(str(ind)) for ind in indices):
-        if expr.is_Mul:
-            facs = expr.as_two_terms()
-            # for fac in facs:
-            if all(any(str(fac).count(str(ind)) for ind in indices) for fac in facs):
-                terms = expr
+    if any(str(expression).count(str(index)) for index in indices):
+        # Multiplication
+        if expression.is_Mul:
+            parts = expression.as_two_terms()
+            if all(any(str(part).count(str(index)) for index in indices) for part in parts):
+                terms = [expression]
             else:
-                if any(fac.is_Mul or fac.is_Add for fac in facs):
-                    for fac in facs:
-                        if any(str(fac).count(str(ind)) for ind in indices):
-                            find_terms(fac, indices)
+                if any(part.is_Mul or part.is_Add for part in parts):
+                    for part in parts:
+                        if any(str(part).count(str(index)) for index in indices):
+                            found = find_terms(part, indices)
+                            if found:
+                                terms += found
                 else:
-                    for fac in facs:
-                        if any(str(fac).count(str(ind)) for ind in indices):
-                            find_terms(fac, indices)
-        elif expr.is_Add:
-            facs = expr.as_two_terms()
-            if all(any(str(fac).count(str(ind)) for ind in indices) for fac in facs):
-                if any(fac.is_Mul or fac.is_Add for fac in facs):
-                    for fac in facs:
-                        find_terms(fac, indices)
+                    for part in parts:
+                        if any(str(part).count(str(index)) for index in indices):
+                            found = find_terms(part, indices)
+                            if found:
+                                terms += found
+        # Addition
+        elif expression.is_Add:
+            parts = expression.as_two_terms()
+            if all(any(str(part).count(str(index)) for index in indices) for part in parts):
+                if any(part.is_Mul or part.is_Add for part in parts):
+                    for part in parts:
+                        found = find_terms(part, indices)
+                        if found:
+                            terms += found
                 else:
-                    terms = expr
+                    terms = [expression]
             else:
-                for fac in facs:
-                    find_terms(fac, indices)
+                for part in parts:
+                    found = find_terms(part, indices)
+                    if found:
+                        terms += found
 
         else:
-            terms = expr
-    else:
-        terms = []
+            terms = [expression]
 
     return terms
 
@@ -160,8 +189,7 @@ def conser(inp):
     return out
 
 def skew(inp):
-    global indterm
-    # This is to be done
+    # FIXME: This is to be done
     mult = inp.args[0].as_two_terms()
     pprint(mult)
     te1 = 'Derivative(%s,%s)' % (inp.args[0], inp.args[1])
@@ -169,13 +197,11 @@ def skew(inp):
     te3 = '(%s) * Derivative(%s,%s)' % (mult[1], mult[0], inp.args[1])
     out = parse_expr('0.5*(%s + %s + %s)' % (te1, te2, te3))
     pprint(out)
-    indice = find_indices(out.atoms(Symbol))
-    for ind in indice:
-        indterm = []
-        index = [ind]
-        find_terms(out, index)
-        for term in indterm:
-            out = expand_ind(term, ndim, index, out)
+    indices = find_indices(out.atoms(Symbol))
+    for i in indices:
+        found = find_terms(out, [i])
+        for term in found:
+            out = expand_ind(term, ndim, [i], out)
     return out
 
 def der(inp):
