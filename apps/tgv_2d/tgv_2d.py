@@ -64,7 +64,7 @@ latex = LatexWriter()
 latex.open(path=BUILD_DIR + "/equations.tex")
 metadata = {"title": "Equations", "author": "Satya P Jammy", "institution": "University of Southampton"}
 latex.write_header(metadata)
-temp = flatten([e.expandedeq for e in expanded_equations])
+temp = flatten([e.expanded for e in expanded_equations])
 latex.write_equations(temp)
 latex.write_footer()
 latex.close()
