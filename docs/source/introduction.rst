@@ -11,4 +11,4 @@ The AutoFD codebase is written in the Python (2.7+) language.
 Licensing
 ---------
 
-
+AutoFD is released under the `GNU General Public License <http://www.gnu.org/licenses/gpl-3.0.en.html>`_. See the file called ``LICENSE`` for more information.
