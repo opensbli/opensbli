@@ -209,42 +209,6 @@ def der(inp):
     rhs = parse_expr(str(inp.rhs).replace('Der(', 'diff('))
     out = Eq(lhs, rhs)
     return out
-            
-class ExplicitFilter(object):
-
-    """ Explicit filter implemented from the NASA PAPER. """
-
-    def __init__(self):
-        self.coeffs = {}
-        self.coeffs[2] = [-1, 2, -1]
-        self.coeffs[4] = [-1, 4, -6, 4, -1]
-
-    def filter_equations(self, alg):
-        """ Returns the filter equations. """
-        filtereqs = []
-        for dire, fil in enumerate(alg.expfilter):
-            if fil:
-                ooa = alg.spatial_order
-                alphaD = (-1)**(int(ooa/2) + 1) * (2) ** (-ooa)
-                if self.coeffs.get(ooa):
-                    muls = self.coeffs.get(ooa)
-                    temp = list(con.base for con in inp.conser)
-                    out = [con for con in inp.conser]
-                    # out = 0
-                    direction = Symbol('x%d' % dire)
-                    for num, ind in enumerate(inp.fd_points):
-                        repl = '%s' % str(direction + ind)
-                        index = str(inp.varform).replace(str(direction), repl)
-                        index = Idx(index, Symbol('nblock', integer=True))
-                        for nv in range(len(temp)):
-                            varib = temp[nv]
-                            out[nv] += alphaD * muls[num] * varib[index]
-                    for nv in range(len(temp)):
-                        out[nv] = Eq(savedic.get(inp.conser[nv]), out[nv])
-                    filtereqs.append(out)
-            else:
-                raise NotImplementedError('Implement spatial filtering coefficients for order of accuracy %d' % ooa)
-        return filtereqs
 
 
 def find_indices(equations):
@@ -335,3 +299,40 @@ def equations_to_dict(equations):
     rhs = list(e.rhs for e in equations)
     d = dict(zip(lhs, rhs))
     return d
+
+            
+class ExplicitFilter(object):
+
+    """ Explicit filter implemented from the NASA PAPER. """
+
+    def __init__(self):
+        self.coeffs = {}
+        self.coeffs[2] = [-1, 2, -1]
+        self.coeffs[4] = [-1, 4, -6, 4, -1]
+
+    def filter_equations(self, alg):
+        """ Returns the filter equations. """
+        filtereqs = []
+        for dire, fil in enumerate(alg.expfilter):
+            if fil:
+                ooa = alg.spatial_order
+                alphaD = (-1)**(int(ooa/2) + 1) * (2) ** (-ooa)
+                if self.coeffs.get(ooa):
+                    muls = self.coeffs.get(ooa)
+                    temp = list(con.base for con in inp.conser)
+                    out = [con for con in inp.conser]
+                    # out = 0
+                    direction = Symbol('x%d' % dire)
+                    for num, ind in enumerate(inp.fd_points):
+                        repl = '%s' % str(direction + ind)
+                        index = str(inp.varform).replace(str(direction), repl)
+                        index = Idx(index, Symbol('nblock', integer=True))
+                        for nv in range(len(temp)):
+                            varib = temp[nv]
+                            out[nv] += alphaD * muls[num] * varib[index]
+                    for nv in range(len(temp)):
+                        out[nv] = Eq(savedic.get(inp.conser[nv]), out[nv])
+                    filtereqs.append(out)
+            else:
+                raise NotImplementedError('Implement spatial filtering coefficients for order of accuracy %d' % ooa)
+        return filtereqs
