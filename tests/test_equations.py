@@ -25,7 +25,7 @@ def test_equations_to_dict():
 
     expanded_equations, expanded_formulas = problem.expand()
 
-    d = equations_to_dict([e.expandedeq[0] for e in expanded_equations])
+    d = equations_to_dict([e.expanded[0] for e in expanded_equations])
 
     assert isinstance(d, dict)
 

@@ -21,11 +21,11 @@ def test_expand():
 
     expanded_equations, expanded_formulas = problem.expand()
     assert len(expanded_equations) == 1
-    assert str(expanded_equations[0].expandedeq) == "[Der(rho, t) == -c*conser(rho, x)]"
+    assert str(expanded_equations[0].expanded) == "[Der(rho, t) == -c*conser(rho, x)]"
     assert str(expanded_equations[0].constants) == "[c]"
 
     assert len(expanded_formulas) == 1
-    assert str(expanded_formulas[0].expandedeq) == "[u == 2*rho]"
+    assert str(expanded_formulas[0].expanded) == "[u == 2*rho]"
     assert str(expanded_formulas[0].constants) == "[c]"
 
     return

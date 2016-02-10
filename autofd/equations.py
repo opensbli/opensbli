@@ -270,7 +270,7 @@ def find_indices(equations):
 
 def expand_indices(term, ndim, indices, equation):
     """ Expand a given term with respect to its indices (e.g. expand u_i to u0, u1, u2 in 3D).
-    Once finished, replace the expanded terms in the equation provided."""
+    Once finished, replace the expanded terms in the equation provided. """
 
     temp = ''
     if term.is_Mul:
