@@ -31,6 +31,16 @@ def test_equations_to_dict():
 
     return
 
+
+def test_conser():
+    """ Check that all calls to 'conser' are changed to Sympy's 'Derivative'. """
+    equation = "Eq(Der(rho,t),- conser(rhou_j,x_j))"
+    parsed = parse_expr(equation)
+    for atom in parsed.atoms(Function('conser')):
+        out = conser(atom)
+        assert str(out) == "Derivative(rhou_j, x_j)"
+
+
 def test_find_indices():
     """ Ensure that the specified indices are found in the equation. """
     equation = "Eq(Der(rho,t),- conser(rhou_j,x_j))"
@@ -39,6 +49,17 @@ def test_find_indices():
     lhs_indices = find_indices(parsed.lhs.atoms(Symbol))
     assert lhs_indices == []
     assert rhs_indices == ["_j"]
+
+
+def test_find_terms():
+    """ Ensure that all terms with a given index are found in the equation. """
+    equation = "Eq(Der(rho,t),- conser(rhou_j,x_j))"
+    parsed = parse_expr(equation)
+    lhs_terms = find_terms(parsed.lhs, ["_j"])
+    rhs_terms = find_terms(parsed.rhs, ["_j"])
+    assert str(lhs_terms) == "[]"
+    assert str(rhs_terms) == "[conser(rhou_j, x_j)]"
+
 
 if __name__ == '__main__':
     pytest.main(os.path.abspath(__file__))
