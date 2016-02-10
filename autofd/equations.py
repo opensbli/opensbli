@@ -76,7 +76,7 @@ class Equation(object):
             else:
                 operator_args = []
 
-            # Find the index (e.g. i and j) of each symbol (e.g. x and y).
+            # Find the indices (e.g. i and j) of each symbol (e.g. x and y).
             indices = find_indices(e.rhs.atoms(Symbol))
             if indices:
                 symbols = list(flatten(list(e.atoms(Symbol).difference(set(self.constants + operator_args + list(Symbol(index) for index in indices))))))
