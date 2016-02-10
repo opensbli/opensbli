@@ -35,8 +35,10 @@ def test_find_indices():
     """ Ensure that the specified indices are found in the equation. """
     equation = "Eq(Der(rho,t),- conser(rhou_j,x_j))"
     parsed = parse_expr(equation)
-    indices = find_indices(parsed.rhs.atoms(Symbol))
-    assert indices == ["_j"]
+    rhs_indices = find_indices(parsed.rhs.atoms(Symbol))
+    lhs_indices = find_indices(parsed.lhs.atoms(Symbol))
+    assert lhs_indices == []
+    assert rhs_indices == ["_j"]
 
 if __name__ == '__main__':
     pytest.main(os.path.abspath(__file__))
