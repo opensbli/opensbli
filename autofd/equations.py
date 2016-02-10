@@ -30,7 +30,7 @@ class Equation(object):
 
     """ Describes an equation we want to solve. """
 
-    def __init__(self, equation, system):
+    def __init__(self, equation, problem):
         """ Set up an equation, written in Einstein notation, and expand the indices.
 
         :arg str equation: An equation, written in Einstein notation, and specified in string form.
@@ -38,11 +38,11 @@ class Equation(object):
         """
 
         self.original = equation
-        self.ndim = system.ndim
+        self.ndim = problem.ndim
 
         # Perform substitutions, if any.
-        if system.substitutions:
-            for sub in system.substitutions:
+        if problem.substitutions:
+            for sub in problem.substitutions:
                 temp = parse_expr(sub)
                 self.original = self.original.replace(str(temp.lhs), str(temp.rhs))
 
@@ -52,7 +52,7 @@ class Equation(object):
 
         indices = find_indices(self.parsed.lhs.atoms(Symbol))
         if indices:
-            for dim in range(0, system.ndim):
+            for dim in range(0, problem.ndim):
                 for i in indices:
                     lhs = parse_expr(str(self.parsed.lhs).replace(str(i), str(dim)))
                     rhs = parse_expr(str(self.parsed.rhs).replace(str(i), str(dim)))
@@ -62,7 +62,7 @@ class Equation(object):
             self.expanded = self.expanded + [self.parsed]
 
         # Get all constants and convert them to Symbols.
-        self.constants = list(Symbol(c) for c in system.constants)
+        self.constants = list(Symbol(c) for c in problem.constants)
 
         # Treat special operators such as conser and skew.
         for equation_number in range(len(self.expanded)):
@@ -106,7 +106,7 @@ class Equation(object):
                 for i in indices:
                     terms = find_terms(self.expanded[equation_number].rhs, [i])
                     for term in terms:
-                        self.expanded[equation_number] = expand_indices(term, system.ndim, [i], self.expanded[equation_number])
+                        self.expanded[equation_number] = expand_indices(term, problem.ndim, [i], self.expanded[equation_number])
 
         # Expand derivatives
         self.variables = []
