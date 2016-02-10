@@ -106,7 +106,7 @@ class Equation(object):
                 for i in indices:
                     terms = find_terms(self.expanded[equation_number].rhs, [i])
                     for term in terms:
-                        self.expanded[equation_number] = expand_ind(term, system.ndim, [i], self.expanded[equation_number])
+                        self.expanded[equation_number] = expand_indices(term, system.ndim, [i], self.expanded[equation_number])
 
         # Expand derivatives
         self.variables = []
@@ -201,7 +201,7 @@ def skew(inp):
     for i in indices:
         found = find_terms(out, [i])
         for term in found:
-            out = expand_ind(term, ndim, [i], out)
+            out = expand_indices(term, ndim, [i], out)
     return out
 
 def der(inp):
@@ -268,44 +268,43 @@ def find_indices(equations):
     return index
 
 
-def expand_ind(term, ndim, index, equation):
-    """ Utility function to expand a given equations """
+def expand_indices(term, ndim, indices, equation):
+    """ Expand a given term with respect to its indices (e.g. expand u_i to u0, u1, u2 in 3D).
+    Once finished, replace the expanded terms in the equation provided."""
 
-    fin = ''
+    temp = ''
     if term.is_Mul:
-        out = str(term)
-        # index = tensor_indices(self)
-        for ind in index:
+        expanded = str(term)
+        for i in indices:
             for dim in range(0, int(ndim)):
-                fin = fin + '+' + str(out).replace(str(ind), str(dim))
-            out = fin
-            fin = ''
+                temp = temp + '+' + str(expanded).replace(str(i), str(dim))
+            expanded = temp
+            temp = ''
+
     elif term.is_Add:
-        fin1 = ''
-        for te in term.as_ordered_terms():
-            fin = ''
-            # pprint(te)
-            out = str(te)
-            # index = tensor_indices(te)
-            for ind in index:
+        temp1 = ''
+        for t in term.as_ordered_terms():
+            temp2 = ''
+            expanded = str(t)
+            for i in indices:
                 for dim in range(0, int(ndim)):
-                    fin = fin + '+' + str(out).replace(str(ind), str(dim))
-                out = fin
-                fin = ''
-            fin1 = fin1 + '+' + out
-        out = fin1
+                    temp2 = temp2 + '+' + str(expanded).replace(str(i), str(dim))
+                expanded = temp2
+                temp2 = ''
+            temp1 = temp1 + '+' + expanded
+        expanded = temp1
+
     else:
-        out = str(term)
-        # index = tensor_indices(self)
-        for ind in index:
+        expanded = str(term)
+        for i in indices:
             for dim in range(0, int(ndim)):
-                fin = fin + '+' + str(out).replace(str(ind), str(dim))
-            out = fin
-            fin = ''
-    # pprint(out)
-    out = parse_expr(out)
-    # pprint(out)
-    equation = equation.subs(term, out)
+                temp = temp + '+' + str(expanded).replace(str(i), str(dim))
+            expanded = temp
+            temp = ''
+
+    expanded = parse_expr(expanded)
+    equation = equation.subs(term, expanded)
+
     return equation
 
 
