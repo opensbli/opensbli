@@ -78,7 +78,7 @@ class System(object):
         self.gridhalo = []
         self.ranges = {}
         self.iterrange = 0
-        self.kernel_ind = 0
+        self.kernel_index = 0
 
         if algorithm.language == 'OPSC':
             if self.multiblock:
@@ -86,10 +86,10 @@ class System(object):
             code_file = open(BUILD_DIR+'/%s.cpp' % simulation_parameters["name"], 'w')
             kernel_file = open(BUILD_DIR+'/auto_kernel.h', 'w')
             self.stencils = {}
-            self.sten_ind = 0
-            self.sten_name = 'stencil%dD_%%d' % self.ndim
+            self.stencil_index = 0
+            self.stencil_name = 'stencil%dD_%%d' % self.ndim
             self.block_name = 'auto_block_OPSC'
-            self.kername = 'auto_kernel_%d'
+            self.kernel_name = 'auto_kernel_%d'
             for dim in range(self.ndim):
                 temp = Idx('i%d' % dim, Symbol('nx%dp[blk]' % dim, integer=True))
                 self.blockdims.append(temp)
@@ -105,7 +105,7 @@ class System(object):
                 temp = Idx('i%d' % dim, (1, Symbol('nx%dp' % dim, integer=True)))
                 self.blockdims.append(temp)
                 self.grid = self.grid + [temp.upper]
-            self.kername = 'subroutine_%d'
+            self.kernel_name = 'subroutine_%d'
         else:
             raise NotImplementedError('Implement indexing for language %s' % (algorithm.language))
 
