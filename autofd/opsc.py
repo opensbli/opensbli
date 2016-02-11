@@ -20,8 +20,7 @@
 
 from sympy import *
 from sympy.printing.ccode import CCodePrinter
-from sympy.parsing.sympy_parser import (parse_expr, standard_transformations, implicit_application)
-transformations = standard_transformations + (implicit_application,)
+from sympy.parsing.sympy_parser import parse_expr
 import re
 
 # AutoFD functions
