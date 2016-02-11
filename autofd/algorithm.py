@@ -57,7 +57,7 @@ class Algorithm(object):
     def sanity_check(self):
         """ Check the algorithm options. """
 
-        # If scheme is Runge-Kutta
+        # Temporal discretisation scheme
         if not self.temporal_scheme in ['RK']:
             raise NotImplementedError('Implement %s time stepping scheme' % self.temporal_scheme)
 
