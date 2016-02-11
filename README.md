@@ -11,6 +11,7 @@ First ensure that the following dependencies are satisfied:
 * astyle
 * Sympy >= 0.7.6.1
 * python-h5py
+* OPS (to generate OPSC code)
 * pytest (for running the test suite)
 * python-flake8 (for linting the code base)
 * Sphinx (to build the documentation)
