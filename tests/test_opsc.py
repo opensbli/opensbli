@@ -16,12 +16,12 @@ def test_ccode():
     result = ccode(expression)
     assert result == expected
 
+
 def test_print_rational():
     """ Check that the OPSC code writer converts all rationals to their final floating point representation. """
     x = symbols("x")
-    expression = 2.0*x/3.0
-    print type(expression)
-    expected = "0.666666666667*x"
+    expression = Rational("2.0/3.0")
+    expected = "0.666666666667"
     opsc = OPSCCodePrinter()
     result = opsc._print_Rational(expression)
     assert result == expected
