@@ -31,10 +31,37 @@ from .equations import equations_to_dict
 import logging
 LOG = logging.getLogger(__name__)
 
-def OPSC_write_kernel(eqs, inp):
-    def get_kernel(evals):
-        lhs = flatten(list(list(eq.lhs.atoms(Indexed)) for eq in evals))
-        rhs = flatten(list(list(eq.rhs.atoms(Indexed)) for eq in evals))
+class OPSC(object):
+    def __init__(self):
+        return
+
+    def generate(self, equations, system):
+        all_calls = []
+        all_kernels = []
+        if isinstance(equations, dict):
+            for key, value in equations.iteritems():
+                if isinstance(value, list):
+                    call, kernel = self.get_kernel(value, system)
+                    all_calls = all_calls + [call]
+                    all_kernels = all_kernels + [kernel]
+                else:
+                    call, kernel = self.get_kernel([value], system)
+                    all_calls = all_calls + [call]
+                    all_kernels = all_kernels + [kernel]
+        elif isinstance(equations, list):
+            call, kernel = self.get_kernel(equations, system)
+            all_calls = all_calls + [call]
+            all_kernels = all_kernels + [kernel]
+        else:
+            call, kernel = self.get_kernel([equations], system)
+            all_calls = all_calls + [call]
+            all_kernels = all_kernels + [kernel]
+
+        return all_calls, all_kernels
+
+    def get_kernel(self, equations, system):
+        lhs = flatten(list(list(eq.lhs.atoms(Indexed)) for eq in equations))
+        rhs = flatten(list(list(eq.rhs.atoms(Indexed)) for eq in equations))
         all_indexed = list(set(lhs+rhs))
 
         lhs_base_labels = set(list(i.base.label for i in lhs))
@@ -44,17 +71,17 @@ def OPSC_write_kernel(eqs, inp):
         outs = list(lhs_base_labels.difference(inouts))
         all_base = ins+outs+inouts
 
-        symbols = flatten(list(list(eq.atoms(Symbol)) for eq in evals))
+        symbols = flatten(list(list(eq.atoms(Symbol)) for eq in equations))
         Idxs = list(set(list(i.indices for i in (lhs+rhs))))
         Idxs = flatten(list(i) for i in Idxs)
         index_labels = list(set(list(i.label for i in Idxs)))
         for i in Idxs:
             index_labels = index_labels + [i.lower, i.upper]
-        symbols = list(set(symbols).difference(set(index_labels)).difference(set(inp.constants)).difference(set(all_base)))
+        symbols = list(set(symbols).difference(set(index_labels)).difference(set(system.constants)).difference(set(all_base)))
         symbols = list(set(symbols))
         out = []
         symbol_declaration = []
-        evdict = equations_to_dict(evals)
+        evdict = equations_to_dict(equations)
         for s in symbols:
             symbol_declaration = symbol_declaration + ['double %s;' % s]
             if evdict.get(s):
@@ -65,11 +92,11 @@ def OPSC_write_kernel(eqs, inp):
         # Grid range
         lower = []
         upper = []
-        for dim in range(inp.ndim):
-            lower = lower + [inp.blockdims[dim].lower - inp.halos[dim]]
-            upper = upper + [inp.blockdims[dim].upper + inp.halos[dim]+1]
+        for dim in range(system.ndim):
+            lower = lower + [system.blockdims[dim].lower - system.halos[dim]]
+            upper = upper + [system.blockdims[dim].upper + system.halos[dim]+1]
 
-        for e in evals:
+        for e in equations:
             code = ccode(e)
             code = code.replace('==', '=') + END_OF_STATEMENT_DELIMITER['OPSC']
             out = out + [code]
@@ -77,9 +104,9 @@ def OPSC_write_kernel(eqs, inp):
         kernel_calls = []
         kernel_header = []
         kernel = []
-        kernel_name = inp.kernel_name % inp.kernel_index
-        inp.kernel_index = inp.kernel_index + 1
-        kernel_call = 'ops_par_loop(%s, \"%s\", %s[%s], %d, %%s' % (kernel_name, kernel_name, inp.block_name, inp.block, inp.ndim)
+        kernel_name = system.kernel_name % system.kernel_index
+        system.kernel_index = system.kernel_index + 1
+        kernel_call = 'ops_par_loop(%s, \"%s\", %s[%s], %d, %%s' % (kernel_name, kernel_name, system.block_name, system.block, system.ndim)
         head = 'void %s(' % kernel_name
         if all_base:
             for ind, v in enumerate(all_base):
@@ -99,9 +126,9 @@ def OPSC_write_kernel(eqs, inp):
                 variabind = flatten(list(v1.indices) for v1 in varib)
                 variabind = list(set(variabind))
 
-                if all(va.upper == inp.block.upper for va in variabind):
+                if all(va.upper == system.block.upper for va in variabind):
                     indexes = list(va for va in variabind)
-                    for dim in range(inp.ndim):
+                    for dim in range(system.ndim):
                         indexes = list(str(te).replace('x%d' % dim, '0') for te in indexes)
                     indexes = list(parse_expr(v) for v in indexes)
                     for inde in range(len(indexes)):
@@ -114,10 +141,10 @@ def OPSC_write_kernel(eqs, inp):
                             out[ou] = re.sub(r"\b(%s)" % old, new, out[ou])
 
                     # Get the stencil name to be written
-                    indexes = indexes + [parse_expr(', '.join(list(str(0) for dim in range(inp.ndim))))]
+                    indexes = indexes + [parse_expr(', '.join(list(str(0) for dim in range(system.ndim))))]
                     indexes = list(set(indexes))
-                    if inp.ndim > 1:
-                        for dim in range(inp.ndim):
+                    if system.ndim > 1:
+                        for dim in range(system.ndim):
                             indexes = sorted(indexes, key=lambda indexes: indexes[dim])
                         temp = flatten(list(list(t) for t in indexes))
                     else:
@@ -125,24 +152,24 @@ def OPSC_write_kernel(eqs, inp):
                         temp = flatten(list(t) for t in indexes)
 
                     stencil = ','.join(list(str(t) for t in temp))
-                    if inp.stencils.get(stencil):
-                        stencil_name = inp.stencils.get(stencil)
+                    if system.stencils.get(stencil):
+                        stencil_name = system.stencils.get(stencil)
                     else:
-                        stencil_name = inp.stencil_name % inp.stencil_index
-                        inp.stencils[stencil] = stencil_name
-                        inp.stencil_index = inp.stencil_index + 1
+                        stencil_name = system.stencil_name % system.stencil_index
+                        system.stencils[stencil] = stencil_name
+                        system.stencil_index = system.stencil_index + 1
 
                     # Update range on which the loop to be iterated
                     if len(indexes) == 1:
-                        for dim in range(inp.ndim):
+                        for dim in range(system.ndim):
                             lower[dim] = lower[dim] - indexes[0][dim]
                             upper[dim] = upper[dim] - indexes[0][dim]
                     else:
-                        for dim in range(inp.ndim):
+                        for dim in range(system.ndim):
                             lower[dim] = lower[dim] - indexes[0][dim]
                             upper[dim] = upper[dim] - indexes[-1][dim]
                     datatype = 'double'
-                    arg_call = '%%s(%%s[%s], 1, %%s, \"%%s\", %%s)' % inp.block
+                    arg_call = '%%s(%%s[%s], 1, %%s, \"%%s\", %%s)' % system.block
                     call = arg_call % ('ops_arg_dat', v, stencil_name, datatype, opstype)
                     kernel_calls = kernel_calls + [call]
                     kernel_header = kernel_header + [headty % v]
@@ -164,15 +191,15 @@ def OPSC_write_kernel(eqs, inp):
                     kernel_calls = kernel_calls + [call]
                     kernel_header = kernel_header + [headty % v]
             iter_range = []
-            for dim in range(inp.ndim):
+            for dim in range(system.ndim):
                 iter_range = iter_range + [str(lower[dim])] + [str(upper[dim])]
             iter_range = ','.join(iter_range)
-            kernel_calls.insert(0, kernel_call % 'iter_range%d' % inp.iterrange)
+            kernel_calls.insert(0, kernel_call % 'iter_range%d' % system.iterrange)
             for indno in range(len(kernel_calls)-1):
                 kernel_calls[indno] = kernel_calls[indno] + ','
             kernel_calls[-1] = kernel_calls[-1] + ');'
-            kernel_calls = ['int iter_range%d[] = {%s};\n' % (inp.iterrange, iter_range)] + kernel_calls
-            inp.iterrange = inp.iterrange + 1
+            kernel_calls = ['int iter_range%d[] = {%s};\n' % (system.iterrange, iter_range)] + kernel_calls
+            system.iterrange = system.iterrange + 1
             kernel_header = head + ', '.join(kernel_header) + '){'
             kernel = [kernel_header] + symbol_declaration + out + ['}']
         else:
@@ -180,28 +207,7 @@ def OPSC_write_kernel(eqs, inp):
             pass
         return kernel_calls, kernel
 
-    allcalls = []
-    allkernels = []
-    if isinstance(eqs, dict):
-        for key, value in eqs.iteritems():
-            if isinstance(value, list):
-                call, comp = get_kernel(value)
-                allcalls = allcalls + [call]
-                allkernels = allkernels + [comp]
-            else:
-                call, comp = get_kernel([value])
-                allcalls = allcalls + [call]
-                allkernels = allkernels + [comp]
-    elif isinstance(eqs, list):
-        call, comp = get_kernel(eqs)
-        allcalls = allcalls + [call]
-        allkernels = allkernels + [comp]
-    else:
-        call, comp = get_kernel([eqs])
-        allcalls = allcalls + [call]
-        allkernels = allkernels + [comp]
-
-    return allcalls, allkernels
+    
 
 class OPSCCodePrinter(CCodePrinter):
     def _print_Rational(self, expr):

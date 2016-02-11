@@ -453,20 +453,21 @@ class System(object):
         # Writing kernels and kernel calls
         # bcs(self,algorithm)
         if algorithm.language == 'OPSC':
+            opsc = OPSC()
             calls = []
-            kerns = []
+            kernels = []
             if evaluations:
-                call, kern = OPSC_write_kernel(evaluations, self)  # Evaluations
+                call, kernel = opsc.generate(evaluations, self)  # Evaluations
                 calls = calls + call
-                kerns = kerns + kern
+                kernels = kernels + kernel
 
-            call, kern = OPSC_write_kernel(final_equations, self)  # Evaluations
+            call, kernel = opsc.generate(final_equations, self)  # Evaluations
             calls = calls + call
-            kerns = kerns + kern
+            kernels = kernels + kernel
             final_algorithm[algorithm_template.get('a08')] = calls
 
-            call, kern = OPSC_write_kernel(saveeq, self)
-            kerns = kerns + kern
+            call, kernel = opsc.generate(saveeq, self)
+            kernels = kernels + kernel
             final_algorithm[algorithm_template.get('a06')] = call
             init_eq = []
             # TODO this is for 2D need to change this to 3D some how
@@ -480,25 +481,25 @@ class System(object):
             init_eq = init_eq + [Eq(self.conser[3], parse_expr('1 + 0.5*(u**2 + v**2)', evaluate=False))]
 
             latex.write_equations(init_eq, variable_indices)
-            call, kern = OPSC_write_kernel(init_eq, self)
-            kerns = kerns + kern
+            call, kernel = opsc.generate(init_eq, self)
+            kernels = kernels + kernel
             final_algorithm[algorithm_template.get('a03')] = call
 
         elif algorithm.language == 'F90':
             calls = []
-            kerns = []
+            kernels = []
             if evaluations:
-                call, kern = F90_write_kernel(evaluations, self, algorithm)  # Evaluations
+                call, kernel = F90_write_kernel(evaluations, self, algorithm)  # Evaluations
                 calls = calls + call
-                kerns = kerns + kern
-            call, kern = F90_write_kernel(final_equations, self, algorithm)  # Evaluations
+                kernels = kernels + kernel
+            call, kernel = F90_write_kernel(final_equations, self, algorithm)  # Evaluations
             calls = calls + call
-            kerns = kerns + kern
+            kernels = kernels + kernel
 
             final_algorithm[algorithm_template.get('a08')] = calls
 
-            call, kern = F90_write_kernel(saveeq, self, algorithm)
-            kerns = kerns + kern
+            call, kernel = F90_write_kernel(saveeq, self, algorithm)
+            kernels = kernels + kernel
             final_algorithm[algorithm_template.get('a06')] = call
             init_eq = []
             init_eq = init_eq + [Eq(self.conser[0], parse_expr('1.0', evaluate=False))]
@@ -507,8 +508,8 @@ class System(object):
             init_eq = init_eq + [Eq(self.conser[3], parse_expr('1 + 0.5*(u**2 + v**2)', evaluate=False))]
 
             latex.write_equations(init_eq, variable_indices)
-            call, kern = F90_write_kernel(init_eq, self, algorithm)
-            kerns = kerns + kern
+            call, kernel = F90_write_kernel(init_eq, self, algorithm)
+            kernels = kernels + kernel
             final_algorithm[algorithm_template.get('a03')] = call
 
         # The algortihm
@@ -517,13 +518,13 @@ class System(object):
             # for eq in self.filtereqs:
                 # call, kern = OPSC_write_kernel(eq,self)
                 # final_algorithm[algorithm_template.get('a11')] = final_algorithm[algorithm_template.get('a11')] + [call]
-                # kerns = kerns + kern
+                # kernels = kernels + kern
             # tempeq = []
             # for eq in self.conser:
                 # tempeq = tempeq + [Eq(eq,savedic.get(eq))]
             # call, kern = OPSC_write_kernel(tempeq,self)
             # final_algorithm[algorithm_template.get('a11')] = final_algorithm[algorithm_template.get('a11')] + [call]
-            # kerns = kerns + kern
+            # kernels = kernels + kern
         # TODO
         if algorithm.language == 'OPSC':
             bcs(self, algorithm)
@@ -552,7 +553,7 @@ class System(object):
         final_algorithm[algorithm_template.get('a13')] = after_time(self, algorithm)
         final_algorithm[algorithm_template.get('a14')] = footer_code(self, algorithm)
 
-        final_algorithm['kernels'] = kerns
+        final_algorithm['kernels'] = kernels
 
         write_final_code(algorithm_template, final_algorithm, code_file, kernel_file, algorithm.language)
         if algorithm.language == 'F90':
