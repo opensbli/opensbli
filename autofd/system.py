@@ -469,10 +469,12 @@ class System(object):
             call, kernel = opsc.generate(saveeq, self)
             kernels = kernels + kernel
             final_algorithm[algorithm_template.get('a06')] = call
+            
+            # Initial conditions kernel
+            # FIXME: Need to generalise
             init_eq = []
-            # TODO this is for 2D need to change this to 3D some how
-            init_eq = init_eq + [parse_expr('Eq(x, dx0)')]
-            init_eq = init_eq + [parse_expr('Eq(y, dx1)')]
+            init_eq = init_eq + [parse_expr('Eq(x, IDX0*dx0)', evaluate=False)]
+            init_eq = init_eq + [parse_expr('Eq(y, IDX1*dx1)', evaluate=False)]
             init_eq = init_eq + [parse_expr('Eq(u, sin(x)* cos(y))')]
             init_eq = init_eq + [parse_expr('Eq(v, -cos(x)* sin(y))')]
             init_eq = init_eq + [Eq(self.conser[0], parse_expr('1.0', evaluate=False))]
