@@ -41,7 +41,7 @@ class System(object):
     def __init__(self):
         return
 
-    def prepare(self, equations, formulas, algorithm, simulation_parameters):
+    def prepare(self, equations, formulas, algorithm, simulation_parameters, initial_conditions):
         expanded_equations = flatten(list(e.expanded for e in equations))
         expanded_formulas = flatten(list(f.expanded for f in formulas))
         variables = flatten(list(e.variables for e in equations))
@@ -471,19 +471,8 @@ class System(object):
             final_algorithm[algorithm_template.get('a06')] = call
             
             # Initial conditions kernel
-            # FIXME: Need to generalise
-            init_eq = []
-            init_eq = init_eq + [parse_expr('Eq(x, IDX0*dx0)', evaluate=False)]
-            init_eq = init_eq + [parse_expr('Eq(y, IDX1*dx1)', evaluate=False)]
-            init_eq = init_eq + [parse_expr('Eq(u, sin(x)* cos(y))')]
-            init_eq = init_eq + [parse_expr('Eq(v, -cos(x)* sin(y))')]
-            init_eq = init_eq + [Eq(self.conser[0], parse_expr('1.0', evaluate=False))]
-            init_eq = init_eq + [Eq(self.conser[1], self.conser[0] * parse_expr('u', evaluate=False))]
-            init_eq = init_eq + [Eq(self.conser[2], self.conser[0] * parse_expr('v', evaluate=False))]
-            init_eq = init_eq + [Eq(self.conser[3], parse_expr('1 + 0.5*(u**2 + v**2)', evaluate=False))]
-
-            latex.write_equations(init_eq, variable_indices)
-            call, kernel = opsc.generate(init_eq, self)
+            latex.write_equations(initial_conditions, variable_indices)
+            call, kernel = opsc.generate(initial_conditions, self)
             kernels = kernels + kernel
             final_algorithm[algorithm_template.get('a03')] = call
 
