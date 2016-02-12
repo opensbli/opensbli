@@ -503,20 +503,7 @@ class System(object):
             kernels = kernels + kernel
             final_algorithm[algorithm_template.get('a03')] = call
 
-        # The algortihm
-       # Commented for checking Fortran subroutine write
-        # if any(algorithm.expfilter):
-            # for eq in self.filtereqs:
-                # call, kern = OPSC_write_kernel(eq,self)
-                # final_algorithm[algorithm_template.get('a11')] = final_algorithm[algorithm_template.get('a11')] + [call]
-                # kernels = kernels + kern
-            # tempeq = []
-            # for eq in self.conser:
-                # tempeq = tempeq + [Eq(eq,savedic.get(eq))]
-            # call, kern = OPSC_write_kernel(tempeq,self)
-            # final_algorithm[algorithm_template.get('a11')] = final_algorithm[algorithm_template.get('a11')] + [call]
-            # kernels = kernels + kern
-        # TODO
+        # TODO: Apply boundary conditions
         if algorithm.language == 'OPSC':
             bcs(self, algorithm)
         elif algorithm.language == 'F90':
