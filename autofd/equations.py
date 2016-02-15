@@ -29,8 +29,20 @@ LOG = logging.getLogger(__name__)
 
 
 # Get Sympy Tensor Functions
-Sympy_tensor_function = [str(m[0]) for m in inspect.getmembers(tf, inspect.isclass) if m[1].__module__ == tf.__name__]
-my_local_function = []
+SYMPY_FUNCTIONS = [str(m[0]) for m in inspect.getmembers(tf, inspect.isclass) if m[1].__module__ == tf.__name__]
+LOCAL_FUNCTIONS = []
+
+
+class Conservative(Derivative):
+    LOCAL_FUNCTIONS.append('Conservative')
+
+
+class Der(Derivative):
+    LOCAL_FUNCTIONS.append('Der')
+    def get_nested(self):
+        """ Return any local classes nested within this derivative. """
+        local_class, sympy_class = get_nested_classes(self)
+        return local_class
 
 
 class EinsteinVariable(Symbol):
@@ -39,14 +51,17 @@ class EinsteinVariable(Symbol):
     In other words, all symbols in the equation are Einstein variables, but they can have zero or more indices. """
 
     def __new__(self, symbol, **assumptions):
-        self._sanitize(assumptions, self)
-        name = str(symbol)
+        self._sanitize(assumptions, self) # Remove any 'None's, etc.
+        self.name = str(symbol)
         
         # Make this into a new SymPy Symbol object.
-        self = Symbol.__xnew__(self, name, **assumptions)
-        indices = name.split('_')[1:]
+        self = Symbol.__xnew__(self, self.name, **assumptions)
+        
+        # Is this a variable that is constant in space and time (i.e. doesn't have any indices).
         self.is_constant =  False
+
         # Extract the indices, which are always preceeded by an underscore.
+        indices = self.name.split('_')[1:]
         self.indices = ['_' + x for x in indices]
         return self
 
@@ -62,14 +77,15 @@ class EinsteinVariable(Symbol):
                 break
         return found
 
-    def apply_index(self,index,value):
-        new = str(self).replace(index,str(value))
+    def apply_index(self, index, value):
+        """ Replace the index with a particular value (e.g. replace i with 0 in x_i), and return the updated EinsteinVariable object. """
+        updated_symbol = str(self).replace(index, str(value))
         if self.is_constant:
-            newvar = EinsteinVariable(new)
-            newvar.is_constant = True
-            return newvar
+            new = EinsteinVariable(updated_symbol)
+            new.is_constant = True
+            return new
         else:
-            return EinsteinVariable(new)
+            return EinsteinVariable(updated_symbol)
         return
 
 def get_nested_classes(function):
@@ -80,12 +96,12 @@ def get_nested_classes(function):
         # Break down the arguments into individual Function-type objects.
         for atom in arg.atoms(Function):
             try:
-                loc = my_local_function.index('%s' % type(atom))
+                loc = LOCAL_FUNCTIONS.index('%s' % type(atom))
                 local_class.append(atom)
             except ValueError:
                 # If the Function atom is not in our list of local/AutoFD function classes, then check to see whether it is a SymPy class instead.
                 try:
-                    loc = Sympy_tensor_function.index('%s' % type(atom))
+                    loc = SYMPY_FUNCTIONS.index('%s' % type(atom))
                     sympy_class.append(atom)
                 except:
                     raise ValueError("The function provided (%s) is not a local nor a SymPy function type." % atom)
@@ -101,30 +117,19 @@ def is_nested(function):
     return nested
 
 
-class Conservative(Derivative):
-    my_local_function.append('Conservative')
-
-
-class Der(Derivative):
-    my_local_function.append('Der')
-    def get_nested(self):
-        """ Return any local classes nested within this derivative. """
-        local_class, sympy_class = get_nested_classes(self)
-        return local_class
-
 
 class EinsteinExpansion(object):
-    """ Apply the Einstein Expansion of an expression. """
+    """ Expand an Einstein variable with respect to its indices. """
 
-    def __init__(self,expression, ndim):
+    def __init__(self, expression, ndim):
         self.expression = expression
         self.ndim = ndim
         self.expanded = []
         
-        self.Equality = isinstance(expression, Equality)
+        self.is_equality = isinstance(expression, Equality)
         
         # If we have an equation, then expand the RHS only
-        if self.Equality:
+        if self.is_equality:
             # Get LHS indices
             lhs_indices = self.get_einstein_indices(expression.lhs)
             # Get RHS indices
@@ -143,8 +148,8 @@ class EinsteinExpansion(object):
             part_to_expand = self.apply_sympy_function(part_to_expand)
 
         # Apply the LHS if equality
-        if self.Equality:
-            temp = Equality(expression.lhs,part_to_expand)
+        if self.is_equality:
+            temp = Equality(expression.lhs, part_to_expand)
             if lhs_indices:
                 vector_expansion = [temp for dim in range(self.ndim)]
                 print(vector_expansion)
