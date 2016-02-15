@@ -137,8 +137,8 @@ class EinsteinExpansion(object):
         # Expand indices
         for index in indices:
             LOG.debug('Expanding with respect to index %s' % index)
-            part_to_expand = self.apply(part_to_expand, index)
-            part_to_expand = self.replace_sympy_functions(part_to_expand)
+            part_to_expand = self.expand(part_to_expand, index)
+            part_to_expand = self.apply_sympy_functions(part_to_expand)
 
         # Apply the LHS if equality
         if self.is_equality:
@@ -151,23 +151,24 @@ class EinsteinExpansion(object):
                             if term.has_index(index):
                                 new = term.apply_index(index,dim)
                                 vector_expansion[dim] = vector_expansion[dim].xreplace({term:new})
-                    vector_expansion[dim] = self.replace_sympy_functions(vector_expansion[dim])
-                self.expanded  = vector_expansion
+                    vector_expansion[dim] = self.apply_sympy_functions(vector_expansion[dim])
+                self.expanded = vector_expansion
             else:
                 self.expanded = Equality(expression.lhs, part_to_expand)
         else:
             self.expanded = part_to_expand
 
-    def replace_sympy_functions(self, part_to_apply):
-        """ If the term(s) contain SymPy functions (e.g. Derivative), then replace them here. """
-        local, sympy = get_nested_classes(part_to_apply)
+    def apply_sympy_functions(self, expression):
+        """ If the term(s) contain SymPy functions (e.g. KroneckerDelta), then apply them here.
+        For example, any KroneckerDelta_(0,1) terms get evaluated to zero here. """
+        local, sympy = get_nested_classes(expression)
         for function in sympy:
             index_exist = self.get_einstein_indices(function)
             if not index_exist:
                 arg = [int(str(arg)) for arg in function.args]
                 value = (type(function)(*arg))
-                part_to_apply = part_to_apply.xreplace({function:value})
-        return part_to_apply
+                expression = expression.xreplace({function:value})
+        return expression
 
     def has_nested_derivative(self, function):
         """ Return True if the function's arguments contains a Derivative, otherwise return False. """
@@ -244,14 +245,17 @@ class EinsteinExpansion(object):
                 out_term = out_term/term
         return out_term
 
-    def get_einstein_indices(self, function=None):
-        """ Return all the indices of a function that are Einstein indices. """
+    def get_einstein_indices(self, expression=None):
+        """ Return all the indices of an expression that are Einstein indices.
+        
+        :arg expression: the expression to consider
+        :returns: the set of all Einstein indices within the expression
+        :rtype: set
+        """
         
         # If no particular function is provided, then use the full expression provided when the expansion class was first set up.
         if function is None:
             expression = self.expression
-        else:
-            expression = function
 
         # Get all the atoms in the expression that are Einstein variables, and then return their indices.
         einstein_indices = []
@@ -261,7 +265,7 @@ class EinsteinExpansion(object):
         return set(einstein_indices)
 
     def find_terms(self, terms, index):
-        """ Return all terms with a given index. """
+        """ Find all terms with a given index. """
 
         final_terms = {}
         def _find_terms(term,index):
@@ -301,7 +305,7 @@ class EinsteinExpansion(object):
         return final_terms
 
     def expand_indices_terms(self, terms, index, dimensions):
-        """ This expands the terms given in the list of terms
+        """ This expands the terms given in the list of terms with respect to a given index.
 
         :returns: a dictionary with each term as a key.
         :rtype: dict
@@ -317,9 +321,10 @@ class EinsteinExpansion(object):
             expanded_terms[term] = new_term
         return expanded_terms
 
-    def apply(self, part, index):
-        ndim = self.ndim
-        terms, gene = part.as_terms()
+    def expand(self, expression, index):
+        """ Perform the Einstein expansion on a given expression with respect to a given index. """
+
+        terms, gene = expression.as_terms()
         final_terms = self.find_terms(terms, index)
         for term, repr in terms:
             if final_terms[term]:
@@ -327,8 +332,8 @@ class EinsteinExpansion(object):
                     t = self.expand_indices_terms([new_term], index, self.ndim)
                     for key in t.keys():
                         val = sum(t[key])
-                        part = part.xreplace({key:val})
-        return part
+                        expression = expression.xreplace({key:val})
+        return expression
 
 
 class Equation(object):
@@ -362,6 +367,7 @@ class Equation(object):
 
         # Expand Einstein terms/indices
         expansion = EinsteinExpansion(self.parsed, problem.ndim)
+        LOG.debug("The expanded expression is: %s" % expansion.expanded)
         if isinstance(expansion.expanded, list):
             for equation in expansion.expanded:
                 self.expanded.append(self.apply_formulations(equation))
