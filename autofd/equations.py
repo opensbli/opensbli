@@ -59,6 +59,7 @@ class EinsteinTerm(Symbol):
 
         # Extract the indices, which are always preceeded by an underscore.
         indices = self.name.split('_')[1:]
+        print self.name, indices
         self.indices = ['_' + x for x in indices]
         return self
 
@@ -118,7 +119,7 @@ class EinsteinExpansion(object):
 
         # Apply the LHS if equality
         if self.is_equality:
-            temp = Equality(expression.lhs, part_to_expand)
+            temp = Equality(expression.lhs, part_to_expand)            
             if lhs_indices:
                 vector_expansion = [temp for dim in range(self.ndim)]
                 for dim in range(self.ndim):
@@ -175,8 +176,8 @@ class EinsteinExpansion(object):
         return nested
     
     def check_index_nested(self, expression, index):
-        """ This takes the expression as an input and returns the expression if all the terms in the expression
-        has the Einstein index (index). Otherwise it returns a list of terms that has the Einstein Index. """
+        """ Return the expression if all the terms in the expression have the specified Einstein index.
+        Otherwise return a list of terms that have the specified Einstein index. """
 
         has_index = []
         def _check_index(expression,index):
@@ -249,7 +250,7 @@ class EinsteinExpansion(object):
         :rtype: set
         """
         
-        # If no particular function is provided, then use the full expression provided when the expansion class was first set up.
+        # If no particular function is provided, then use the full expression provided when the EinsteinExpansion object was first set up.
         if function is None:
             expression = self.expression
 
@@ -257,7 +258,7 @@ class EinsteinExpansion(object):
         einstein_indices = []
         for atom in expression.atoms(EinsteinTerm):
             einstein_indices += atom.get_indices()
-
+        print set(einstein_indices)
         return set(einstein_indices)
 
     def find_terms(self, terms, index):
@@ -265,35 +266,35 @@ class EinsteinExpansion(object):
 
         final_terms = {}
         def _find_terms(term,index):
-                if isinstance(term, Basic):
-                    if term.is_Add:
-                        args = self.check_index_ADD(term,index)
-                        for arg in args:
-                            _find_terms(arg,index)
-                    elif term.is_Mul:
-                        new_term =  self.check_index_MUL(term, index)
-                        if term == new_term:
-                            has_terms.append(term)
-                        else:
-                            _find_terms(new_term, index)
-                    elif isinstance(term, Derivative):
-                        new_function = self.check_index_nested(term,index)
-                        
-                        if term == new_function:
-                            has_terms.append(term)
-                        else:
-                            for f in new_function:
-                                _find_terms(f, index)
-                    elif isinstance(term, Function):
-                        if any(term.has_index(index) for term in term.atoms(EinsteinTerm)):
-                            has_terms.append(term)
-                    elif isinstance(term, EinsteinTerm):
-                        if term.has_index(index):
-                            has_terms.append(term)
+            if isinstance(term, Basic):
+                if term.is_Add:
+                    args = self.check_index_ADD(term,index)
+                    for arg in args:
+                        _find_terms(arg,index)
+                elif term.is_Mul:
+                    new_term =  self.check_index_MUL(term, index)
+                    if term == new_term:
+                        has_terms.append(term)
                     else:
-                        # TODO raise Value Error
-                        print('NOT ABLE TO Process', term, type(term.func))
-                return
+                        _find_terms(new_term, index)
+                elif isinstance(term, Derivative):
+                    new_function = self.check_index_nested(term,index)
+                    
+                    if term == new_function:
+                        has_terms.append(term)
+                    else:
+                        for f in new_function:
+                            _find_terms(f, index)
+                elif isinstance(term, Function):
+                    if any(term.has_index(index) for term in term.atoms(EinsteinTerm)):
+                        has_terms.append(term)
+                elif isinstance(term, EinsteinTerm):
+                    if term.has_index(index):
+                        has_terms.append(term)
+                else:
+                    # TODO raise Value Error
+                    print('NOT ABLE TO Process', term, type(term.func))
+            return
         for term, repr in terms:
             has_terms = []
             _find_terms(term,index)
@@ -345,23 +346,23 @@ class Equation(object):
         local_dict = {'Der':Der, 'Symbol':EinsteinTerm, 'Conservative':Conservative} # TODO: automate from local classes
 
         self.original = expression
+        
+        # Parse the equation.
+        self.parsed = parse_expr(self.original, local_dict, evaluate = False)
 
         # Perform substitutions, if any.
         if problem.substitutions:
             for sub in problem.substitutions:
                 temp = parse_expr(sub, local_dict, evaluate = False)
-                self.original = self.original.replace(str(temp.lhs), str(temp.rhs))
+                self.parsed = self.parsed.xreplace({temp.lhs: temp.rhs})
 
-        # Parse the equation.
-        self.parsed = parse_expr(self.original, local_dict, evaluate = False)
-        self.expanded = []
-        
         # Update the Einstein Variables in the expression that are constants to is_const = True
         for term in self.parsed.atoms(EinsteinTerm):
             if any(constant == str(term) for constant in problem.constants):
                 term.is_constant = True
 
         # Expand Einstein terms/indices
+        self.expanded = []
         expansion = EinsteinExpansion(self.parsed, problem.ndim)
         LOG.debug("The expanded expression is: %s" % expansion.expanded)
         if isinstance(expansion.expanded, list):
