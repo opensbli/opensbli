@@ -71,8 +71,8 @@ class EinsteinVariable(Symbol):
             return EinsteinVariable(new)
         return
 
-def get_tensor_class(function):
-    """ Match up the SymPy classes with the arguments of the function provided. """
+def get_nested_classes(function):
+    """ Match up the SymPy/local classes with the arguments of the function provided. """
     local_class = []
     sympy_class = []
     for arg in function.args:
@@ -99,19 +99,21 @@ def is_nested(function):
             nested = True
     return nested
 
+
 class Conservative(Derivative):
     my_local_function.append('Conservative')
-    
+
+
 class Der(Derivative):
     my_local_function.append('Der')
     def get_nested(self):
-        """ Return if any local classes. """
-        local_class, sympy_class = get_tensor_class(self)
+        """ Return any local classes nested within this derivative. """
+        local_class, sympy_class = get_nested_classes(self)
         return local_class
 
 
 class EinsteinExpansion(object):
-    """ Apply the Einstein Expansion of an expression """
+    """ Apply the Einstein Expansion of an expression. """
 
     def __init__(self,expression, ndim):
         self.expression = expression
@@ -161,7 +163,7 @@ class EinsteinExpansion(object):
 
     def apply_sympy_function(self, part_to_apply):
         """  """
-        local, sympy = get_tensor_class(part_to_apply)
+        local, sympy = get_nested_classes(part_to_apply)
         for fn in sympy:
             index_exist = self.get_einstein_indices(fn)
             if not index_exist:
@@ -201,7 +203,7 @@ class EinsteinExpansion(object):
                             has_index.append(newt)
                             
                         else:
-                            local, sympy = get_tensor_class(expression)
+                            local, sympy = get_nested_classes(expression)
                             for func in local:
                                 _check_index(func,index)
                             for func in sympy:
@@ -243,14 +245,14 @@ class EinsteinExpansion(object):
         return out_term
 
     def get_einstein_indices(self, function=None):
-        if function == None:
-            equation = self.expression
+        if function is None:
+            expression = self.expression
         else:
-            equation = function
-        Einstein_indices = []
-        for atom in equation.atoms(EinsteinVariable):
-            Einstein_indices += atom.get_indices()
-        return set(Einstein_indices)
+            expression = function
+        einstein_indices = []
+        for atom in expression.atoms(EinsteinVariable):
+            einstein_indices.append(atom.get_indices())
+        return set(einstein_indices)
 
     def find_terms(self,terms,index):
         final_terms = {}
