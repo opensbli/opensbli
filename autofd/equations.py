@@ -145,7 +145,6 @@ class EinsteinExpansion(object):
             temp = Equality(expression.lhs, part_to_expand)
             if lhs_indices:
                 vector_expansion = [temp for dim in range(self.ndim)]
-                print(vector_expansion)
                 for dim in range(self.ndim):
                     for index in lhs_indices:
                         for term in vector_expansion[dim].atoms(EinsteinTerm):
@@ -154,7 +153,6 @@ class EinsteinExpansion(object):
                                 vector_expansion[dim] = vector_expansion[dim].xreplace({term:new})
                     vector_expansion[dim] = self.replace_sympy_functions(vector_expansion[dim])
                 self.expanded  = vector_expansion
-                pprint(self.expanded)
             else:
                 self.expanded = Equality(expression.lhs, part_to_expand)
         else:
@@ -282,8 +280,6 @@ class EinsteinExpansion(object):
                         new_function = self.check_index_nested(term,index)
                         
                         if term == new_function:
-                            print("TERM EQUALS FUNCTION")
-                            pprint(term); pprint(new_function)
                             has_terms.append(term)
                         else:
                             for f in new_function:
@@ -299,7 +295,6 @@ class EinsteinExpansion(object):
                         print('NOT ABLE TO Process', term, type(term.func))
                 return
         for term, repr in terms:
-            print("IN FIND TERMS", term)
             has_terms = []
             _find_terms(term,index)
             final_terms[term] = flatten(has_terms)
@@ -333,34 +328,8 @@ class EinsteinExpansion(object):
                     for key in t.keys():
                         val = sum(t[key])
                         part = part.xreplace({key:val})
-                    print('Expanded term', term,t)
         return part
 
-def apply_formulations(expression):
-    '''
-    Apply the formulations 
-    # TODO Move applying Derivative for conservative or Der formulations to their respective
-    classes and call the class from here
-    
-    '''
-    temp_expression = expression
-    der_dire = set()
-    for atom in temp_expression.atoms(Derivative):
-        for arg in atom.args[1:]:
-            der_dire.add(arg)
-    function_vars = set()
-    for term in temp_expression.atoms(EinsteinTerm):
-        function_vars.add(term)
-    function_vars = function_vars.difference(der_dire)
-    for term in function_vars:
-        if not term.is_constant :
-            temp_expression = temp_expression.replace(term, Function('%s'%term)(*der_dire))
-    for atom in temp_expression.atoms(Der):
-        new_atom = atom.doit()
-        temp_expression = temp_expression.xreplace({atom:new_atom})
-    temp_expression = temp_expression
-    pprint(temp_expression)
-    return temp_expression
 
 class Equation(object):
 
@@ -395,11 +364,36 @@ class Equation(object):
         expansion = EinsteinExpansion(self.parsed, problem.ndim)
         if isinstance(expansion.expanded, list):
             for equation in expansion.expanded:
-                self.expanded.append(apply_formulations(equation))
+                self.expanded.append(self.apply_formulations(equation))
         else:
-            self.expanded.append(apply_formulations(expansion.expanded))
+            self.expanded.append(self.apply_formulations(expansion.expanded))
         
         return
+
+    def apply_formulations(self, expression):
+        '''
+        Apply the formulations 
+        # TODO Move applying Derivative for conservative or Der formulations to their respective
+        classes and call the class from here
+        
+        '''
+        temp_expression = expression
+        derivative_direction = set()
+        for atom in temp_expression.atoms(Derivative):
+            for arg in atom.args[1:]:
+                derivative_direction.add(arg)
+        function_vars = set()
+        for term in temp_expression.atoms(EinsteinTerm):
+            function_vars.add(term)
+        function_vars = function_vars.difference(derivative_direction)
+        for term in function_vars:
+            if not term.is_constant :
+                temp_expression = temp_expression.replace(term, Function('%s'%term)(*derivative_direction))
+        for atom in temp_expression.atoms(Der):
+            new_atom = atom.doit()
+            temp_expression = temp_expression.xreplace({atom:new_atom})
+        temp_expression = temp_expression
+        return temp_expression
 
 def variable_count(variable, equations):
     """ Return the number of input equations containing a particular variable.

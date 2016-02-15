@@ -27,7 +27,7 @@ substitutions = [stress_tensor, heat_flux]
 # Define all the constants in the equations
 constants = ["Re", "Pr", "mu", "gama", "Minf"]
 
-# Define coordinate direction symbol (x) this will be x_i, x_j,x_k
+# Define coordinate direction symbol (x) this will be x_i, x_j, x_k
 coordinate_symbol = "x"
 
 # Metrics
