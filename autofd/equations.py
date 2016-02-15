@@ -72,25 +72,26 @@ class EinsteinVariable(Symbol):
         return
 
 def get_tensor_class(function):
-    '''
-    Get the classes of the function arguments
-    '''
+    """ Match up the SymPy classes with the arguments of the function provided. """
     local_class = []
     sympy_class = []
     for arg in function.args:
-        for at in arg.atoms(Function):
+        # Break down the arguments into individual Function-type objects.
+        for atom in arg.atoms(Function):
             try:
-                loc = my_local_function.index('%s'%type(at))
-                local_class += [at]
-                #print("LocalClass", str(type(at)))
-            except:
+                loc = my_local_function.index('%s' % type(atom))
+                local_class.append(atom)
+            except ValueError:
+                # If the Function atom is not in our list of local/AutoFD function classes, then check to see whether it is a SymPy class instead.
                 try:
-                    loc = Sympy_tensor_function.index('%s'%type(at))
-                    #print("Sympy", str(type(at)))
-                    sympy_class += [at]
+                    loc = Sympy_tensor_function.index('%s' % type(atom))
+                    sympy_class.append(atom)
                 except:
-                    raise ValueError("Nothing")
+                    raise ValueError("The function provided (%s) is not a local nor a SymPy function type." % atom)
+
     return local_class, sympy_class
+
+
 def is_nested(function):
     nested = False
     for arg in function.args:
@@ -159,6 +160,7 @@ class EinsteinExpansion(object):
             self.expanded = part_to_expand
 
     def apply_sympy_function(self, part_to_apply):
+        """  """
         local, sympy = get_tensor_class(part_to_apply)
         for fn in sympy:
             index_exist = self.get_einstein_indices(fn)
@@ -169,12 +171,9 @@ class EinsteinExpansion(object):
         return part_to_apply
 
     def check_index_nested(self, expression, index):
-        '''
-        This takes the Function as an input and returns the expression if all the terms in the expression
-        has the Einstein index (index).
+        """ This takes the Function as an input and returns the expression if all the terms in the expression
+        has the Einstein index (index). Otherwise it returns a list of terms that has the Einstein Index """
 
-        Else it returns a list of terms that has the Einstein Index
-        '''
         has_index = []
         def _check_index(expression,index):
             arg_index = [False for arg in expression.args]
