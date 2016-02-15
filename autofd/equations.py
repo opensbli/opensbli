@@ -250,8 +250,9 @@ class EinsteinExpansion(object):
         else:
             expression = function
         einstein_indices = []
+        # Get all the atoms in the expression that are Einstein variables, and then return their indices.
         for atom in expression.atoms(EinsteinVariable):
-            einstein_indices.append(atom.get_indices())
+            einstein_indices += atom.get_indices()
         return set(einstein_indices)
 
     def find_terms(self,terms,index):
