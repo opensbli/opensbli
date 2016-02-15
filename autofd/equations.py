@@ -45,10 +45,10 @@ class Der(Derivative):
         return local_class
 
 
-class EinsteinVariable(Symbol):
-    """ Represents any symbol in the equation as a SymPy Symbol object which in turn represents an Einstein variable.
+class EinsteinTerm(Symbol):
+    """ Represents any symbol in the equation as a SymPy Symbol object which in turn represents an Einstein term.
     This could be e.g. tau_i_j, but can also be e.g. u, rho.
-    In other words, all symbols in the equation are Einstein variables, but they can have zero or more indices. """
+    In other words, all symbols in the equation are Einstein terms, but they can have zero or more indices. """
 
     def __new__(self, symbol, **assumptions):
         self._sanitize(assumptions, self) # Remove any 'None's, etc.
@@ -57,7 +57,7 @@ class EinsteinVariable(Symbol):
         # Make this into a new SymPy Symbol object.
         self = Symbol.__xnew__(self, self.name, **assumptions)
         
-        # Is this a variable that is constant in space and time (i.e. doesn't have any indices).
+        # Is this a term that is constant in space and time (i.e. doesn't have any indices).
         self.is_constant =  False
 
         # Extract the indices, which are always preceeded by an underscore.
@@ -78,35 +78,35 @@ class EinsteinVariable(Symbol):
         return found
 
     def apply_index(self, index, value):
-        """ Replace the index with a particular value (e.g. replace i with 0 in x_i), and return the updated EinsteinVariable object. """
+        """ Replace the index with a particular value (e.g. replace i with 0 in x_i), and return the updated EinsteinTerm object. """
         updated_symbol = str(self).replace(index, str(value))
         if self.is_constant:
-            new = EinsteinVariable(updated_symbol)
+            new = EinsteinTerm(updated_symbol)
             new.is_constant = True
             return new
         else:
-            return EinsteinVariable(updated_symbol)
+            return EinsteinTerm(updated_symbol)
         return
 
 def get_nested_classes(function):
     """ Match up the SymPy/local classes with the arguments of the function provided. """
-    local_class = []
-    sympy_class = []
+    local_classes = []
+    sympy_classes = []
     for arg in function.args:
         # Break down the arguments into individual Function-type objects.
         for atom in arg.atoms(Function):
             try:
                 loc = LOCAL_FUNCTIONS.index('%s' % type(atom))
-                local_class.append(atom)
+                local_classes.append(atom)
             except ValueError:
                 # If the Function atom is not in our list of local/AutoFD function classes, then check to see whether it is a SymPy class instead.
                 try:
                     loc = SYMPY_FUNCTIONS.index('%s' % type(atom))
-                    sympy_class.append(atom)
+                    sympy_classes.append(atom)
                 except:
                     raise ValueError("The function provided (%s) is not a local nor a SymPy function type." % atom)
 
-    return local_class, sympy_class
+    return local_classes, sympy_classes
 
 
 def is_nested(function):
@@ -155,7 +155,7 @@ class EinsteinExpansion(object):
                 print(vector_expansion)
                 for dim in range(self.ndim):
                     for index in lhs_indices:
-                        for Ev in vector_expansion[dim].atoms(EinsteinVariable):
+                        for Ev in vector_expansion[dim].atoms(EinsteinTerm):
                             if Ev.is_index(index):
                                 new = Ev.apply_index(index,dim)
                                 vector_expansion[dim] = vector_expansion[dim].xreplace({Ev:new})
@@ -186,7 +186,7 @@ class EinsteinExpansion(object):
         def _check_index(expression,index):
             arg_index = [False for arg in expression.args]
             for number,arg in enumerate(expression.args):
-                if(any(Ev.is_index(index) for Ev in arg.atoms(EinsteinVariable))):
+                if(any(Ev.is_index(index) for Ev in arg.atoms(EinsteinTerm))):
                     arg_index[number] = True
             nested = is_nested(expression)
             
@@ -228,7 +228,7 @@ class EinsteinExpansion(object):
         indexed_terms = []
         
         for number,term in enumerate(terms):
-            if(any(Ev.is_index(index) for Ev in term.atoms(EinsteinVariable))):
+            if(any(Ev.is_index(index) for Ev in term.atoms(EinsteinTerm))):
                 indexed_terms += [term]
         #print("IN CHECK Add", add_term, terms)
         #print("AND THE TERMS ARE", indexed_terms)
@@ -238,7 +238,7 @@ class EinsteinExpansion(object):
         terms = multiplication_term.as_ordered_factors()
         is_indexed_mul = [False for arg in terms]
         for number,term in enumerate(terms):
-            if(any(Ev.is_index(index) for Ev in term.atoms(EinsteinVariable))):
+            if(any(Ev.is_index(index) for Ev in term.atoms(EinsteinTerm))):
                 is_indexed_mul[number] = True
         out_term = multiplication_term
         for number,term in enumerate(terms):
@@ -261,12 +261,14 @@ class EinsteinExpansion(object):
 
         # Get all the atoms in the expression that are Einstein variables, and then return their indices.
         einstein_indices = []
-        for atom in expression.atoms(EinsteinVariable):
+        for atom in expression.atoms(EinsteinTerm):
             einstein_indices += atom.get_indices()
 
         return set(einstein_indices)
 
-    def find_terms(self,terms,index):
+    def find_terms(self, terms, index):
+        """ Return all terms with a given index. """
+
         final_terms = {}
         def _find_terms(term,index):
                 if isinstance(term, Basic):
@@ -292,9 +294,9 @@ class EinsteinExpansion(object):
                             for f in newF:
                                 _find_terms(f,index)
                     elif isinstance(term, Function):
-                        if any(Ev.is_index(index) for Ev in term.atoms(EinsteinVariable)):
+                        if any(Ev.is_index(index) for Ev in term.atoms(EinsteinTerm)):
                             has_terms.append(term)
-                    elif isinstance(term, EinsteinVariable):
+                    elif isinstance(term, EinsteinTerm):
                         if term.is_index(index):
                             has_terms.append(term)
                     else:
@@ -318,7 +320,7 @@ class EinsteinExpansion(object):
         expanded_terms = {}
         for term in terms:
             new_term = [term for dim in range(0,dimensions)]
-            for at in term.atoms(EinsteinVariable):
+            for at in term.atoms(EinsteinTerm):
                 for dim in range(0,dimensions):
                     new = at.apply_index(index,dim)
                     new_term[dim] = new_term[dim].xreplace({at:new})
@@ -351,7 +353,7 @@ def apply_formulations(expression):
         for arg in atom.args[1:]:
             der_dire.add(arg)
     function_vars = set()
-    for ev in temp_expression.atoms(EinsteinVariable):
+    for ev in temp_expression.atoms(EinsteinTerm):
         function_vars.add(ev)
     function_vars = function_vars.difference(der_dire)
     for ev in function_vars:
@@ -363,6 +365,7 @@ def apply_formulations(expression):
     temp_expression = temp_expression
     pprint(temp_expression)
     return temp_expression
+
 class Equation(object):
 
     """ Describes an equation we want to solve. """
@@ -373,7 +376,7 @@ class Equation(object):
         :arg str equation: An equation, written in Einstein notation, and specified in string form.
         :returns: None
         """
-        local_dict = {'Der':Der,'Symbol':EinsteinVariable,'Conservative':Conservative} # automate from local classes
+        local_dict = {'Der':Der,'Symbol':EinsteinTerm,'Conservative':Conservative} # automate from local classes
 
         self.original = expression
         #self.ndim = problem.ndim
@@ -389,7 +392,7 @@ class Equation(object):
         self.expanded = []
         
         # Update the Einstein Variables in the expression that are constants to is_const = True
-        for Ev in self.parsed.atoms(EinsteinVariable):
+        for Ev in self.parsed.atoms(EinsteinTerm):
             if any(const == str(Ev) for const in problem.constants):
                 Ev.is_constant = True
                 print(Ev)
