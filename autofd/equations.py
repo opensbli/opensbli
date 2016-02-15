@@ -34,13 +34,15 @@ my_local_function = []
 
 
 class EinsteinVariable(Symbol):
-    """ Represents the i/j/k subscript of a variable. """
+    """ Represents any symbol in the equation as a SymPy Symbol object which in turn represents an Einstein variable.
+    This could be e.g. tau_i_j, but can also be e.g. u, rho.
+    In other words, all symbols in the equation are Einstein variables, but they can have zero or more indices. """
 
     def __new__(self, symbol, **assumptions):
         self._sanitize(assumptions, self)
         name = str(symbol)
         
-        # Make this into a new Symbol
+        # Make this into a new SymPy Symbol object.
         self = Symbol.__xnew__(self, name, **assumptions)
         indices = name.split('_')[1:]
         self.is_constant =  False
@@ -51,15 +53,14 @@ class EinsteinVariable(Symbol):
     def get_indices(self):
         return self.indices
 
-    def check_index(self, index):
-        """ Check to see whether  """
-        is_index = False
+    def is_index(self, index):
+        """ Check to see whether a given index exists in the Einstein variable. """
+        found = False
         for i in self.indices:
             if i == index:
-                is_index = True
-            else:
-                pass
-        return is_index
+                found = True
+                break
+        return found
 
     def apply_index(self,index,value):
         new = str(self).replace(index,str(value))
@@ -150,7 +151,7 @@ class EinsteinExpansion(object):
                 for dim in range(self.ndim):
                     for index in lhs_indices:
                         for Ev in vector_expansion[dim].atoms(EinsteinVariable):
-                            if Ev.check_index(index):
+                            if Ev.is_index(index):
                                 new = Ev.apply_index(index,dim)
                                 vector_expansion[dim] = vector_expansion[dim].xreplace({Ev:new})
                     vector_expansion[dim] = self.apply_sympy_function(vector_expansion[dim])
@@ -180,7 +181,7 @@ class EinsteinExpansion(object):
         def _check_index(expression,index):
             arg_index = [False for arg in expression.args]
             for number,arg in enumerate(expression.args):
-                if(any(Ev.check_index(index) for Ev in arg.atoms(EinsteinVariable))):
+                if(any(Ev.is_index(index) for Ev in arg.atoms(EinsteinVariable))):
                     arg_index[number] = True
             nested = is_nested(expression)
             
@@ -222,7 +223,7 @@ class EinsteinExpansion(object):
         indexed_terms = []
         
         for number,term in enumerate(terms):
-            if(any(Ev.check_index(index) for Ev in term.atoms(EinsteinVariable))):
+            if(any(Ev.is_index(index) for Ev in term.atoms(EinsteinVariable))):
                 indexed_terms += [term]
         #print("IN CHECK Add", add_term, terms)
         #print("AND THE TERMS ARE", indexed_terms)
@@ -232,11 +233,11 @@ class EinsteinExpansion(object):
         terms = multiplication_term.as_ordered_factors()
         is_indexed_mul = [False for arg in terms]
         for number,term in enumerate(terms):
-            if(any(Ev.check_index(index) for Ev in term.atoms(EinsteinVariable))):
+            if(any(Ev.is_index(index) for Ev in term.atoms(EinsteinVariable))):
                 is_indexed_mul[number] = True
         out_term = multiplication_term
         for number,term in enumerate(terms):
-            if isinstance (term,Symbol) and not term.check_index(index):
+            if isinstance (term,Symbol) and not term.is_index(index):
                 #print("Not", Symbol)
                 out_term = out_term/term
             elif not is_indexed_mul[number]:
@@ -286,10 +287,10 @@ class EinsteinExpansion(object):
                             for f in newF:
                                 _find_terms(f,index)
                     elif isinstance(term, Function):
-                        if any(Ev.check_index(index) for Ev in term.atoms(EinsteinVariable)):
+                        if any(Ev.is_index(index) for Ev in term.atoms(EinsteinVariable)):
                             has_terms.append(term)
                     elif isinstance(term, EinsteinVariable):
-                        if term.check_index(index):
+                        if term.is_index(index):
                             has_terms.append(term)
                     else:
                         # TODO raise Value Error
@@ -323,8 +324,6 @@ class EinsteinExpansion(object):
         ndim = self.ndim
         terms, gene = part.as_terms()
         final_terms = self.find_terms(terms,index)
-        #print("Input part", part)
-        #print("FT",final_terms)
         for term,repr in terms:
             if final_terms[term]:
                 for new_term in final_terms[term]:
