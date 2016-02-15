@@ -39,10 +39,6 @@ class Conservative(Derivative):
 
 class Der(Derivative):
     LOCAL_FUNCTIONS.append('Der')
-    def get_nested(self):
-        """ Return any local classes nested within this derivative. """
-        local_class, sympy_class = get_nested_classes(self)
-        return local_class
 
 
 class EinsteinTerm(Symbol):
@@ -88,26 +84,6 @@ class EinsteinTerm(Symbol):
         else:
             return EinsteinTerm(updated_symbol)
         return
-
-def get_nested_classes(function):
-    """ Match up the SymPy/local classes with the arguments of the function provided. """
-    local_classes = []
-    sympy_classes = []
-    for arg in function.args:
-        # Break down the arguments into individual Function-type objects.
-        for atom in arg.atoms(Function):
-            try:
-                loc = LOCAL_FUNCTIONS.index('%s' % type(atom))
-                local_classes.append(atom)
-            except ValueError:
-                # If the Function atom is not in our list of local/AutoFD function classes, then check to see whether it is a SymPy class instead.
-                try:
-                    loc = SYMPY_FUNCTIONS.index('%s' % type(atom))
-                    sympy_classes.append(atom)
-                except:
-                    raise ValueError("The function provided (%s) is not a local nor a SymPy function type." % atom)
-
-    return local_classes, sympy_classes
 
 
 class EinsteinExpansion(object):
@@ -158,10 +134,30 @@ class EinsteinExpansion(object):
         else:
             self.expanded = part_to_expand
 
+    def get_nested_classes(self, function):
+        """ Match up the SymPy/local classes/functions with the arguments of the function provided. """
+        local_classes = []
+        sympy_classes = []
+        for arg in function.args:
+            # Break down the arguments into individual Function-type objects.
+            for atom in arg.atoms(Function):
+                try:
+                    loc = LOCAL_FUNCTIONS.index('%s' % type(atom))
+                    local_classes.append(atom)
+                except ValueError:
+                    # If the Function atom is not in our list of local/AutoFD function classes, then check to see whether it is a SymPy class instead.
+                    try:
+                        loc = SYMPY_FUNCTIONS.index('%s' % type(atom))
+                        sympy_classes.append(atom)
+                    except:
+                        raise ValueError("The function provided (%s) is not a local nor a SymPy function type." % atom)
+
+        return local_classes, sympy_classes
+
     def apply_sympy_functions(self, expression):
         """ If the term(s) contain SymPy functions (e.g. KroneckerDelta), then apply them here.
         For example, any KroneckerDelta_(0,1) terms get evaluated to zero here. """
-        local, sympy = get_nested_classes(expression)
+        local, sympy = self.get_nested_classes(expression)
         for function in sympy:
             index_exist = self.get_einstein_indices(function)
             if not index_exist:
@@ -209,7 +205,7 @@ class EinsteinExpansion(object):
                             has_index.append(new_term)
                             
                         else:
-                            local, sympy = get_nested_classes(expression)
+                            local, sympy = self.get_nested_classes(expression)
                             for func in local:
                                 _check_index(func,index)
                             for func in sympy:
@@ -400,6 +396,7 @@ class Equation(object):
             temp_expression = temp_expression.xreplace({atom:new_atom})
         temp_expression = temp_expression
         return temp_expression
+
 
 def variable_count(variable, equations):
     """ Return the number of input equations containing a particular variable.
