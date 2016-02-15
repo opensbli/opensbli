@@ -138,7 +138,7 @@ class EinsteinExpansion(object):
         for index in indices:
             LOG.debug('Expanding with respect to index %s' % index)
             part_to_expand = self.apply(part_to_expand, index)
-            part_to_expand = self.replace_sympy_function(part_to_expand)
+            part_to_expand = self.replace_sympy_functions(part_to_expand)
 
         # Apply the LHS if equality
         if self.is_equality:
@@ -283,7 +283,7 @@ class EinsteinExpansion(object):
                         
                         if term == new_function:
                             print("TERM EQUALS FUNCTION")
-                            pprint(term); pprint(newF)
+                            pprint(term); pprint(new_function)
                             has_terms.append(term)
                         else:
                             for f in new_function:
