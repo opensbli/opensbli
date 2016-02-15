@@ -245,14 +245,19 @@ class EinsteinExpansion(object):
         return out_term
 
     def get_einstein_indices(self, function=None):
+        """ Return all the indices of a function that are Einstein indices. """
+        
+        # If no particular function is provided, then use the full expression provided when the expansion class was first set up.
         if function is None:
             expression = self.expression
         else:
             expression = function
-        einstein_indices = []
+
         # Get all the atoms in the expression that are Einstein variables, and then return their indices.
+        einstein_indices = []
         for atom in expression.atoms(EinsteinVariable):
             einstein_indices += atom.get_indices()
+
         return set(einstein_indices)
 
     def find_terms(self,terms,index):
@@ -297,14 +302,14 @@ class EinsteinExpansion(object):
             final_terms[term] = flatten(has_terms)
         return  final_terms
 
-    def expand_indices_terms(self,terms,index, dimensions):
-        '''
-        This expands the terms given in the list of terms
+    def expand_indices_terms(self, terms, index, dimensions):
+        """ This expands the terms given in the list of terms
 
-        returns a dictionary with each term as a key
+        :returns: a dictionary with each term as a key.
+        :rtype: dict
+        """
 
-        '''
-        expanded_terms ={term:None for term in terms}
+        expanded_terms = {}
         for term in terms:
             new_term = [term for dim in range(0,dimensions)]
             for at in term.atoms(EinsteinVariable):
