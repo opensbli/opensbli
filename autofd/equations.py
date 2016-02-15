@@ -34,28 +34,33 @@ my_local_function = []
 
 
 class EinsteinVariable(Symbol):
-    """ """
-    is_EinsteinVariable = True
-    is_constant = False
-    def __new__(self, symbol,  **assumptions):
+    """ Represents the i/j/k subscript of a variable. """
+
+    def __new__(self, symbol, **assumptions):
         self._sanitize(assumptions, self)
         name = str(symbol)
-        self = Symbol.__xnew__(self, name,  **assumptions)
+        
+        # Make this into a new Symbol
+        self = Symbol.__xnew__(self, name, **assumptions)
         indices = name.split('_')[1:]
         self.is_constant =  False
-        self.is_conser = False
+        # Extract the indices, which are always preceeded by an underscore.
         self.indices = ['_' + x for x in indices]
         return self
+
     def get_indices(self):
         return self.indices
-    def check_index(self,index):
+
+    def check_index(self, index):
+        """ Check to see whether  """
         is_index = False
-        for ind in self.indices:
-            if ind == index:
+        for i in self.indices:
+            if i == index:
                 is_index = True
             else:
                 pass
         return is_index
+
     def apply_index(self,index,value):
         new = str(self).replace(index,str(value))
         if self.is_constant:
@@ -99,47 +104,43 @@ class Conservative(Derivative):
 class Der(Derivative):
     my_local_function.append('Der')
     def get_nested(self):
-        '''
-        Return if any local classes (Not required )
-        '''
+        """ Return if any local classes. """
         local_class, sympy_class = get_tensor_class(self)
-        
         return local_class
 
+
 class EinsteinExpansion(object):
-    '''
-    This class apply the Einstein Expansion of an expression
-    '''
+    """ Apply the Einstein Expansion of an expression """
 
     def __init__(self,expression, ndim):
         self.expression = expression
         self.ndim = ndim
         self.expanded = []
-        # temporary equation
-        temporary_expression = expression
-        self.Equality = isinstance(temporary_expression, Equality)
-        print(self.Equality)
-        # get LHS indices
+        
+        self.Equality = isinstance(expression, Equality)
+        
+        # If we have an equation, then expand the RHS only
         if self.Equality:
-            lhs_indices = self.get_Einstein_indices(temporary_expression.lhs)
+            # Get LHS indices
+            lhs_indices = self.get_einstein_indices(expression.lhs)
             # Get RHS indices
-            rhs_indices = self.get_Einstein_indices(temporary_expression.rhs)
-            # Diff
+            rhs_indices = self.get_einstein_indices(expression.rhs)
+            # Any non-common indices
             indices = rhs_indices.difference(lhs_indices)
+            part_to_expand = expression.rhs
         else:
-            indices = self.get_Einstein_indices()
-        if self.Equality:
-            part_to_expand = temporary_expression.rhs
-        else:
-            part_to_expand = temporary_expression
-        # expand indices
+            indices = self.get_einstein_indices()
+            part_to_expand = expression
+        
+        # Expand indices
         for index in indices:
-            print('EXPNADING IN index', index)
-            part_to_expand = self.apply_Einstein_expansion(part_to_expand,index)
+            LOG.debug('Expanding with respect to index %s' % index)
+            part_to_expand = self.apply_einstein_expansion(part_to_expand, index)
             part_to_expand = self.apply_sympy_function(part_to_expand)
+
         # Apply the LHS if equality
         if self.Equality:
-            temp = Equality(temporary_expression.lhs,part_to_expand)
+            temp = Equality(expression.lhs,part_to_expand)
             if lhs_indices:
                 vector_expansion = [temp for dim in range(self.ndim)]
                 print(vector_expansion)
@@ -153,14 +154,14 @@ class EinsteinExpansion(object):
                 self.expanded  = vector_expansion
                 pprint(self.expanded)
             else:
-                self.expanded = Equality(temporary_expression.lhs,part_to_expand)
+                self.expanded = Equality(expression.lhs, part_to_expand)
         else:
             self.expanded = part_to_expand
 
     def apply_sympy_function(self, part_to_apply):
         local, sympy = get_tensor_class(part_to_apply)
         for fn in sympy:
-            index_exist = self.get_Einstein_indices(fn)
+            index_exist = self.get_einstein_indices(fn)
             if not index_exist:
                 arg = [int(str(arg)) for arg in fn.args]
                 value = (type(fn)(*arg))
@@ -242,7 +243,7 @@ class EinsteinExpansion(object):
         #print("MULS INDEXED", multiplication_term, out_term)
         return out_term
 
-    def get_Einstein_indices(self, function=None):
+    def get_einstein_indices(self, function=None):
         if function == None:
             equation = self.expression
         else:
@@ -311,7 +312,7 @@ class EinsteinExpansion(object):
             expanded_terms[term] = new_term
         return expanded_terms
 
-    def apply_Einstein_expansion(self,part,index):
+    def apply_einstein_expansion(self,part,index):
         ndim = self.ndim
         terms, gene = part.as_terms()
         final_terms = self.find_terms(terms,index)
