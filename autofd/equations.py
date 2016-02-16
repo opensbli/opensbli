@@ -23,6 +23,8 @@ from sympy.parsing.sympy_parser import parse_expr
 import sympy.functions.special.tensor_functions as tf
 import re
 import inspect
+import sympy.core as core
+
 
 import logging
 LOG = logging.getLogger(__name__)
@@ -30,7 +32,9 @@ LOG = logging.getLogger(__name__)
 
 # Get Sympy Tensor Functions
 SYMPY_FUNCTIONS = [str(m[0]) for m in inspect.getmembers(tf, inspect.isclass) if m[1].__module__ == tf.__name__]
-LOCAL_FUNCTIONS = []
+LOCAL_FUNCTIONS = ['Der']
+all_classes = core.all_classes
+print(all_classes)
 
 
 class Conservative(Derivative):
@@ -38,7 +42,24 @@ class Conservative(Derivative):
 
 
 class Der(Derivative):
-    LOCAL_FUNCTIONS.append('Der')
+    LOCAL_FUNCTIONS.append('')
+    #def _eval_der(self, s):
+        ## f(x).diff(s) -> x.diff(s) * f.fdiff(1)(s)
+        #i = 0
+        #l = []
+        #for a in self.args:
+            #i += 1
+            #da = a.diff(s)
+            #if da is S.Zero:
+                #continue
+            #try:
+                #df = self.fdiff(i)
+            #except ArgumentIndexError:
+                #df = Function.fdiff(self, i)
+            #l.append(df * da)
+        #return Add(*l)
+    #def doit(self):
+
 
 
 class EinsteinTerm(Symbol):
@@ -46,20 +67,20 @@ class EinsteinTerm(Symbol):
     """ Represents any symbol in the equation as a SymPy Symbol object which in turn represents an Einstein term.
     This could be e.g. tau_i_j, but can also be e.g. u, rho.
     In other words, all symbols in the equation are Einstein terms, but they can have zero or more indices. """
-
+    is_EinsteinTerm = True
     def __new__(self, symbol, **assumptions):
         self._sanitize(assumptions, self) # Remove any 'None's, etc.
         self.name = str(symbol)
-        
+
         # Make this into a new SymPy Symbol object.
         self = Symbol.__xnew__(self, self.name, **assumptions)
-        
+
         # Is this a term that is constant in space and time (i.e. doesn't have any indices).
         self.is_constant =  False
 
         # Extract the indices, which are always preceeded by an underscore.
         indices = self.name.split('_')[1:]
-        print self.name, indices
+        #print self.name, indices
         self.indices = ['_' + x for x in indices]
         return self
 
@@ -95,9 +116,9 @@ class EinsteinExpansion(object):
         self.expression = expression
         self.ndim = ndim
         self.expanded = []
-        
+
         self.is_equality = isinstance(expression, Equality)
-        
+
         # If we have an equation, then expand the RHS only
         if self.is_equality:
             # Get LHS indices
@@ -110,24 +131,25 @@ class EinsteinExpansion(object):
         else:
             indices = self.get_einstein_indices()
             part_to_expand = expression
-        
+        #LOG.debug('Expanding indices %s' % indices)
+        #indices = ['_k']
         # Expand indices
         for index in indices:
-            LOG.debug('Expanding with respect to index %s' % index)
+            #LOG.debug('Expanding with respect to index %s' % index)
             part_to_expand = self.expand(part_to_expand, index)
             part_to_expand = self.apply_sympy_functions(part_to_expand)
 
         # Apply the LHS if equality
         if self.is_equality:
-            temp = Equality(expression.lhs, part_to_expand)            
+            temp = Equality(expression.lhs, part_to_expand)
             if lhs_indices:
                 vector_expansion = [temp for dim in range(self.ndim)]
                 for dim in range(self.ndim):
-                    for index in lhs_indices:
+                    for number,index in enumerate(lhs_indices):
                         for term in vector_expansion[dim].atoms(EinsteinTerm):
                             if term.has_index(index):
                                 new = term.apply_index(index,dim)
-                                vector_expansion[dim] = vector_expansion[dim].xreplace({term:new})
+                                vector_expansion[dim] = vector_expansion[dim].replace(term,new)
                     vector_expansion[dim] = self.apply_sympy_functions(vector_expansion[dim])
                 self.expanded = vector_expansion
             else:
@@ -171,10 +193,10 @@ class EinsteinExpansion(object):
         """ Return True if the function's arguments contains a Derivative, otherwise return False. """
         nested = False
         for arg in function.args:
-            if arg.atoms(Derivative):
+            if arg.atoms(function):
                 nested = True
         return nested
-    
+
     def check_index_nested(self, expression, index):
         """ Return the expression if all the terms in the expression have the specified Einstein index.
         Otherwise return a list of terms that have the specified Einstein index. """
@@ -186,7 +208,7 @@ class EinsteinExpansion(object):
                 if(any(term.has_index(index) for term in arg.atoms(EinsteinTerm))):
                     arg_index[number] = True
             nested = self.has_nested_derivative(expression)
-            
+
             if all(arg_index):
                 has_index.append(expression)
             elif not nested:
@@ -199,12 +221,10 @@ class EinsteinExpansion(object):
                     if arg_index[number]:
                         if arg.is_Mul:
                             new_term =  self.check_index_MUL(arg,index)
-                            
                             has_index.append(new_term)
                         elif arg.is_Add:
                             new_term = self.check_index_ADD(arg,index)
                             has_index.append(new_term)
-                            
                         else:
                             local, sympy = self.get_nested_classes(expression)
                             for func in local:
@@ -218,11 +238,12 @@ class EinsteinExpansion(object):
         else:
             return flatten(has_index)
         return
+
     def check_index_ADD(self, add_term, index):
         terms = add_term.as_ordered_terms()
         is_indexed_add = [False for arg in terms]
         indexed_terms = []
-        
+
         for number,term in enumerate(terms):
             if(any(term.has_index(index) for term in term.atoms(EinsteinTerm))):
                 indexed_terms += [term]
@@ -231,34 +252,55 @@ class EinsteinExpansion(object):
     def check_index_MUL(self,multiplication_term,index):
         terms = multiplication_term.as_ordered_factors()
         is_indexed_mul = [False for arg in terms]
+        indexed_terms = []
+        pprint(terms)
         for number,term in enumerate(terms):
+            #print("TERM",term)
             if(any(term.has_index(index) for term in term.atoms(EinsteinTerm))):
                 is_indexed_mul[number] = True
-        out_term = multiplication_term
-        for number,term in enumerate(terms):
-            if isinstance (term,Symbol) and not term.has_index(index):
-                out_term = out_term/term
-            elif not is_indexed_mul[number]:
-                out_term = out_term/term
-        return out_term
+            elif term.is_negative or term.is_Pow:
+                is_indexed_mul[number] = False
+            elif isinstance(term, EinsteinTerm) and term.is_constant:
+                is_indexed_mul[number] = False
+        #print(is_indexed_mul)
+        ret = None
+        if all(is_indexed_mul):
+            #print("Returning input term")
+
+            return multiplication_term
+        elif any(is_indexed_mul):
+            out_term = 1
+            for number,term in enumerate(terms):
+                if is_indexed_mul[number]:
+                    out_term = Mul(out_term,term)
+            #print("Returning other terms",out_term)
+            return out_term
+        else:
+            #print("Returning none")
+            return None
+        return
+
 
     def get_einstein_indices(self, expression=None):
         """ Return all the indices of an expression that are Einstein indices.
-        
+
         :arg expression: the expression to consider
         :returns: the set of all Einstein indices within the expression
         :rtype: set
         """
-        
+
         # If no particular function is provided, then use the full expression provided when the EinsteinExpansion object was first set up.
         if function is None:
             expression = self.expression
 
         # Get all the atoms in the expression that are Einstein variables, and then return their indices.
         einstein_indices = []
+        #print("IN GET INDICES")
         for atom in expression.atoms(EinsteinTerm):
+            #print(atom)
             einstein_indices += atom.get_indices()
-        print set(einstein_indices)
+        #print "Indices are "
+        #print set(einstein_indices)
         return set(einstein_indices)
 
     def find_terms(self, terms, index):
@@ -279,15 +321,20 @@ class EinsteinExpansion(object):
                         _find_terms(new_term, index)
                 elif isinstance(term, Derivative):
                     new_function = self.check_index_nested(term,index)
-                    
+
                     if term == new_function:
                         has_terms.append(term)
                     else:
                         for f in new_function:
                             _find_terms(f, index)
                 elif isinstance(term, Function):
-                    if any(term.has_index(index) for term in term.atoms(EinsteinTerm)):
+                    new_function = self.check_index_nested(term,index)
+                    if term == new_function:
                         has_terms.append(term)
+                    else:
+                        for f in new_function:
+                            _find_terms(f, index)
+
                 elif isinstance(term, EinsteinTerm):
                     if term.has_index(index):
                         has_terms.append(term)
@@ -314,22 +361,41 @@ class EinsteinExpansion(object):
             for at in term.atoms(EinsteinTerm):
                 for dim in range(0,dimensions):
                     new = at.apply_index(index,dim)
-                    new_term[dim] = new_term[dim].xreplace({at:new})
+                    new_term[dim] = new_term[dim].subs(at,(new))
             expanded_terms[term] = new_term
         return expanded_terms
 
     def expand(self, expression, index):
         """ Perform the Einstein expansion on a given expression with respect to a given index. """
-
+        local_dict = {'Symbol':EinsteinTerm,'symbols':EinsteinTerm}
         terms, gene = expression.as_terms()
         final_terms = self.find_terms(terms, index)
+        #LOG.debug('The INdex is %s The final terms are :: %s'%(index,final_terms))
+        print(terms)
         for term, repr in terms:
+
             if final_terms[term]:
+                #print(srepr(term))
+                out_term = term
+
+
                 for new_term in final_terms[term]:
                     t = self.expand_indices_terms([new_term], index, self.ndim)
                     for key in t.keys():
                         val = sum(t[key])
-                        expression = expression.xreplace({key:val})
+                        #print('\n')
+                        #print("Key")
+                        #print(key)
+                        #print(val)
+                        #print(parse_expr(val))
+                        #print('\n')
+                        out_term = out_term.subs({key:val})
+                #print(term)
+                #print(out_term)
+                expression = expression.xreplace({term:out_term})
+        #print("After expanding in index %s",index)
+        #pprint(expression)
+
         return expression
 
 
@@ -343,17 +409,17 @@ class Equation(object):
         :arg str equation: An equation, written in Einstein notation, and specified in string form.
         :returns: None
         """
-        local_dict = {'Der':Der, 'Symbol':EinsteinTerm, 'Conservative':Conservative} # TODO: automate from local classes
+        local_dict = {'Symbol':EinsteinTerm,'symbols':EinsteinTerm}
 
         self.original = expression
-        
-        # Parse the equation.
-        self.parsed = parse_expr(self.original, local_dict, evaluate = False)
 
-        # Perform substitutions, if any.
+        # Parse the equation.
+        self.parsed = parse_expr(self.original, local_dict)
+
+        #Perform substitutions, if any.
         if problem.substitutions:
             for sub in problem.substitutions:
-                temp = parse_expr(sub, local_dict, evaluate = False)
+                temp = parse_expr(sub, local_dict)
                 self.parsed = self.parsed.xreplace({temp.lhs: temp.rhs})
 
         # Update the Einstein Variables in the expression that are constants to is_const = True
@@ -364,25 +430,29 @@ class Equation(object):
         # Expand Einstein terms/indices
         self.expanded = []
         expansion = EinsteinExpansion(self.parsed, problem.ndim)
-        LOG.debug("The expanded expression is: %s" % expansion.expanded)
+        LOG.debug("The expanded expression is: %s" % (expansion.expanded))
         if isinstance(expansion.expanded, list):
             for equation in expansion.expanded:
                 self.expanded.append(self.apply_formulations(equation))
         else:
             self.expanded.append(self.apply_formulations(expansion.expanded))
-        
+
         return
 
     def apply_formulations(self, expression):
         '''
-        Apply the formulations 
+        Apply the formulations
         # TODO Move applying Derivative for conservative or Der formulations to their respective
         classes and call the class from here
-        
+
         '''
         temp_expression = expression
+        local_dict = {'Symbol':EinsteinTerm,'symbols':EinsteinTerm,'Der':Der,'Conservative':Conservative}# TODO: automate from local classes
+
         derivative_direction = set()
-        for atom in temp_expression.atoms(Derivative):
+        # At this point we should not have any other functions except conservative or Der
+        # TODO add a check for the above
+        for atom in temp_expression.atoms(Function):
             for arg in atom.args[1:]:
                 derivative_direction.add(arg)
         function_vars = set()
@@ -392,12 +462,13 @@ class Equation(object):
         for term in function_vars:
             if not term.is_constant :
                 temp_expression = temp_expression.replace(term, Function('%s'%term)(*derivative_direction))
-        for atom in temp_expression.atoms(Der):
+        new_temp_expression = parse_expr('Eq(%s,%s)'%(str(temp_expression.lhs), str(temp_expression.rhs)),local_dict)
+        for atom in new_temp_expression.atoms(Der):
             new_atom = atom.doit()
-            temp_expression = temp_expression.xreplace({atom:new_atom})
-        temp_expression = temp_expression
-        return temp_expression
-
+            new_temp_expression = new_temp_expression.replace(atom,new_atom)
+        new_temp_expression = new_temp_expression
+        pprint(new_temp_expression)
+        return new_temp_expression
 
 def variable_count(variable, equations):
     """ Return the number of input equations containing a particular variable.
