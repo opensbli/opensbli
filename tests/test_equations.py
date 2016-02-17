@@ -127,6 +127,16 @@ def test_equation_expand(mass, momentum, energy):
     assert str(energy.expanded[0]) == "Derivative(rhoE(t, x0, x1, x2), t) == -Derivative((p(t, x0, x1, x2) + rhoE(t, x0, x1, x2))*u0(t, x0, x1, x2), x0) - Derivative((p(t, x0, x1, x2) + rhoE(t, x0, x1, x2))*u1(t, x0, x1, x2), x1) - Derivative((p(t, x0, x1, x2) + rhoE(t, x0, x1, x2))*u2(t, x0, x1, x2), x2) + mu*((Derivative(u0(t, x0, x1, x2), x1) + Derivative(u1(t, x0, x1, x2), x0))*Derivative(u0(t, x0, x1, x2), x1) + (Derivative(u1(t, x0, x1, x2), x2) + Derivative(u2(t, x0, x1, x2), x1))*Derivative(u2(t, x0, x1, x2), x1) + (Derivative(u0(t, x0, x1, x2), x1, x1) + Derivative(u1(t, x0, x1, x2), x0, x1))*u0(t, x0, x1, x2) + (Derivative(u1(t, x0, x1, x2), x1, x2) + Derivative(u2(t, x0, x1, x2), x1, x1))*u2(t, x0, x1, x2) + (-2*Derivative(u0(t, x0, x1, x2), x0)/3 + 4*Derivative(u1(t, x0, x1, x2), x1)/3 - 2*Derivative(u2(t, x0, x1, x2), x2)/3)*Derivative(u1(t, x0, x1, x2), x1) + (-2*Derivative(u0(t, x0, x1, x2), x0, x1)/3 + 4*Derivative(u1(t, x0, x1, x2), x1, x1)/3 - 2*Derivative(u2(t, x0, x1, x2), x1, x2)/3)*u1(t, x0, x1, x2))/Re + mu*((Derivative(u0(t, x0, x1, x2), x1) + Derivative(u1(t, x0, x1, x2), x0))*Derivative(u1(t, x0, x1, x2), x0) + (Derivative(u0(t, x0, x1, x2), x2) + Derivative(u2(t, x0, x1, x2), x0))*Derivative(u2(t, x0, x1, x2), x0) + (Derivative(u0(t, x0, x1, x2), x0, x1) + Derivative(u1(t, x0, x1, x2), x0, x0))*u1(t, x0, x1, x2) + (Derivative(u0(t, x0, x1, x2), x0, x2) + Derivative(u2(t, x0, x1, x2), x0, x0))*u2(t, x0, x1, x2) + (4*Derivative(u0(t, x0, x1, x2), x0)/3 - 2*Derivative(u1(t, x0, x1, x2), x1)/3 - 2*Derivative(u2(t, x0, x1, x2), x2)/3)*Derivative(u0(t, x0, x1, x2), x0) + (4*Derivative(u0(t, x0, x1, x2), x0, x0)/3 - 2*Derivative(u1(t, x0, x1, x2), x0, x1)/3 - 2*Derivative(u2(t, x0, x1, x2), x0, x2)/3)*u0(t, x0, x1, x2))/Re + mu*((Derivative(u0(t, x0, x1, x2), x2) + Derivative(u2(t, x0, x1, x2), x0))*Derivative(u0(t, x0, x1, x2), x2) + (Derivative(u1(t, x0, x1, x2), x2) + Derivative(u2(t, x0, x1, x2), x1))*Derivative(u1(t, x0, x1, x2), x2) + (Derivative(u0(t, x0, x1, x2), x2, x2) + Derivative(u2(t, x0, x1, x2), x0, x2))*u0(t, x0, x1, x2) + (Derivative(u1(t, x0, x1, x2), x2, x2) + Derivative(u2(t, x0, x1, x2), x1, x2))*u1(t, x0, x1, x2) + (-2*Derivative(u0(t, x0, x1, x2), x0)/3 - 2*Derivative(u1(t, x0, x1, x2), x1)/3 + 4*Derivative(u2(t, x0, x1, x2), x2)/3)*Derivative(u2(t, x0, x1, x2), x2) + (-2*Derivative(u0(t, x0, x1, x2), x0, x2)/3 - 2*Derivative(u1(t, x0, x1, x2), x1, x2)/3 + 4*Derivative(u2(t, x0, x1, x2), x2, x2)/3)*u2(t, x0, x1, x2))/Re + mu*Derivative(T(t, x0, x1, x2), x0, x0)/(Minf**2*Pr*Re*(gama - 1)) + mu*Derivative(T(t, x0, x1, x2), x1, x1)/(Minf**2*Pr*Re*(gama - 1)) + mu*Derivative(T(t, x0, x1, x2), x2, x2)/(Minf**2*Pr*Re*(gama - 1))"
 
 
+def test_has_nested_derivative():
+    ndim = 2
+    equation = Equation("Eq(Der(rhoE,t), Der(u_i*Der(u_i,x_j),x_j) )", ndim)
+    expansion = EinsteinExpansion(equation.parsed, ndim)
+    assert expansion.has_nested_derivative(equation.parsed.rhs)
+    assert not expansion.has_nested_derivative(equation.parsed.lhs)
+    
+    
+
+
 def test_equations_to_dict(mass):
     """ Ensure that a list of SymPy Eq objects is converted to a dictionary. """
 
