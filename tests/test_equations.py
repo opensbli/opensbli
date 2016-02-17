@@ -147,6 +147,16 @@ def test_get_nested():
     assert str(nested_terms[0]) == "u_i*Der(u_i, x_j)"
 
 
+def test_get_einstein_indices():
+    """ Get all the Einstein indices in the equation's RHS. """
+    ndim = 2
+    equation = Equation("Eq(Der(rhoE,t), Der(u_i*Der(u_i,x_j),x_j) )", ndim)
+    expansion = EinsteinExpansion(equation.parsed, ndim)
+    indices = expansion.get_einstein_indices(expression = equation.parsed.rhs)
+    assert len(indices) == 2
+    assert indices == set(["_i", "_j"])
+
+
 def test_equations_to_dict(mass):
     """ Ensure that a list of SymPy Eq objects is converted to a dictionary. """
 
