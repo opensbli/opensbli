@@ -11,27 +11,30 @@ from autofd.equations import *
 def mass():
     return Equation("Eq(Der(rho,t), -Conservative(rhou_j,x_j))", 2, substitutions=[], constants=[])
 
-def test_einstein_indices():
+
+def test_indices():
     """ Check that all indices of an Einstein term are parsed correctly. """
 
-    term = EinsteinTerm("c")
-    assert term.indices == []
+    assert EinsteinTerm("c").indices == []  # Scalar
+    assert EinsteinTerm("u_j").indices == ["_j"]  # Vector
+    assert EinsteinTerm("tau_i_j").indices == ["_i", "_j"]  # Tensor
 
-    term = EinsteinTerm("u_j")
-    assert term.indices == ["_j"]
 
-    term = EinsteinTerm("tau_i_j")
-    assert term.indices == ["_i", "_j"]
+def test_name():
+    """ Check that the name of an Einstein term is correct. """
+
+    assert EinsteinTerm("c").name == "c"  # Scalar
+    assert EinsteinTerm("u_j").name == "u_j"  # Vector
+    assert EinsteinTerm("tau_i_j").name == "tau_i_j"  # Tensor
+
 
 def test_equations_to_dict(mass):
-    """ Ensure that a list of Sympy Eq objects is converted to a dictionary. """
+    """ Ensure that a list of SymPy Eq objects is converted to a dictionary. """
 
     equations = [mass.expanded[0]]
     assert isinstance(equations, list)
     equations = equations_to_dict(equations)
     assert isinstance(equations, dict)
-
-    return
 
 
 if __name__ == '__main__':
