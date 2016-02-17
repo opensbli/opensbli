@@ -58,7 +58,7 @@ class EinsteinTerm(Symbol):
         self = Symbol.__xnew__(self, self.name, **assumptions)
 
         # Is this a term that is constant in space and time (i.e. doesn't have any indices).
-        self.is_constant =  False
+        self.is_constant = False
 
         # Extract the indices, which are always preceeded by an underscore.
         indices = self.name.split('_')[1:]
@@ -315,7 +315,7 @@ class EinsteinExpansion(object):
             final_terms[term] = flatten(has_terms)
         return final_terms
 
-    def expand_indices_terms(self, terms, index, dimensions):
+    def expand_indices_terms(self, terms, index):
         """ This expands the terms given in the list of terms with respect to a given index.
 
         :returns: a dictionary with each term as a key.
@@ -324,9 +324,9 @@ class EinsteinExpansion(object):
 
         expanded_terms = {}
         for term in terms:
-            new_term = [term for dim in range(0,dimensions)]
+            new_term = [term for dim in range(0, self.ndim)]
             for atom in term.atoms(EinsteinTerm):
-                for dim in range(0,dimensions):
+                for dim in range(0, self.ndim):
                     new = atom.apply_index(index, dim)
                     new_term[dim] = new_term[dim].subs(atom, (new))
             expanded_terms[term] = new_term
@@ -343,7 +343,7 @@ class EinsteinExpansion(object):
                 out_term = term
 
                 for new_term in final_terms[term]:
-                    t = self.expand_indices_terms([new_term], index, self.ndim)
+                    t = self.expand_indices_terms([new_term], index)
                     for key in t.keys():
                         val = sum(t[key])
                         out_term = out_term.subs({key:val})
@@ -356,7 +356,7 @@ class Equation(object):
 
     """ Describes an equation we want to solve. """
 
-    def __init__(self, expression, problem):
+    def __init__(self, expression, ndim, substitutions = [], constants = []):
         """ Set up an equation, written in Einstein notation, and expand the indices.
 
         :arg str equation: An equation, written in Einstein notation, and specified in string form.
@@ -370,19 +370,19 @@ class Equation(object):
         self.parsed = parse_expr(self.original, local_dict)
 
         # Perform substitutions, if any.
-        if problem.substitutions:
-            for sub in problem.substitutions:
+        if substitutions:
+            for sub in substitutions:
                 temp = parse_expr(sub, local_dict)
                 self.parsed = self.parsed.xreplace({temp.lhs: temp.rhs})
 
-        # Update the Einstein Variables in the expression that are constants to is_const = True
+        # Update the Einstein Variables in the expression that are constants to is_constant = True
         for term in self.parsed.atoms(EinsteinTerm):
-            if any(constant == str(term) for constant in problem.constants):
+            if any(constant == str(term) for constant in constants):
                 term.is_constant = True
 
         # Expand Einstein terms/indices
         self.expanded = []
-        expansion = EinsteinExpansion(self.parsed, problem.ndim)
+        expansion = EinsteinExpansion(self.parsed, ndim)
         LOG.debug("The expanded expression is: %s" % (expansion.expanded))
         if isinstance(expansion.expanded, list):
             for equation in expansion.expanded:
