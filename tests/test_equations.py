@@ -138,7 +138,7 @@ def test_has_nested_derivative():
     
 
 def test_get_nested():
-    """ Ensure that all terms (whole tree nodes) with index "i" are identified correctly. """
+    """ Ensure that all terms (whole tree nodes) with index "_i" are identified correctly. """
     ndim = 2
     equation = Equation("Eq(Der(rhoE,t), Der(u_i*Der(u_i,x_j),x_j) )", ndim)
     expansion = EinsteinExpansion(equation.parsed, ndim)
@@ -152,15 +152,27 @@ def test_get_einstein_indices():
     ndim = 2
     equation = Equation("Eq(Der(rhoE,t), Der(u_i*Der(u_i,x_j),x_j) )", ndim)
     expansion = EinsteinExpansion(equation.parsed, ndim)
-    indices = expansion.get_einstein_indices(expression = equation.parsed.rhs)
+    indices = expansion.get_einstein_indices(expression=equation.parsed.rhs)
     assert len(indices) == 2
     assert indices == set(["_i", "_j"])
 
 
-def test_equations_to_dict(mass):
+def test_find_terms():
+    """ Find all terms in the equation's RHS which have an index of "_i". """
+    ndim = 2
+    equation = Equation("Eq(Der(rhoE,t), Der(u_i*Der(u_i,x_j),x_j) )", ndim)
+    expansion = EinsteinExpansion(equation.parsed, ndim)
+    terms, gene = equation.parsed.rhs.as_terms()
+    final_terms = expansion.find_terms(terms=terms, index="_i")
+    assert len(final_terms) == 1
+    assert str(final_terms.keys()[0]) == "Der(u_i*Der(u_i, x_j), x_j)"
+    assert str(final_terms.values()[0]) == "[u_i*Der(u_i, x_j)]"
+
+
+def test_equations_to_dict(mass, momentum, energy):
     """ Ensure that a list of SymPy Eq objects is converted to a dictionary. """
 
-    equations = [mass.expanded[0]]
+    equations = [mass.expanded[0], momentum.expanded[:], energy.expanded[0]]
     assert isinstance(equations, list)
     equations = equations_to_dict(equations)
     assert isinstance(equations, dict)
