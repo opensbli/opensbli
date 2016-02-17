@@ -396,6 +396,9 @@ class Equation(object):
         temp_expression = expression
         local_dict = {'Symbol':EinsteinTerm,'symbols':EinsteinTerm,'Der':Der,'Conservative':Conservative}  # TODO: automate from local classes
 
+        if not expression.atoms(Function):
+            return expression
+
         derivative_direction = set()
         # At this point we should not have any other functions except Conservative or Der
         # TODO add a check for the above
