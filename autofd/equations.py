@@ -178,12 +178,12 @@ class EinsteinExpansion(object):
                 nested = True
         return nested
 
-    def check_index_nested(self, expression, index):
+    def get_nested(self, expression, index):
         """ Return the expression if all the terms in the expression have the specified Einstein index.
         Otherwise return a list of terms that have the specified Einstein index. """
 
         has_index = []
-        def _check_index(expression,index):
+        def _get_nested(expression,index):
             arg_index = [False for arg in expression.args]
             for number,arg in enumerate(expression.args):
                 if(any(term.has_index(index) for term in arg.atoms(EinsteinTerm))):
@@ -201,26 +201,25 @@ class EinsteinExpansion(object):
                 for number,arg in enumerate(expression.args):
                     if arg_index[number]:
                         if arg.is_Mul:
-                            new_term =  self.check_index_MUL(arg,index)
+                            new_term =  self.get_nested_MUL(arg,index)
                             has_index.append(new_term)
                         elif arg.is_Add:
-                            new_term = self.check_index_ADD(arg,index)
+                            new_term = self.get_nested_ADD(arg,index)
                             has_index.append(new_term)
                         else:
                             local, sympy = self.get_nested_classes(expression)
                             for func in local:
-                                _check_index(func,index)
+                                _get_nested(func,index)
                             for func in sympy:
-                                _check_index(func,index)
+                                _get_nested(func,index)
             return
-        _check_index(expression,index)
+        _get_nested(expression,index)
         if len(has_index) == 1 and has_index[0] == expression:
             return expression
         else:
             return flatten(has_index)
-        return
 
-    def check_index_ADD(self, add_term, index):
+    def get_nested_ADD(self, add_term, index):
         terms = add_term.as_ordered_terms()
         is_indexed_add = [False for arg in terms]
         indexed_terms = []
@@ -230,7 +229,7 @@ class EinsteinExpansion(object):
                 indexed_terms += [term]
         return indexed_terms
 
-    def check_index_MUL(self,multiplication_term,index):
+    def get_nested_MUL(self,multiplication_term,index):
         terms = multiplication_term.as_ordered_factors()
         is_indexed_mul = [False for arg in terms]
         indexed_terms = []
@@ -252,7 +251,6 @@ class EinsteinExpansion(object):
             return out_term
         else:
             return None
-        return
 
 
     def get_einstein_indices(self, expression=None):
@@ -280,17 +278,17 @@ class EinsteinExpansion(object):
         def _find_terms(term,index):
             if isinstance(term, Basic):
                 if term.is_Add:
-                    args = self.check_index_ADD(term,index)
+                    args = self.get_nested_ADD(term,index)
                     for arg in args:
                         _find_terms(arg,index)
                 elif term.is_Mul:
-                    new_term =  self.check_index_MUL(term, index)
+                    new_term =  self.get_nested_MUL(term, index)
                     if term == new_term:
                         has_terms.append(term)
                     else:
                         _find_terms(new_term, index)
                 elif isinstance(term, Derivative):
-                    new_function = self.check_index_nested(term,index)
+                    new_function = self.get_nested(term,index)
 
                     if term == new_function:
                         has_terms.append(term)
@@ -298,7 +296,7 @@ class EinsteinExpansion(object):
                         for f in new_function:
                             _find_terms(f, index)
                 elif isinstance(term, Function):
-                    new_function = self.check_index_nested(term,index)
+                    new_function = self.get_nested(term,index)
                     if term == new_function:
                         has_terms.append(term)
                     else:
@@ -328,10 +326,10 @@ class EinsteinExpansion(object):
         expanded_terms = {}
         for term in terms:
             new_term = [term for dim in range(0,dimensions)]
-            for at in term.atoms(EinsteinTerm):
+            for atom in term.atoms(EinsteinTerm):
                 for dim in range(0,dimensions):
-                    new = at.apply_index(index,dim)
-                    new_term[dim] = new_term[dim].subs(at,(new))
+                    new = atom.apply_index(index, dim)
+                    new_term[dim] = new_term[dim].subs(atom, (new))
             expanded_terms[term] = new_term
         return expanded_terms
 
