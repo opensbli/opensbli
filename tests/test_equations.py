@@ -81,12 +81,12 @@ def test_expand_index(c_constant, u_i, tau_i_j):
 
 
 def test_equation_expand(mass):
-    """ Check that the conservation of mass equation is expanded correctly """
+    """ Check that the conservation of mass equation is expanded correctly. """
 
     assert str(mass.parsed) == "Der(rho, t) == -Conservative(rhou_i, x_j)"
     assert isinstance(mass.expanded, list)
     assert len(mass.expanded) == 1
-    assert str(mass.expanded[0]) == "Derivative(rho(x0, x1, t, x2), t) == -Derivative(rhou0(x0, x1, t, x2), x0) - Derivative(rhou0(x0, x1, t, x2), x1) - Derivative(rhou0(x0, x1, t, x2), x2) - Derivative(rhou1(x0, x1, t, x2), x0) - Derivative(rhou1(x0, x1, t, x2), x1) - Derivative(rhou1(x0, x1, t, x2), x2) - Derivative(rhou2(x0, x1, t, x2), x0) - Derivative(rhou2(x0, x1, t, x2), x1) - Derivative(rhou2(x0, x1, t, x2), x2)"
+    assert str(mass.expanded[0]) == "Derivative(rho(t, x0, x1, x2), t) == -Derivative(rhou0(t, x0, x1, x2), x0) - Derivative(rhou0(t, x0, x1, x2), x1) - Derivative(rhou0(t, x0, x1, x2), x2) - Derivative(rhou1(t, x0, x1, x2), x0) - Derivative(rhou1(t, x0, x1, x2), x1) - Derivative(rhou1(t, x0, x1, x2), x2) - Derivative(rhou2(t, x0, x1, x2), x0) - Derivative(rhou2(t, x0, x1, x2), x1) - Derivative(rhou2(t, x0, x1, x2), x2)"
     assert str(mass.expanded[0]).count("Derivative") == 10  # 1 time Derivative, then 3 Derivative for each of the 3 dimensions
 
 

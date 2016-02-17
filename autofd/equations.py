@@ -404,6 +404,7 @@ class Equation(object):
         for atom in temp_expression.atoms(Function):
             for arg in atom.args[1:]:
                 derivative_direction.add(arg)
+        derivative_direction = sorted(derivative_direction, key=lambda x: str(x)[0])  # Sort based on alphabetical order. #FIXME: Currently this only operates on the first letter.
         function_vars = set()
         for term in temp_expression.atoms(EinsteinTerm):
             function_vars.add(term)
@@ -417,6 +418,7 @@ class Equation(object):
             new_temp_expression = new_temp_expression.replace(atom,new_atom)
         new_temp_expression = new_temp_expression
         return new_temp_expression
+
 
 def variable_count(variable, equations):
     """ Return the number of input equations containing a particular variable.
