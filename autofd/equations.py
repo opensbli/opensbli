@@ -80,7 +80,6 @@ class EinsteinTerm(Symbol):
 
         # Extract the indices, which are always preceeded by an underscore.
         indices = self.name.split('_')[1:]
-        #print self.name, indices
         self.indices = ['_' + x for x in indices]
         return self
 
@@ -131,11 +130,10 @@ class EinsteinExpansion(object):
         else:
             indices = self.get_einstein_indices()
             part_to_expand = expression
-        #LOG.debug('Expanding indices %s' % indices)
-        #indices = ['_k']
+        LOG.debug('Expanding indices %s' % indices)
         # Expand indices
         for index in indices:
-            #LOG.debug('Expanding with respect to index %s' % index)
+            LOG.debug('Expanding with respect to index %s' % index)
             part_to_expand = self.expand(part_to_expand, index)
             part_to_expand = self.apply_sympy_functions(part_to_expand)
 
@@ -255,28 +253,22 @@ class EinsteinExpansion(object):
         indexed_terms = []
         pprint(terms)
         for number,term in enumerate(terms):
-            #print("TERM",term)
             if(any(term.has_index(index) for term in term.atoms(EinsteinTerm))):
                 is_indexed_mul[number] = True
             elif term.is_negative or term.is_Pow:
                 is_indexed_mul[number] = False
             elif isinstance(term, EinsteinTerm) and term.is_constant:
                 is_indexed_mul[number] = False
-        #print(is_indexed_mul)
         ret = None
         if all(is_indexed_mul):
-            #print("Returning input term")
-
             return multiplication_term
         elif any(is_indexed_mul):
             out_term = 1
             for number,term in enumerate(terms):
                 if is_indexed_mul[number]:
                     out_term = Mul(out_term,term)
-            #print("Returning other terms",out_term)
             return out_term
         else:
-            #print("Returning none")
             return None
         return
 
@@ -295,12 +287,8 @@ class EinsteinExpansion(object):
 
         # Get all the atoms in the expression that are Einstein variables, and then return their indices.
         einstein_indices = []
-        #print("IN GET INDICES")
-        for atom in expression.atoms(EinsteinTerm):
-            #print(atom)
+        for atom in expression.atoms(EinsteinTerm):)
             einstein_indices += atom.get_indices()
-        #print "Indices are "
-        #print set(einstein_indices)
         return set(einstein_indices)
 
     def find_terms(self, terms, index):
@@ -370,12 +358,10 @@ class EinsteinExpansion(object):
         local_dict = {'Symbol':EinsteinTerm,'symbols':EinsteinTerm}
         terms, gene = expression.as_terms()
         final_terms = self.find_terms(terms, index)
-        #LOG.debug('The INdex is %s The final terms are :: %s'%(index,final_terms))
         print(terms)
         for term, repr in terms:
 
             if final_terms[term]:
-                #print(srepr(term))
                 out_term = term
 
 
@@ -383,18 +369,8 @@ class EinsteinExpansion(object):
                     t = self.expand_indices_terms([new_term], index, self.ndim)
                     for key in t.keys():
                         val = sum(t[key])
-                        #print('\n')
-                        #print("Key")
-                        #print(key)
-                        #print(val)
-                        #print(parse_expr(val))
-                        #print('\n')
                         out_term = out_term.subs({key:val})
-                #print(term)
-                #print(out_term)
                 expression = expression.xreplace({term:out_term})
-        #print("After expanding in index %s",index)
-        #pprint(expression)
 
         return expression
 
@@ -416,7 +392,7 @@ class Equation(object):
         # Parse the equation.
         self.parsed = parse_expr(self.original, local_dict)
 
-        #Perform substitutions, if any.
+        # Perform substitutions, if any.
         if problem.substitutions:
             for sub in problem.substitutions:
                 temp = parse_expr(sub, local_dict)
@@ -447,10 +423,10 @@ class Equation(object):
 
         '''
         temp_expression = expression
-        local_dict = {'Symbol':EinsteinTerm,'symbols':EinsteinTerm,'Der':Der,'Conservative':Conservative}# TODO: automate from local classes
+        local_dict = {'Symbol':EinsteinTerm,'symbols':EinsteinTerm,'Der':Der,'Conservative':Conservative}  # TODO: automate from local classes
 
         derivative_direction = set()
-        # At this point we should not have any other functions except conservative or Der
+        # At this point we should not have any other functions except Conservative or Der
         # TODO add a check for the above
         for atom in temp_expression.atoms(Function):
             for arg in atom.args[1:]:
@@ -519,7 +495,6 @@ class ExplicitFilter(object):
                     muls = self.coeffs.get(ooa)
                     temp = list(con.base for con in inp.conser)
                     out = [con for con in inp.conser]
-                    # out = 0
                     direction = Symbol('x%d' % dire)
                     for num, ind in enumerate(inp.fd_points):
                         repl = '%s' % str(direction + ind)
