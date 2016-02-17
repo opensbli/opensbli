@@ -128,13 +128,23 @@ def test_equation_expand(mass, momentum, energy):
 
 
 def test_has_nested_derivative():
+    """ Ensure that nested derivatives (Der) objects are correctly found. """
+
     ndim = 2
     equation = Equation("Eq(Der(rhoE,t), Der(u_i*Der(u_i,x_j),x_j) )", ndim)
     expansion = EinsteinExpansion(equation.parsed, ndim)
     assert expansion.has_nested_derivative(equation.parsed.rhs)
     assert not expansion.has_nested_derivative(equation.parsed.lhs)
     
-    
+
+def test_get_nested():
+    """ Ensure that all terms (whole tree nodes) with index "i" are identified correctly. """
+    ndim = 2
+    equation = Equation("Eq(Der(rhoE,t), Der(u_i*Der(u_i,x_j),x_j) )", ndim)
+    expansion = EinsteinExpansion(equation.parsed, ndim)
+    nested_terms = expansion.get_nested(equation.parsed.rhs, "_i")
+    assert len(nested_terms) == 1
+    assert str(nested_terms[0]) == "u_i*Der(u_i, x_j)"
 
 
 def test_equations_to_dict(mass):
