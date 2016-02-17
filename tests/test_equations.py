@@ -8,13 +8,21 @@ from autofd.equations import *
 
 @pytest.fixture
 def mass():
-    return Equation("Eq(Der(rho,t), -Conservative(rhou_i,x_j))", 2, substitutions=[], constants=[])
+    return Equation("Eq(Der(rho,t), -Conservative(rhou_i,x_j))", 3, substitutions=[], constants=[])
 
 
 @pytest.fixture
 def c():
     """ A scalar EinsteinTerm """
     return EinsteinTerm("c")
+
+
+@pytest.fixture
+def c_constant():
+    """ A constant scalar EinsteinTerm """
+    c = EinsteinTerm("c")
+    c.constant = True
+    return c
 
 
 @pytest.fixture
@@ -45,8 +53,10 @@ def test_name(c, u_i, tau_i_j):
     assert tau_i_j.name == "tau_i_j"  # Tensor
 
 
-def test_has_index(u_i, tau_i_j):
+def test_has_index(c, u_i, tau_i_j):
     """ Check that various Einstein terms have the indices that they should have. """
+
+    assert not c.has_index("_l")
 
     assert u_i.has_index("_i")
     assert not u_i.has_index("_j")
@@ -56,8 +66,11 @@ def test_has_index(u_i, tau_i_j):
     assert not tau_i_j.has_index("_k")
 
 
-def test_expand_index(u_i, tau_i_j):
+def test_expand_index(c_constant, u_i, tau_i_j):
     """ Check that an index can successfully be applied to an Einstein term. """
+
+    new = c_constant.expand_index("_i", 0)
+    assert new == c_constant  # This should stay the same since the Einstein term is constant.
 
     new = u_i.expand_index("_i", 0)
     assert not new.has_index("_i")
