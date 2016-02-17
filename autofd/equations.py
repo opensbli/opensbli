@@ -49,7 +49,7 @@ class EinsteinTerm(Symbol):
     """ Represents any symbol in the equation as a SymPy Symbol object which in turn represents an Einstein term.
     This could be e.g. tau_i_j, but can also be e.g. u, rho.
     In other words, all symbols in the equation are Einstein terms, but they can have zero or more indices. """
-    is_EinsteinTerm = True
+
     def __new__(self, symbol, **assumptions):
         self._sanitize(assumptions, self) # Remove any 'None's, etc.
         self.name = str(symbol)
