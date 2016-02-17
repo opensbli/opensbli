@@ -100,7 +100,7 @@ class EinsteinExpansion(object):
 
         self.is_equality = isinstance(expression, Equality)
 
-        # If we have an equation, then expand the RHS only
+        # If we have an equation, then first expand the RHS of the expression. Otherwise, expand the whole expression.
         if self.is_equality:
             # Get LHS indices
             lhs_indices = self.get_einstein_indices(expression.lhs)
@@ -112,14 +112,15 @@ class EinsteinExpansion(object):
         else:
             indices = self.get_einstein_indices()
             part_to_expand = expression
+
+        # Expand indices.
         LOG.debug('Expanding indices %s' % indices)
-        # Expand indices
         for index in indices:
             LOG.debug('Expanding with respect to index %s' % index)
             part_to_expand = self.expand(part_to_expand, index)
             part_to_expand = self.apply_sympy_functions(part_to_expand)
 
-        # Apply the LHS if equality
+        # Apply the LHS if we are dealing with an equation.
         if self.is_equality:
             temp = Equality(expression.lhs, part_to_expand)
             if lhs_indices:
