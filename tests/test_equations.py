@@ -56,15 +56,15 @@ def test_has_index(u_i, tau_i_j):
     assert not tau_i_j.has_index("_k")
 
 
-def test_apply_index(u_i, tau_i_j):
+def test_expand_index(u_i, tau_i_j):
     """ Check that an index can successfully be applied to an Einstein term. """
 
-    new = u_i.apply_index("_j", 0)
-    assert not u_i.has_index("_j")
+    new = u_i.expand_index("_i", 0)
+    assert not new.has_index("_i")
 
-    assert tau_i_j.has_index("_i")
-    assert tau_i_j.has_index("_j")
-    assert not tau_i_j.has_index("_k")
+    new = tau_i_j.expand_index("_i", 0)
+    assert new.has_index("_j")
+    assert not new.has_index("_i")
 
 
 def test_equations_to_dict(mass):
