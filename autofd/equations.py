@@ -31,7 +31,6 @@ LOG = logging.getLogger(__name__)
 # Get Sympy Tensor Functions
 SYMPY_FUNCTIONS = [str(m[0]) for m in inspect.getmembers(tf, inspect.isclass) if m[1].__module__ == tf.__name__]
 LOCAL_FUNCTIONS = []
-all_classes = core.all_classes
 
 
 class Conservative(Derivative):
