@@ -307,8 +307,7 @@ class EinsteinExpansion(object):
                     if term.has_index(index):
                         has_terms.append(term)
                 else:
-                    # TODO raise Value Error
-                    print('NOT ABLE TO Process', term, type(term.func))
+                    raise ValueError('Not able to process term: ', term, type(term.func))
             return
         for term, repr in terms:
             has_terms = []
