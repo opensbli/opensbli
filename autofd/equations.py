@@ -32,9 +32,8 @@ LOG = logging.getLogger(__name__)
 
 # Get Sympy Tensor Functions
 SYMPY_FUNCTIONS = [str(m[0]) for m in inspect.getmembers(tf, inspect.isclass) if m[1].__module__ == tf.__name__]
-LOCAL_FUNCTIONS = ['Der']
+LOCAL_FUNCTIONS = []
 all_classes = core.all_classes
-print(all_classes)
 
 
 class Conservative(Derivative):
@@ -42,24 +41,7 @@ class Conservative(Derivative):
 
 
 class Der(Derivative):
-    LOCAL_FUNCTIONS.append('')
-    #def _eval_der(self, s):
-        ## f(x).diff(s) -> x.diff(s) * f.fdiff(1)(s)
-        #i = 0
-        #l = []
-        #for a in self.args:
-            #i += 1
-            #da = a.diff(s)
-            #if da is S.Zero:
-                #continue
-            #try:
-                #df = self.fdiff(i)
-            #except ArgumentIndexError:
-                #df = Function.fdiff(self, i)
-            #l.append(df * da)
-        #return Add(*l)
-    #def doit(self):
-
+    LOCAL_FUNCTIONS.append('Der')
 
 
 class EinsteinTerm(Symbol):
@@ -251,7 +233,6 @@ class EinsteinExpansion(object):
         terms = multiplication_term.as_ordered_factors()
         is_indexed_mul = [False for arg in terms]
         indexed_terms = []
-        pprint(terms)
         for number,term in enumerate(terms):
             if(any(term.has_index(index) for term in term.atoms(EinsteinTerm))):
                 is_indexed_mul[number] = True
@@ -358,12 +339,10 @@ class EinsteinExpansion(object):
         local_dict = {'Symbol':EinsteinTerm,'symbols':EinsteinTerm}
         terms, gene = expression.as_terms()
         final_terms = self.find_terms(terms, index)
-        print(terms)
         for term, repr in terms:
 
             if final_terms[term]:
                 out_term = term
-
 
                 for new_term in final_terms[term]:
                     t = self.expand_indices_terms([new_term], index, self.ndim)
@@ -443,7 +422,6 @@ class Equation(object):
             new_atom = atom.doit()
             new_temp_expression = new_temp_expression.replace(atom,new_atom)
         new_temp_expression = new_temp_expression
-        pprint(new_temp_expression)
         return new_temp_expression
 
 def variable_count(variable, equations):
