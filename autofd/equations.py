@@ -390,12 +390,9 @@ class Equation(object):
         return
 
     def apply_formulations(self, expression):
-        '''
-        Apply the formulations
-        # TODO Move applying Derivative for conservative or Der formulations to their respective
-        classes and call the class from here
+        """ Apply the formulations (e.g. apply Der to create actually differentiate the expanded equations, and KroneckerDelta to actually multiply some terms through by zero). """
+        # TODO Move applying Derivative for conservative or Der formulations to their respective classes and call the class from here
 
-        '''
         temp_expression = expression
         local_dict = {'Symbol':EinsteinTerm,'symbols':EinsteinTerm,'Der':Der,'Conservative':Conservative}  # TODO: automate from local classes
 
