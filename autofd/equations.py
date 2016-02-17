@@ -25,10 +25,8 @@ import re
 import inspect
 import sympy.core as core
 
-
 import logging
 LOG = logging.getLogger(__name__)
-
 
 # Get Sympy Tensor Functions
 SYMPY_FUNCTIONS = [str(m[0]) for m in inspect.getmembers(tf, inspect.isclass) if m[1].__module__ == tf.__name__]
@@ -77,7 +75,7 @@ class EinsteinTerm(Symbol):
                 break
         return found
 
-    def apply_index(self, index, value):
+    def expand_index(self, index, value):
         """ Replace the index with a particular value (e.g. replace i with 0 in x_i), and return the updated EinsteinTerm object. """
         updated_symbol = str(self).replace(index, str(value))
         if self.is_constant:
@@ -86,7 +84,6 @@ class EinsteinTerm(Symbol):
             return new
         else:
             return EinsteinTerm(updated_symbol)
-        return
 
 
 class EinsteinExpansion(object):
@@ -129,7 +126,7 @@ class EinsteinExpansion(object):
                     for number,index in enumerate(lhs_indices):
                         for term in vector_expansion[dim].atoms(EinsteinTerm):
                             if term.has_index(index):
-                                new = term.apply_index(index,dim)
+                                new = term.expand_index(index,dim)
                                 vector_expansion[dim] = vector_expansion[dim].replace(term,new)
                     vector_expansion[dim] = self.apply_sympy_functions(vector_expansion[dim])
                 self.expanded = vector_expansion
@@ -327,7 +324,7 @@ class EinsteinExpansion(object):
             new_term = [term for dim in range(0, self.ndim)]
             for atom in term.atoms(EinsteinTerm):
                 for dim in range(0, self.ndim):
-                    new = atom.apply_index(index, dim)
+                    new = atom.expand_index(index, dim)
                     new_term[dim] = new_term[dim].subs(atom, (new))
             expanded_terms[term] = new_term
         return expanded_terms
