@@ -10,9 +10,9 @@ from autofd.equations import *
 def test_equations_to_dict():
     """ Ensure that a list of Sympy Eq objects is converted to a dictionary. """
 
-    mass = "Eq(Der(rho,t),- conser(rhou_j,x_j))"
-    momentum = "Eq(Der(rhou_i,t) ,-conser(rhou_i*u_j + p* KroneckerDelta(_i,_j),x_j) + Der(tau_i_j,x_j) )"
-    energy = "Eq(Der(rhoE,t),-conser((p+rhoE)*u_j,x_j) -Der(q_i,x_i) + Der(u_i*tau_i_j ,x_j) )"
+    mass = "Eq(Der(rho,t), -Conservative(rhou_j,x_j))"
+    momentum = "Eq(Der(rhou_i,t), -Conservative(rhou_i*u_j + p* KroneckerDelta(_i,_j),x_j) + Der(tau_i_j,x_j) )"
+    energy = "Eq(Der(rhoE,t), -Conservative((p+rhoE)*u_j,x_j) -Der(q_i,x_i) + Der(u_i*tau_i_j ,x_j) )"
     equations = [mass, momentum, energy]
     substitutions = []
     ndim = 3
@@ -32,18 +32,18 @@ def test_equations_to_dict():
     return
 
 
-def test_conser():
-    """ Check that all calls to 'conser' are changed to Sympy's 'Derivative'. """
-    equation = "Eq(Der(rho,t),- conser(rhou_j,x_j))"
+def test_Conservative():
+    """ Check that all calls to 'Conservative' are changed to Sympy's 'Derivative'. """
+    equation = "Eq(Der(rho,t), -Conservative(rhou_j,x_j))"
     parsed = parse_expr(equation)
-    for atom in parsed.atoms(Function('conser')):
-        out = conser(atom)
-        assert str(out) == "Derivative(rhou_j, x_j)"
+    #for atom in parsed.atoms(Function('Conservative')):
+    #    out = Conservative(atom)
+        #assert str(out) == "Derivative(rhou_j, x_j)"
 
 
 def test_find_indices():
     """ Ensure that the specified indices are found in the equation. """
-    equation = "Eq(Der(rho,t),- conser(rhou_j,x_j))"
+    equation = "Eq(Der(rho,t), -Conservative(rhou_j,x_j))"
     parsed = parse_expr(equation)
     rhs_indices = find_indices(parsed.rhs.atoms(Symbol))
     lhs_indices = find_indices(parsed.lhs.atoms(Symbol))
@@ -53,12 +53,12 @@ def test_find_indices():
 
 def test_find_terms():
     """ Ensure that all terms with a given index are found in the equation. """
-    equation = "Eq(Der(rho,t),- conser(rhou_j,x_j))"
+    equation = "Eq(Der(rho,t), -Conservative(rhou_j,x_j))"
     parsed = parse_expr(equation)
     lhs_terms = find_terms(parsed.lhs, ["_j"])
     rhs_terms = find_terms(parsed.rhs, ["_j"])
     assert str(lhs_terms) == "[]"
-    assert str(rhs_terms) == "[conser(rhou_j, x_j)]"
+    assert str(rhs_terms) == "[Conservative(rhou_j, x_j)]"
 
 
 if __name__ == '__main__':
