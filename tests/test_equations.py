@@ -80,6 +80,16 @@ def test_expand_index(c_constant, u_i, tau_i_j):
     assert not new.has_index("_i")
 
 
+def test_equation_expand(mass):
+    """ Check that the conservation of mass equation is expanded correctly """
+
+    assert str(mass.parsed) == "Der(rho, t) == -Conservative(rhou_i, x_j)"
+    assert isinstance(mass.expanded, list)
+    assert len(mass.expanded) == 1
+    assert str(mass.expanded[0]) == "Derivative(rho(x0, x1, t, x2), t) == -Derivative(rhou0(x0, x1, t, x2), x0) - Derivative(rhou0(x0, x1, t, x2), x1) - Derivative(rhou0(x0, x1, t, x2), x2) - Derivative(rhou1(x0, x1, t, x2), x0) - Derivative(rhou1(x0, x1, t, x2), x1) - Derivative(rhou1(x0, x1, t, x2), x2) - Derivative(rhou2(x0, x1, t, x2), x0) - Derivative(rhou2(x0, x1, t, x2), x1) - Derivative(rhou2(x0, x1, t, x2), x2)"
+    assert str(mass.expanded[0]).count("Derivative") == 10  # 1 time Derivative, then 3 Derivative for each of the 3 dimensions
+
+
 def test_equations_to_dict(mass):
     """ Ensure that a list of SymPy Eq objects is converted to a dictionary. """
 
