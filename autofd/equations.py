@@ -287,7 +287,7 @@ class EinsteinExpansion(object):
 
         # Get all the atoms in the expression that are Einstein variables, and then return their indices.
         einstein_indices = []
-        for atom in expression.atoms(EinsteinTerm):)
+        for atom in expression.atoms(EinsteinTerm):
             einstein_indices += atom.get_indices()
         return set(einstein_indices)
 
