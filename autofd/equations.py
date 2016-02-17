@@ -236,7 +236,7 @@ class EinsteinExpansion(object):
                 is_indexed_mul[number] = False
             elif isinstance(term, EinsteinTerm) and term.is_constant:
                 is_indexed_mul[number] = False
-        ret = None
+
         if all(is_indexed_mul):
             return multiplication_term
         elif any(is_indexed_mul):
