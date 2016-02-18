@@ -451,7 +451,6 @@ class System(object):
         self.dats = list(set(self.dats))
 
         # Writing kernels and kernel calls
-        # bcs(self,algorithm)
         if algorithm.language == 'OPSC':
             opsc = OPSC()
             calls = []
@@ -531,7 +530,7 @@ class System(object):
         elif algorithm.language == 'F90':
             self.bccall = ['']
 
-        final_algorithm[algorithm_template.get('a00')] = header_code(self, algorithm)
+        final_algorithm[algorithm_template.get('a00')] = header_code(self, algorithm.language)
         final_algorithm[algorithm_template.get('a01')] = defdec(self, algorithm, simulation_parameters)
         final_algorithm[algorithm_template['a04']] = self.bccall
         final_algorithm[algorithm_template['a09']] = self.bccall
@@ -550,8 +549,8 @@ class System(object):
         final_algorithm[algorithm_template.get('a10')] = tenloop
 
         # Write the conservative variables to files (including halos)
-        final_algorithm[algorithm_template.get('a13')] = after_time(self, algorithm)
-        final_algorithm[algorithm_template.get('a14')] = footer_code(self, algorithm)
+        final_algorithm[algorithm_template.get('a13')] = after_time(self, algorithm.language)
+        final_algorithm[algorithm_template.get('a14')] = footer_code(self, algorithm.language)
 
         final_algorithm['kernels'] = kernels
 
