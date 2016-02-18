@@ -19,6 +19,7 @@
 #    along with AutoFD.  If not, see <http://www.gnu.org/licenses/>.
 
 from sympy import *
+from sympy.core.assumptions import ManagedProperties
 from sympy.parsing.sympy_parser import parse_expr
 import sympy.functions.special.tensor_functions as tf
 import re
@@ -302,6 +303,11 @@ class EinsteinExpansion(object):
                 elif isinstance(term, EinsteinTerm):
                     if term.has_index(index):
                         has_terms.append(term)
+                elif isinstance(term.func, ManagedProperties):
+                    for arg in term.args:
+                        if arg.atoms(EinsteinTerm):
+                            if(any(a.has_index(index) for a in arg.atoms(EinsteinTerm))):
+                                has_terms.append(term)
                 else:
                     raise ValueError('Not able to process term: ', term, type(term.func))
             return
