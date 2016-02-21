@@ -43,13 +43,19 @@ class Conservative(Function):
 class KD(Function):
     #LOCAL_FUNCTIONS.append('Der')
     is_commutative = False
+    def doit(self,indexed,ndim):
+        print "Implement doit function %s,"%self.func
 
 class Der(Function):
     LOCAL_FUNCTIONS.append('Der')
     is_commutative = False
     
-    def doit(self):
-        return diff(*args)
+    def doit(self,indexed,ndim):
+        array = MutableDenseNDimArray.zeros(*indexed.shape)
+        print "in der doit",array, self
+        variable = self.args[0]
+        dire = self.args[1]
+        return 
 
 
 class EinsteinTerm(Symbol):
@@ -72,7 +78,15 @@ class EinsteinTerm(Symbol):
         indices = self.name.split('_')[1:]
         self.indices = [Symbol(x, integer=True) for x in indices]
         return self
-
+    def Indexed(self,ndim):
+        name = self.name.split('_')[0]
+        if name != '':
+            shape_of_array= tuple([ndim for x in range(len(self.indices))])
+            out = IndexedBase('%s'%name,shape = shape_of_array)
+            return out[self.indices]
+        else:
+            return None
+        return 
     def get_indices(self):
         return self.indices
 
@@ -84,7 +98,19 @@ class EinsteinTerm(Symbol):
                 found = True
                 break
         return found
-
+    def doit(self,value,ndim):
+        print "Implement doit the expansion of Einstein term"
+        indexed_var = self.Indexed(ndim)
+        out = []
+        indices = self.get_indices()
+        #u = [IndexedBase('u%d'%dim)[x] for dim in range(ndim)]
+        for dim in range(ndim):
+            temp = indexed_var
+            for ind in indices:
+                temp = temp.subs(ind,dim)
+            out.append(temp)
+        print "Expanded EV is ", out
+        return out
     def expand_index(self, index, value):
         """ Replace the index with a particular value (e.g. replace i with 0 in x_i), and return the updated EinsteinTerm object. """
         updated_symbol = str(self).replace(index, str(value))
@@ -152,20 +178,33 @@ class EinsteinExpansion(object):
         
         # now processing each arrays in the dictionary
         arrays = {}
+        #vector x as symbols
         x = [symbols('x%d'%dim) for dim in range(ndim)]
-        u = [Function('u%d'%dim)(*x) for dim in range(ndim)]
+        # vector u as an array of indexed base
+        u = [IndexedBase('u%d'%dim)[x] for dim in range(ndim)]
         print(u)
+        #Derviative of u[:] wrt x[:]
         v = derive_by_array(u,x)
+        #Derivative of u[:] wrt x[:],x[:]
         w = derive_by_array(v,x)
         pprint(v)
         pprint(w)
-        #(cos(x*t), [x, y, z, t])
-        #for key,value in self.dictionary.iteritems():
-            #print(key, value)
-            #arrays[key.base] = MutableDenseNDimArray.zeros(*key.shape)
+        # get all the Einstein symbols that have indices
+        terms = set()
+        for  key,value in self.dictionary.iteritems():
+            for Ev in value.atoms(EinsteinTerm):
+                if Ev.get_indices():
+                    terms.add(Ev.Indexed(self.ndim))
+        print "the terms are", terms
+        for key,value in self.dictionary.iteritems():
+            
+            if not value.atoms(Indexed):
+                #print "Non Indexed value", key, value, value.func
+                value.func.doit(value,key,self.ndim)
+            arrays[key.base] = MutableDenseNDimArray.zeros(*key.shape)
             #print(MutableDenseNDimArray([0],key.shape))
         #print "finished"
-        #pprint(arrays)
+        pprint(arrays)
         return
     def get_new_indexedBase(self,shape):
         shape_of_array = tuple([self.ndim for x in range(len(shape))])
