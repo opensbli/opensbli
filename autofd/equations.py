@@ -23,6 +23,7 @@ from sympy.core.assumptions import ManagedProperties
 from sympy.parsing.sympy_parser import parse_expr
 import sympy.functions.special.tensor_functions as tf
 import re
+import sys
 import inspect
 import sympy.core as core
 
@@ -104,15 +105,28 @@ class EinsteinExpansion(object):
         self.is_equality = isinstance(expression, Equality)
         fns = self.get_functions(expression)
         self.dictionary = {}
+        self.indexed_object_no = 0
+        self.indexedObject_name = 'IOBJ'
         for ind,fn in enumerate(fns):
+            dictionary = {}
             print('\n');
             if len(fn.atoms(Function)) == 1:
-                temp,self.dictionary = self.funtion_to_indexed(fn,ind,self.dictionary)
+                temp,dictionary = self.funtion_to_indexed(fn,dictionary)
                 #print(temp)
                 self.expression_indexed = self.expression_indexed.xreplace({fn:temp})
+                print "SELF DICTIONARY BEFOR UPDATE", self.dictionary
+                self.update_dictionary(dictionary)
+                print '\n'
+                print "Returned dictionary", dictionary
+                print "SELF DICTIONARY", self.dictionary
             else:
-                temp,self.dictionary = self.nested_function_to_indexed(fn,ind,self.dictionary)
+                temp,dictionary = self.nested_function_to_indexed(fn,dictionary)
                 self.expression_indexed = self.expression_indexed.xreplace({fn:temp})
+                print "SELF DICTIONARY BEFOR UPDATE", self.dictionary
+                self.update_dictionary(dictionary)
+                print '\n'
+                print "Returned dictionary", dictionary
+                print "SELF DICTIONARY", self.dictionary
                 #pprint(fn)
         print('\n')
         print "The input equation is :: ", self.expression
@@ -129,6 +143,10 @@ class EinsteinExpansion(object):
         for key,value in self.dictionary.iteritems():
             print key, ':', value
         return
+    def get_new_indexedBase(self):
+        new_Base = IndexedBase('%s%d'%(self.indexedObject_name,self.indexed_object_no))
+        self.indexed_object_no = self.indexed_object_no +1
+        return new_Base
 
     def get_functions(self,eq):
         pot = preorder_traversal(eq)
@@ -162,10 +180,9 @@ class EinsteinExpansion(object):
                 continue
         #print(fns)
         return flatten(fns)
-    def funtion_to_indexed(self,fn,n, dictionary):
+    def funtion_to_indexed(self,fn, dictionary):
         print "Non Nested fn is ::  ", fn
         #print(fn)
-        u = IndexedBase('fn%d'%n)
         indices = []
         if isinstance(fn, EinsteinTerm):
             indices = indices + self.get_symbols(fn)
@@ -176,17 +193,18 @@ class EinsteinExpansion(object):
         else:
             raise ValueError("function to indexed object failed")
         if indices:
+            u = self.get_new_indexedBase()
             indices = (tuple(indices))
             print "The contraction structure of the function  is  :: ", get_contraction_structure(u[indices])
 
             print "The indices of the function is  :: ", get_indices(u[indices])
-            print u[indices], fn
             dictionary[u[indices]] = fn
+            print "DICTIONARY ",dictionary
             return u[indices],dictionary
         else:
             return fn,dictionary
         return
-    def nested_function_to_indexed(self,fn,n, dictionary):
+    def nested_function_to_indexed(self,fn,dictionary):
         arg_dict = {}
         arg1 = fn.args[0]
         print "Nestedfn is  :: ", fn
@@ -196,7 +214,7 @@ class EinsteinExpansion(object):
             #pprint(allfns)
             for ind,fn1 in enumerate(allfns):
                 #pprint(fn1)
-                temp, arg_dict = self.funtion_to_indexed(fn1,ind+n,arg_dict)
+                temp, arg_dict = self.funtion_to_indexed(fn1,arg_dict)
 
         #print(arg_dict)
         old_arg = arg1
@@ -210,7 +228,7 @@ class EinsteinExpansion(object):
         print "The output structure for the above argument is  :: ", get_indices(arg1)
         print "The contraction structure of the function arg is  :: ", get_contraction_structure(arg1)
         #funtion_to_indexed(fn1,ind,arg_dict)
-        u = IndexedBase('fn%d'%(n+len(allfns)))
+        u = self.get_new_indexedBase()
         indes = list(get_indices(arg1))
         index = list(indes[0])
         if index:
@@ -218,14 +236,18 @@ class EinsteinExpansion(object):
         #index = [u[index]]
         for arg in fn.args[1:]:
             index = index + self.get_symbols(arg)
-        u1 = IndexedBase('fn%d'%(n+len(allfns)+1))
+        u1 = self.get_new_indexedBase()
         out = u1[index[:]]
 
         nefn = fn.subs(old_arg,arg1)
-        print "The input Nested function is updated to :: ",nefn, out, arg_dict
+        print "The input Nested function is updated to :: ",nefn
         arg_dict[out] = nefn
+        print "ARG DICT IS", arg_dict
         #dictionary = dictionary.update(arg_dict)
         return out, arg_dict
+    def update_dictionary(self,dictionary):
+        self.dictionary = dict(self.dictionary.items() + dictionary.items())
+        return
 
 
 class Equation(object):
