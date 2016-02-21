@@ -24,6 +24,7 @@ from sympy.parsing.sympy_parser import parse_expr
 import sympy.functions.special.tensor_functions as tf
 import re
 import sys
+from .array import MutableDenseNDimArray,  derive_by_array
 import inspect
 import sympy.core as core
 
@@ -46,6 +47,9 @@ class KD(Function):
 class Der(Function):
     LOCAL_FUNCTIONS.append('Der')
     is_commutative = False
+    
+    def doit(self):
+        return diff(*args)
 
 
 class EinsteinTerm(Symbol):
@@ -92,6 +96,7 @@ class EinsteinTerm(Symbol):
             return EinsteinTerm(updated_symbol)
 
 
+
 class EinsteinExpansion(object):
 
     """ Expand an Einstein variable with respect to its indices. """
@@ -106,7 +111,7 @@ class EinsteinExpansion(object):
         fns = self.get_functions(expression)
         self.dictionary = {}
         self.indexed_object_no = 0
-        self.indexedObject_name = 'IOBJ'
+        self.indexedObject_name = 'Arr'
         for ind,fn in enumerate(fns):
             dictionary = {}
             print('\n');
@@ -142,10 +147,31 @@ class EinsteinExpansion(object):
         print "The dictionary of evaluations for the functions is "
         for key,value in self.dictionary.iteritems():
             print key, ':', value
+        print "Contraction structue is ", get_contraction_structure(self.expression_indexed.rhs)
+        pprint(get_contraction_structure(self.expression_indexed.rhs))
+        
+        # now processing each arrays in the dictionary
+        arrays = {}
+        x = [symbols('x%d'%dim) for dim in range(ndim)]
+        u = [Function('u%d'%dim)(*x) for dim in range(ndim)]
+        print(u)
+        v = derive_by_array(u,x)
+        w = derive_by_array(v,x)
+        pprint(v)
+        pprint(w)
+        #(cos(x*t), [x, y, z, t])
+        #for key,value in self.dictionary.iteritems():
+            #print(key, value)
+            #arrays[key.base] = MutableDenseNDimArray.zeros(*key.shape)
+            #print(MutableDenseNDimArray([0],key.shape))
+        #print "finished"
+        #pprint(arrays)
         return
-    def get_new_indexedBase(self):
-        new_Base = IndexedBase('%s%d'%(self.indexedObject_name,self.indexed_object_no))
+    def get_new_indexedBase(self,shape):
+        shape_of_array = tuple([self.ndim for x in range(len(shape))])
+        new_Base = IndexedBase('%s%d'%(self.indexedObject_name,self.indexed_object_no), shape= shape_of_array)
         self.indexed_object_no = self.indexed_object_no +1
+        print(shape_of_array )
         return new_Base
 
     def get_functions(self,eq):
@@ -193,7 +219,7 @@ class EinsteinExpansion(object):
         else:
             raise ValueError("function to indexed object failed")
         if indices:
-            u = self.get_new_indexedBase()
+            u = self.get_new_indexedBase(tuple(indices))
             indices = (tuple(indices))
             print "The contraction structure of the function  is  :: ", get_contraction_structure(u[indices])
 
@@ -228,15 +254,15 @@ class EinsteinExpansion(object):
         print "The output structure for the above argument is  :: ", get_indices(arg1)
         print "The contraction structure of the function arg is  :: ", get_contraction_structure(arg1)
         #funtion_to_indexed(fn1,ind,arg_dict)
-        u = self.get_new_indexedBase()
         indes = list(get_indices(arg1))
         index = list(indes[0])
+        u = self.get_new_indexedBase(tuple(index))
         if index:
             arg_dict[u[index]] = arg1
         #index = [u[index]]
         for arg in fn.args[1:]:
             index = index + self.get_symbols(arg)
-        u1 = self.get_new_indexedBase()
+        u1 = self.get_new_indexedBase(tuple(index))
         out = u1[index[:]]
 
         nefn = fn.subs(old_arg,arg1)
