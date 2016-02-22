@@ -49,12 +49,12 @@ class KD(Function):
     def is_commutative(self):
         return False
     def doit(self,indexed,ndim):
-        
+
         array = MutableDenseNDimArray.zeros(*indexed.shape)
         if len(indexed.indices) >2:
             raise ValueError('Kronecker Delta function should have only two indices')
         for index in np.ndindex(*indexed.shape):
-            array[index[:]] = KroneckerDelta(*index[:])
+            array[index[:]] = KroneckerDelta(*index)
         return array
 
 
@@ -66,7 +66,7 @@ class LeviCivita(Function):
         return False
 
     def doit(self, indexed, ndim):
-        
+
         n = len(indexed.indices)
         array = MutableDenseNDimArray.zeros(*indexed.shape)
         for index in np.ndindex(*indexed.shape):
@@ -141,18 +141,28 @@ class EinsteinTerm(Symbol):
     def has_index(self, index):
         """ Check to see whether a given index exists in the Einstein variable. """
         return index in self.indices
-        
-    def doit(self,value,ndim):
-        indexed_var = self.Indexed(ndim)
+
+    def doit(self,indexed,ndim):
+        array = MutableDenseNDimArray.zeros(*indexed.shape)
+        var = self
         out = []
-        indices = self.get_indices()
         for dim in range(ndim):
-            temp = indexed_var
-            for ind in indices:
-                temp = temp.subs(ind,dim)
-            out.append(temp)
-        print "Expanded EV is ", out
-        return out
+            for no,ind in enumerate(self.get_indices()):
+                if self.has_index(ind):
+                    array[dim]= self.expand_index('_'+str(ind),dim)
+             #= self
+        print "in EISTIEN TERM doit",array, self, indexed.indices
+        return array
+        #indexed_var = self.Indexed(ndim)
+        #out = []
+        #indices = self.get_indices()
+        #for dim in range(ndim):
+            #temp = indexed_var
+            #for ind in indices:
+                #temp = temp.subs(ind,dim)
+            #out.append(temp)
+        #print "Expanded EV is ", out
+        #return out
     def expand_index(self, index, value):
         """ Replace the index with a particular value (e.g. replace i with 0 in x_i), and return the updated EinsteinTerm object. """
         updated_symbol = str(self).replace(index, str(value))
@@ -221,8 +231,10 @@ class EinsteinExpansion(object):
             if not value.atoms(Indexed):
                 arrays[key] = value.func.doit(value,key,self.ndim)
             else:
-                arrays[key] = MutableDenseNDimArray.zeros(*key.shape)
-        pprint(arrays)
+                print "Implement the function doit for ", value
+                all_iobj = value.atoms(Indexed)
+                if all(obje in arrays.keys() for obje in all_iobj):
+                    print "EValuated",all_iobj
         return
     def get_new_indexedBase(self,shape):
         shape_of_array = tuple([self.ndim for x in range(len(shape))])
