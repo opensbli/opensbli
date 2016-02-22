@@ -57,20 +57,27 @@ class LeviCivita(Function):
         return False
     def doit(self,indexed,ndim):
         print "Implement doit function %s,"%self.func
-
+def eval_dif(fn, args, **kwargs):
+    if kwargs.pop("evaluate", True):
+        return diff(fn,*args)
+    else:
+        return Derivative(fn, *args)
 class Der(Function):
     LOCAL_FUNCTIONS.append('Der')
     @property
     def is_commutative(self):
         return False
+
     def applyexp(self,indices,values):
         out = self
+        print self, indices, values
         for no,ind in enumerate(indices):
             for ev in self.atoms(EinsteinTerm):
                 if ev.has_index(ind):
                     out = out.replace(ev, ev.expand_index('_'+str(ind),values[no]))
-            #out = out.replace(ind, values[no])
-        return out
+        args = out.args[1:]
+        fn = out.args[0]
+        return eval_dif(fn,args[:],evaluate=False)
 
     def doit(self,indexed,ndim):
         import numpy as np
@@ -78,28 +85,11 @@ class Der(Function):
         #array = MutableDenseNDimArray([self  for k in range(len(indexed.indices)) for i in range(indexed.shape[k])],(indexed.shape))
         for index in np.ndindex(*indexed.shape):
             array[index[:]] = self.applyexp(indexed.indices,index)
+
+            args = array[index[:]]
+            assumptions = {"evaluate":False}
+            #array[index[:]] = eval_diff()
         print "in der doit",array, self, indexed.indices
-        variable = self.args[0]
-        dire = self.args[1]
-        indices = All_indices(self)
-        print(indices)
-        print len(array), array.shape, array.tolist(), array._loop_size
-        #for atom in self.atoms(EinsteinTerm):
-            #for dim in range(ndim):
-                #for index in indices:
-                    #new = atom.expand_index(index, dim)
-                #indexed[dim] = new_term[dim].subs(atom, (new))
-                #print()
-        #for atom in term.atoms(EinsteinTerm):
-                #for dim in range(0, self.ndim):
-                    #new = atom.expand_index(index, dim)
-                    #new_term[dim] = new_term[dim].subs(atom, (new))
-            #expanded_terms[term] = new_term
-
-
-        #print variable.get_indices()
-        #print dire.get_indices()
-
         return
 def All_indices(expression):
     indices = []
