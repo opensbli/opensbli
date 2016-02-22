@@ -38,17 +38,31 @@ LOCAL_FUNCTIONS = []
 
 class Conservative(Function):
     LOCAL_FUNCTIONS.append('Conservative')
-    is_commutative = False
+    @property
+    def is_commutative(self):
+        return False
 
 class KD(Function):
     #LOCAL_FUNCTIONS.append('Der')
-    is_commutative = False
+    @property
+    def is_commutative(self):
+        return False
+    def doit(self,indexed,ndim):
+        print "Implement doit function %s,"%self.func
+
+class LeviCivita(Function):
+    LOCAL_FUNCTIONS.append('LeviCivita')
+    @property
+    def is_commutative(self):
+        return False
     def doit(self,indexed,ndim):
         print "Implement doit function %s,"%self.func
 
 class Der(Function):
     LOCAL_FUNCTIONS.append('Der')
-    is_commutative = False
+    @property
+    def is_commutative(self):
+        return False
     def applyexp(self,indices,values):
         out = self
         for no,ind in enumerate(indices):
@@ -248,6 +262,7 @@ class EinsteinExpansion(object):
     def get_new_indexedBase(self,shape):
         shape_of_array = tuple([self.ndim for x in range(len(shape))])
         new_Base = IndexedBase('%s%d'%(self.indexedObject_name,self.indexed_object_no), shape= shape_of_array)
+        new_Base.is_commutative = False
         self.indexed_object_no = self.indexed_object_no +1
         print(shape_of_array )
         return new_Base
@@ -364,7 +379,7 @@ class Equation(object):
         :arg str equation: An equation, written in Einstein notation, and specified in string form.
         :returns: None
         """
-        local_dict = {'Symbol':EinsteinTerm,'symbols':EinsteinTerm,'Der':Der,'Conservative':Conservative, 'KD':KD}
+        local_dict = {'Symbol':EinsteinTerm,'symbols':EinsteinTerm,'Der':Der,'Conservative':Conservative, 'KD':KD, 'LeviCivita':LeviCivita}
 
         self.original = expression
 
@@ -400,7 +415,7 @@ class Equation(object):
         # TODO Move applying Derivative for conservative or Der formulations to their respective classes and call the class from here
 
         temp_expression = expression
-        local_dict = {'Symbol':EinsteinTerm,'symbols':EinsteinTerm,'Der':Der,'Conservative':Conservative}  # TODO: automate from local classes
+        local_dict = {'Symbol':EinsteinTerm,'symbols':EinsteinTerm,'Der':Der,'Conservative':Conservative, 'LeviCivita':LeviCivita}  # TODO: automate from local classes
 
         if not expression.atoms(Function):
             return expression
