@@ -49,14 +49,50 @@ class KD(Function):
 class Der(Function):
     LOCAL_FUNCTIONS.append('Der')
     is_commutative = False
-    
+    def applyexp(self,indices,values):
+        out = self
+        for no,ind in enumerate(indices):
+            for ev in self.atoms(EinsteinTerm):
+                if ev.has_index(ind):
+                    out = out.replace(ev, ev.expand_index('_'+str(ind),values[no]))
+            #out = out.replace(ind, values[no])
+        return out
+
     def doit(self,indexed,ndim):
+        import numpy as np
         array = MutableDenseNDimArray.zeros(*indexed.shape)
-        print "in der doit",array, self
+        #array = MutableDenseNDimArray([self  for k in range(len(indexed.indices)) for i in range(indexed.shape[k])],(indexed.shape))
+        for index in np.ndindex(*indexed.shape):
+            array[index[:]] = self.applyexp(indexed.indices,index)
+        print "in der doit",array, self, indexed.indices
         variable = self.args[0]
         dire = self.args[1]
-        return 
+        indices = All_indices(self)
+        print(indices)
+        print len(array), array.shape, array.tolist(), array._loop_size
+        #for atom in self.atoms(EinsteinTerm):
+            #for dim in range(ndim):
+                #for index in indices:
+                    #new = atom.expand_index(index, dim)
+                #indexed[dim] = new_term[dim].subs(atom, (new))
+                #print()
+        #for atom in term.atoms(EinsteinTerm):
+                #for dim in range(0, self.ndim):
+                    #new = atom.expand_index(index, dim)
+                    #new_term[dim] = new_term[dim].subs(atom, (new))
+            #expanded_terms[term] = new_term
 
+
+        #print variable.get_indices()
+        #print dire.get_indices()
+
+        return
+def All_indices(expression):
+    indices = []
+    for ev in expression.atoms(EinsteinTerm):
+        if ev.get_indices():
+            indices +=ev.get_indices()
+    return set(indices)
 
 class EinsteinTerm(Symbol):
 
@@ -86,7 +122,7 @@ class EinsteinTerm(Symbol):
             return out[self.indices]
         else:
             return None
-        return 
+        return
     def get_indices(self):
         return self.indices
 
@@ -175,20 +211,21 @@ class EinsteinExpansion(object):
             print key, ':', value
         print "Contraction structue is ", get_contraction_structure(self.expression_indexed.rhs)
         pprint(get_contraction_structure(self.expression_indexed.rhs))
-        
+
         # now processing each arrays in the dictionary
         arrays = {}
         #vector x as symbols
-        x = [symbols('x%d'%dim) for dim in range(ndim)]
+        x = symbols('x:%d'%ndim)
         # vector u as an array of indexed base
-        u = [IndexedBase('u%d'%dim)[x] for dim in range(ndim)]
-        print(u)
+        u = [IndexedBase('u')[dim, x] for dim in range(ndim)]
+        print u
         #Derviative of u[:] wrt x[:]
         v = derive_by_array(u,x)
+        print(v[0,1])
         #Derivative of u[:] wrt x[:],x[:]
         w = derive_by_array(v,x)
-        pprint(v)
-        pprint(w)
+        #pprint(v)
+        #pprint(w)
         # get all the Einstein symbols that have indices
         terms = set()
         for  key,value in self.dictionary.iteritems():
@@ -197,13 +234,15 @@ class EinsteinExpansion(object):
                     terms.add(Ev.Indexed(self.ndim))
         print "the terms are", terms
         for key,value in self.dictionary.iteritems():
-            
+
             if not value.atoms(Indexed):
-                #print "Non Indexed value", key, value, value.func
+                ##print "Non Indexed value", key, value, value.func
                 value.func.doit(value,key,self.ndim)
-            arrays[key.base] = MutableDenseNDimArray.zeros(*key.shape)
+            print "KEY INDICES", key, get_indices(key)
+            arrays[key] = MutableDenseNDimArray.zeros(*key.shape)
             #print(MutableDenseNDimArray([0],key.shape))
         #print "finished"
+        print('\n')
         pprint(arrays)
         return
     def get_new_indexedBase(self,shape):
