@@ -48,16 +48,22 @@ class KD(Function):
     def is_commutative(self):
         return False
     def doit(self,indexed,ndim):
-        print "Implement doit function %s,"%self.func
+        import numpy as np
+        array = MutableDenseNDimArray.zeros(*indexed.shape)
+        if len(indexed.indices) >2:
+            raise ValueError('Kronecker Delta function should have only two indices')
+        for index in np.ndindex(*indexed.shape):
+            array[index[:]] = KroneckerDelta(*index[:])
+        return array
 
 
 class LeviCivita(Function):
     LOCAL_FUNCTIONS.append('LeviCivita')
-    
+
     @property
     def is_commutative(self):
         return False
-        
+
     def doit(self, indexed, ndim):
         from sympy import factorial
         n = len(indexed.indices)
@@ -68,8 +74,8 @@ class LeviCivita(Function):
             array[index[:]] = LeviCivita(index)
         print "in LeviCivita doit",array, self, indexed.indices
         return array
-        
-        
+
+
 def eval_dif(fn, args, **kwargs):
     if kwargs.pop("evaluate", True):
         return diff(fn,*args)
