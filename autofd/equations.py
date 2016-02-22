@@ -69,8 +69,8 @@ class Der(Function):
         return False
 
     def applyexp(self,indices,values):
+        ''' applies the indices to the Einstein terms'''
         out = self
-        print self, indices, values
         for no,ind in enumerate(indices):
             for ev in self.atoms(EinsteinTerm):
                 if ev.has_index(ind):
@@ -82,7 +82,6 @@ class Der(Function):
     def doit(self,indexed,ndim):
         import numpy as np
         array = MutableDenseNDimArray.zeros(*indexed.shape)
-        #array = MutableDenseNDimArray([self  for k in range(len(indexed.indices)) for i in range(indexed.shape[k])],(indexed.shape))
         for index in np.ndindex(*indexed.shape):
             array[index[:]] = self.applyexp(indexed.indices,index)
         print "in der doit",array, self, indexed.indices
@@ -130,11 +129,9 @@ class EinsteinTerm(Symbol):
                 break
         return found
     def doit(self,value,ndim):
-        print "Implement doit the expansion of Einstein term"
         indexed_var = self.Indexed(ndim)
         out = []
         indices = self.get_indices()
-        #u = [IndexedBase('u%d'%dim)[x] for dim in range(ndim)]
         for dim in range(ndim):
             temp = indexed_var
             for ind in indices:
@@ -171,24 +168,15 @@ class EinsteinExpansion(object):
         self.indexedObject_name = 'Arr'
         for ind,fn in enumerate(fns):
             dictionary = {}
-            print('\n');
             if len(fn.atoms(Function)) == 1:
                 temp,dictionary = self.funtion_to_indexed(fn,dictionary)
-                #print(temp)
                 self.expression_indexed = self.expression_indexed.xreplace({fn:temp})
-                print "SELF DICTIONARY BEFOR UPDATE", self.dictionary
                 self.update_dictionary(dictionary)
-                print '\n'
-                print "Returned dictionary", dictionary
-                print "SELF DICTIONARY", self.dictionary
             else:
                 temp,dictionary = self.nested_function_to_indexed(fn,dictionary)
                 self.expression_indexed = self.expression_indexed.xreplace({fn:temp})
-                print "SELF DICTIONARY BEFOR UPDATE", self.dictionary
                 self.update_dictionary(dictionary)
-                print '\n'
-                print "Returned dictionary", dictionary
-                print "SELF DICTIONARY", self.dictionary
+
                 #pprint(fn)
         print('\n')
         print "The input equation is :: ", self.expression
@@ -215,13 +203,9 @@ class EinsteinExpansion(object):
             for Ev in value.atoms(EinsteinTerm):
                 if Ev.get_indices():
                     terms.add(Ev.Indexed(self.ndim))
-        print "the terms are", terms
         for key,value in self.dictionary.iteritems():
-
             if not value.atoms(Indexed):
-                ##print "Non Indexed value", key, value, value.func
                 arrays[key] = value.func.doit(value,key,self.ndim)
-                print "KEY INDICES", key, get_indices(key)
             else:
                 arrays[key] = MutableDenseNDimArray.zeros(*key.shape)
         pprint(arrays)
@@ -231,7 +215,6 @@ class EinsteinExpansion(object):
         new_Base = IndexedBase('%s%d'%(self.indexedObject_name,self.indexed_object_no), shape= shape_of_array)
         new_Base.is_commutative = False
         self.indexed_object_no = self.indexed_object_no +1
-        print(shape_of_array )
         return new_Base
 
     def get_functions(self,eq):
@@ -333,7 +316,6 @@ class EinsteinExpansion(object):
         nefn = fn.subs(old_arg,arg1)
         print "The input Nested function is updated to :: ",nefn
         arg_dict[out] = nefn
-        print "ARG DICT IS", arg_dict
         #dictionary = dictionary.update(arg_dict)
         return out, arg_dict
     def update_dictionary(self,dictionary):
