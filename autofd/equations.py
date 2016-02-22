@@ -77,7 +77,7 @@ class Der(Function):
                     out = out.replace(ev, ev.expand_index('_'+str(ind),values[no]))
         args = out.args[1:]
         fn = out.args[0]
-        return eval_dif(fn,args[:],evaluate=False)
+        return eval_dif(fn,args,evaluate=False)
 
     def doit(self,indexed,ndim):
         import numpy as np
@@ -85,18 +85,9 @@ class Der(Function):
         #array = MutableDenseNDimArray([self  for k in range(len(indexed.indices)) for i in range(indexed.shape[k])],(indexed.shape))
         for index in np.ndindex(*indexed.shape):
             array[index[:]] = self.applyexp(indexed.indices,index)
-
-            args = array[index[:]]
-            assumptions = {"evaluate":False}
-            #array[index[:]] = eval_diff()
         print "in der doit",array, self, indexed.indices
-        return
-def All_indices(expression):
-    indices = []
-    for ev in expression.atoms(EinsteinTerm):
-        if ev.get_indices():
-            indices +=ev.get_indices()
-    return set(indices)
+        return array
+
 
 class EinsteinTerm(Symbol):
 
@@ -218,18 +209,6 @@ class EinsteinExpansion(object):
 
         # now processing each arrays in the dictionary
         arrays = {}
-        #vector x as symbols
-        x = symbols('x:%d'%ndim)
-        # vector u as an array of indexed base
-        u = [IndexedBase('u')[dim, x] for dim in range(ndim)]
-        print u
-        #Derviative of u[:] wrt x[:]
-        v = derive_by_array(u,x)
-        print(v[0,1])
-        #Derivative of u[:] wrt x[:],x[:]
-        w = derive_by_array(v,x)
-        #pprint(v)
-        #pprint(w)
         # get all the Einstein symbols that have indices
         terms = set()
         for  key,value in self.dictionary.iteritems():
@@ -241,12 +220,10 @@ class EinsteinExpansion(object):
 
             if not value.atoms(Indexed):
                 ##print "Non Indexed value", key, value, value.func
-                value.func.doit(value,key,self.ndim)
-            print "KEY INDICES", key, get_indices(key)
-            arrays[key] = MutableDenseNDimArray.zeros(*key.shape)
-            #print(MutableDenseNDimArray([0],key.shape))
-        #print "finished"
-        print('\n')
+                arrays[key] = value.func.doit(value,key,self.ndim)
+                print "KEY INDICES", key, get_indices(key)
+            else:
+                arrays[key] = MutableDenseNDimArray.zeros(*key.shape)
         pprint(arrays)
         return
     def get_new_indexedBase(self,shape):
