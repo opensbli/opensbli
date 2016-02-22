@@ -313,13 +313,16 @@ class EinsteinExpansion(object):
             raise ValueError("function to indexed object failed")
         if indices:
             u = self.get_new_indexedBase(tuple(indices))
+
             indices = (tuple(indices))
+            out = u[indices]
+            out.is_commutative= False
             print "The contraction structure of the function  is  :: ", get_contraction_structure(u[indices])
 
             print "The indices of the function is  :: ", get_indices(u[indices])
-            dictionary[u[indices]] = fn
+            dictionary[out] = fn
             print "DICTIONARY ",dictionary
-            return u[indices],dictionary
+            return out,dictionary
         else:
             return fn,dictionary
         return
@@ -350,6 +353,7 @@ class EinsteinExpansion(object):
         indes = list(get_indices(arg1))
         index = list(indes[0])
         u = self.get_new_indexedBase(tuple(index))
+        u.is_commutative= False
         if index:
             arg_dict[u[index]] = arg1
         #index = [u[index]]
@@ -357,6 +361,7 @@ class EinsteinExpansion(object):
             index = index + self.get_symbols(arg)
         u1 = self.get_new_indexedBase(tuple(index))
         out = u1[index[:]]
+        out.is_commutative= False
 
         nefn = fn.subs(old_arg,arg1)
         print "The input Nested function is updated to :: ",nefn
