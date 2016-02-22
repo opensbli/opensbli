@@ -27,7 +27,8 @@ import sys
 from .array import MutableDenseNDimArray,  derive_by_array
 import inspect
 import sympy.core as core
-
+from sympy import factorial
+import numpy as np
 import logging
 LOG = logging.getLogger(__name__)
 
@@ -48,7 +49,7 @@ class KD(Function):
     def is_commutative(self):
         return False
     def doit(self,indexed,ndim):
-        import numpy as np
+        
         array = MutableDenseNDimArray.zeros(*indexed.shape)
         if len(indexed.indices) >2:
             raise ValueError('Kronecker Delta function should have only two indices')
@@ -65,9 +66,8 @@ class LeviCivita(Function):
         return False
 
     def doit(self, indexed, ndim):
-        from sympy import factorial
+        
         n = len(indexed.indices)
-        import numpy as np
         array = MutableDenseNDimArray.zeros(*indexed.shape)
         for index in np.ndindex(*indexed.shape):
             print index
@@ -99,7 +99,6 @@ class Der(Function):
         return eval_dif(fn,args,evaluate=False)
 
     def doit(self,indexed,ndim):
-        import numpy as np
         array = MutableDenseNDimArray.zeros(*indexed.shape)
         for index in np.ndindex(*indexed.shape):
             array[index[:]] = self.applyexp(indexed.indices,index)
@@ -141,12 +140,8 @@ class EinsteinTerm(Symbol):
 
     def has_index(self, index):
         """ Check to see whether a given index exists in the Einstein variable. """
-        found = False
-        for i in self.indices:
-            if i == index:
-                found = True
-                break
-        return found
+        return index in self.indices
+        
     def doit(self,value,ndim):
         indexed_var = self.Indexed(ndim)
         out = []
