@@ -61,7 +61,13 @@ class LeviCivita(Function):
     def doit(self, indexed, ndim):
         from sympy import factorial
         n = len(indexed.indices)
-        return prod(prod(indexed.indices[j] - indexed.indices[i] for j in range(i + 1, n)) / factorial(i) for i in range(n))
+        import numpy as np
+        array = MutableDenseNDimArray.zeros(*indexed.shape)
+        for index in np.ndindex(*indexed.shape):
+            print index
+            array[index[:]] = LeviCivita(index)
+        print "in LeviCivita doit",array, self, indexed.indices
+        return array
         
         
 def eval_dif(fn, args, **kwargs):
