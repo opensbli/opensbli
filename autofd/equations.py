@@ -50,13 +50,20 @@ class KD(Function):
     def doit(self,indexed,ndim):
         print "Implement doit function %s,"%self.func
 
+
 class LeviCivita(Function):
     LOCAL_FUNCTIONS.append('LeviCivita')
+    
     @property
     def is_commutative(self):
         return False
-    def doit(self,indexed,ndim):
-        print "Implement doit function %s,"%self.func
+        
+    def doit(self, indexed, ndim):
+        from sympy import factorial
+        n = len(indexed.indices)
+        return prod(prod(indexed.indices[j] - indexed.indices[i] for j in range(i + 1, n)) / factorial(i) for i in range(n))
+        
+        
 def eval_dif(fn, args, **kwargs):
     if kwargs.pop("evaluate", True):
         return diff(fn,*args)
