@@ -590,7 +590,7 @@ class System(object):
             # Translate the generated code using the OPSC translator.
             LOG.debug("Translating OPSC code...")
             try:
-                from ops.translator.c import ops
+                from ops_translator.c import ops
             except ImportError as e:
                 LOG.error("Could not import the OPS translator. Aborting...")
                 LOG.exception(e)
