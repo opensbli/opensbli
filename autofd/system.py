@@ -587,10 +587,18 @@ class System(object):
 
     def compile(self, algorithm, simulation_parameters):
         if algorithm.language == 'OPSC':
-            # First translate the generated code using the OPSC translator.
+            # Translate the generated code using the OPSC translator.
             LOG.debug("Translating OPSC code...")
-            exit_code = subprocess.call("python $OPS_INSTALL_PATH/../translator/python/c/ops.py %s.cpp" % simulation_parameters["name"], shell=True)
-            if(exit_code != 0):
-                # Something went wrong
-                LOG.error("Unable to translate OPSC code. Check OPS_INSTALL_PATH?")
+            try:
+                from ops_translator.c import ops
+            except ImportError as e:
+                LOG.error("Could not import the OPS translator. Aborting...")
+                LOG.exception(e)
+                return
+            
+            try:
+                ops.main(["%s.cpp" % simulation_parameters["name"]])
+            except Exception as e:
+                LOG.error("Something went wrong when calling the OPS translator.")
+                LOG.exception(e)
         return
