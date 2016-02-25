@@ -14,6 +14,7 @@ Contents:
    introduction
    getting_started
    problem
+   applications
 
 
 Indices and tables

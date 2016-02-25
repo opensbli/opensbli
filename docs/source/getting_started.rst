@@ -15,6 +15,8 @@ In order to target and compile the generated OPSC code, you will need to have OP
 
     git clone https://github.com/gihanmudalige/OPS.git
 
+and install it by running ``sudo python setup.py install`` from within the OPS directory that is created by the ``git clone`` process.
+
 You will then need to set up your OPS-related environment variables, listed below. Note that the values given here are system-dependent and may need to be adapted depending on where the MPI or HDF5 libraries are installed. Furthermore, it is assumed that the OPS GitHub repository has been cloned in your home (~) directory.
 
 .. code-block:: bash
@@ -26,18 +28,18 @@ You will then need to set up your OPS-related environment variables, listed belo
 
 You can include these export commands in your ``~/.bashrc`` file to save typing them out each time you open up a new terminal.
 
-Installing AutoFD
+Installing OpenSBLI
 -----------------
 
-You can install AutoFD using
+You can install OpenSBLI using
 
 .. code-block:: bash
 
     sudo make install
 
-from within the base directory of AutoFD. Alternatively, particularly for developers of AutoFD, you can simply point your ``PYTHONPATH`` environment variable to the AutoFD base directory using, for example,
+from within the base directory of OpenSBLI. Alternatively, particularly for developers of OpenSBLI, you can simply point your ``PYTHONPATH`` environment variable to the OpenSBLI base directory using, for example,
 
 .. code-block:: bash
 
-    export PYTHONPATH=$PYTHONPATH:~/autofd
+    export PYTHONPATH=$PYTHONPATH:~/OpenSBLI
 
