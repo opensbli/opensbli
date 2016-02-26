@@ -10,7 +10,7 @@ The main focus of OpenSBLI is on the solution of the compressible Navier-Stokes 
 
 From an implementation perspective, the OpenSBLI codebase is written in the Python (2.7.x) language and depends on the SymPy library to process the Einstein formulation of the equations. The code generator will then write out the model code which performs the finite difference approximations in any of the supported languages (currently only OPSC, although the structure of the codebase is such that other languages can be integrated with minimal effort).
 
-The development of OpenSBLI was supported by the `UK Turbulence Consortium <http://www.turbulence.ac.uk>`_ and the `ExaFLOW project <http://exaflow-project.eu/>`_.
+The development of OpenSBLI was supported by the `UK Turbulence Consortium <http://www.turbulence.ac.uk>`_ (funded by EPSRC grant EP/L000261/1) and the `ExaFLOW project <http://exaflow-project.eu/>`_ (funded by European Union Horizon 2020 Framework grant 671571).
 
 Licensing
 ---------
