@@ -1,27 +1,8 @@
-Applications
-============
+Application: 3D Taylor-Green vortex
+===================================
 
-Overview
---------
-
-To showcase some of OpenSBLI's functionality, three applications are presented here.
-
-1D wave propagation
--------------------
-
-The one-dimensional wave equation is written as
-
-.. math:: \frac{\partial^2 u}{\partial t^2} = c\frac{\partial^2 u}{\partial x^2},
-
-where :math:`u`  is the dispacement and :math:`c`  is a known constant.
-
-2D advection-diffusion of a Gaussian bump
------------------------------------------
-
-
-
-3D Taylor-Green vortex
-----------------------
+Equations
+---------
 
 This problem solves the compressible Navier-Stokes equations in 3D. The equations governing conservation of mass, momentum and energy are respectively written as
 
@@ -42,3 +23,18 @@ where :math:`\delta_{ij}` is the Kronecker Delta function and :math:`\mathrm{Re}
 .. math:: q_i = -\frac{\mu}{(\gamma-1)\ \mathrm{M}_\inf^2\ \mathrm{Pr}\ \mathrm{Re}}\frac{\partial T}{\partial x_i},
 
 where :math:`T` is the temperature field, :math:`\gamma` is the ratio of specific heats, :math:`\mathrm{M}_\inf` is the free-stream Mach number, and :math:`\mathrm{Pr}` is the Prandtl number.
+
+Simulation Setup
+----------------
+
+The problem considers a 3D cube with dimensions :math:`0 \leq x \leq 2\pi`, :math:`0 \leq y \leq 2\pi`, :math:`0 \leq z \leq 2\pi`. Periodic boundary conditions are applied on all surfaces. A fourth-order accurate central differencing scheme is used to spatially discretise the domain, and a third-order Runge-Kutta timestepping scheme is used to march the equations forward in time.
+
+At time :math:`t` = 0, the initial conditions are: ............................
+
+The simulation time was run for ??????? iterations until time :math:`t` = ??????
+
+Results
+-------
+
+References
+----------
