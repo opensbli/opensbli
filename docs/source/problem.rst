@@ -21,7 +21,7 @@ Once defined, users can run the Python script defining the problem's configurati
 
     python /path/to/directory/containing/problem_file.py
 
-OpenSBLI will create two files written in the OPSC language: ``auto_kernel.h`` and ``simulation_name_here.cpp``. The latter file will automatically be passed through OPS's translator to target the OPSC code towards different backends, e.g. CUDA, MPI, OpenMP, etc; this yields a new file called ``simulation_name_here_ops.cpp`` and various directories corresponding to the different backends. It is this file that will be compiled to create the model's executable file. Note that, if you make any manual changes to the ``simulation_name_here.cpp` file, you will need to pass it through OPS again using
+OpenSBLI will create two files written in the OPSC language: ``auto_kernel.h`` and ``simulation_name_here.cpp``. The latter file will automatically be passed through OPS's translator to target the OPSC code towards different backends, e.g. CUDA, MPI, OpenMP, etc; this yields a new file called ``simulation_name_here_ops.cpp`` and various directories corresponding to the different backends. It is this file that will be compiled to create the model's executable file. Note that, if you make any manual changes to the ``simulation_name_here.cpp`` file, you will need to pass it through OPS again using
 
 .. code-block:: bash
 
