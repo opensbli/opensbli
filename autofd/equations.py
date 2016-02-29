@@ -274,6 +274,7 @@ class EinsteinExpansion(object):
         multerms = {}
         inds = []
         addterms = {}
+        power_terms = {}
         def _find_terms(expression):
             if expression.is_Mul:
                 if expression.atoms(Add):
@@ -293,6 +294,16 @@ class EinsteinExpansion(object):
                 #print "Indexed"
             elif expression.is_Atom:
                 print "ATOM"
+            elif expression.is_Pow or isinstance(expression, exp):
+                base, e = expression.as_base_exp()
+                if not isinstance(e, Integer):
+                    raise ValueError('Only integer powers are supported')
+                elif not base.atoms(Indexed):
+                    pass
+                else:
+                    raise NotImplementedError("Implement find term support for Pow")
+                    #terms = _find_terms(base)
+                    #powerterms[expression] = terms ** e
             else:
                 raise ValueError('I cannot classify the expression',expression)
             return
@@ -405,7 +416,7 @@ class EinsteinExpansion(object):
                     temp =  fn.func.doit(fn,value1,self.ndim)
                     ndim_arrays[value1] =  temp
         self.find_index_terms(expression, ndim_arrays)
-        facs, decomp = self.decompose_args(expression)
+        #facs, decomp = self.decompose_args(expression)
 
         pprint("END")
 
