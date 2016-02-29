@@ -318,17 +318,18 @@ class EinsteinExpansion(object):
             addeval = {}
             if addterms:
                 for key, value in addterms.iteritems():
-                    indices = self.index_structure(key)
-                    evaluated = self.evaluate_ADD_expression(value,list(indices['outer']), arrays)
+                    indices = get_indices(key)
+                    indices = list(get_indices(key)[0])
+                    evaluated = self.evaluate_ADD_expression(value,indices, arrays)
                     #addterms[key] = evaluated
                     arrays[key] = evaluated
                     #print arrays[key]
             if muladdterms:
                 # reconstruct the term
                 for key, value in muladdterms.iteritems():
-                    indices = self.index_structure(key)
-                    evaluated = self.evaluate_MUL_expression(value,list(indices['outer']), arrays)
-                pprint(evaluated)
+                    indices = list(get_indices(key)[0])
+                    evaluated = self.evaluate_MUL_expression(value,indices, arrays)
+                pprint(evaluated.tomatrix())
                 print evaluated.shape
                 print "MULADD"
 
@@ -341,7 +342,7 @@ class EinsteinExpansion(object):
         add_evaluated = MutableDenseNDimArray.zeros(*shape)
         for term in terms:
             if term.is_Mul:
-                index_structure = self.index_structure(term)
+                #index_structure = self.index_structure(term)
                 mat = self.evaluate_MUL_expression(term.args,index_struc,arrays)
                 add_evaluated = add_evaluated + mat
             else:
@@ -421,28 +422,6 @@ class EinsteinExpansion(object):
         pprint("END")
 
         return
-
-
-
-
-    def index_structure(self,expression):
-        term_list = []
-        inner_list = []
-        for term, outer, inner in _get_index_structure(expression,
-                                                       einstein_notation=True):
-
-            term_list.append(term)
-            inner_list.append(inner)
-
-        term_list, inner_list = zip(*sorted(zip(term_list, inner_list),
-                                            key=default_sort_key))
-        term_list = list(term_list)
-        inner_list = list(inner_list)
-
-        return {'monomial_list': term_list, 'outer': outer,
-                'inner_list': inner_list}
-
-
 
     def nested_function_to_indexed(self,fn,dictionary):
         arg_dict = {}
@@ -629,95 +608,3 @@ class ExplicitFilter(object):
             else:
                 raise NotImplementedError('Implement spatial filtering coefficients for order of accuracy %d' % ooa)
         return filtereqs
-import collections
-def _get_monomial_indices(monomial):
-    """List all indices appearing in a monomial with repetition.
-
-    Helper for _get_index_structure."""
-    if isinstance(monomial, Mul):
-        # Build up list of indices of each term.
-        indices_list = []
-        for arg in monomial.args:
-            indices_list.extend(_get_monomial_indices(arg))
-    elif isinstance(monomial, Pow):
-        # Get indices of base and duplicate each p times, where p is the
-        # power.
-        base, power = monomial.args
-        indices_list = _get_monomial_indices(base)
-        if indices_list and not isinstance(power, Integer):
-            msg = "Only integral powers are allowed, not: {!s}"
-            raise ValueError(msg.format(power))
-        if indices_list:
-            indices_list *= power
-    elif isinstance(monomial, Indexed):
-        indices_list = list(monomial.indices)
-    elif isinstance(monomial, Add):
-        if monomial.has(Indexed):
-            raise ValueError("Not a monomial: {!s}".format(monomial))
-        indices_list = []
-    else:
-        # Assume everything else has no indices.
-        indices_list = []
-    #indices_list
-    #indices_list.sort(key=default_sort_key)
-    return indices_list
-
-
-
-def _classify_indices(index_list):
-    """Classify indices as inner or outer.
-
-    Helper for _get_index_structure.
-
-    Parameters
-    ==========
-
-    ``index_list`` : ``list``
-        A list of indices appearing in a monomial with repetition.
-
-    Returns
-    =======
-
-    tuple : ``set`` of outer indices, ``set`` of inner indices
-
-    """
-    outer = set()
-    inner = set()
-    index_counts = collections.Counter(index_list)
-    for index in index_counts:
-        if index_counts[index] == 1:
-            outer.add(index)
-        elif index_counts[index] == 2:
-            inner.add(index)
-        else:
-            msg = "> 2 occurrences of index {!s}: {!s}"
-            raise IndexConformanceException(msg.format(index, index_list))
-    return outer, inner
-
-
-def _get_index_structure(expr, einstein_notation):
-    """Return a list of tuples describing a tensor expression."""
-    expr = expand(expr)
-    if isinstance(expr, Add):
-        index_structure = []
-        for arg in expr.args:
-            index_structure.extend(_get_index_structure(arg, einstein_notation))
-
-        # Get outer indices of each term and ensure they're all the same.
-        prev_outer = None
-        for _, outer, inner in index_structure:
-            #print prev_outer, outer, _
-            if prev_outer is not None and outer != prev_outer:
-                msg = "Inconsistent index structure across sum: {!s}"
-                raise IndexConformanceException(msg.format(expr))
-            prev_outer = outer
-
-        return index_structure
-    else:
-        index_list = _get_monomial_indices(expr)
-        if einstein_notation:
-            outer, inner = _classify_indices(index_list)
-        else:
-            outer = set(index_list)
-            inner = set()
-        return [(expr, outer, inner)]
