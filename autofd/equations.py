@@ -49,8 +49,59 @@ class Conservative(Function):
     @property
     def is_commutative(self):
         return False
-    def doit(self,indexed,ndim):
-        print "Implement do it for conservative terms"
+    def IndexedObj(self,ndim, indexed_dict, arrays, newarrname):
+        # Add repeated calling of the derivatives and functions for support of higher orders
+        name = 'Arr_%s%s'
+        indexobj = IndexedBase('Temp')
+        arguments = {}
+        derfn = self.args[0]
+        evaluated, index_struc = evaluate_expression(derfn,arrays,indexed_dict,ndim)
+        #pprint(arrays)
+        arg = self.args[1]
+        #print '\n'
+
+        derivative = eval_dif(evaluated,arrays[indexed_dict[arg]], evaluate=False)
+        print index_struc,'INDEX STRUCV'
+
+        out_indices = index_struc + list(indexed_dict[arg].indices)
+        if out_indices:
+            out_struc = list(get_indices(indexobj[tuple(out_indices)])[0])
+        all_indices = list(indexed_dict[arg].indices) + index_struc
+        #print  all_indices, out_indices
+        if len(all_indices)>0:
+            der_struc = list(get_indices(indexobj[tuple(all_indices)])[0])
+            derivative = apply_contraction_indexed(der_struc,all_indices, derivative)
+            #print(derivative)
+            if der_struc:
+                all_indices =  remove_repeated_index(all_indices)
+                out_indices =   remove_repeated_index(out_indices)
+                print out_indices, all_indices, der_struc
+                if out_indices == der_struc:
+                    #print "PASS"
+                    out_derivative = derivative
+                elif len(der_struc) == 2:
+                    print "IN HERE"
+                    der_struc.reverse()
+                    if out_indices == der_struc:
+                        mat = transpose(derivative.tomatrix()).as_mutable()
+                        mat = MutableDenseNDimArray(mat)
+                        out_derivative = mat
+                    else:
+                        raise ValueError("Index structure is not classified")
+                else:
+                    raise ValueError("Index structure doesnot match for this")
+                indobjname = IndexedBase(newarrname,shape=tuple([ndim for x in out_indices]))[tuple(out_indices)]
+                indexed_dict[self] = indobjname
+                arrays[indobjname] = out_derivative
+            else:
+                indobjname = EinsteinTerm(newarrname)
+                indexed_dict[self] = indobjname
+                arrays[indobjname] = derivative
+        else:
+            indobjname = EinsteinTerm(newarrname)
+            indexed_dict[self] = indobjname
+            arrays[indobjname] = derivative
+        return arrays, indexed_dict
 
 class KD(Function):
     #LOCAL_FUNCTIONS.append('Der')
@@ -128,7 +179,8 @@ def eval_dif(expr, dx, **kwargs):
             if kwargs.pop("evaluate", True):
                 return expr.diff(dx)
             else:
-                return Derivative(expr,dx)
+                new_array = [Derivative(y,dx) for y in expr]
+                return type(expr)(new_array, expr.shape)
     else:
         if isinstance(dx, array_types):
             if kwargs.pop("evaluate", True):
@@ -264,20 +316,22 @@ def evaluate_ADD_expression(terms, index_struc, arrays,ndim):
             add_evaluated = add_evaluated + mat
         else:
             indices = [index for index in term.indices]
-            if indices == index_struc:
-                add_evaluated = add_evaluated + arrays[term]
-            elif term.rank == 2:
-                indices.reverse()
-                if indices == index_struc:
-                    pprint(arrays[term].tomatrix())
-                    mat = transpose(arrays[term].tomatrix()).as_mutable()
-                    print "Transpose"
-                    pprint(mat)
-                    mat = MutableDenseNDimArray(mat)
-                    add_evaluated = add_evaluated + mat
-            else:
-                raise ValueError("Indices of %s in add terms dnot match",term)
-    pprint(add_evaluated.tomatrix())
+            add_evaluated = add_evaluated + arrays[term]
+            # Not required this is handled while evaluating the derivatives and functions
+            #if indices == index_struc:
+                #add_evaluated = add_evaluated + arrays[term]
+            #elif term.rank() == 2:
+                #indices.reverse()
+                #if indices == index_struc:
+                    #pprint(arrays[term].tomatrix())
+                    #mat = transpose(arrays[term].tomatrix()).as_mutable()
+                    #print "Transpose"
+                    #pprint(mat)
+                    #mat = MutableDenseNDimArray(mat)
+                    #add_evaluated = add_evaluated + mat
+            #else:
+                #raise ValueError("Indices of %s in add terms dnot match",term)
+    #pprint(add_evaluated.tomatrix())
     return add_evaluated
 def evaluate_MUL_expression(args,index_struc, arrays):
     #print "IN EVAL MUL"
@@ -358,15 +412,35 @@ def apply_contraction_indexed(outer_indices, tensor_indices, array):
             out_expression = tensorcontraction(out_expression,match)
             tensor_indices = [i for i  in tensor_indices if i !=index]
     return out_expression
+def get_indexed_obj(expression):
+    pot = preorder_traversal(expression)
+    fns = []
+    for p in pot:
+        if p in fns:
+            pot.skip()
+            continue
+        elif isinstance(p, EinsteinTerm):
+            pot.skip()
+            fns.append(p)
+        elif isinstance(p, Function):
+            pot.skip()
+            fns.append(p)
+        else:
+            continue
+    return fns
 def evaluate_expression(expression, arrays, indexed_dict,ndim):
     # Replace the Einstein terms in the expression by their constituent arrays
-    for Et in expression.atoms(EinsteinTerm):
+    indexedobj = get_indexed_obj(expression)
+    pprint(expression)
+    for Et in indexedobj:
         expression = expression.xreplace({Et:indexed_dict[Et]})
+    pprint(expression)
     if expression.is_Mul and not expression.atoms(Add):
         if not isinstance(expression, Indexed):
             values = list(expression.args)
         else:
             values = [expression]
+        #print(_get_indices_Mul(expression, return_dummies=True)); print "IN MUL"
         indices = list(get_indices(expression)[0])
         evaluated, indices = evaluate_MUL_expression(values,indices, arrays)
     elif expression.is_Add and not expression.atoms(Add):
@@ -383,7 +457,7 @@ def evaluate_expression(expression, arrays, indexed_dict,ndim):
         addeval = {}
         if addterms:
             for key, value in addterms.iteritems():
-                if all(isinstance(arg,Indexed) for arg in value):
+                if all(arg.atoms(Indexed) for arg in value):
                     indices = get_indices(key)
                     indices = list(get_indices(key)[0])
                     evaluated = evaluate_ADD_expression(value,indices, arrays, ndim)
@@ -394,7 +468,7 @@ def evaluate_expression(expression, arrays, indexed_dict,ndim):
                         evaluated =evaluated.subs({Et:arrays[Et]})
                     arrays[key] = evaluated
                 else:
-                    raise ValueError("Cannot classify ")
+                    raise ValueError("Cannot classify ", key,value)
         if muladdterms:
             # reconstruct the term
             for key, value in muladdterms.iteritems():
@@ -402,31 +476,73 @@ def evaluate_expression(expression, arrays, indexed_dict,ndim):
                 evaluated,indices = evaluate_MUL_expression(value,indices, arrays)
                 arrays[key] = evaluated
     return evaluated,indices
+def remove_repeated_index(listofind):
+    sum_index = {}
+    for i in listofind:
+        if i in sum_index:
+            sum_index[i] += 1
+        else:
+            sum_index[i] = 0
+    listofind = [x for x in listofind if not sum_index[x]]
+    return listofind
 class Der(Function):
     LOCAL_FUNCTIONS.append('Der')
     @property
     def is_commutative(self):
         return False
-    def IndexedObj(self,ndim, indexed_dict, arrays):
+    def IndexedObj(self,ndim, indexed_dict, arrays, newarrname):
+        # Add repeated calling of the derivatives and functions for support of higher orders
         name = 'Arr_%s%s'
         indexobj = IndexedBase('Temp')
         arguments = {}
         derfn = self.args[0]
         evaluated, index_struc = evaluate_expression(derfn,arrays,indexed_dict,ndim)
+        #pprint(arrays)
         arg = self.args[1]
-        print self
-        derivative = eval_dif(evaluated,arrays[indexed_dict[arg]], evaluate=False)
-        print index_struc
+        print '\n'
+
+        derivative = eval_dif(evaluated,arrays[indexed_dict[arg]], evaluate=True)
+        print index_struc, "INDEX STYRUC"
+        index_struc = index_struc
+        out_indices = index_struc + list(indexed_dict[arg].indices)
+        if out_indices:
+            out_struc = list(get_indices(indexobj[tuple(out_indices)])[0])
         all_indices = list(indexed_dict[arg].indices) + index_struc
-        print all_indices, len(all_indices)
+        #print  all_indices
         if len(all_indices)>0:
             der_struc = list(get_indices(indexobj[tuple(all_indices)])[0])
-            print der_struc
             derivative = apply_contraction_indexed(der_struc,all_indices, derivative)
-        #for arg in self.args[1:]:
-            #derivative = derive_by_array(evaluated,arrays[indexed_dict[arg]])
-            #print derivative.fuc
-        return
+            #print(derivative)
+            if der_struc:
+                all_indices =  remove_repeated_index(all_indices)
+                out_indices =   remove_repeated_index(out_indices)
+                print self, out_indices, all_indices, der_struc
+                if out_indices == der_struc:
+                    #print "PASS"
+                    out_derivative = derivative
+                elif len(der_struc) == 2:
+                    #print "IN HERE"
+                    der_struc.reverse()
+                    if out_indices == der_struc:
+                        mat = transpose(derivative.tomatrix()).as_mutable()
+                        mat = MutableDenseNDimArray(mat)
+                        out_derivative = mat
+                    else:
+                        raise ValueError("Index structure is not classified")
+                else:
+                    raise ValueError("Index structure doesnot match for this")
+                indobjname = IndexedBase(newarrname,shape=tuple([ndim for x in out_indices]))[tuple(out_indices)]
+                indexed_dict[self] = indobjname
+                arrays[indobjname] = out_derivative
+            else:
+                indobjname = EinsteinTerm(newarrname)
+                indexed_dict[self] = indobjname
+                arrays[indobjname] = derivative
+        else:
+            indobjname = EinsteinTerm(newarrname)
+            indexed_dict[self] = indobjname
+            arrays[indobjname] = derivative
+        return arrays, indexed_dict
 
     def applyexp(self,indices,values):
         ''' applies the indices to the Einstein terms'''
@@ -482,6 +598,7 @@ class EinsteinExpansion(object):
                     ndimarrays[Indexed_dict[atom]] = atom.ndimarray(Indexed_dict[atom])
                 else:
                     Indexed_dict[atom] = atom
+                    ndimarrays[Indexed_dict[atom]] = atom
             else:
                 if atom.get_indices() :
                     if atom.get_base() != '':
@@ -494,20 +611,39 @@ class EinsteinExpansion(object):
         for kd in expression.atoms(KD):
             if not kd in Indexed_dict.keys():
                 Indexed_dict[kd] = kd.IndexedObj(self.ndim)
-                ndimarrays[kd] = kd.ndimarray(Indexed_dict[kd])
+                ndimarrays[Indexed_dict[kd]] = kd.ndimarray(Indexed_dict[kd])
         # do the Levicivita function TODO
 
         # Do the Functions that are not nested
+        to_eval = []
         for fn in expression.atoms(Function):
             if not fn.args[0].atoms(Function):
                 if not fn in Indexed_dict.keys():
-                    fn.IndexedObj(self.ndim,Indexed_dict,ndimarrays)
-
-        local_functions = self.get_indexed_obj(expression)
+                    newarrayname = '%s%d'%(self.indexedObject_name,self.indexed_object_no)
+                    self.indexed_object_no = self.indexed_object_no + 1
+                    fn.IndexedObj(self.ndim,Indexed_dict,ndimarrays,newarrayname)
+            else:
+                to_eval.append(fn)
+        # evaluate the nested function
+        for ev in to_eval:
+            print "in_toeval"
+            newarrayname = '%s%d'%(self.indexedObject_name,self.indexed_object_no)
+            self.indexed_object_no = self.indexed_object_no + 1
+            ev.IndexedObj(self.ndim,Indexed_dict,ndimarrays,newarrayname)
+        #now evaluate the RHS of the equation
+        evaluate_expression(expression.rhs, ndimarrays, Indexed_dict,self.ndim)
+        #local_functions = self.get_indexed_obj(expression)
 
         # some useful stuff here
-        pprint(ndimarrays)
-        pprint(Indexed_dict)
+        for key, value in Indexed_dict.iteritems():
+            print '\n'
+            if key.atoms(Function):
+                print key, value
+                print ndimarrays[value],# ndimarrays[value].shape
+                #pprint(ndimarrays[value].tomatrix())
+        #print(ndimarrays)
+
+        #print(to_eval)
         #a1= ndimarrays[Indexed_dict[EinsteinTerm('u_j')]]
         #a2 = ndimarrays[Indexed_dict[EinsteinTerm('x_i')]]
         #a3 = ndimarrays[Indexed_dict[EinsteinTerm('rhou_i')]]
