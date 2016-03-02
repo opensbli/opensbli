@@ -25,12 +25,18 @@ import sympy.functions.special.tensor_functions as tf
 from sympy.tensor.index_methods import _get_indices_Mul, _remove_repeated
 import re
 import sys
-from .array import MutableDenseNDimArray,  derive_by_array, tensorcontraction,tensorproduct
+from .array import MutableDenseNDimArray,  derive_by_array, tensorcontraction,tensorproduct,ImmutableDenseNDimArray
 import inspect
 import sympy.core as core
 from sympy import factorial
 import numpy as np
 import logging
+import collections
+#from sympy import S, Tuple, MatrixBase
+#from sympy import S, Tuple, diff, MatrixBase
+
+#from . import ImmutableDenseNDimArray
+from .array import NDimArray
 LOG = logging.getLogger(__name__)
 
 # Get Sympy Tensor Functions
@@ -51,6 +57,23 @@ class KD(Function):
     @property
     def is_commutative(self):
         return False
+    def IndexedObj(self,ndim):
+        name = str(self.func)
+        if len(self.args) >2:
+            raise ValueError('Kronecker Delta function should have only two indices')
+        ind = flatten([p.get_indices() for p in self.args if p.get_indices])
+        #print flatten(ind), name
+        shape_of_array = tuple([ndim for x in range(len(ind))])
+        indexbase = IndexedBase('%s'%name,shape= shape_of_array)
+        indexarray = indexbase[tuple(ind)]
+        #indexarray.is_commutative=False
+        return indexarray
+    def ndimarray(self, indexarray):
+        array = MutableDenseNDimArray.zeros(*indexarray.shape)
+        for index in np.ndindex(*indexarray.shape):
+            array[index[:]] = KroneckerDelta(*index)
+        return array
+
     def doit(self,indexed,ndim):
 
         array = MutableDenseNDimArray.zeros(*indexed.shape)
@@ -79,35 +102,46 @@ class LeviCivita(Function):
         return array
 
 
-def eval_dif(fn, args, **kwargs):
-    if kwargs.pop("evaluate", True):
-        return diff(fn,*args)
+def eval_dif(expr, dx, **kwargs):
+    #if kwargs.pop("evaluate", True):
+        #return diff(fn,*args)
+    #else:
+        #return Derivative(fn, *args)
+
+    array_types = (collections.Iterable, MatrixBase, NDimArray)
+
+    if isinstance(dx, array_types):
+        dx = MutableDenseNDimArray(dx)
+        for i in dx:
+            if not i._diff_wrt:
+                raise ValueError("cannot derive by this array")
+
+    if isinstance(expr, array_types):
+        expr = MutableDenseNDimArray(expr)
+        if isinstance(dx, array_types):
+            if kwargs.pop("evaluate", True):
+                new_array = [[y.diff(x) for y in expr] for x in dx]
+            else:
+                new_array = [[Derivative(y,x) for y in expr] for x in dx]
+            return type(expr)(new_array, dx.shape + expr.shape)
+        else:
+            if kwargs.pop("evaluate", True):
+                return expr.diff(dx)
+            else:
+                return Derivative(expr,dx)
     else:
-        return Derivative(fn, *args)
+        if isinstance(dx, array_types):
+            if kwargs.pop("evaluate", True):
+                return MutableDenseNDimArray([expr.diff(i) for i in dx], dx.shape)
+            else:
+                return MutableDenseNDimArray([Derivative(expr,i) for i in dx], dx.shape)
+        else:
+            if kwargs.pop("evaluate", True):
+                return diff(expr, dx)
+            else:
+                return Derivative(expr, dx)
 
-class Der(Function):
-    LOCAL_FUNCTIONS.append('Der')
-    @property
-    def is_commutative(self):
-        return False
 
-    def applyexp(self,indices,values):
-        ''' applies the indices to the Einstein terms'''
-        out = self
-        for no,ind in enumerate(indices):
-            for ev in self.atoms(EinsteinTerm):
-                if ev.has_index(ind):
-                    out = out.replace(ev, ev.expand_index('_'+str(ind),values[no]))
-        args = out.args[1:]
-        fn = out.args[0]
-        return eval_dif(fn,args,evaluate=False)
-
-    def doit(self,indexed,ndim):
-        array = MutableDenseNDimArray.zeros(*indexed.shape)
-        for index in np.ndindex(*indexed.shape):
-            array[index[:]] = self.applyexp(indexed.indices,index)
-        #print "in der doit",array, self, indexed.indices
-        return array
 
 
 class EinsteinTerm(Symbol):
@@ -125,10 +159,11 @@ class EinsteinTerm(Symbol):
 
         # Is this a term that is constant in space and time (i.e. doesn't have any indices).
         self.is_constant = False
+        self.is_coordinate = False
 
         # Extract the indices, which are always preceeded by an underscore.
         indices = self.name.split('_')[1:]
-        self.indices = [Symbol(x, integer=True) for x in indices]
+        self.indices = [Idx(x) for x in indices]
         return self
     def Indexed(self,ndim):
         name = self.name.split('_')[0]
@@ -178,8 +213,238 @@ class EinsteinTerm(Symbol):
             return new
         else:
             return EinsteinTerm(updated_symbol)
+    def IndexedObj(self,ndim):
+        name = self.get_base()
+        ind = self.get_indices()
+        if len(ind)>1 :#or self.is_coordinate:
+            shape_of_array = tuple([ndim for x in range(len(ind))])
+        else:
+            ind = [1,self.get_indices()]
+            ind = flatten(ind)
+            shape_of_array = tuple([1,ndim])
+        indexbase = IndexedBase('%s'%name,shape= shape_of_array)
+        indexarray = indexbase[tuple(ind)]
+        #indexarray.is_commutative=False
+        return indexarray
+    def et_expanded(self, indexmaps):
+        newsym = str(self)
+        for ind in indexmaps:
+            newsym = newsym.replace('_%s'%ind[0], str(ind[1]))
+        #print newsym
+        if self.is_constant:
+            new = EinsteinTerm(newsym)
+            new.is_constant = True
+            return new
+        else:
+            return EinsteinTerm(newsym)
+    def ndimarray(self, indexarray, function=None):
+        array = MutableDenseNDimArray.zeros(*indexarray.shape)
+        #print self, indexarray
+        arrayind = indexarray.indices
+        for index in np.ndindex(*indexarray.shape):
+            indexmap = self.map_indices(arrayind,index)
+            val = self.et_expanded(indexmap)
+            if not function:
+                array[index] = val
+            else:
+                array[index] = val(*function)
+        return array
+    def map_indices(self,arrayind,index):
+        maps = []
+        for number,ind in enumerate(arrayind):
+            if isinstance(ind,Idx):
+                maps.append(tuple([ind, index[number]]))
+        return maps
+def evaluate_ADD_expression(terms, index_struc, arrays,ndim):
+    shape = tuple([ndim for i in index_struc])
+    add_evaluated = MutableDenseNDimArray.zeros(*shape)
+    for term in terms:
+        if term.is_Mul:
+            mat, indices = evaluate_MUL_expression(term.args,index_struc,arrays)
+            add_evaluated = add_evaluated + mat
+        else:
+            indices = [index for index in term.indices]
+            if indices == index_struc:
+                add_evaluated = add_evaluated + arrays[term]
+            elif term.rank == 2:
+                indices.reverse()
+                if indices == index_struc:
+                    pprint(arrays[term].tomatrix())
+                    mat = transpose(arrays[term].tomatrix()).as_mutable()
+                    print "Transpose"
+                    pprint(mat)
+                    mat = MutableDenseNDimArray(mat)
+                    add_evaluated = add_evaluated + mat
+            else:
+                raise ValueError("Indices of %s in add terms dnot match",term)
+    pprint(add_evaluated.tomatrix())
+    return add_evaluated
+def evaluate_MUL_expression(args,index_struc, arrays):
+    #print "IN EVAL MUL"
+    out_expression = 1
+    tensorprod_indices = []
+    for arg in args:
+        if arg in arrays.keys():
+            out_expression = tensorproduct(out_expression,arrays[arg])
+            if isinstance(arg,Indexed):
+                tensorprod_indices += [index for index in arg.indices]
+            elif isinstance(arg, Expr):
+                tensorprod_indices += list(get_indices(arg)[0])
+            else:
+                raise ValueError('Unknown mul argument')
+        else:
+            out_expression = tensorproduct(out_expression,arg)
+    # get the contracting indices
+    contracting_indices = set(tensorprod_indices).difference(set(index_struc))
+    if contracting_indices:
+        for index in contracting_indices:
+            match = tuple([i for i, x in enumerate(tensorprod_indices) if x == index])
+            out_expression = tensorcontraction(out_expression,match)
+            tensorprod_indices = [i for i  in tensorprod_indices if i !=index]
+    return  out_expression, tensorprod_indices
+#def do_MUL_ADD(expression, ndim_arrays):
+    #print "IN MUL ADD"#, expression
+    #evaluated = find_index_terms(expression, ndim_arrays)
+    ##pprint("END")
+    #return evaluated
+def find_index_terms(expression,arrays):
+    #print "IN FIND TERMS"
+    #pprint(expression)
+    muladdterms = {}
+    addterms = {}
+    power_terms = {}
+    def _find_terms(expression):
+        if expression.is_Mul:
+            if expression.atoms(Add):
+                muladdterms[expression] = list(expression.args)
+                for arg in expression.args:
+                    _find_terms(arg)
+            else:
+                return expression
+        elif expression.is_Add:
+            terms = []
+            for arg in expression.args:
+                terms.append(_find_terms(arg))
+            addterms[expression] = terms
+        elif isinstance(expression, Indexed):
+            #indexed.append(expression)
+            return expression
+            #print "Indexed"
+        elif isinstance(expression, EinsteinTerm):
+            return expression
+        elif expression.is_Atom:
+            print "ATOM"
+        elif expression.is_Pow or isinstance(expression, exp):
+            base, e = expression.as_base_exp()
+            if not isinstance(e, Integer):
+                raise ValueError('Only integer powers are supported')
+            elif not base.atoms(Indexed):
+                pass
+            else:
+                raise NotImplementedError("Implement find term support for Pow")
+                #terms = _find_terms(base)
+                #powerterms[expression] = terms ** e
+        else:
+            raise ValueError('I cannot classify the expression',expression)
+        return
+    _find_terms(expression)
+    return muladdterms, addterms,power_terms
+def apply_contraction_indexed(outer_indices, tensor_indices, array):
+    contracting_indices = set(tensor_indices).difference(set(outer_indices))
+    out_expression = array
+    if contracting_indices:
+        for index in contracting_indices:
+            match = tuple([i for i, x in enumerate(tensor_indices) if x == index])
+            out_expression = tensorcontraction(out_expression,match)
+            tensor_indices = [i for i  in tensor_indices if i !=index]
+    return out_expression
+def evaluate_expression(expression, arrays, indexed_dict,ndim):
+    # Replace the Einstein terms in the expression by their constituent arrays
+    for Et in expression.atoms(EinsteinTerm):
+        expression = expression.xreplace({Et:indexed_dict[Et]})
+    if expression.is_Mul and not expression.atoms(Add):
+        if not isinstance(expression, Indexed):
+            values = list(expression.args)
+        else:
+            values = [expression]
+        indices = list(get_indices(expression)[0])
+        evaluated, indices = evaluate_MUL_expression(values,indices, arrays)
+    elif expression.is_Add and not expression.atoms(Add):
+        print expression, "ADD"
+        sys.exit()
+    elif isinstance(expression, Indexed):
+        evaluated = arrays[expression]
+        indices = list(get_indices(expression)[0])
+    elif isinstance(expression, EinsteinTerm):
+        evaluated = arrays[expression]
+        indices= list(get_indices(expression)[0])
+    else:
+        muladdterms,addterms,power_terms = find_index_terms(expression,arrays)
+        addeval = {}
+        if addterms:
+            for key, value in addterms.iteritems():
+                if all(isinstance(arg,Indexed) for arg in value):
+                    indices = get_indices(key)
+                    indices = list(get_indices(key)[0])
+                    evaluated = evaluate_ADD_expression(value,indices, arrays, ndim)
+                    arrays[key] = evaluated
+                elif all(isinstance(arg,EinsteinTerm) for arg in value):
+                    evaluated = key
+                    for Et in key.atoms(EinsteinTerm):
+                        evaluated =evaluated.subs({Et:arrays[Et]})
+                    arrays[key] = evaluated
+                else:
+                    raise ValueError("Cannot classify ")
+        if muladdterms:
+            # reconstruct the term
+            for key, value in muladdterms.iteritems():
+                indices = list(get_indices(key)[0])
+                evaluated,indices = evaluate_MUL_expression(value,indices, arrays)
+                arrays[key] = evaluated
+    return evaluated,indices
+class Der(Function):
+    LOCAL_FUNCTIONS.append('Der')
+    @property
+    def is_commutative(self):
+        return False
+    def IndexedObj(self,ndim, indexed_dict, arrays):
+        name = 'Arr_%s%s'
+        indexobj = IndexedBase('Temp')
+        arguments = {}
+        derfn = self.args[0]
+        evaluated, index_struc = evaluate_expression(derfn,arrays,indexed_dict,ndim)
+        arg = self.args[1]
+        print self
+        derivative = eval_dif(evaluated,arrays[indexed_dict[arg]], evaluate=False)
+        print index_struc
+        all_indices = list(indexed_dict[arg].indices) + index_struc
+        print all_indices, len(all_indices)
+        if len(all_indices)>0:
+            der_struc = list(get_indices(indexobj[tuple(all_indices)])[0])
+            print der_struc
+            derivative = apply_contraction_indexed(der_struc,all_indices, derivative)
+        #for arg in self.args[1:]:
+            #derivative = derive_by_array(evaluated,arrays[indexed_dict[arg]])
+            #print derivative.fuc
+        return
 
-#class IndexedBase(Indexed)
+    def applyexp(self,indices,values):
+        ''' applies the indices to the Einstein terms'''
+        out = self
+        for no,ind in enumerate(indices):
+            for ev in self.atoms(EinsteinTerm):
+                if ev.has_index(ind):
+                    out = out.replace(ev, ev.expand_index('_'+str(ind),values[no]))
+        args = out.args[1:]
+        fn = out.args[0]
+        return eval_dif(fn,args,evaluate=False)
+
+    def doit(self,indexed,ndim):
+        array = MutableDenseNDimArray.zeros(*indexed.shape)
+        for index in np.ndindex(*indexed.shape):
+            array[index[:]] = self.applyexp(indexed.indices,index)
+        #print "in der doit",array, self, indexed.indices
+        return array
 
 class EinsteinExpansion(object):
 
@@ -192,20 +457,97 @@ class EinsteinExpansion(object):
         self.expanded = []
 
         self.is_equality = isinstance(expression, Equality)
-        local_functions = self.get_indexed_obj(expression)
-        self.dictionary = {}
+        Indexed_dict = {}
         self.indexed_object_no = 0
         self.indexedObject_name = 'Arr'
-        for ind,fn in enumerate(local_functions):
-            dictionary = {}
-            if len(fn.atoms(Function)) == 1:
-                temp,dictionary = self.funtion_to_indexed(fn,dictionary)
-                #self.expression_indexed = self.expression_indexed.xreplace({fn:temp})
-                self.update_dictionary(dictionary)
+        ndimarrays = {}
+        # update the coordinate ndimarrays:
+        #coodinates =
+        for atom in expression.atoms(EinsteinTerm):
+            if atom.is_coordinate:
+                if atom.get_indices():
+                    indict = atom.IndexedObj(self.ndim)
+                    arra = atom.ndimarray(indict)
+                    coordinates = flatten(arra.tolist())
+        # time derivative adding here need to send it out of this
+        coordinates = tuple(flatten([coordinates + [EinsteinTerm('t')]]))
+        ndimarrays[EinsteinTerm('t')] = EinsteinTerm('t')
+        # get the ndim arrays for the Einstein Terms in the equations (u_i,u_j,x_j,x_i) and so on..
+        # All the Einstein Terms that are not constants are converted into coordinate functions
+        # May be change them later into coordinate indexed objects
+        for atom in expression.atoms(EinsteinTerm):
+            if atom.is_constant:
+                if atom.get_indices():
+                    Indexed_dict[atom] = atom.IndexedObj(self.ndim)
+                    ndimarrays[Indexed_dict[atom]] = atom.ndimarray(Indexed_dict[atom])
+                else:
+                    Indexed_dict[atom] = atom
             else:
-                temp,dictionary = self.nested_function_to_indexed(fn,dictionary)
-                #self.expression_indexed = self.expression_indexed.xreplace({fn:temp})
-                self.update_dictionary(dictionary)
+                if atom.get_indices() :
+                    if atom.get_base() != '':
+                        Indexed_dict[atom] = atom.IndexedObj(self.ndim)
+                        ndimarrays[Indexed_dict[atom]] = atom.ndimarray(Indexed_dict[atom], coordinates)
+                else:
+                    Indexed_dict[atom] = atom
+                    ndimarrays[Indexed_dict[atom]] = atom(*coordinates)
+        # get the Ndim arrays for the Kronecker Delta and Levicivta functions
+        for kd in expression.atoms(KD):
+            if not kd in Indexed_dict.keys():
+                Indexed_dict[kd] = kd.IndexedObj(self.ndim)
+                ndimarrays[kd] = kd.ndimarray(Indexed_dict[kd])
+        # do the Levicivita function TODO
+
+        # Do the Functions that are not nested
+        for fn in expression.atoms(Function):
+            if not fn.args[0].atoms(Function):
+                if not fn in Indexed_dict.keys():
+                    fn.IndexedObj(self.ndim,Indexed_dict,ndimarrays)
+
+        local_functions = self.get_indexed_obj(expression)
+
+        # some useful stuff here
+        pprint(ndimarrays)
+        pprint(Indexed_dict)
+        #a1= ndimarrays[Indexed_dict[EinsteinTerm('u_j')]]
+        #a2 = ndimarrays[Indexed_dict[EinsteinTerm('x_i')]]
+        #a3 = ndimarrays[Indexed_dict[EinsteinTerm('rhou_i')]]
+        #io1 = Indexed_dict[EinsteinTerm('u_j')]
+        #io2 = Indexed_dict[EinsteinTerm('rhou_i')]
+        #tp = tensorproduct(a3,a1)
+        #ip = io2*io1
+        ##pprint(tp)
+        #print '\n\n'
+        #print tp.shape, ip, get_indices(ip), get_contraction_structure(ip)
+        #tp = tp.reshape(2,2)
+        #print tp.shape
+        ##pprint(tp.tomatrix())
+        #tem = derive_by_array(tp,a2)
+        #print tem.shape
+        ##tem = tem.reshape(2,2,2)
+        ##tem = tensorcontraction(tem,(0,2))
+        ##for index in np.ndindex(*tem.shape):
+            ##pprint(tem[index])
+            ##pprint(index)
+        ##print tem.shape
+        ##pprint(tem[0])
+        #temp2 = derive_by_array(a1,a2)
+        #temp2 = temp2.reshape(2,2)
+        #print temp2.shape
+        #for index in np.ndindex(*temp2.shape):
+            #pprint(temp2[index])
+            #pprint(index)
+
+        #for ind,fn in enumerate(local_functions):
+            ##dictionary = {}
+            #if len(fn.atoms(Function)) == 1:
+                #print fn
+                #temp,dictionary = self.funtion_to_indexed(fn,dictionary)
+                ##self.expression_indexed = self.expression_indexed.xreplace({fn:temp})
+                #self.update_dictionary(dictionary)
+            #else:
+                #temp,dictionary = self.nested_function_to_indexed(fn,dictionary)
+                ##self.expression_indexed = self.expression_indexed.xreplace({fn:temp})
+                #self.update_dictionary(dictionary)
         print "Final expression is", self.expression_indexed
 
     def get_new_indexedBase(self,shape):
@@ -214,6 +556,7 @@ class EinsteinExpansion(object):
         new_Base.is_commutative = False
         self.indexed_object_no = self.indexed_object_no +1
         return new_Base
+
     def get_indexed_obj(self,eq):
         pot = preorder_traversal(eq)
         fns = []
@@ -321,20 +664,16 @@ class EinsteinExpansion(object):
                     indices = get_indices(key)
                     indices = list(get_indices(key)[0])
                     evaluated = self.evaluate_ADD_expression(value,indices, arrays)
-                    #addterms[key] = evaluated
                     arrays[key] = evaluated
-                    #print arrays[key]
             if muladdterms:
                 # reconstruct the term
                 for key, value in muladdterms.iteritems():
                     indices = list(get_indices(key)[0])
                     evaluated = self.evaluate_MUL_expression(value,indices, arrays)
-                pprint(evaluated.tomatrix())
+                    arrays[key] = evaluated
+                pprint(evaluated)
                 print evaluated.shape
                 print "MULADD"
-
-
-
         return
     def evaluate_ADD_expression(self,terms, index_struc, arrays):
         print "inADD EVAL"
@@ -342,14 +681,11 @@ class EinsteinExpansion(object):
         add_evaluated = MutableDenseNDimArray.zeros(*shape)
         for term in terms:
             if term.is_Mul:
-                #index_structure = self.index_structure(term)
                 mat = self.evaluate_MUL_expression(term.args,index_struc,arrays)
                 add_evaluated = add_evaluated + mat
             else:
                 indices = [index for index in term.indices]
                 if indices == index_struc:
-                    #print "MATCH"
-                    #print(arrays[term])
                     add_evaluated = add_evaluated + arrays[term]
                 elif term.rank == 2:
                     indices.reverse()
@@ -370,18 +706,15 @@ class EinsteinExpansion(object):
         tensorprod_indices = []
         for arg in args:
             if arg in arrays.keys():
-                #print arrays[arg], arg
                 out_expression = tensorproduct(out_expression,arrays[arg])
                 if isinstance(arg,Indexed):
                     tensorprod_indices += [index for index in arg.indices]
                 elif isinstance(arg, Expr):
-                    #print get_indices(arg)[0]
                     tensorprod_indices += list(get_indices(arg)[0])
                 else:
                     raise ValueError('Unknown mul argument')
             else:
                 out_expression = tensorproduct(out_expression,arg)
-        #print tensorprod_indices
         # get the contracting indices
         contracting_indices = set(tensorprod_indices).difference(set(index_struc))
         if contracting_indices:
@@ -417,10 +750,7 @@ class EinsteinExpansion(object):
                     temp =  fn.func.doit(fn,value1,self.ndim)
                     ndim_arrays[value1] =  temp
         self.find_index_terms(expression, ndim_arrays)
-        #facs, decomp = self.decompose_args(expression)
-
         pprint("END")
-
         return
 
     def nested_function_to_indexed(self,fn,dictionary):
@@ -428,23 +758,11 @@ class EinsteinExpansion(object):
         arg1 = fn.args[0]
         old_arg = arg1
         print "Nestedfn is  :: ", fn
-        #pprint(fn.args)
         for arg in fn.args[:-1]:
             allfns = self.get_indexed_obj(arg)
-            #pprint(allfns)
             for ind,fn1 in enumerate(allfns):
-                #pprint(fn1)
                 temp, arg_dict = self.funtion_to_indexed(fn1,arg_dict)
-                #arg1 = arg1.xreplace({fn1:temp})
-        pprint(arg1)
-        #print "ARG_DICT", arg_dict
         old_arg = arg1
-        #for key,value in arg_dict.iteritems():
-            #if not isinstance(value, EinsteinTerm):
-                #arg1 = arg1.xreplace({value:key})
-        #for key,value in arg_dict.iteritems():
-            #if isinstance(value, EinsteinTerm):
-                #arg1 = arg1.xreplace({value:key})
         indes = list(get_indices(arg1))
         index = list(indes[0])
         u = self.get_new_indexedBase(tuple(index))
@@ -475,7 +793,7 @@ class Equation(object):
 
     """ Describes an equation we want to solve. """
 
-    def __init__(self, expression, ndim, substitutions = [], constants = []):
+    def __init__(self, expression, ndim, coordinate_symbol, substitutions = [], constants = []):
         """ Set up an equation, written in Einstein notation, and expand the indices.
 
         :arg str equation: An equation, written in Einstein notation, and specified in string form.
@@ -498,6 +816,9 @@ class Equation(object):
         for term in self.parsed.atoms(EinsteinTerm):
             if any(constant == str(term) for constant in constants):
                 term.is_constant = True
+            elif term.get_base() == coordinate_symbol or term.get_base() == "t":
+                term.is_constant = True
+                term.is_coordinate = True
 
 
         # Expand Einstein terms/indices

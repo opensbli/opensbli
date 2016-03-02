@@ -49,7 +49,7 @@ class Problem(object):
         start = time.time()
         expanded_equations = []
         for e in self.equations:
-            expanded_equations.append(Equation(e, self.ndim, self.substitutions, self.constants))
+            expanded_equations.append(Equation(e, self.ndim,self.coordinate_symbol, self.substitutions, self.constants))
         expanded_formulas = []
         for f in self.formulas:
             expanded_formulas.append(Equation(f, self.ndim, self.substitutions, self.constants))
