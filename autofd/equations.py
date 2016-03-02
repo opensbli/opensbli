@@ -75,7 +75,7 @@ class Conservative(Function):
             if der_struc:
                 all_indices =  remove_repeated_index(all_indices)
                 out_indices =   remove_repeated_index(out_indices)
-                print out_indices, all_indices, der_struc
+                print out_indices, all_indices, der_struc, out_struc
                 if out_indices == der_struc:
                     #print "PASS"
                     out_derivative = derivative
@@ -268,7 +268,7 @@ class EinsteinTerm(Symbol):
     def IndexedObj(self,ndim):
         name = self.get_base()
         ind = self.get_indices()
-        if len(ind)>1 :#or self.is_coordinate:
+        if len(ind)>0 :#or self.is_coordinate:
             shape_of_array = tuple([ndim for x in range(len(ind))])
         else:
             ind = [1,self.get_indices()]
@@ -308,8 +308,13 @@ class EinsteinTerm(Symbol):
                 maps.append(tuple([ind, index[number]]))
         return maps
 def evaluate_ADD_expression(terms, index_struc, arrays,ndim):
-    shape = tuple([ndim for i in index_struc])
-    add_evaluated = MutableDenseNDimArray.zeros(*shape)
+    if len(index_struc)>0:
+        print "in", len(index_struc)
+        shape = tuple([ndim for i in index_struc])
+        add_evaluated = MutableDenseNDimArray.zeros(*shape)
+    else:
+        add_evaluated = 0
+
     for term in terms:
         if term.is_Mul:
             mat, indices = evaluate_MUL_expression(term.args,index_struc,arrays)
@@ -349,12 +354,15 @@ def evaluate_MUL_expression(args,index_struc, arrays):
         else:
             out_expression = tensorproduct(out_expression,arg)
     # get the contracting indices
-    contracting_indices = set(tensorprod_indices).difference(set(index_struc))
-    if contracting_indices:
-        for index in contracting_indices:
-            match = tuple([i for i, x in enumerate(tensorprod_indices) if x == index])
-            out_expression = tensorcontraction(out_expression,match)
-            tensorprod_indices = [i for i  in tensorprod_indices if i !=index]
+    print out_expression
+    print tensorprod_indices, index_struc
+    if tensorprod_indices:
+        contracting_indices = set(tensorprod_indices).difference(set(index_struc))
+        if contracting_indices:
+            for index in contracting_indices:
+                match = tuple([i for i, x in enumerate(tensorprod_indices) if x == index])
+                out_expression = tensorcontraction(out_expression,match)
+                tensorprod_indices = [i for i  in tensorprod_indices if i !=index]
     return  out_expression, tensorprod_indices
 #def do_MUL_ADD(expression, ndim_arrays):
     #print "IN MUL ADD"#, expression
@@ -414,23 +422,26 @@ def apply_contraction_indexed(outer_indices, tensor_indices, array):
     return out_expression
 def get_indexed_obj(expression):
     pot = preorder_traversal(expression)
-    fns = []
+    ETs = []
+    Fns = []
     for p in pot:
-        if p in fns:
+        if p in ETs+Fns:
             pot.skip()
             continue
         elif isinstance(p, EinsteinTerm):
             pot.skip()
-            fns.append(p)
+            ETs.append(p)
         elif isinstance(p, Function):
             pot.skip()
-            fns.append(p)
+            Fns.append(p)
         else:
             continue
-    return fns
+    return Fns+ETs
 def evaluate_expression(expression, arrays, indexed_dict,ndim):
     # Replace the Einstein terms in the expression by their constituent arrays
     indexedobj = get_indexed_obj(expression)
+    print "In evaluate"
+    print indexedobj
     pprint(expression)
     for Et in indexedobj:
         expression = expression.xreplace({Et:indexed_dict[Et]})
@@ -443,9 +454,13 @@ def evaluate_expression(expression, arrays, indexed_dict,ndim):
         #print(_get_indices_Mul(expression, return_dummies=True)); print "IN MUL"
         indices = list(get_indices(expression)[0])
         evaluated, indices = evaluate_MUL_expression(values,indices, arrays)
-    elif expression.is_Add and not expression.atoms(Add):
+    elif expression.is_Add:
         print expression, "ADD"
-        sys.exit()
+        print expression.atoms(Mul)
+        print "EXITINF"
+        indices = list(get_indices(expression)[0])
+        print indices, expression.args
+        evaluated = evaluate_ADD_expression(expression.args,indices, arrays,ndim)
     elif isinstance(expression, Indexed):
         evaluated = arrays[expression]
         indices = list(get_indices(expression)[0])
@@ -457,18 +472,19 @@ def evaluate_expression(expression, arrays, indexed_dict,ndim):
         addeval = {}
         if addterms:
             for key, value in addterms.iteritems():
-                if all(arg.atoms(Indexed) for arg in value):
+                #if all(arg.atoms(Indexed) for arg in value):
                     indices = get_indices(key)
                     indices = list(get_indices(key)[0])
                     evaluated = evaluate_ADD_expression(value,indices, arrays, ndim)
                     arrays[key] = evaluated
-                elif all(isinstance(arg,EinsteinTerm) for arg in value):
-                    evaluated = key
-                    for Et in key.atoms(EinsteinTerm):
-                        evaluated =evaluated.subs({Et:arrays[Et]})
-                    arrays[key] = evaluated
-                else:
-                    raise ValueError("Cannot classify ", key,value)
+                #elif all(arg.atoms(EinsteinTerm) for arg in value):
+                    #indices = []
+                    #evaluated = key
+                    #for Et in key.atoms(EinsteinTerm):
+                        #evaluated =evaluated.subs({Et:arrays[Et]})
+                    #arrays[key] = evaluated
+                #else:
+                    #raise ValueError("Cannot classify ", key,value)
         if muladdterms:
             # reconstruct the term
             for key, value in muladdterms.iteritems():
@@ -516,7 +532,7 @@ class Der(Function):
             if der_struc:
                 all_indices =  remove_repeated_index(all_indices)
                 out_indices =   remove_repeated_index(out_indices)
-                print self, out_indices, all_indices, der_struc
+                print self, out_indices, all_indices, der_struc, out_struc
                 if out_indices == der_struc:
                     #print "PASS"
                     out_derivative = derivative
@@ -636,11 +652,9 @@ class EinsteinExpansion(object):
 
         # some useful stuff here
         for key, value in Indexed_dict.iteritems():
-            print '\n'
-            if key.atoms(Function):
-                print key, value
-                print ndimarrays[value],# ndimarrays[value].shape
-                #pprint(ndimarrays[value].tomatrix())
+            print key, value
+            arr= ndimarrays[value]# ndimarrays[value].shape
+            pprint(ndimarrays[value])
         #print(ndimarrays)
 
         #print(to_eval)
