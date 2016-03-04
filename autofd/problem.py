@@ -52,7 +52,7 @@ class Problem(object):
             expanded_equations.append(Equation(e, self.ndim,self.coordinate_symbol, self.substitutions, self.constants))
         expanded_formulas = []
         for f in self.formulas:
-            expanded_formulas.append(Equation(f, self.ndim, self.substitutions, self.constants))
+            expanded_formulas.append(Equation(f, self.ndim, self.coordinate_symbol, self.substitutions, self.constants))
         end = time.time()
 
         LOG.debug('The time taken for tensor expansion of equations in %d Dimensions is %.2f seconds.' % (self.ndim, end - start))

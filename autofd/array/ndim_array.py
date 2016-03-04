@@ -329,7 +329,11 @@ class NDimArray(object):
 
     def __rdiv__(self, other):
         raise NotImplementedError('unsupported operation on NDimArray')
-
+    def __pow__(self,other):
+        if isinstance(other, (collections.Iterable,NDimArray, Matrix)):
+            raise ValueError("Integer or rational expected for power")
+        result_list = [i**other for i in self]
+        return type(self)(result_list, self.shape)
     def __eq__(self, other):
         """
         NDimArray instances can be compared to each other.
