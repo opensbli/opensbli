@@ -33,15 +33,10 @@ from sympy import factorial
 import numpy as np
 import logging
 import collections
-#from sympy import S, Tuple, MatrixBase
-#from sympy import S, Tuple, diff, MatrixBase
-
-#from . import ImmutableDenseNDimArray
 from .array import NDimArray
+
 LOG = logging.getLogger(__name__)
 
-# Get Sympy Tensor Functions
-#SYMPY_FUNCTIONS = [str(m[0]) for m in inspect.getmembers(tf, inspect.isclass) if m[1].__module__ == tf.__name__]
 LOCAL_FUNCTIONS = []
 
 
@@ -54,7 +49,6 @@ class Conservative(Function):
         # Add repeated calling of the derivatives and functions for support of higher orders
         arguments = {}
         derfn = self.args[0]
-
         indexobj = IndexedBase('%s'%derfn)
         evaluated, index_struc = evaluate_expression(derfn,arrays,indexed_dict,ndim)
         if not index_struc == None:
@@ -83,11 +77,10 @@ class Conservative(Function):
             derivative = apply_contraction_indexed(outer_indices,der_struct, derivative)
         if outer_indices:
             newouter = [out for out in outer_indices if out!=1]
-            if newouter ==outer_indices:
+            if newouter == outer_indices:
                 indobjname = IndexedBase(newarrname,shape=tuple([ndim for x in outer_indices]))[tuple(outer_indices)]
-            elif len(newouter) == 1:
-                indobjname = IndexedBase(newarrname,shape=tuple([1,ndim]))[tuple(outer_indices)]
-                derivative = derivative.reshape(1,ndim)
+            else:
+                raise ValueError("Indices doesnot match")
             indobjname.is_commutative = False
             indexed_dict[self] = indobjname
             arrays[indobjname] = derivative
@@ -107,8 +100,6 @@ class Conservative(Function):
                 derdire += [arrays[fn][indexmap[fn]]]
             else:
                 derdire += [arrays[fn]]
-
-        #derdire = [arrays[fns[i+1]][indexmap[fns[i+1]]] for i,val in enumerate(fns[1:])]
         derivative = Derivative(derfn, *derdire)
         return derivative
     def split_ind(self,index,arrays):
@@ -194,7 +185,7 @@ class EinsteinTerm(Symbol):
     def IndexedObj(self,ndim):
         name = self.get_base()
         ind = self.get_indices()
-        if len(ind)>1 :
+        if len(ind)>0 :
             shape_of_array = tuple([ndim for x in range(len(ind))])
         else:
             ind = [1,self.get_indices()]
@@ -223,8 +214,6 @@ class EinsteinTerm(Symbol):
             if not function:
                 array[index] = val
             else:
-                #array[index] = Function('%s'%val)(*function)
-                # CHange here for Function or Indexed Base
                 array[index] = IndexedBase('%s'%val)[function]
         return array
     def map_indices(self,arrayind,index):
@@ -254,12 +243,9 @@ def get_index_structure(term):
     return
 def get_Mul_indices(term):
     inds = list(map(get_index_structure, term.args))
-    print "MUL indices", inds
     inds = [ind for ind in inds if ind!=None]
     fin_ind = remove_repeated_index(flatten(inds))
     if fin_ind:
-        print fin_ind
-        print "IN MUL   "
         return fin_ind
     else:
         return None
@@ -267,7 +253,6 @@ def get_Add_indices(term):
     """ For additive terms, the indices of the first term is taken as the structure of the additive terms
     """
     inds = list(map(get_index_structure, term.args))
-    print(inds)
     if all(ind==None for ind in inds):
         pass
     elif not all([set(x) == set(inds[0]) for x in inds[1:]]):
@@ -293,13 +278,10 @@ def get_Pow_indices(term):
     return
 def evaluate_Pow_expression(term, arrays, index_struc):
     base, e = term.as_base_exp()
-    print "BASE", base, type(base)
-    print "EXPONENT", e, type(e)
     if e.atoms(Indexed):
         raise ValueError('No indexed objects in exponents  are supported ::', term)
     else:
         evaluated, indices = evaluate_Indexed_expression(base, arrays, index_struc)
-        print "EVALUATED", evaluated
         if indices!=None:
             if e == 2:
                 evaluated = evaluated**e
@@ -309,24 +291,17 @@ def evaluate_Pow_expression(term, arrays, index_struc):
             else:
                 raise NotImplementedError("Only Indexed objects to the power 2 are supported")
         else:
-            #print evaluated, "POW", type(evaluated)
             evaluated = Pow((evaluated),(e), evaluate=False)
-            #print evaluated, type(evaluated)
-            #print srepr(evaluated)
     return evaluated,indices
 
 
 def evaluate_ADD_expression(term, arrays,index_struc):
     arg_evals = []
     arg_indices = []
-    #print "ADD"
-    #print "\n"
     for arg in term.args:
-        #print "ARG", arg , srepr(arg)
         argeval, arg_index = evaluate_Indexed_expression(arg, arrays, index_struc)
         arg_evals.append(argeval)
         arg_indices.append(arg_index)
-        print arg_index
     add_evaluated, indices = add_args(arg_evals,arg_indices)
     return add_evaluated, indices
 def add_args(arg_evals,arg_indices):
@@ -339,8 +314,6 @@ def add_args(arg_evals,arg_indices):
             evaluated = evaluated+ arg
         return evaluated, arg_indices[0]
     array_types = (collections.Iterable, MatrixBase, NDimArray)
-    print "ADFD"
-    print arg_evals
     for number,ind in enumerate(arg_indices):
         if number == 0:
             leading_ind = ind
@@ -405,22 +378,10 @@ def get_indexed_obj(expression):
 
 def evaluate_expression(expression, arrays, indexed_dict,ndim):
     indexedobj = get_indexed_obj(expression)
-    print '\n'
-    print "IN EVALUATE"
-    print "INPUT is"
-    print expression
-    #print arrays
     for Et in indexedobj:
         expression = expression.xreplace({Et:indexed_dict[Et]})
-    print "INDEXED IS"
-    print expression
     index_struc = get_index_structure(expression)
-    print "STRUCTURE is"
-    print index_struc
     evaluated, indices = evaluate_Indexed_expression(expression, arrays, index_struc)
-    print "Evaluated is"
-    print evaluated
-    print '\n'
     return evaluated,indices
 def evaluate_Indexed_expression(expression, arrays, index_struc):
     # Replace the Einstein terms in the expression by their constituent arrays
@@ -428,14 +389,12 @@ def evaluate_Indexed_expression(expression, arrays, index_struc):
         return evaluate_MUL_expression(expression, arrays, index_struc)
     elif expression.is_Add:
         return evaluate_ADD_expression(expression, arrays, index_struc)
-        #print evaluated, "ADD"
     elif isinstance(expression, Indexed):
         expindices = list(expression.indices)
         struc = remove_repeated_index(expindices)
         evaluated = apply_contraction_indexed(struc,expindices,arrays[expression])
         return evaluated, struc
     elif isinstance(expression, EinsteinTerm):
-        #print arrays[expression], "IN EVALUATE INDEXED", srepr(arrays[expression])
         return arrays[expression],  None
     elif isinstance(expression,Pow):
         return evaluate_Pow_expression(expression, arrays, index_struc)
@@ -462,7 +421,6 @@ class Der(Function):
         return False
     def IndexedObj(self,ndim, indexed_dict, arrays, newarrname):
         # Add repeated calling of the derivatives and functions for support of higher orders
-        indexobj = IndexedBase('Temp')
         derfn = self.args[0]
         indexobj = IndexedBase('%s'%derfn)
         evaluated, index_struc = evaluate_expression(derfn,arrays,indexed_dict,ndim)
@@ -496,11 +454,10 @@ class Der(Function):
 
         if outer_indices:
             newouter = [out for out in outer_indices if out!=1]
-            if newouter ==outer_indices:
+            if newouter == outer_indices:
                 indobjname = IndexedBase(newarrname,shape=tuple([ndim for x in outer_indices]))[tuple(outer_indices)]
-            elif len(newouter) == 1:
-                indobjname = IndexedBase(newarrname,shape=tuple([1,ndim]))[tuple(outer_indices)]
-                derivative = derivative.reshape(1,ndim)
+            else:
+                raise ValueError("index exception")
             indobjname.is_commutative = False
             indexed_dict[self] = indobjname
             arrays[indobjname] = derivative
@@ -559,10 +516,7 @@ class EinsteinExpansion(object):
                     coordinates = flatten(arra.tolist())
         # time derivative adding here need to send it out of this
         if coord:
-            #print coord
             coordinates = tuple(flatten([coordinates + [EinsteinTerm('t')]]))
-            #Indexed_dict[EinsteinTerm('t')] = EinsteinTerm('t')
-            #ndimarrays[EinsteinTerm('t')] = EinsteinTerm('t')
         else:
             coordinates = tuple([EinsteinTerm('x0'), EinsteinTerm('x1'),EinsteinTerm('x2'),EinsteinTerm('t')])
         # get the ndim arrays for the Einstein Terms in the equations (u_i,u_j,x_j,x_i) and so on..
@@ -607,33 +561,18 @@ class EinsteinExpansion(object):
                 to_eval.append(fn)
         # evaluate the nested function
         for ev in to_eval:
-            #print "in_toeval"
             newarrayname = '%s%d'%(self.indexedObject_name,self.indexed_object_no)
             self.indexed_object_no = self.indexed_object_no + 1
             ev.IndexedObj(self.ndim,Indexed_dict,ndimarrays,newarrayname)
         #now evaluate the RHS of the equation
-        print "FINAL"
         evaluated_rhs, rhs_ind = evaluate_expression(expression.rhs, ndimarrays, Indexed_dict,self.ndim)
         evaluated_lhs, lhs_ind = evaluate_expression(expression.lhs, ndimarrays, Indexed_dict,self.ndim)
-        newarrayname = 'ALLLHS'
         array_types = (collections.Iterable, MatrixBase, NDimArray)
-        finalequation = []
-        #pprint(evaluated_rhs)
         if isinstance(evaluated_lhs, array_types):
-            print lhs_ind, rhs_ind
             for ind in np.ndindex(evaluated_lhs.shape):
                 self.expanded += [Eq(evaluated_lhs[ind], evaluated_rhs[ind])]
-                pprint(Eq(evaluated_lhs[ind], evaluated_rhs[ind]))
-                pprint(evaluated_lhs[ind])
-                pprint(evaluated_rhs[ind])
         else:
-            #pprint(evaluated_lhs)
-            #pprint(evaluated_rhs)
             self.expanded += [Eq(evaluated_lhs, evaluated_rhs)]
-            pprint(Eq(evaluated_lhs, evaluated_rhs))
-            #print srepr(evaluated_rhs)
-
-        print "Final expression is", self.expanded
         return
 
 
@@ -669,19 +608,11 @@ class Equation(object):
                 term.is_constant = True
                 term.is_coordinate = True
 
-
         # Expand Einstein terms/indices
-
         expansion = EinsteinExpansion(self.parsed, ndim)
         self.expanded = expansion.expanded
         LOG.debug("The expanded expression is: %s" % (expansion.expanded))
-        # comment out applying formulation
-        #if isinstance(expansion.expanded, list):
-            #for equation in expansion.expanded:
-                #self.expanded.append(self.apply_formulations(equation))
-        #else:
-            #self.expanded.append(self.apply_formulations(expansion.expanded))
-
+       
         return
 
 
