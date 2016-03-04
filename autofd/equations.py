@@ -223,7 +223,9 @@ class EinsteinTerm(Symbol):
             if not function:
                 array[index] = val
             else:
-                array[index] = Function('%s'%val)(*function)
+                #array[index] = Function('%s'%val)(*function)
+                # CHange here for Function or Indexed Base
+                array[index] = IndexedBase('%s'%val)[function]
         return array
     def map_indices(self,arrayind,index):
         maps = []
@@ -303,6 +305,7 @@ def evaluate_Pow_expression(term, arrays, index_struc):
                 evaluated = evaluated**e
                 tensor_indices = indices
                 evaluated = apply_contraction_indexed([], tensor_indices, evaluated)
+                indices = []
             else:
                 raise NotImplementedError("Only Indexed objects to the power 2 are supported")
         else:
@@ -580,7 +583,8 @@ class EinsteinExpansion(object):
                         ndimarrays[Indexed_dict[atom]] = atom.ndimarray(Indexed_dict[atom], coordinates)
                 else:
                     Indexed_dict[atom] = atom
-                    ndimarrays[Indexed_dict[atom]] = atom(*coordinates)
+                    # CHange here for Function or Indexed Base
+                    ndimarrays[Indexed_dict[atom]] = IndexedBase('%s'%atom)[coordinates]
 
         # get the Ndim arrays for the Kronecker Delta
         for kd in expression.atoms(KD):
@@ -620,8 +624,8 @@ class EinsteinExpansion(object):
             for ind in np.ndindex(evaluated_lhs.shape):
                 self.expanded += [Eq(evaluated_lhs[ind], evaluated_rhs[ind])]
                 pprint(Eq(evaluated_lhs[ind], evaluated_rhs[ind]))
-                #pprint(evaluated_lhs[ind])
-                #pprint(evaluated_rhs[ind])
+                pprint(evaluated_lhs[ind])
+                pprint(evaluated_rhs[ind])
         else:
             #pprint(evaluated_lhs)
             #pprint(evaluated_rhs)
