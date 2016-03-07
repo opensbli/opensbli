@@ -32,10 +32,90 @@ from .codegen_utils import *
 from .fortran import *
 from .opsc import *
 from .latex import LatexWriter
-
+from .array import MutableDenseNDimArray
 BUILD_DIR = os.getcwd()
 
+class scheme():
+    def __init__(self,scheme, order):
+        self.scheme = scheme
+        self.order = order
+        return
+class NumericalGrid():
+    def __init__(self, shape):
+        self.indices = [Symbol('i%d'%ind, integer = True) for ind, val in enumerate(shape)]
+        self.shape = shape
+        # as of now uniform grid, later change this as and when required
+        self.uniform = [True for ind,val in enumerate(shape)]
+        return
 
+class SpatialDerivative():
+    """
+    This initializes the spatial derivatives of an arbitrary function 'F'
+    on the numerical grid with the provided spatial scheme
+    """
+    def __init__(self, spatial,grid):
+        """
+        This initializes the spatial derivative class, which gives the equations
+        of spatial Derivatives for combinations of
+
+        Spatial scheme, and order of accuracy
+        """
+        # stencil should be formula dependant
+        self.stencil = [[] for dim in grid.shape]
+        self.update_stencil(spatial,grid)
+        self.derivatives = []
+        max_order = 2
+        fn = IndexedBase('f',shape = grid.shape)[grid.indices]
+        self.Derivative_formulas(fn,max_order, grid)
+        return
+    def update_stencil(self,spatial, grid):
+        for dim, val in enumerate(grid.shape):
+            if spatial.scheme == 'central':
+                points = list(i for i in range(-spatial.order/2, spatial.order/2+1))
+            else:
+                raise NotImplementedError("Only central difference schemes are supported")
+            self.stencil[dim] = [grid.indices[dim] + i for i in points]
+            #print points, grid.indices[dim], self.stencil[dim]
+        return
+    def Derivative_formulas(self, fn, max_order, grid):
+        derivatives = []
+        derivatives += [fn] # later change this to interpolation
+        derivative_formula = []
+        derivative_formula += [fn]
+        for order in range(1,max_order+1):
+            shape = tuple( [len(fn.indices) for ind in range(order)])
+            array = MutableDenseNDimArray.zeros(*shape)
+            fdarray = MutableDenseNDimArray.zeros(*shape)
+            for ind in np.ndindex(*array.shape):
+                der_args = [grid.indices[i] for i in ind]
+                array[ind] = fn.diff(*der_args)
+                # find the finite difference formula
+                if order == 1 or len(set(der_args)) ==1:
+                    fdarray[ind] = as_finite_diff(array[ind], self.stencil[ind[0]])
+                else:
+                    newder = array[ind].subs(derivatives[order-1][ind[:-1]],derivative_formula[order-1][ind[:-1]])
+                    fdarray[ind] = as_finite_diff(newder,self.stencil[ind[-1]], wrt=grid.indices[ind[-1]])
+            derivatives.append(array)
+            derivative_formula.append(fdarray)
+        self.derivatives = derivatives
+        self.derivative_formula = derivative_formula
+        return
+class TimeDerivative():
+    def __init__(self, temporal,grid, const_dt):
+        if const_dt:
+            pass
+        else:
+            raise NotImplementedError("Varying delta t is not implemented in the code")
+        if temporal.scheme == "Forward":
+            print "FORWARD DIFFERENCe"
+        elif temporal.scheme == "Backward":
+            print "Backward DIFFERENC"
+        elif temporal.scheme == "RungeKutta":
+            print "RK TIME STEPPING"
+        else:
+            raise ValueError("Only forward, backward or Runge-Kutta time stepping schemes are allowed")
+
+        return
 class System(object):
     '''
     Re arrange system with new spatial derivatives class etc..
