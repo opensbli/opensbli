@@ -211,6 +211,7 @@ class EinsteinTerm(Symbol):
         for index in np.ndindex(*indexarray.shape):
             indexmap = self.map_indices(arrayind,index)
             val = self.et_expanded(indexmap)
+            val.is_commutative = True
             if not function:
                 array[index] = val
             else:
@@ -518,7 +519,7 @@ class EinsteinExpansion(object):
         if coord:
             coordinates = tuple(flatten([coordinates + [EinsteinTerm('t')]]))
         else:
-            coordinates = tuple([EinsteinTerm('x0'), EinsteinTerm('x1'),EinsteinTerm('x2'),EinsteinTerm('t')])
+            coordinates = tuple([EinsteinTerm('x%d'%dim)for dim in range(self.ndim)] + [EinsteinTerm('t')])
         # get the ndim arrays for the Einstein Terms in the equations (u_i,u_j,x_j,x_i) and so on..
         # All the Einstein Terms that are not constants are converted into coordinate functions
         # May be change them later into coordinate indexed objects
@@ -571,8 +572,10 @@ class EinsteinExpansion(object):
         if isinstance(evaluated_lhs, array_types):
             for ind in np.ndindex(evaluated_lhs.shape):
                 self.expanded += [Eq(evaluated_lhs[ind], evaluated_rhs[ind])]
+                #pprint(collect(evaluated_rhs[ind], EinsteinTerm('mu')))
         else:
             self.expanded += [Eq(evaluated_lhs, evaluated_rhs)]
+            #pprint(collect(evaluated_rhs, EinsteinTerm('mu')))
         return
 
 
@@ -607,12 +610,14 @@ class Equation(object):
             elif term.get_base() == coordinate_symbol or term.get_base() == "t":
                 term.is_constant = True
                 term.is_coordinate = True
+                term.is_commutative = True
 
         # Expand Einstein terms/indices
         expansion = EinsteinExpansion(self.parsed, ndim)
         self.expanded = expansion.expanded
-        LOG.debug("The expanded expression is: %s" % (expansion.expanded))
-       
+        #LOG.debug("The expanded expression is: %s" % (expansion.expanded))
+        # TODO simplification of the equations
+
         return
 
 

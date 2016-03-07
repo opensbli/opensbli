@@ -35,25 +35,33 @@ from .latex import LatexWriter
 from .array import MutableDenseNDimArray
 BUILD_DIR = os.getcwd()
 
-class scheme():
+class Scheme():
     def __init__(self,scheme, order):
         self.scheme = scheme
         self.order = order
         return
+
 class NumericalGrid():
     def __init__(self, shape):
         self.indices = [Symbol('i%d'%ind, integer = True) for ind, val in enumerate(shape)]
         self.shape = shape
         # as of now uniform grid, later change this as and when required
         self.uniform = [True for ind,val in enumerate(shape)]
+        #self.deltas = [EinsteinTerm'delta_i']
+        self.time_grid = self.indices + [symbols('Time',integer=True)]
+        et = EinsteinTerm('deltai_i');et.is_constant = True
+        self.deltas = et.ndimarray(et.IndexedObj(len(shape)))
+        self.halos = []
         return
 
 class SpatialDerivative():
     """
     This initializes the spatial derivatives of an arbitrary function 'F'
-    on the numerical grid with the provided spatial scheme
+    on the numerical grid with the provided spatial scheme.
+    For wall boundary condition this will have a dependency on grid range need to think of
+    that
     """
-    def __init__(self, spatial,grid):
+    def __init__(self, spatial,grid, max_order):
         """
         This initializes the spatial derivative class, which gives the equations
         of spatial Derivatives for combinations of
@@ -64,14 +72,15 @@ class SpatialDerivative():
         self.stencil = [[] for dim in grid.shape]
         self.update_stencil(spatial,grid)
         self.derivatives = []
-        max_order = 2
         fn = IndexedBase('f',shape = grid.shape)[grid.indices]
         self.Derivative_formulas(fn,max_order, grid)
         return
+
     def update_stencil(self,spatial, grid):
         for dim, val in enumerate(grid.shape):
             if spatial.scheme == 'central':
                 points = list(i for i in range(-spatial.order/2, spatial.order/2+1))
+                grid.halos += tuple([-spatial.order/2, spatial.order/2])
             else:
                 raise NotImplementedError("Only central difference schemes are supported")
             self.stencil[dim] = [grid.indices[dim] + i for i in points]
@@ -83,7 +92,7 @@ class SpatialDerivative():
         derivative_formula = []
         derivative_formula += [fn]
         for order in range(1,max_order+1):
-            shape = tuple( [len(fn.indices) for ind in range(order)])
+            shape = tuple( [len(grid.indices) for ind in range(order)])
             array = MutableDenseNDimArray.zeros(*shape)
             fdarray = MutableDenseNDimArray.zeros(*shape)
             for ind in np.ndindex(*array.shape):
@@ -91,10 +100,10 @@ class SpatialDerivative():
                 array[ind] = fn.diff(*der_args)
                 # find the finite difference formula
                 if order == 1 or len(set(der_args)) ==1:
-                    fdarray[ind] = as_finite_diff(array[ind], self.stencil[ind[0]])
+                    fdarray[ind] = as_finite_diff(array[ind], self.stencil[ind[0]])*pow(grid.deltas[ind[0]],order)
                 else:
                     newder = array[ind].subs(derivatives[order-1][ind[:-1]],derivative_formula[order-1][ind[:-1]])
-                    fdarray[ind] = as_finite_diff(newder,self.stencil[ind[-1]], wrt=grid.indices[ind[-1]])
+                    fdarray[ind] = as_finite_diff(newder,self.stencil[ind[-1]], wrt=grid.indices[ind[-1]])*pow(grid.deltas[ind[-1]],order)
             derivatives.append(array)
             derivative_formula.append(fdarray)
         self.derivatives = derivatives
@@ -102,18 +111,140 @@ class SpatialDerivative():
         return
 class TimeDerivative():
     def __init__(self, temporal,grid, const_dt):
+        # This can be changed totally but as of now leave it
         if const_dt:
-            pass
+            dt = EinsteinTerm('deltat')
+            dt.is_constant = True; dt.is_commutative = True
         else:
             raise NotImplementedError("Varying delta t is not implemented in the code")
+        fn = IndexedBase('f')[grid.time_grid]
+        time_index = grid.time_grid[-1]
+        self.coeffs = {}
+        self.timeder = fn.diff(time_index)
+        self.formula = []
+        self.stages = 0
         if temporal.scheme == "Forward":
-            print "FORWARD DIFFERENCe"
-        elif temporal.scheme == "Backward":
-            print "Backward DIFFERENC"
+            if temporal.order ==1:
+                self.formula = as_finite_diff(self.timeder, [time_index+1, time_index])*pow(dt,-1)
+                self.stages = 1
+                return
+            else:
+                raise ValueError("Forward time stepping scheme of first order accuracy is allowed")
         elif temporal.scheme == "RungeKutta":
-            print "RK TIME STEPPING"
+            raise NotImplementedError("IMPLEMENT RUNGE KUTTA TIME STEPPING SCHEME")
         else:
-            raise ValueError("Only forward, backward or Runge-Kutta time stepping schemes are allowed")
+            raise ValueError("Only forward or Runge-Kutta time stepping schemes are allowed")
+        return
+def maximum_derivative_order(equations):
+    order = set()
+    for eq in equations:
+        for atom in eq.atoms(Derivative):
+            order.add(len(atom.args)-1)
+    return max(order)
+def vartoGridArray(variable,grid):
+    '''
+    Converts a variable/ function or Indexed Object to a Indexed base on the Grid
+    inputs: variable, grid
+    returns: the Grid array
+    '''
+    if isinstance(variable, Indexed):
+        return variable.base[grid.indices]
+    elif isinstance(variable, Function):
+        return IndexedBase('%s'%variable.func)[grid.indices]
+    else:
+        raise ValueError("Only functions or Indexed Objects are supported", variable)
+    return
+def get_spatial_derivatives(equations):
+    ders = []
+    count = {}
+    time_ders = []
+    for eq in equations:
+        pot = preorder_traversal(eq)
+
+        for p in pot:
+            if p in ders:
+                pot.skip()
+                count[p] = count[p]+1
+                continue
+            elif isinstance(p, Derivative):
+                if all(arg != EinsteinTerm('t') for arg in p.args):
+                    pot.skip()
+                    ders.append(p)
+                    count[p] = 1
+                else:
+                    pot.skip()
+                    time_ders.append(p)
+            else:
+                continue
+    return ders, count
+def get_grid_variables(equations):
+    variables = []
+    count = {}
+    for eq in equations:
+        pot = preorder_traversal(eq)
+
+        for p in pot:
+            if p in variables:
+                pot.skip()
+                count[p] = count[p]+1
+                continue
+            elif isinstance(p, Indexed):
+                pot.skip()
+                variables.append(p)
+                count[p] = 1
+            else:
+                continue
+    return variables, count
+
+class Evaluations(Equality):
+    def __init__(self, lhs, rhs):
+        self.equation = Eq(lhs,rhs)
+        self.store = True
+        self.subevals = []
+        return
+    #def kernelinputs(self):
+        #ins = set(d.base for d in self.equation.rhs.atoms(Indexed))
+        #outs = set(d.base for d in self.equation.lhs.atoms(Indexed))
+        #inouts = ins.intersection(outs)
+        #ins = ins.difference(inouts)
+        #outs = outs.difference(inouts)
+        #return
+
+def equations_to_dict(equations):
+    """ Get the LHS and RHS of each equation, and return them in dictionary form.
+
+    :arg equations: the equations to consider.
+    :returns: a dictionary of (LHS, RHS) pairs.
+    :rtype: dict
+    """
+
+    lhs = list(e.lhs for e in equations)
+    rhs = list(e.rhs for e in equations)
+    d = dict(zip(lhs, rhs))
+    return d
+
+class SpatialSolution():
+    def __init__(self, equations, formulas, grid, spatial_scheme):
+        alleqs = flatten(list(e.expanded for e in equations))
+        allformulas = flatten(list(e.expanded for e in formulas))
+        max_order = maximum_derivative_order(alleqs)
+        # here goes the Boundary data
+        SD = SpatialDerivative(spatial_scheme,grid,max_order)
+        grid_arrays = {}
+        grid_variables, variable_count = get_grid_variables(alleqs+allformulas)
+        for atom in grid_variables:
+            grid_arrays[atom] = vartoGridArray(atom, grid)
+        ders, dercount = get_spatial_derivatives(alleqs+allformulas)
+        formula_dict = equations_to_dict(allformulas)
+        # Define the formulas on the grid, this is substituting the old with new
+        formula_dict ={}
+        evaluated = {}
+        for form in allformulas:
+            out = form
+            for atom in form.atoms(Indexed):
+                out = out.subs(atom, grid_arrays[atom])
+            evaluated[out.lhs] = Evaluations(out.lhs,out.rhs)
+
 
         return
 class System(object):
