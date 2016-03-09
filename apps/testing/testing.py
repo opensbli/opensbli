@@ -18,8 +18,9 @@ mass = "Eq(Der(rho,t),- Conservative(rhou_j,x_j))"
 momentum = "Eq(Der(rhou_i,t) ,-Conservative(rhou_i*u_j + p* KD(_i,_j),x_j) + Der(tau_i_j,x_j) )"
 energy = "Eq(Der(rhoE,t),- Conservative((p+rhoE)*u_j,x_j) +Der(q_j,x_j) + Der(u_i*tau_i_j ,x_j) )"
 lev = "Eq(vort_i, (LC(_i,_j,_k)*Der(u_k,x_j)))"
-test = "Eq(Der(c,t),- Der(c,x_j))"
-equations = [mass,momentum, energy]
+test = "Eq(Der(phi,t),- c_j* Der(phi,x_j))"
+
+equations = [mass,momentum,energy]
 
 # Substitutions
 stress_tensor = "Eq(tau_i_j, (mu)*(Der(u_i,x_j)+ Conservative(u_j,x_i)- (2/3)* KD(_i,_j)* Der(u_k,x_k)))"
@@ -27,7 +28,7 @@ heat_flux = "Eq(q_j,  (mu/((gama-1)*Minf*Minf*Pr*Re))*Der(T,x_j))"
 substitutions = [stress_tensor, heat_flux]
 
 # Define all the constants in the equations
-constants = ["Re", "Pr","gama", "Minf", "C23"]
+constants = ["Re", "Pr","gama","mu", "Minf", "C23", "c_j"]
 
 # Define coordinate direction symbol (x) this will be x_i, x_j, x_k
 coordinate_symbol = "x"
@@ -40,7 +41,7 @@ velocity = "Eq(u_i, rhou_i/rho)"
 pressure = "Eq(p, (gama-1)*(rhoE - (1/(2))*(u_j*u_j)))"
 temperature = "Eq(T, p*gama*Minf*Minf/(rho))"
 viscosity = "Eq(mu, T**(2/3))"
-formulas = [velocity, pressure, temperature, viscosity]
+formulas = [velocity, pressure, temperature]
 #formulas = []
 
 # Create the TGV problem and expand the equations.
@@ -64,12 +65,13 @@ start = time.time()
 
 sch = "central"
 order = 4
-spatial_scheme = scheme(sch,order)
-temporal_scheme = scheme("Forward", 1)
+spatial_scheme = Scheme(sch,order)
+temporal_scheme = Scheme("Forward", 1)
 grid = NumericalGrid(tuple(symbols('nx0:%d'%ndim, integer= True)))
-central_derivatives = SpatialDerivative(spatial_scheme,grid)
+#central_derivatives = SpatialDerivative(spatial_scheme,grid)
 const_dt = True
-time_advance = TimeDerivative(temporal_scheme, grid,const_dt)
+#time_advance = TimeDerivative(temporal_scheme, grid,const_dt)
+SpatialSolution(expanded_equations,expanded_formulas, grid, spatial_scheme)
 end = time.time()
 LOG.debug('The time taken to prepare the system in %d Dimensions is %.2f seconds.' % (problem.ndim, end - start))
 #scheme = "RK"
