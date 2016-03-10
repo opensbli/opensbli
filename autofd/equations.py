@@ -355,6 +355,7 @@ class EinsteinTerm(Symbol):
             
     def ndimarray(self, indexed_array, function=None):
         """ Return an array of Indexed/EinsteinTerm objects. """
+        
         array = MutableDenseNDimArray.zeros(*indexed_array.shape)
         array_indices = indexed_array.indices
         for index in np.ndindex(*indexed_array.shape):
@@ -369,6 +370,7 @@ class EinsteinTerm(Symbol):
         
     def map_indices(self, array_indices, indices):
         """ Map each array index to a SymPy Idx object. """
+        
         mapping = []
         for number, index in enumerate(array_indices):
             if isinstance(index, Idx):
@@ -396,11 +398,11 @@ class EinsteinExpansion(object):
         # Update the coordinate ndimarrays
         for atom in expression.atoms(EinsteinTerm):
             if atom.is_coordinate:
-                coord=True
+                coord = True
                 if atom.get_indices():
                     indict = atom.IndexedObj(self.ndim)
-                    arra = atom.ndimarray(indict)
-                    coordinates = flatten(arra.tolist())
+                    array = atom.ndimarray(indict)
+                    coordinates = flatten(array.tolist())
 
         # Time derivative added in here along with the expanded coordinate symbol.
         if coord:
@@ -412,6 +414,7 @@ class EinsteinExpansion(object):
         # All the Einstein Terms that are not constants are converted into coordinate functions.
         # TODO: Maybe change them later into coordinate indexed objects
         for atom in expression.atoms(EinsteinTerm):
+            # Constant term
             if atom.is_constant:
                 if atom.get_indices():
                     indexed_dict[atom] = atom.IndexedObj(self.ndim)
@@ -420,8 +423,8 @@ class EinsteinExpansion(object):
                     indexed_dict[atom] = atom
                     ndimarrays[indexed_dict[atom]] = atom
             else:
-                if atom.get_indices() :
-                    if atom.get_base() != '':
+                if atom.get_indices():
+                    if atom.get_base():
                         indexed_dict[atom] = atom.IndexedObj(self.ndim)
                         ndimarrays[indexed_dict[atom]] = atom.ndimarray(indexed_dict[atom], coordinates)
                 else:
@@ -442,21 +445,21 @@ class EinsteinExpansion(object):
                 ndimarrays[indexed_dict[lc]] = lc.ndimarray(indexed_dict[lc])
 
         # Do the Functions that are not nested
-        to_eval = []
-        for fn in expression.atoms(Function):
-            if not fn.args[0].atoms(Function):
-                if not fn in indexed_dict.keys():
+        functions_to_eval = []
+        for function in expression.atoms(Function):
+            if not function.args[0].atoms(Function):
+                if not function in indexed_dict.keys():
                     new_array_name = '%s%d' % (self.indexed_object_name, self.indexed_object_number)
                     self.indexed_object_number = self.indexed_object_number + 1
-                    fn.IndexedObj(self.ndim, indexed_dict, ndimarrays, new_array_name)
+                    function.IndexedObj(self.ndim, indexed_dict, ndimarrays, new_array_name)
             else:
-                to_eval.append(fn)
+                functions_to_eval.append(function)
 
         # Evaluate the nested function
-        for ev in to_eval:
+        for function in functions_to_eval:
             new_array_name = '%s%d' % (self.indexed_object_name, self.indexed_object_number)
             self.indexed_object_number = self.indexed_object_number + 1
-            ev.IndexedObj(self.ndim, indexed_dict, ndimarrays, new_array_name)
+            function.IndexedObj(self.ndim, indexed_dict, ndimarrays, new_array_name)
 
         # Now evaluate the RHS of the equation
         evaluated_rhs, rhs_ind = evaluate_expression(expression.rhs, ndimarrays, indexed_dict)
