@@ -6,92 +6,58 @@
 \begin{document}
 \maketitle
 The values are a list    \begin{dmath}\frac{\partial}{\partial t} 
-{\rho}_{x,y,t} = - \frac{\partial}{\partial x} {\rho u}_{x,y,t} - 
-\frac{\partial}{\partial y} {\rho v}_{x,y,t}\end{dmath} 
-\begin{dmath}\frac{\partial}{\partial t} {\rho u}_{x,y,t} = 
-\left(\frac{4}{3} \,.\, \frac{\partial}{\partial x} {u}_{x,y,t} - 
-\frac{2}{3} \,.\, \frac{\partial}{\partial y} {v}_{x,y,t}\right) \,.\, 
-\frac{\partial}{\partial x} {\mu}_{x,y,t} + 
-\left(\frac{\partial}{\partial y} {u}_{x,y,t} + 
-\frac{\partial}{\partial x} {v}_{x,y,t}\right) \,.\, 
-\frac{\partial}{\partial y} {\mu}_{x,y,t} + \left(\frac{4}{3} \,.\, 
-\frac{\partial^{2}}{\partial x^{2}}  {u}_{x,y,t} - \frac{2}{3} \,.\, 
-\frac{\partial^{2}}{\partial x\partial y}  {v}_{x,y,t}\right) \,.\, 
-{\mu}_{x,y,t} + \left(\frac{\partial^{2}}{\partial y^{2}}  {u}_{x,y,t} 
-+ \frac{\partial^{2}}{\partial x\partial y}  {v}_{x,y,t}\right) \,.\, 
-{\mu}_{x,y,t} - \frac{\partial}{\partial y}\left({\rho u}_{x,y,t} 
-\,.\, {v}_{x,y,t}\right) - \frac{\partial}{\partial 
-x}\left({p}_{x,y,t} + {\rho u}_{x,y,t} \,.\, 
-{u}_{x,y,t}\right)\end{dmath}  \begin{dmath}\frac{\partial}{\partial 
-t} {\rho v}_{x,y,t} = \left(- \frac{2}{3} \,.\, 
-\frac{\partial}{\partial x} {u}_{x,y,t} + \frac{4}{3} \,.\, 
-\frac{\partial}{\partial y} {v}_{x,y,t}\right) \,.\, 
-\frac{\partial}{\partial y} {\mu}_{x,y,t} + 
-\left(\frac{\partial}{\partial y} {u}_{x,y,t} + 
-\frac{\partial}{\partial x} {v}_{x,y,t}\right) \,.\, 
-\frac{\partial}{\partial x} {\mu}_{x,y,t} + \left(- \frac{2}{3} \,.\, 
-\frac{\partial^{2}}{\partial x\partial y}  {u}_{x,y,t} + \frac{4}{3} 
-\,.\, \frac{\partial^{2}}{\partial y^{2}}  {v}_{x,y,t}\right) \,.\, 
-{\mu}_{x,y,t} + \left(\frac{\partial^{2}}{\partial x\partial y} 
-{u}_{x,y,t} + \frac{\partial^{2}}{\partial x^{2}}  {v}_{x,y,t}\right) 
-\,.\, {\mu}_{x,y,t} - \frac{\partial}{\partial x}\left({\rho 
-v}_{x,y,t} \,.\, {u}_{x,y,t}\right) - \frac{\partial}{\partial 
-y}\left({p}_{x,y,t} + {\rho v}_{x,y,t} \,.\, 
-{v}_{x,y,t}\right)\end{dmath}  \begin{dmath}\frac{\partial}{\partial 
-t} {\rho E}_{x,y,t} = \left(- \frac{2}{3} \,.\, 
-\frac{\partial}{\partial x} {u}_{x,y,t} + \frac{4}{3} \,.\, 
-\frac{\partial}{\partial y} {v}_{x,y,t}\right) \,.\, 
-\frac{\partial}{\partial y} {\mu}_{x,y,t} \,.\, {v}_{x,y,t} + \left(- 
-\frac{2}{3} \,.\, \frac{\partial}{\partial x} {u}_{x,y,t} + 
-\frac{4}{3} \,.\, \frac{\partial}{\partial y} {v}_{x,y,t}\right) \,.\, 
-\frac{\partial}{\partial y} {v}_{x,y,t} \,.\, {\mu}_{x,y,t} + 
-\left(\frac{4}{3} \,.\, \frac{\partial}{\partial x} {u}_{x,y,t} - 
-\frac{2}{3} \,.\, \frac{\partial}{\partial y} {v}_{x,y,t}\right) \,.\, 
-\frac{\partial}{\partial x} {\mu}_{x,y,t} \,.\, {u}_{x,y,t} + 
-\left(\frac{4}{3} \,.\, \frac{\partial}{\partial x} {u}_{x,y,t} - 
-\frac{2}{3} \,.\, \frac{\partial}{\partial y} {v}_{x,y,t}\right) \,.\, 
-\frac{\partial}{\partial x} {u}_{x,y,t} \,.\, {\mu}_{x,y,t} + 
-\left(\frac{\partial}{\partial y} {u}_{x,y,t} + 
-\frac{\partial}{\partial x} {v}_{x,y,t}\right) \,.\, 
-\frac{\partial}{\partial x} {\mu}_{x,y,t} \,.\, {v}_{x,y,t} + 
-\left(\frac{\partial}{\partial y} {u}_{x,y,t} + 
-\frac{\partial}{\partial x} {v}_{x,y,t}\right) \,.\, 
-\frac{\partial}{\partial y} {\mu}_{x,y,t} \,.\, {u}_{x,y,t} + 
-\left(\frac{\partial}{\partial y} {u}_{x,y,t} + 
-\frac{\partial}{\partial x} {v}_{x,y,t}\right) \,.\, 
-\frac{\partial}{\partial y} {u}_{x,y,t} \,.\, {\mu}_{x,y,t} + 
-\left(\frac{\partial}{\partial y} {u}_{x,y,t} + 
-\frac{\partial}{\partial x} {v}_{x,y,t}\right) \,.\, 
-\frac{\partial}{\partial x} {v}_{x,y,t} \,.\, {\mu}_{x,y,t} + 
-\left(\frac{4}{3} \,.\, \frac{\partial^{2}}{\partial x^{2}} 
-{u}_{x,y,t} - \frac{2}{3} \,.\, \frac{\partial^{2}}{\partial x\partial 
-y}  {v}_{x,y,t}\right) \,.\, {\mu}_{x,y,t} \,.\, {u}_{x,y,t} + \left(- 
-\frac{2}{3} \,.\, \frac{\partial^{2}}{\partial x\partial y} 
-{u}_{x,y,t} + \frac{4}{3} \,.\, \frac{\partial^{2}}{\partial y^{2}} 
-{v}_{x,y,t}\right) \,.\, {\mu}_{x,y,t} \,.\, {v}_{x,y,t} + 
-\left(\frac{\partial^{2}}{\partial x\partial y}  {u}_{x,y,t} + 
-\frac{\partial^{2}}{\partial x^{2}}  {v}_{x,y,t}\right) \,.\, 
-{\mu}_{x,y,t} \,.\, {v}_{x,y,t} + \left(\frac{\partial^{2}}{\partial 
-y^{2}}  {u}_{x,y,t} + \frac{\partial^{2}}{\partial x\partial y} 
-{v}_{x,y,t}\right) \,.\, {\mu}_{x,y,t} \,.\, {u}_{x,y,t} - 
-\frac{\partial}{\partial x}\left(\left({p}_{x,y,t} + {\rho 
-E}_{x,y,t}\right) \,.\, {u}_{x,y,t}\right) - \frac{\partial}{\partial 
-y}\left(\left({p}_{x,y,t} + {\rho E}_{x,y,t}\right) \,.\, 
-{v}_{x,y,t}\right) + \frac{\partial}{\partial x} {T}_{x,y,t} \,.\, 
-\frac{\partial}{\partial x} {\mu}_{x,y,t} \,.\, \left(Pr \,.\, Re 
-\,.\, Minf^{2} \,.\, \left(\gamma - 1\right)\right)^{-1} + 
-\frac{\partial}{\partial y} {T}_{x,y,t} \,.\, \frac{\partial}{\partial 
-y} {\mu}_{x,y,t} \,.\, \left(Pr \,.\, Re \,.\, Minf^{2} \,.\, 
-\left(\gamma - 1\right)\right)^{-1} + \frac{\partial^{2}}{\partial 
-x^{2}}  {T}_{x,y,t} \,.\, {\mu}_{x,y,t} \,.\, \left(Pr \,.\, Re \,.\, 
-Minf^{2} \,.\, \left(\gamma - 1\right)\right)^{-1} + 
-\frac{\partial^{2}}{\partial y^{2}}  {T}_{x,y,t} \,.\, {\mu}_{x,y,t} 
-\,.\, \left(Pr \,.\, Re \,.\, Minf^{2} \,.\, \left(\gamma - 
-1\right)\right)^{-1}\end{dmath}  The list ends hereThe values are a list    \begin{dmath}{u}_{} = \frac{{\rho 
-u}_{}}{{\rho}_{}}\end{dmath}  \begin{dmath}{v}_{} = \frac{{\rho 
-v}_{}}{{\rho}_{}}\end{dmath}  \begin{dmath}{p}_{} = \left({\rho E}_{} 
-- \frac{\left({u}_{}\right)^{2}}{2} - 
-\frac{\left({v}_{}\right)^{2}}{2}\right) \,.\, \left(\gamma - 
-1\right)\end{dmath}  \begin{dmath}{T}_{} = \frac{\gamma \,.\, 
-{p}_{}}{{\rho}_{}} \,.\, Minf^{2}\end{dmath}  \begin{dmath}{\mu}_{} = 
-\left({T}_{}\right)^{\frac{2}{3}}\end{dmath}  The list ends here\end{document}
+\rho_{x,y,t} = - \frac{\partial}{\partial x} \rho u_{x,y,t} - 
+\frac{\partial}{\partial y} \rho v_{x,y,t}\end{dmath} 
+\begin{dmath}\frac{\partial}{\partial t} \rho u_{x,y,t} = \mu \,.\, 
+\left(\frac{4}{3} \,.\, \frac{\partial^{2}}{\partial x^{2}}  u_{x,y,t} 
+- \frac{2}{3} \,.\, \frac{\partial^{2}}{\partial x\partial y} 
+v_{x,y,t}\right) + \mu \,.\, \left(\frac{\partial^{2}}{\partial y^{2}} 
+u_{x,y,t} + \frac{\partial^{2}}{\partial x\partial y} 
+v_{x,y,t}\right) - \frac{\partial}{\partial y}\left(\rho u_{x,y,t} 
+\,.\, v_{x,y,t}\right) - \frac{\partial}{\partial x}\left(p_{x,y,t} + 
+\rho u_{x,y,t} \,.\, u_{x,y,t}\right)\end{dmath} 
+\begin{dmath}\frac{\partial}{\partial t} \rho v_{x,y,t} = \mu \,.\, 
+\left(- \frac{2}{3} \,.\, \frac{\partial^{2}}{\partial x\partial y} 
+u_{x,y,t} + \frac{4}{3} \,.\, \frac{\partial^{2}}{\partial y^{2}} 
+v_{x,y,t}\right) + \mu \,.\, \left(\frac{\partial^{2}}{\partial 
+x\partial y}  u_{x,y,t} + \frac{\partial^{2}}{\partial x^{2}} 
+v_{x,y,t}\right) - \frac{\partial}{\partial x}\left(\rho v_{x,y,t} 
+\,.\, u_{x,y,t}\right) - \frac{\partial}{\partial y}\left(p_{x,y,t} + 
+\rho v_{x,y,t} \,.\, v_{x,y,t}\right)\end{dmath} 
+\begin{dmath}\frac{\partial}{\partial t} \rho E_{x,y,t} = \mu \,.\, 
+\left(- \frac{2}{3} \,.\, \frac{\partial}{\partial x} u_{x,y,t} + 
+\frac{4}{3} \,.\, \frac{\partial}{\partial y} v_{x,y,t}\right) \,.\, 
+\frac{\partial}{\partial y} v_{x,y,t} + \mu \,.\, \left(\frac{4}{3} 
+\,.\, \frac{\partial}{\partial x} u_{x,y,t} - \frac{2}{3} \,.\, 
+\frac{\partial}{\partial y} v_{x,y,t}\right) \,.\, 
+\frac{\partial}{\partial x} u_{x,y,t} + \mu \,.\, 
+\left(\frac{\partial}{\partial y} u_{x,y,t} + \frac{\partial}{\partial 
+x} v_{x,y,t}\right) \,.\, \frac{\partial}{\partial y} u_{x,y,t} + \mu 
+\,.\, \left(\frac{\partial}{\partial y} u_{x,y,t} + 
+\frac{\partial}{\partial x} v_{x,y,t}\right) \,.\, 
+\frac{\partial}{\partial x} v_{x,y,t} + \mu \,.\, \left(\frac{4}{3} 
+\,.\, \frac{\partial^{2}}{\partial x^{2}}  u_{x,y,t} - \frac{2}{3} 
+\,.\, \frac{\partial^{2}}{\partial x\partial y}  v_{x,y,t}\right) 
+\,.\, u_{x,y,t} + \mu \,.\, \left(- \frac{2}{3} \,.\, 
+\frac{\partial^{2}}{\partial x\partial y}  u_{x,y,t} + \frac{4}{3} 
+\,.\, \frac{\partial^{2}}{\partial y^{2}}  v_{x,y,t}\right) \,.\, 
+v_{x,y,t} + \mu \,.\, \left(\frac{\partial^{2}}{\partial x\partial y} 
+u_{x,y,t} + \frac{\partial^{2}}{\partial x^{2}}  v_{x,y,t}\right) 
+\,.\, v_{x,y,t} + \mu \,.\, \left(\frac{\partial^{2}}{\partial y^{2}} 
+u_{x,y,t} + \frac{\partial^{2}}{\partial x\partial y} 
+v_{x,y,t}\right) \,.\, u_{x,y,t} + \mu \,.\, 
+\frac{\partial^{2}}{\partial x^{2}}  T_{x,y,t} \,.\, \left(Pr \,.\, Re 
+\,.\, \left(\gamma - 1\right) \,.\, Minf^{2}\right)^{-1} + \mu \,.\, 
+\frac{\partial^{2}}{\partial y^{2}}  T_{x,y,t} \,.\, \left(Pr \,.\, Re 
+\,.\, \left(\gamma - 1\right) \,.\, Minf^{2}\right)^{-1} - 
+\frac{\partial}{\partial x}\left(\left(p_{x,y,t} + \rho 
+E_{x,y,t}\right) \,.\, u_{x,y,t}\right) - \frac{\partial}{\partial 
+y}\left(\left(p_{x,y,t} + \rho E_{x,y,t}\right) \,.\, 
+v_{x,y,t}\right)\end{dmath}  The list ends hereThe values are a list    \begin{dmath}u_{x,y,t} = \frac{\rho 
+u_{x,y,t}}{\rho_{x,y,t}}\end{dmath}  \begin{dmath}v_{x,y,t} = 
+\frac{\rho v_{x,y,t}}{\rho_{x,y,t}}\end{dmath}  \begin{dmath}p_{x,y,t} 
+= \left(\gamma - 1\right) \,.\, \left(\rho E_{x,y,t} - 
+\frac{\left(u_{x,y,t}\right)^{2}}{2} - 
+\frac{\left(v_{x,y,t}\right)^{2}}{2}\right)\end{dmath} 
+\begin{dmath}T_{x,y,t} = \frac{\gamma \,.\, p_{x,y,t}}{\rho_{x,y,t}} 
+\,.\, Minf^{2}\end{dmath}  The list ends here\end{document}
