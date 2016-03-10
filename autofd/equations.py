@@ -789,12 +789,18 @@ def evaluate_Indexed_expression(expression, arrays, index_structure):
     return
     
     
-def remove_repeated_index(listofind):
+def remove_repeated_index(indices):
+    """ Remove duplicate indices in a list of indices. 
+    
+    :arg list indices: A list of indices to consider.
+    :returns: The list of indices with all duplicates removed.
+    :rtype: list
+    """
     sum_index = {}
-    for i in listofind:
+    for i in indices:
         if i in sum_index:
             sum_index[i] += 1
         else:
             sum_index[i] = 0
-    listofind = [x for x in listofind if not sum_index[x]]
-    return listofind
+    indices = [x for x in indices if not sum_index[x]]
+    return indices
