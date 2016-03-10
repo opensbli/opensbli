@@ -53,7 +53,7 @@ class Der(Function):
     def is_commutative(self):
         return False
         
-    def IndexedObj(self,ndim, indexed_dict, arrays, new_array_name):
+    def IndexedObj(self, ndim, indexed_dict, arrays, new_array_name):
         # TODO: Add repeated calling of the derivatives and functions for support of higher orders
         
         derivative_function = self.args[0]
@@ -70,32 +70,33 @@ class Der(Function):
             derivative_structure = derivative_structure + list(indexed_dict[arg].indices)
             functions.append(indexed_dict[arg])
 
+        # Get the shape of the derivative index structure
         shape = []
         for number, index in enumerate(derivative_structure):
             if isinstance(index, Idx):
                 shape += [ndim]
             else:
                 shape += [index]
-              
-        # Apply derivatives
+
+        # Apply derivatives (i.e. put SymPy's diff function to use)
         if shape:
             derivative = MutableDenseNDimArray.zeros(*shape)
             for index in np.ndindex(*shape):
-                index_map = self.split_index(index,functions)
-                derivative[index] = self.apply_derivative(index_map,arrays, functions,evaluated)
+                index_map = self.split_index(index, functions)
+                derivative[index] = self.apply_derivative(index_map, arrays, functions, evaluated)
         else:
-            derivative = self.apply_derivative((0),arrays, functions,evaluated)
+            derivative = self.apply_derivative((0), arrays, functions, evaluated)
             
         # Apply contraction and expand
         outer_indices = remove_repeated_index(derivative_structure)
         if derivative_structure:
-            derivative = apply_contraction(outer_indices,derivative_structure, derivative)
+            derivative = apply_contraction(outer_indices, derivative_structure, derivative)
         if outer_indices:
-            newouter = [out for out in outer_indices if out!=1]
-            if newouter == outer_indices:
+            new_outer_indices = [outer for outer in outer_indices if outer != 1]
+            if new_outer_indices == outer_indices:
                 indexed_object_name = IndexedBase(new_array_name, shape=tuple([ndim for x in outer_indices]))[tuple(outer_indices)]
             else:
-                raise ValueError("Indices do not match: ", newouter, outer_indices)
+                raise ValueError("Indices do not match: ", new_outer_indices, outer_indices)
                 
             indexed_object_name.is_commutative = False
             indexed_dict[self] = indexed_object_name
@@ -167,28 +168,29 @@ class Conservative(Function):
             functions.append(indexed_dict[arg])
         
         shape = []
-        for no,ind in enumerate(derivative_structure):
-            if isinstance(ind,Idx):
+        for number, index in enumerate(derivative_structure):
+            if isinstance(index, Idx):
                 shape += [ndim]
             else:
-                shape += [ind]
+                shape += [index]
         
+        # Fill an array of the same shape as the derivative structure with the actual SymPy Derivative objects.
         derivative = MutableDenseNDimArray.zeros(*shape)
-        
         for index in np.ndindex(*shape):
             index_map = self.split_index(index,functions)
-            derivative[index] = self.apply_derivative(index_map, arrays, functions,evaluated)
+            derivative[index] = self.apply_derivative(index_map, arrays, functions, evaluated)
         outer_indices = remove_repeated_index(derivative_structure)
         
+        # Apply the contraction structure
         if derivative_structure:
             derivative = apply_contraction(outer_indices, derivative_structure, derivative)
         
         if outer_indices:
-            newouter = [out for out in outer_indices if out!=1]
-            if newouter == outer_indices:
+            new_outer_indices = [outer for outer in outer_indices if outer != 1]
+            if new_outer_indices == outer_indices:
                 indexed_object_name = IndexedBase(new_array_name, shape=tuple([ndim for x in outer_indices]))[tuple(outer_indices)]
             else:
-                raise ValueError("Indices do not match: ", newouter, outer_indices)
+                raise ValueError("Indices do not match: ", new_outer_indices, outer_indices)
             indexed_object_name.is_commutative = False
             indexed_dict[self] = indexed_object_name
             arrays[indexed_object_name] = derivative
@@ -404,7 +406,7 @@ class EinsteinExpansion(object):
         if coord:
             coordinates = tuple(flatten([coordinates + [EinsteinTerm('t')]]))
         else:
-            coordinates = tuple([EinsteinTerm('x%d'%dim)for dim in range(self.ndim)] + [EinsteinTerm('t')])
+            coordinates = tuple([EinsteinTerm('x%d' % dim) for dim in range(self.ndim)] + [EinsteinTerm('t')])
 
         # Get the ndim arrays for the Einstein Terms in the equations (u_i,u_j,x_j,x_i) and so on.
         # All the Einstein Terms that are not constants are converted into coordinate functions.
@@ -433,7 +435,7 @@ class EinsteinExpansion(object):
                 indexed_dict[kd] = kd.IndexedObj(self.ndim)
                 ndimarrays[indexed_dict[kd]] = kd.ndimarray(indexed_dict[kd])
 
-         # Get the Ndim arrays for the Levi-Civita function
+        # Get the Ndim arrays for the Levi-Civita function
         for lc in expression.atoms(LC):
             if not lc in indexed_dict.keys():
                 indexed_dict[lc] = lc.IndexedObj(self.ndim)
@@ -444,7 +446,7 @@ class EinsteinExpansion(object):
         for fn in expression.atoms(Function):
             if not fn.args[0].atoms(Function):
                 if not fn in indexed_dict.keys():
-                    new_array_name = '%s%d' % (self.indexed_object_name,self.indexed_object_number)
+                    new_array_name = '%s%d' % (self.indexed_object_name, self.indexed_object_number)
                     self.indexed_object_number = self.indexed_object_number + 1
                     fn.IndexedObj(self.ndim, indexed_dict, ndimarrays, new_array_name)
             else:
@@ -459,6 +461,11 @@ class EinsteinExpansion(object):
         # Now evaluate the RHS of the equation
         evaluated_rhs, rhs_ind = evaluate_expression(expression.rhs, ndimarrays, indexed_dict)
         evaluated_lhs, lhs_ind = evaluate_expression(expression.lhs, ndimarrays, indexed_dict)
+        
+        # Indices mismatch
+        if lhs_ind != rhs_ind:
+            raise ValueError("Indices of the LHS do not match those of the RHS in the following expression: ", expression)
+            
         array_types = (collections.Iterable, MatrixBase, NDimArray)
         if isinstance(evaluated_lhs, array_types):
             for ind in np.ndindex(evaluated_lhs.shape):
