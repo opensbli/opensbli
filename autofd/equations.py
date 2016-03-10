@@ -655,7 +655,7 @@ def add_args(arg_evals, arg_indices):
         return arg_evals[0], arg_indices[0]
         
     # If all arguments of addition are scalars, then:
-    if all([ind==None for ind in arg_indices]):
+    if all([ind == None for ind in arg_indices]):
         evaluated = arg_evals[0]
         for arg in arg_evals[1:]:
             evaluated = evaluated + arg
