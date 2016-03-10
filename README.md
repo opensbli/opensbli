@@ -1,6 +1,6 @@
-# AutoFD
+# OpenSBLI
 
-AutoFD is an automatic code generator which expands a set of equations written in Einstein notation, and writes out the finite difference code in either OPSC or Fortran (serial).
+OpenSBLI is an automatic code generator which expands a set of equations written in Einstein notation, and writes out the finite difference code in the OPSC language.
 
 ## Getting started
 
@@ -19,23 +19,23 @@ First ensure that the following dependencies are satisfied:
 ### Installation
 
 #### System-wide
-AutoFD is a Python package and can be installed system-wide by running
+OpenSBLI is a Python package and can be installed system-wide by running
 
 ```
 sudo make install
 ```
 
-from the AutoFD base directory (i.e. the same directory this README file is in).
+from the OpenSBLI base directory (i.e. the same directory this README file is in).
 
 #### Local builds
-Alternatively, you can just add AutoFD to your `PYTHONPATH` environment variable using
+Alternatively, you can just add OpenSBLI to your `PYTHONPATH` environment variable using
 
 ```
-export PYTHONPATH=$PYTHONPATH:/path/to/autofd/base/directory
+export PYTHONPATH=$PYTHONPATH:/path/to/OpenSBLI/base/directory
 ```
 
 ## Documentation
-The documentation for AutoFD can be built using Sphinx via the following command:
+The documentation for OpenSBLI can be built using Sphinx via the following command:
 
 ```
 make docs
@@ -47,5 +47,5 @@ This will build the documentation in HTML format and can be opened in a Web brow
 If you wish to report a bug with the software, please contact [Satya P Jammy](mailto:S.P.Jammy@soton.ac.uk) or [Christian T. Jacobs](mailto:C.T.Jacobs@soton.ac.uk).
 
 ## Licence
-AutoFD is released under the GNU General Public License. See the file called `LICENSE` for more information.
+OpenSBLI is released under the GNU General Public License. See the file called `LICENSE` for more information.
 

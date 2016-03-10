@@ -80,10 +80,13 @@ class OPSC(object):
         symbols = list(set(symbols))
         out = []
         symbol_declaration = []
-        evdict = equations_to_dict(equations)
+        equations_dict = equations_to_dict(equations)
         for s in symbols:
+            # Ignore the IDX terms - these are special terms representing each grid point's index, and will be replaced with idx[0], idx[1] and idx[2] later to ensure that the idx array is used in the kernel.
+            if str(s).startswith("IDX"):
+                continue
             symbol_declaration = symbol_declaration + ['double %s;' % s]
-            if evdict.get(s):
+            if equations_dict.get(s):
                 pass
             else:
                 raise ValueError("I don't know the formula for %s" % s)
@@ -95,9 +98,12 @@ class OPSC(object):
             lower = lower + [system.blockdims[dim].lower - system.halos[dim]]
             upper = upper + [system.blockdims[dim].upper + system.halos[dim]+1]
 
+        # Create the C code representing each equation.
         for e in equations:
             code = ccode(e)
-            code = code.replace('==', '=') + END_OF_STATEMENT_DELIMITER['OPSC']
+            code = code.replace('==', '=')
+            code = code.replace('IDX0', 'idx[0]').replace('IDX1', 'idx[1]').replace('IDX2', 'idx[2]')
+            code += END_OF_STATEMENT_DELIMITER['OPSC']
             out = out + [code]
 
         kernel_calls = []
@@ -107,6 +113,11 @@ class OPSC(object):
         system.kernel_index = system.kernel_index + 1
         kernel_call = 'ops_par_loop(%s, \"%s\", %s[%s], %d, %%s' % (kernel_name, kernel_name, system.block_name, system.block, system.ndim)
         head = 'void %s(' % kernel_name
+
+        # First handle the array of all the grid point indices ("idx")
+        kernel_header = kernel_header + ["const int *idx"]
+        kernel_calls = kernel_calls + ["ops_arg_idx()"]
+
         if all_base:
             for ind, v in enumerate(all_base):
                 if v in ins:
@@ -158,7 +169,7 @@ class OPSC(object):
                         system.stencils[stencil] = stencil_name
                         system.stencil_index = system.stencil_index + 1
 
-                    # Update range on which the loop to be iterated
+                    # Update range over which the loop is to be iterated
                     if len(indexes) == 1:
                         for dim in range(system.ndim):
                             lower[dim] = lower[dim] - indexes[0][dim]

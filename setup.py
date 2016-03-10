@@ -22,7 +22,7 @@ from distutils.core import setup
 
 setup(name='AutoFD',
       version='0.1-dev',
-      description='An automatic code generator which expands a set of equations written in Einstein notation, and writes out the finite difference code in either OPSC or Fortran.',
+      description='An automatic code generator which expands a set of equations written in Einstein notation, and writes out the finite difference code in the OPSC language.',
       author='Satya P. Jammy, Christian T. Jacobs',
       url='https://bitbucket.org/spjammy/codegen',
       packages=['autofd'],

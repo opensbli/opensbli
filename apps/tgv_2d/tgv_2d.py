@@ -72,9 +72,21 @@ system = System()
 
 Lx0 = "2.0*M_PI"
 Lx1 = "2.0*M_PI"
-simulation_parameters = {"name":"tgv_2d", "Lx0":Lx0, "Lx1":Lx1, "nx0p[blk]":"32", "nx1p[blk]":"32", "dt":"0.0005", "niter":"1000", "Minf":"0.1", "mu":"1.0", "a1":["2.0/3.0", "5.0/12.0", "3.0/5.0"], "a2":["1.0/4.0", "3.0/20.0", "3.0/5.0"], "gama":"1.4", "niter":"100", "Pr":"0.71", "Re":"1600", "dx0":"%s/nx0p[blk]" % Lx0, "dx1":"%s/nx1p[blk]" % Lx1}
+simulation_parameters = {"name":"tgv_2d", "Lx0":Lx0, "Lx1":Lx1, "nx0p[blk]":"32", "nx1p[blk]":"32", "dt":"0.0005", "niter":"1000", "Minf":"0.1", "mu":"1.0", "a1":["2.0/3.0", "5.0/12.0", "3.0/5.0"], "a2":["1.0/4.0", "3.0/20.0", "3.0/5.0"], "gama":"1.4", "Pr":"0.71", "Re":"1600", "dx0":"%s/nx0p[blk]" % Lx0, "dx1":"%s/nx1p[blk]" % Lx1}
 
-system.prepare(expanded_equations, expanded_formulas, algorithm, simulation_parameters)
+# Initial conditions
+x = parse_expr('Eq(x, IDX0*dx0)', evaluate=False)
+y = parse_expr('Eq(y, IDX1*dx1)', evaluate=False)
+u_initial = parse_expr('Eq(u, sin(x)* cos(y))')
+v_initial = parse_expr('Eq(v, -cos(x)* sin(y))')
+rho_initial = parse_expr('Eq(rho, 1.0)', evaluate=False)
+rhou0_initial = parse_expr('Eq(rhou0, sin(x)* cos(y))', evaluate=False)
+rhou1_initial = parse_expr("Eq(rhou1, -cos(x)*sin(y))", evaluate=False)
+rhoE_initial = parse_expr("Eq(rhoE, 1 + 0.5*(u**2 + v**2))", evaluate=False)            
+            
+initial_conditions = [x, y, u_initial, v_initial, rho_initial, rhou0_initial, rhou1_initial, rhoE_initial]
+
+system.prepare(expanded_equations, expanded_formulas, algorithm, simulation_parameters, initial_conditions)
 end = time.time()
 LOG.debug('The time taken to prepare the system in %d Dimensions is %.2f seconds.' % (problem.ndim, end - start))
 
