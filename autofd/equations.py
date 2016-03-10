@@ -585,7 +585,7 @@ def get_Add_indices(term):
     """ Get all the Einstein indices in an additive term. The indices of the first term is taken as the structure of the additive terms. """
     
     indices = list(map(get_index_structure, term.args))
-    if all(ind==None for ind in indices):
+    if all(index == None for index in indices):
         pass
     elif not all([set(x) == set(indices[0]) for x in indices[1:]]):
         raise ValueError("NOT ALL INDICES MATCH in ADD terms of ", term)
@@ -603,7 +603,7 @@ def get_Pow_indices(term):
         raise NotImplementedError('Indexed objects in exponents are not supported: ', term)
     else:
         base_index_structure = get_index_structure(base)
-        if base_index_structure!=None:
+        if base_index_structure:
             if exp == 2:
                 base_index_structure = None
             else:
@@ -645,7 +645,7 @@ def evaluate_Add_expression(term, arrays, index_structure):
         arg_eval, arg_index = evaluate_Indexed_expression(arg, arrays, index_structure)
         arg_evals.append(arg_eval)
         arg_indices.append(arg_index)
-    add_evaluated, indices = add_args(arg_evals,arg_indices)
+    add_evaluated, indices = add_args(arg_evals, arg_indices)
     return add_evaluated, indices
     
     
@@ -659,25 +659,25 @@ def add_args(arg_evals, arg_indices):
     if all([ind==None for ind in arg_indices]):
         evaluated = arg_evals[0]
         for arg in arg_evals[1:]:
-            evaluated = evaluated+ arg
+            evaluated = evaluated + arg
         return evaluated, arg_indices[0]
         
     array_types = (collections.Iterable, MatrixBase, NDimArray)
     
-    for number, ind in enumerate(arg_indices):
+    for number, index in enumerate(arg_indices):
         if number == 0:
-            leading_index = ind
+            leading_index = index
             evaluated = arg_evals[number]
         else:
-            if leading_index == ind:
+            if leading_index == index:
                 evaluated = evaluated + arg_evals[number]
             else:
                 # Check the transpose. Only 2D arrays are supported.
-                ind.reverse()
-                if leading_index == ind and len(ind) == 2:
+                index.reverse()
+                if leading_index == index and len(index) == 2:
                     arr = arg_evals[number]
                     for index in np.ndindex(*arr.shape):
-                        transpose = tuple([index[1],index[0]])
+                        transpose = tuple([index[1], index[0]])
                         evaluated[index] = evaluated[index] + arr[transpose]
                 else:
                     raise NotImplementedError("Taking the array transpose is only supported for 2D arrays.", leading_index, ind)
