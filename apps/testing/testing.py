@@ -67,7 +67,7 @@ sch = "central"
 order = 4
 spatial_scheme = Scheme(sch,order)
 temporal_scheme = Scheme("Forward", 1)
-grid = NumericalGrid(tuple(symbols('nx0:%d'%ndim, integer= True)))
+grid = NumericalGrid(tuple(symbols('nx0:%d' % ndim, integer = True)))
 #central_derivatives = SpatialDerivative(spatial_scheme,grid)
 const_dt = True
 #time_advance = TimeDerivative(temporal_scheme, grid,const_dt)

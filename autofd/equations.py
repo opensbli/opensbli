@@ -109,7 +109,7 @@ class Der(Function):
         return arrays, indexed_dict
         
     def apply_derivative(self,index_map, arrays, functions, evaluated):
-        """ Replace the Derivative calls  """
+        """ Replace the Derivative calls using SymPy's diff function. """
         if isinstance(functions[0], Indexed):
             derivative_function = evaluated[index_map[functions[0]]]
         else:
@@ -173,18 +173,18 @@ class Conservative(Function):
                 shape += [ndim]
             else:
                 shape += [index]
-        
+
         # Fill an array of the same shape as the derivative structure with the actual SymPy Derivative objects.
         derivative = MutableDenseNDimArray.zeros(*shape)
         for index in np.ndindex(*shape):
             index_map = self.split_index(index,functions)
             derivative[index] = self.apply_derivative(index_map, arrays, functions, evaluated)
         outer_indices = remove_repeated_index(derivative_structure)
-        
+
         # Apply the contraction structure
         if derivative_structure:
             derivative = apply_contraction(outer_indices, derivative_structure, derivative)
-        
+
         if outer_indices:
             new_outer_indices = [outer for outer in outer_indices if outer != 1]
             if new_outer_indices == outer_indices:
@@ -198,19 +198,23 @@ class Conservative(Function):
             indexed_object_name = EinsteinTerm(new_array_name)
             indexed_dict[self] = indexed_object_name
             arrays[indexed_object_name] = derivative
+
         return arrays, indexed_dict
-        
+
     def apply_derivative(self, index_map, arrays, functions, evaluated):
+        """ Replace the Conservative calls with Derivative calls (which in turn use SymPy's diff function). """
         if isinstance(functions[0], Indexed):
             derivative_function = evaluated[index_map[functions[0]]]
         else:
             derivative_function = evaluated
+
         derivative_direction = []
         for fn in functions[1:]:
             if isinstance(fn, Indexed):
                 derivative_direction += [arrays[fn][index_map[fn]]]
             else:
                 derivative_direction += [arrays[fn]]
+
         derivative = Derivative(derivative_function, *derivative_direction)
         return derivative
         

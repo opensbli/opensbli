@@ -479,14 +479,14 @@ class SpatialSolution():
             for var in spatialders+grid_variables:
                 new = evals[grid_arrays[var]].work
                 updated_eq[eqno] = updated_eq[eqno].subs(var,new)
-        #The final computations of the residual (change in the rhs terms of the equations)
-        # The residue equations are also named as work arrays
-        residue_eqs = []
+        # The final computations of the residual (change in the rhs terms of the equations)
+        # The residual equations are also named as work arrays
+        residual_eqs = []
         for eq in updated_eq:
             wk = grid.work_array('%s%d'%(wkarray,wkind)); wkind = wkind + 1
-            residue_eqs.append(Eq(wk,eq.rhs))
+            residual_eqs.append(Eq(wk,eq.rhs))
         eval_range = [tuple([0,s]) for s in grid.shape]
-        computations.append(ComputationalKernel(residue_eqs, eval_range, "Residual of equation"))
+        computations.append(ComputationalKernel(residual_eqs, eval_range, "Residual of equation"))
 
 
         return
