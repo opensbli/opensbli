@@ -689,16 +689,16 @@ def evaluate_Mul_expression(term, arrays, index_structure):
     """ Evaluate a multiplicative expression. """
 
     evaluated = 1
-    tensorprod_indices = []
+    tensor_product_indices = []
     
     for arg in term.args:
         arg_eval, arg_index = evaluate_Indexed_expression(arg, arrays, index_structure)
         evaluated = tensorproduct(evaluated, arg_eval)
         if arg_index:
-            tensorprod_indices += arg_index
+            tensor_product_indices += arg_index
             
-    indices = remove_repeated_index(tensorprod_indices)
-    evaluated = apply_contraction(indices, tensorprod_indices, evaluated)
+    indices = remove_repeated_index(tensor_product_indices)
+    evaluated = apply_contraction(indices, tensor_product_indices, evaluated)
     if indices:
         indices = indices
     else:
