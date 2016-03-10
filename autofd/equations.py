@@ -785,7 +785,7 @@ def evaluate_Indexed_expression(expression, arrays, index_structure):
     elif expression.is_Atom:
         return expression, None
     else:
-        raise ValueError("SOME THING NOT UNDERSTOOD", expression, type(expression))
+        raise ValueError("Unknown expression \"%s\" of type %s" % (expression, type(expression)))
     return
     
     
