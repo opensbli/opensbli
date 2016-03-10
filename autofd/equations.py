@@ -462,7 +462,7 @@ class EinsteinExpansion(object):
         evaluated_rhs, rhs_ind = evaluate_expression(expression.rhs, ndimarrays, indexed_dict)
         evaluated_lhs, lhs_ind = evaluate_expression(expression.lhs, ndimarrays, indexed_dict)
         
-        # Indices mismatch
+        # Sanity check: Check that the indices on the LHS and RHS match
         if lhs_ind != rhs_ind:
             raise ValueError("Indices of the LHS do not match those of the RHS in the following expression: ", expression)
             
