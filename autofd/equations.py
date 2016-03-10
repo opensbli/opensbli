@@ -407,7 +407,6 @@ class EinsteinExpansion(object):
         self.ndim = ndim
         self.expanded = []
 
-        self.is_equality = isinstance(expression, Equality)
         indexed_dict = {}
         self.indexed_object_number = 0
         self.indexed_object_name = 'Arr'
