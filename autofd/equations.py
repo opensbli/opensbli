@@ -546,7 +546,7 @@ class Equation(object):
 
 
 def get_index_structure(term):
-    """ Get all the Einstein indices of a given term """
+    """ Get all the Einstein indices of a given term. """
 
     if isinstance(term, Indexed):
         c = term.indices
@@ -744,11 +744,23 @@ def get_indexed_object(expression):
 
 
 def evaluate_expression(expression, arrays, indexed_dict):
+    """ Evaluate a given expression, thereby expanding the indices and performing any function calls
+    (e.g. actually applying the effect of the Kronecker Delta function).
+    
+    :arg expression: The expression to evaluate. This will be a SymPy data type.
+    :arg dict arrays: A dictionary of (array name, NDimArray) pairs. The NDimArrays contain the expanded variables.
+    :arg indexed_dict: A dictionary of (non-Indexed, Indexed) pairs. Effectively, each key contains the original
+    (non-expanded) EinsteinTerm, and its corresponding value is its equivalent Indexed version. E.g. (rhou_j, rhou[j]). 
+    :returns: A tuple containing the evaluated expression and a list of indices (e.g. [i,j]).
+    :rtype: tuple
+    """
+
     indexed_object = get_indexed_object(expression)
     for einstein_term in indexed_object:
         expression = expression.xreplace({einstein_term:indexed_dict[einstein_term]})
     index_structure = get_index_structure(expression)
     evaluated, indices = evaluate_Indexed_expression(expression, arrays, index_structure)
+
     return evaluated, indices
     
     
