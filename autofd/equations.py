@@ -74,13 +74,13 @@ class Der(Function):
         if shape:
             derivative = MutableDenseNDimArray.zeros(*shape)
             for index in np.ndindex(*shape):
-                indexmap = self.split_index(index,functions)
-                derivative[index] = self.apply_derivative(indexmap,arrays, functions,evaluated)
+                index_map = self.split_index(index,functions)
+                derivative[index] = self.apply_derivative(index_map,arrays, functions,evaluated)
         else:
             derivative = self.apply_derivative((0),arrays, functions,evaluated)
         outer_indices = remove_repeated_index(der_struct)
         if der_struct:
-            derivative = apply_contraction_indexed(outer_indices,der_struct, derivative)
+            derivative = apply_contraction(outer_indices,der_struct, derivative)
 
         if outer_indices:
             newouter = [out for out in outer_indices if out!=1]
@@ -97,15 +97,15 @@ class Der(Function):
             arrays[indexed_object_name] = derivative
         return arrays, indexed_dict
         
-    def apply_derivative(self,indexmap, arrays, functions, evaluated):
+    def apply_derivative(self,index_map, arrays, functions, evaluated):
         if isinstance(functions[0], Indexed):
-            derivative_function = evaluated[indexmap[functions[0]]]
+            derivative_function = evaluated[index_map[functions[0]]]
         else:
             derivative_function = evaluated
         derivative_direction = []
         for fn in functions[1:]:
             if isinstance(fn, Indexed):
-                derivative_direction += [arrays[fn][indexmap[fn]]]
+                derivative_direction += [arrays[fn][index_map[fn]]]
             else:
                 derivative_direction += [arrays[fn]]
         derivative = derivative_function.diff(*derivative_direction)
@@ -159,12 +159,12 @@ class Conservative(Function):
         derivative = MutableDenseNDimArray.zeros(*shape)
         
         for index in np.ndindex(*shape):
-            indexmap = self.split_index(index,functions)
-            derivative[index] = self.apply_derivative(indexmap, arrays, functions,evaluated)
+            index_map = self.split_index(index,functions)
+            derivative[index] = self.apply_derivative(index_map, arrays, functions,evaluated)
         outer_indices = remove_repeated_index(der_struct)
         
         if der_struct:
-            derivative = apply_contraction_indexed(outer_indices, der_struct, derivative)
+            derivative = apply_contraction(outer_indices, der_struct, derivative)
         
         if outer_indices:
             newouter = [out for out in outer_indices if out!=1]
@@ -181,15 +181,15 @@ class Conservative(Function):
             arrays[indexed_object_name] = derivative
         return arrays, indexed_dict
         
-    def apply_derivative(self,indexmap,arrays, functions, evaluated):
+    def apply_derivative(self,index_map,arrays, functions, evaluated):
         if isinstance(functions[0], Indexed):
-            derivative_function = evaluated[indexmap[functions[0]]]
+            derivative_function = evaluated[index_map[functions[0]]]
         else:
             derivative_function = evaluated
         derivative_direction = []
         for fn in functions[1:]:
             if isinstance(fn, Indexed):
-                derivative_direction += [arrays[fn][indexmap[fn]]]
+                derivative_direction += [arrays[fn][index_map[fn]]]
             else:
                 derivative_direction += [arrays[fn]]
         derivative = Derivative(derivative_function, *derivative_direction)
@@ -287,9 +287,11 @@ class EinsteinTerm(Symbol):
         return self
         
     def get_indices(self):
+        """ Return a list of the Einstein indices. """
         return self.indices
         
     def get_base(self):
+        """ Return the base name. """
         return self.name.split('_')[0]
 
     def IndexedObj(self,ndim):
@@ -306,28 +308,32 @@ class EinsteinTerm(Symbol):
         indexed_array.is_commutative=False
         return indexed_array
         
-    def et_expanded(self, indexmaps):
-        newsym = str(self)
-        for ind in indexmaps:
-            newsym = newsym.replace('_%s'%ind[0], str(ind[1]))
+    def get_expanded(self, index_map):
+        """ Instantiate a new EinsteinTerm object which is the expanded version of self. """    
+    
+        expanded = str(self)
+        # Expand the indices
+        for index in index_map:
+            expanded = expanded.replace('_%s' % index[0], str(index[1]))
+        # If the term is a constant then ensure that the relevant flag is set in the new EinsteinTerm object.
         if self.is_constant:
-            new = EinsteinTerm(newsym)
-            new.is_constant = True
-            return new
+            expanded = EinsteinTerm(expanded)
+            expanded.is_constant = True
+            return expanded
         else:
-            return EinsteinTerm(newsym)
+            return EinsteinTerm(expanded)
             
     def ndimarray(self, indexed_array, function=None):
         array = MutableDenseNDimArray.zeros(*indexed_array.shape)
         arrayind = indexed_array.indices
         for index in np.ndindex(*indexed_array.shape):
-            indexmap = self.map_indices(arrayind,index)
-            val = self.et_expanded(indexmap)
-            val.is_commutative = True
+            index_map = self.map_indices(arrayind, index)
+            value = self.get_expanded(index_map)
+            value.is_commutative = True
             if not function:
-                array[index] = val
+                array[index] = value
             else:
-                array[index] = IndexedBase('%s'%val)[function]
+                array[index] = IndexedBase('%s' % value)[function]
         return array
         
     def map_indices(self,arrayind,index):
@@ -481,6 +487,8 @@ class Equation(object):
 
 
 def get_index_structure(term):
+    """ Get all the Einstein indices of a given term """
+
     if isinstance(term, Indexed):
         c = term.indices
         c = remove_repeated_index(list(c))
@@ -502,33 +510,38 @@ def get_index_structure(term):
     
     
 def get_Mul_indices(term):
-    inds = list(map(get_index_structure, term.args))
-    inds = [ind for ind in inds if ind!=None]
-    fin_ind = remove_repeated_index(flatten(inds))
-    if fin_ind:
-        return fin_ind
+    """ Get all the Einstein indices in an multiplicative term. """
+    
+    indices = list(map(get_index_structure, term.args))
+    indices = [i for i in indices if i != None]
+    # Remove duplicate indices
+    indices = remove_repeated_index(flatten(indices))
+    if indices:
+        return indices
     else:
         return None
         
         
 def get_Add_indices(term):
-    """ For additive terms, the indices of the first term is taken as the structure of the additive terms
-    """
-    inds = list(map(get_index_structure, term.args))
-    if all(ind==None for ind in inds):
+    """ Get all the Einstein indices in an additive term. The indices of the first term is taken as the structure of the additive terms. """
+    
+    indices = list(map(get_index_structure, term.args))
+    if all(ind==None for ind in indices):
         pass
-    elif not all([set(x) == set(inds[0]) for x in inds[1:]]):
+    elif not all([set(x) == set(indices[0]) for x in indices[1:]]):
         raise ValueError("NOT ALL INDICES MATCH in ADD terms of ", term)
-    if inds:
-        return inds[0]
+    if indices:
+        return indices[0]
     else:
         return None
         
         
 def get_Pow_indices(term):
+    """ Get all the Einstein indices in a Pow term. """
+
     base, exp = term.as_base_exp()
     if exp.atoms(Indexed):
-        raise ValueError('No indexed objects in exponents  are supported ::', term)
+        raise NotImplementedError('Indexed objects in exponents are not supported: ', term)
     else:
         base_index_structure = get_index_structure(base)
         if base_index_structure!=None:
@@ -552,7 +565,7 @@ def evaluate_Pow_expression(term, arrays, index_structure):
             if e == 2:
                 evaluated = evaluated**e
                 tensor_indices = indices
-                evaluated = apply_contraction_indexed([], tensor_indices, evaluated)
+                evaluated = apply_contraction([], tensor_indices, evaluated)
                 indices = []
             else:
                 raise NotImplementedError("Only Indexed objects to the power 2 are supported")
@@ -608,16 +621,20 @@ def add_args(arg_evals, arg_indices):
     return evaluated, leading_index
 
 
-def evaluate_Mul_expression(term, arrays,index_structure):
+def evaluate_Mul_expression(term, arrays, index_structure):
+    """ Evaluate a multiplicative expression. """
+
     out_expression = 1
     tensorprod_indices = []
+    
     for arg in term.args:
         argeval, arg_index = evaluate_Indexed_expression(arg, arrays, index_structure)
         out_expression =tensorproduct(out_expression,argeval)
-        if arg_index !=None:
-            tensorprod_indices+= arg_index
+        if arg_index != None:
+            tensorprod_indices += arg_index
+            
     indices = remove_repeated_index(tensorprod_indices)
-    out_expression = apply_contraction_indexed(indices,tensorprod_indices, out_expression)
+    out_expression = apply_contraction(indices,tensorprod_indices, out_expression)
     if indices:
         indices = indices
     else:
@@ -625,48 +642,53 @@ def evaluate_Mul_expression(term, arrays,index_structure):
     return  out_expression, indices
 
 
-def apply_contraction_indexed(outer_indices, tensor_indices, array):
+def apply_contraction(outer_indices, tensor_indices, array):
+    """ Apply the contraction structure to the array of Indexed objects. """
+
     contracting_indices = set(tensor_indices).difference(set(outer_indices))
-    out_expression = array
+    result = array
     if contracting_indices:
         for index in contracting_indices:
             match = tuple([i for i, x in enumerate(tensor_indices) if x == index])
-            out_expression = tensorcontraction(out_expression,match)
-            tensor_indices = [i for i  in tensor_indices if i != index]
-    return out_expression
+            result = tensorcontraction(result, match)
+            tensor_indices = [i for i in tensor_indices if i != index]
+            
+    return result
     
     
 def get_indexed_obj(expression):
+    """ Perform a pre-order traversal of the expression tree to get all Indexed
+    EinsteinTerms and functions such as Derivative or Conservative. """
+    
     pot = preorder_traversal(expression)
-    ETs = []
-    Fns = []
+    einstein_terms = []
+    functions = []
     for p in pot:
-        if p in ETs+Fns:
+        if p in einstein_terms+functions:
             pot.skip()
             continue
         elif isinstance(p, EinsteinTerm):
             pot.skip()
-            ETs.append(p)
+            einstein_terms.append(p)
         elif isinstance(p, Function):
             pot.skip()
-            Fns.append(p)
+            functions.append(p)
         else:
             continue
-    return Fns+ETs
+    return functions + einstein_terms
 
 
-def evaluate_expression(expression, arrays, indexed_dict,ndim):
+def evaluate_expression(expression, arrays, indexed_dict, ndim):
     indexedobj = get_indexed_obj(expression)
-    for Et in indexedobj:
-        expression = expression.xreplace({Et:indexed_dict[Et]})
+    for einstein_term in indexedobj:
+        expression = expression.xreplace({einstein_term:indexed_dict[einstein_term]})
     index_structure = get_index_structure(expression)
     evaluated, indices = evaluate_Indexed_expression(expression, arrays, index_structure)
-    return evaluated,indices
+    return evaluated, indices
     
     
 def evaluate_Indexed_expression(expression, arrays, index_structure):
-
-    """ Replace the Einstein terms in the expression by their constituent arrays """
+    """ Replace the Einstein terms in the expression by their constituent arrays. """
     
     if expression.is_Mul:
         return evaluate_Mul_expression(expression, arrays, index_structure)
@@ -675,7 +697,7 @@ def evaluate_Indexed_expression(expression, arrays, index_structure):
     elif isinstance(expression, Indexed):
         expindices = list(expression.indices)
         struc = remove_repeated_index(expindices)
-        evaluated = apply_contraction_indexed(struc,expindices,arrays[expression])
+        evaluated = apply_contraction(struc,expindices,arrays[expression])
         return evaluated, struc
     elif isinstance(expression, EinsteinTerm):
         return arrays[expression],  None
