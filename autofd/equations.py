@@ -275,7 +275,7 @@ class LC(Function):
             raise ValueError("LeviCivita function should have only three indices.")
             
         indices = flatten([p.get_indices() for p in self.args if p.get_indices])
-        shape_of_array = tuple([ndim for x in range(len(ind))])
+        shape_of_array = tuple([ndim for x in range(len(indices))])
         indexed_base = IndexedBase('%s' % name, shape=shape_of_array)
         indexed_array = indexed_base[tuple(indices)]
         indexed_array.is_commutative = False
