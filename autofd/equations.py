@@ -42,6 +42,7 @@ LOG = logging.getLogger(__name__)
 
 LOCAL_FUNCTIONS = []
 
+
 class Der(Function):
     LOCAL_FUNCTIONS.append('Der')
     
@@ -50,7 +51,7 @@ class Der(Function):
         return False
         
     def IndexedObj(self,ndim, indexed_dict, arrays, new_array_name):
-        # Add repeated calling of the derivatives and functions for support of higher orders
+        # TODO: Add repeated calling of the derivatives and functions for support of higher orders
         derivative_function = self.args[0]
         indexobj = IndexedBase('%s'%derivative_function)
         evaluated, index_structure = evaluate_expression(derivative_function,arrays,indexed_dict,ndim)
@@ -131,7 +132,7 @@ class Conservative(Function):
         return False
 
     def IndexedObj(self, ndim, indexed_dict, arrays, new_array_name):
-        # Add repeated calling of the derivatives and functions for support of higher orders
+        # TODO: Add repeated calling of the derivatives and functions for support of higher orders
         arguments = {}
         derivative_function = self.args[0]
         indexobj = IndexedBase('%s' % derivative_function)
@@ -171,7 +172,7 @@ class Conservative(Function):
             if newouter == outer_indices:
                 indexed_object_name = IndexedBase(new_array_name, shape=tuple([ndim for x in outer_indices]))[tuple(outer_indices)]
             else:
-                raise ValueError("Indices doesnot match")
+                raise ValueError("Indices do not match.")
             indexed_object_name.is_commutative = False
             indexed_dict[self] = indexed_object_name
             arrays[indexed_object_name] = derivative
@@ -181,7 +182,7 @@ class Conservative(Function):
             arrays[indexed_object_name] = derivative
         return arrays, indexed_dict
         
-    def apply_derivative(self,index_map,arrays, functions, evaluated):
+    def apply_derivative(self, index_map, arrays, functions, evaluated):
         if isinstance(functions[0], Indexed):
             derivative_function = evaluated[index_map[functions[0]]]
         else:
@@ -195,13 +196,13 @@ class Conservative(Function):
         derivative = Derivative(derivative_function, *derivative_direction)
         return derivative
         
-    def split_index(self,index,arrays):
+    def split_index(self, index, arrays):
         split = {}
         count = 0
         for arr in arrays:
             if isinstance(arr, Indexed):
                 nind = len(arr.indices)
-                if nind>0:
+                if nind > 0:
                     split[arr] = tuple(index[count:count+nind])
                     count = count + nind
         return split
@@ -218,8 +219,10 @@ class KD(Function):
     # FIXME: Can combine the two functions below
     def IndexedObj(self,ndim):
         name = str(self.func)
+        
         if len(self.args) >2:
             raise ValueError('Kronecker Delta function should have only two indices')
+            
         ind = flatten([p.get_indices() for p in self.args if p.get_indices])
         shape_of_array = tuple([ndim for x in range(len(ind))])
         indexed_base = IndexedBase('%s'%name,shape= shape_of_array)
@@ -228,6 +231,7 @@ class KD(Function):
         return indexed_array
         
     def ndimarray(self, indexed_array):
+        """ Return an array of KroneckerDelta objects comprising the appropriate indices given in the user's equations. """
         array = MutableDenseNDimArray.zeros(*indexed_array.shape)
         for index in np.ndindex(*indexed_array.shape):
             array[index[:]] = KroneckerDelta(*index)
@@ -246,8 +250,10 @@ class LC(Function):
         
     def IndexedObj(self,ndim):
         name = str(self.func)
+        
         if len(self.args) != 3 or ndim != 3:
             raise ValueError("LeviCivita function should have only three indices.")
+            
         ind = flatten([p.get_indices() for p in self.args if p.get_indices])
         shape_of_array = tuple([ndim for x in range(len(ind))])
         indexed_base = IndexedBase('%s'%name,shape= shape_of_array)
@@ -256,6 +262,7 @@ class LC(Function):
         return indexed_array
         
     def ndimarray(self, indexed_array):
+        """ Return an array of LeviCivita objects comprising the appropriate indices given in the user's equations. """
         array = MutableDenseNDimArray.zeros(*indexed_array.shape)
         for index in np.ndindex(*indexed_array.shape):
             array[index[:]] = LeviCivita(*index)
@@ -324,7 +331,7 @@ class EinsteinTerm(Symbol):
             return EinsteinTerm(expanded)
             
     def ndimarray(self, indexed_array, function=None):
-        """ Return an array of IndexedBase objects. """
+        """ Return an array of Indexed/EinsteinTerm objects. """
         array = MutableDenseNDimArray.zeros(*indexed_array.shape)
         array_indices = indexed_array.indices
         for index in np.ndindex(*indexed_array.shape):
@@ -573,7 +580,7 @@ def evaluate_Pow_expression(term, arrays, index_structure):
                 raise NotImplementedError("Only Indexed objects to the power 2 are supported")
         else:
             evaluated = Pow((evaluated),(e), evaluate=False)
-    return evaluated,indices
+    return evaluated, indices
 
 
 def evaluate_Add_expression(term, arrays, index_structure):
@@ -626,22 +633,23 @@ def add_args(arg_evals, arg_indices):
 def evaluate_Mul_expression(term, arrays, index_structure):
     """ Evaluate a multiplicative expression. """
 
-    out_expression = 1
+    evaluated = 1
     tensorprod_indices = []
     
     for arg in term.args:
         argeval, arg_index = evaluate_Indexed_expression(arg, arrays, index_structure)
-        out_expression =tensorproduct(out_expression,argeval)
+        evaluated = tensorproduct(evaluated, argeval)
         if arg_index != None:
             tensorprod_indices += arg_index
             
     indices = remove_repeated_index(tensorprod_indices)
-    out_expression = apply_contraction(indices,tensorprod_indices, out_expression)
+    evaluated = apply_contraction(indices, tensorprod_indices, evaluated)
     if indices:
         indices = indices
     else:
         indices = None
-    return  out_expression, indices
+        
+    return evaluated, indices
 
 
 def apply_contraction(outer_indices, tensor_indices, array):
