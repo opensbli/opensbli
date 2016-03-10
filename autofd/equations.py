@@ -565,12 +565,15 @@ def get_Pow_indices(term):
     
     
 def evaluate_Pow_expression(term, arrays, index_structure):
+    """ Evaluate an expression containing an exponent. """
+
     base, e = term.as_base_exp()
     if e.atoms(Indexed):
-        raise ValueError('No indexed objects in exponents  are supported ::', term)
+        raise NotImplementedError('Indexed objects in exponents are not supported: ', term)
     else:
         evaluated, indices = evaluate_Indexed_expression(base, arrays, index_structure)
-        if indices!=None:
+        
+        if indices:
             if e == 2:
                 evaluated = evaluated**e
                 tensor_indices = indices
@@ -579,16 +582,18 @@ def evaluate_Pow_expression(term, arrays, index_structure):
             else:
                 raise NotImplementedError("Only Indexed objects to the power 2 are supported")
         else:
-            evaluated = Pow((evaluated),(e), evaluate=False)
+            evaluated = Pow((evaluated), (e), evaluate=False)
     return evaluated, indices
 
 
 def evaluate_Add_expression(term, arrays, index_structure):
+    """ Evaluate an expression containing an addition. """
+
     arg_evals = []
     arg_indices = []
     for arg in term.args:
-        argeval, arg_index = evaluate_Indexed_expression(arg, arrays, index_structure)
-        arg_evals.append(argeval)
+        arg_eval, arg_index = evaluate_Indexed_expression(arg, arrays, index_structure)
+        arg_evals.append(arg_eval)
         arg_indices.append(arg_index)
     add_evaluated, indices = add_args(arg_evals,arg_indices)
     return add_evaluated, indices
@@ -637,9 +642,9 @@ def evaluate_Mul_expression(term, arrays, index_structure):
     tensorprod_indices = []
     
     for arg in term.args:
-        argeval, arg_index = evaluate_Indexed_expression(arg, arrays, index_structure)
-        evaluated = tensorproduct(evaluated, argeval)
-        if arg_index != None:
+        arg_eval, arg_index = evaluate_Indexed_expression(arg, arrays, index_structure)
+        evaluated = tensorproduct(evaluated, arg_eval)
+        if arg_index:
             tensorprod_indices += arg_index
             
     indices = remove_repeated_index(tensorprod_indices)
