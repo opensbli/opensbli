@@ -44,6 +44,9 @@ LOCAL_FUNCTIONS = []
 
 
 class Der(Function):
+    
+    """ Handler for the SymPy Derivative function. """
+
     LOCAL_FUNCTIONS.append('Der')
     
     @property
@@ -52,26 +55,29 @@ class Der(Function):
         
     def IndexedObj(self,ndim, indexed_dict, arrays, new_array_name):
         # TODO: Add repeated calling of the derivatives and functions for support of higher orders
+        
         derivative_function = self.args[0]
-        indexobj = IndexedBase('%s'%derivative_function)
+        indexobj = IndexedBase('%s' % derivative_function)
         evaluated, index_structure = evaluate_expression(derivative_function, arrays, indexed_dict)
-        if not index_structure == None:
-            der_struct = index_structure
-        else:
-            der_struct = []
         if index_structure:
+            derivative_structure = index_structure
             functions = [indexobj[index_structure]]
         else:
+            derivative_structure = []
             functions = [indexobj]
+
         for arg in self.args[1:]:
-            der_struct = der_struct+ list(indexed_dict[arg].indices)
+            derivative_structure = derivative_structure + list(indexed_dict[arg].indices)
             functions.append(indexed_dict[arg])
+
         shape = []
-        for no,ind in enumerate(der_struct):
-            if isinstance(ind,Idx):
+        for number, index in enumerate(derivative_structure):
+            if isinstance(index, Idx):
                 shape += [ndim]
             else:
-                shape += [ind]
+                shape += [index]
+              
+        # Apply derivatives
         if shape:
             derivative = MutableDenseNDimArray.zeros(*shape)
             for index in np.ndindex(*shape):
@@ -79,16 +85,18 @@ class Der(Function):
                 derivative[index] = self.apply_derivative(index_map,arrays, functions,evaluated)
         else:
             derivative = self.apply_derivative((0),arrays, functions,evaluated)
-        outer_indices = remove_repeated_index(der_struct)
-        if der_struct:
-            derivative = apply_contraction(outer_indices,der_struct, derivative)
-
+            
+        # Apply contraction and expand
+        outer_indices = remove_repeated_index(derivative_structure)
+        if derivative_structure:
+            derivative = apply_contraction(outer_indices,derivative_structure, derivative)
         if outer_indices:
             newouter = [out for out in outer_indices if out!=1]
             if newouter == outer_indices:
-                indexed_object_name = IndexedBase(new_array_name,shape=tuple([ndim for x in outer_indices]))[tuple(outer_indices)]
+                indexed_object_name = IndexedBase(new_array_name, shape=tuple([ndim for x in outer_indices]))[tuple(outer_indices)]
             else:
-                raise ValueError("index exception")
+                raise ValueError("Indices do not match: ", newouter, outer_indices)
+                
             indexed_object_name.is_commutative = False
             indexed_dict[self] = indexed_object_name
             arrays[indexed_object_name] = derivative
@@ -96,9 +104,11 @@ class Der(Function):
             indexed_object_name = EinsteinTerm(new_array_name)
             indexed_dict[self] = indexed_object_name
             arrays[indexed_object_name] = derivative
+            
         return arrays, indexed_dict
         
     def apply_derivative(self,index_map, arrays, functions, evaluated):
+        """ Replace the Derivative calls  """
         if isinstance(functions[0], Indexed):
             derivative_function = evaluated[index_map[functions[0]]]
         else:
@@ -113,6 +123,9 @@ class Der(Function):
         return derivative
         
     def split_index(self, index, arrays):
+        """ Split up the components of the array. Return a dictionary where each key is an element
+        of the array and is associated with the appropriate element of the index tuple. """
+        
         split = {}
         count = 0
         for arr in arrays:
@@ -125,6 +138,9 @@ class Der(Function):
 
 
 class Conservative(Function):
+
+    """ Handler for the Conservative function (which uses SymPy's Derivative function). """
+
     LOCAL_FUNCTIONS.append('Conservative')
 
     @property
@@ -133,25 +149,25 @@ class Conservative(Function):
 
     def IndexedObj(self, ndim, indexed_dict, arrays, new_array_name):
         # TODO: Add repeated calling of the derivatives and functions for support of higher orders
+        
         arguments = {}
         derivative_function = self.args[0]
         indexobj = IndexedBase('%s' % derivative_function)
         evaluated, index_structure = evaluate_expression(derivative_function, arrays, indexed_dict)
         
         if index_structure:
-            der_struct = index_structure
-        else:
-            der_struct = []
-        if index_structure:
+            derivative_structure = index_structure
             functions = [indexobj[index_structure]]
         else:
+            derivative_structure = []
             functions = [indexobj]
+
         for arg in self.args[1:]:
-            der_struct = der_struct+ list(indexed_dict[arg].indices)
+            derivative_structure = derivative_structure + list(indexed_dict[arg].indices)
             functions.append(indexed_dict[arg])
         
         shape = []
-        for no,ind in enumerate(der_struct):
+        for no,ind in enumerate(derivative_structure):
             if isinstance(ind,Idx):
                 shape += [ndim]
             else:
@@ -162,17 +178,17 @@ class Conservative(Function):
         for index in np.ndindex(*shape):
             index_map = self.split_index(index,functions)
             derivative[index] = self.apply_derivative(index_map, arrays, functions,evaluated)
-        outer_indices = remove_repeated_index(der_struct)
+        outer_indices = remove_repeated_index(derivative_structure)
         
-        if der_struct:
-            derivative = apply_contraction(outer_indices, der_struct, derivative)
+        if derivative_structure:
+            derivative = apply_contraction(outer_indices, derivative_structure, derivative)
         
         if outer_indices:
             newouter = [out for out in outer_indices if out!=1]
             if newouter == outer_indices:
                 indexed_object_name = IndexedBase(new_array_name, shape=tuple([ndim for x in outer_indices]))[tuple(outer_indices)]
             else:
-                raise ValueError("Indices do not match.")
+                raise ValueError("Indices do not match: ", newouter, outer_indices)
             indexed_object_name.is_commutative = False
             indexed_dict[self] = indexed_object_name
             arrays[indexed_object_name] = derivative
@@ -197,6 +213,9 @@ class Conservative(Function):
         return derivative
         
     def split_index(self, index, arrays):
+        """ Split up the components of the array. Return a dictionary where each key is an element
+        of the array and is associated with the appropriate element of the index tuple. """
+        
         split = {}
         count = 0
         for arr in arrays:
@@ -217,21 +236,22 @@ class KD(Function):
         return False
         
     # FIXME: Can combine the two functions below
-    def IndexedObj(self,ndim):
+    def IndexedObj(self, ndim):
         name = str(self.func)
         
-        if len(self.args) >2:
+        if len(self.args) > 2:
             raise ValueError('Kronecker Delta function should have only two indices')
             
-        ind = flatten([p.get_indices() for p in self.args if p.get_indices])
-        shape_of_array = tuple([ndim for x in range(len(ind))])
-        indexed_base = IndexedBase('%s'%name,shape= shape_of_array)
-        indexed_array = indexed_base[tuple(ind)]
-        indexed_array.is_commutative=False
+        indices = flatten([p.get_indices() for p in self.args if p.get_indices])
+        shape_of_array = tuple([ndim for x in range(len(indices))])
+        indexed_base = IndexedBase('%s' % name, shape=shape_of_array)
+        indexed_array = indexed_base[tuple(indices)]
+        indexed_array.is_commutative = False
         return indexed_array
         
     def ndimarray(self, indexed_array):
         """ Return an array of KroneckerDelta objects comprising the appropriate indices given in the user's equations. """
+        
         array = MutableDenseNDimArray.zeros(*indexed_array.shape)
         for index in np.ndindex(*indexed_array.shape):
             array[index[:]] = KroneckerDelta(*index)
@@ -248,21 +268,22 @@ class LC(Function):
     def is_commutative(self):
         return False
         
-    def IndexedObj(self,ndim):
+    def IndexedObj(self, ndim):
         name = str(self.func)
         
         if len(self.args) != 3 or ndim != 3:
             raise ValueError("LeviCivita function should have only three indices.")
             
-        ind = flatten([p.get_indices() for p in self.args if p.get_indices])
+        indices = flatten([p.get_indices() for p in self.args if p.get_indices])
         shape_of_array = tuple([ndim for x in range(len(ind))])
-        indexed_base = IndexedBase('%s'%name,shape= shape_of_array)
-        indexed_array = indexed_base[tuple(ind)]
+        indexed_base = IndexedBase('%s' % name, shape=shape_of_array)
+        indexed_array = indexed_base[tuple(indices)]
         indexed_array.is_commutative = False
         return indexed_array
         
     def ndimarray(self, indexed_array):
         """ Return an array of LeviCivita objects comprising the appropriate indices given in the user's equations. """
+        
         array = MutableDenseNDimArray.zeros(*indexed_array.shape)
         for index in np.ndindex(*indexed_array.shape):
             array[index[:]] = LeviCivita(*index)
