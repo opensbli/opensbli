@@ -185,15 +185,8 @@ class TimeDerivative():
             dt.is_constant = True; dt.is_commutative = True
         else:
             raise NotImplementedError("Varying delta t is not implemented in the code")
-        fn = IndexedBase('f')[grid.time_grid]
-        time_index = grid.time_grid[-1]
-        self.coeffs = {}
-        self.timeder = fn.diff(time_index)
-        self.formula = []
-        self.stages = 0
         if temporal.scheme == "Forward":
-            if temporal.order ==1:
-                self.formula = as_finite_diff(self.timeder, [time_index+1, time_index])*pow(dt,-1)
+            if temporal.order == 1:
                 self.stages = 1
                 return
             else:
@@ -482,13 +475,77 @@ class SpatialSolution():
         # The final computations of the residual (change in the rhs terms of the equations)
         # The residual equations are also named as work arrays
         residual_eqs = []
+        residual_arrays = []
         for eq in updated_eq:
             wk = grid.work_array('%s%d'%(wkarray,wkind)); wkind = wkind + 1
+            residual_arrays.append({eq.lhs:wk})
             residual_eqs.append(Eq(wk,eq.rhs))
         eval_range = [tuple([0,s]) for s in grid.shape]
         computations.append(ComputationalKernel(residual_eqs, eval_range, "Residual of equation"))
-
-
+        # The residual arrays are tracked to do the computations temporally
+        self.computations = computations
+        self.residual_arrays = residual_arrays
+        return
+class TemporalSolution():
+    def __init__(self,temporal, grid, const_dt, Spatialsolution):
+        if const_dt:
+            dt = EinsteinTerm('deltat')
+            dt.is_constant = True; dt.is_commutative = True
+        else:
+            raise NotImplementedError("Varying delta t is not implemented in the code")
+        self.nstages = temporal.order
+        if temporal.scheme == "Forward" and self.nstages == 1:
+            self.coeff = None
+            pass
+        elif temporal.scheme == "RungeKutta" and self.nstages == 3:
+            self.coeff = RungeKutta(self.nstages)
+            pass
+        else:
+            raise ValueError("Only 1st order Forward or RungeKutta 3 order temporal schemes are allowed")
+        eqs = []
+        # Any computations at the start of the time step generally save equations
+        self.start = []
+        self.computations = []
+        out = []
+        for soln in Spatialsolution.residual_arrays:
+            out.append(self.time_derivative(soln.keys()[0].args[0], dt,soln[soln.keys()[0]], grid))
+        if self.nstages !=1:
+            start = [o[-1] for o in out]
+            range_ofevaluation = [tuple([0+grid.halos[i][0],s+grid.halos[i][1]]) for i,s in enumerate(grid.shape)]
+            self.start.append(ComputationalKernel(start,range_ofevaluation, "Save equations"))
+            range_ofevaluation = [tuple([0,s]) for i,s in enumerate(grid.shape)]
+            # these are the update equations of the variables at t + k where k is rk loop
+            eqs = [o[0] for o in out]
+            self.computations.append(ComputationalKernel(eqs,range_ofevaluation, "Rk new (subloop) update"))
+            eqs = [o[1] for o in out]
+            self.computations.append(ComputationalKernel(eqs,range_ofevaluation, "RK old update"))
+        else:
+            self.start = None
+            range_ofevaluation = [tuple([0,s]) for i,s in enumerate(grid.shape)]
+            self.computations.append(ComputationalKernel(out,range_ofevaluation, "RK old update"))
+        return
+    def time_derivative(self, fn, dt, residual, grid):
+        out = fn
+        if self.nstages == 1:
+            eqn = Eq(fn, fn + dt*residual, evaluate=False)
+        elif self.nstages == 3:
+            old = grid.work_array('%s_old'%fn.base)
+            eqn_fn = Eq(fn, old + self.coeff.new*residual, evaluate=False)
+            eqn_old = Eq(old, old + self.coeff.old*residual, evaluate=False)
+            saveeq = Eq(old, fn)
+            eqn = [eqn_fn,eqn_old, saveeq]
+        return eqn
+class RungeKutta():
+    def __init__(self, order):
+        self.stage = Symbol('stage', integer=True)
+        self.old = IndexedBase('rkold')
+        self.new = IndexedBase('rknew')
+        self.old = self.old[self.stage]
+        self.new = self.new[self.stage]
+        if order == 3:
+            self.coeffs = {}
+            self.coeffs[self.old] = [-1, 2, -1]
+            self.coeffs[self.new] = [-1, 4, -6, 4, -1]
         return
 
 def range_of_evaluation(orderof_evaluations, evaluations, grid, sdclass):

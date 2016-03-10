@@ -71,7 +71,8 @@ grid = NumericalGrid(tuple(symbols('nx0:%d' % ndim, integer = True)))
 #central_derivatives = SpatialDerivative(spatial_scheme,grid)
 const_dt = True
 #time_advance = TimeDerivative(temporal_scheme, grid,const_dt)
-SpatialSolution(expanded_equations,expanded_formulas, grid, spatial_scheme)
+spatial_solution = SpatialSolution(expanded_equations,expanded_formulas, grid, spatial_scheme)
+TemporalSolution(temporal_scheme, grid,const_dt,spatial_solution)
 end = time.time()
 LOG.debug('The time taken to prepare the system in %d Dimensions is %.2f seconds.' % (problem.ndim, end - start))
 #scheme = "RK"
