@@ -324,10 +324,11 @@ class EinsteinTerm(Symbol):
             return EinsteinTerm(expanded)
             
     def ndimarray(self, indexed_array, function=None):
+        """ Return an array of IndexedBase objects. """
         array = MutableDenseNDimArray.zeros(*indexed_array.shape)
-        arrayind = indexed_array.indices
+        array_indices = indexed_array.indices
         for index in np.ndindex(*indexed_array.shape):
-            index_map = self.map_indices(arrayind, index)
+            index_map = self.map_indices(array_indices, index)
             value = self.get_expanded(index_map)
             value.is_commutative = True
             if not function:
@@ -336,12 +337,13 @@ class EinsteinTerm(Symbol):
                 array[index] = IndexedBase('%s' % value)[function]
         return array
         
-    def map_indices(self,arrayind,index):
-        maps = []
-        for number,ind in enumerate(arrayind):
-            if isinstance(ind,Idx):
-                maps.append(tuple([ind, index[number]]))
-        return maps
+    def map_indices(self, array_indices, indices):
+        """ Map each array index to a SymPy Idx object. """
+        mapping = []
+        for number, index in enumerate(array_indices):
+            if isinstance(index, Idx):
+                mapping.append(tuple([index, indices[number]]))
+        return mapping
        
 
 class EinsteinExpansion(object):
@@ -422,7 +424,7 @@ class EinsteinExpansion(object):
 
         # Evaluate the nested function
         for ev in to_eval:
-            new_array_name = '%s%d' % (self.indexed_object_name,self.indexed_object_number)
+            new_array_name = '%s%d' % (self.indexed_object_name, self.indexed_object_number)
             self.indexed_object_number = self.indexed_object_number + 1
             ev.IndexedObj(self.ndim, indexed_dict, ndimarrays, new_array_name)
 
