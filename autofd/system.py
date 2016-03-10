@@ -60,35 +60,7 @@ class NumericalGrid():
         '''
         out = IndexedBase('%s'%name)[self.indices]
         return out
-class ComputationalKernel():
-    def __init__(self):
-        self.ranges = []# range of the kernel
-        self.name = None # None generates automatic kernel name
-        self.equations = []
-        self.ins = {}
-        self.outs = {}
-        self.inouts = {}
-        self.constants = {}
-        return
-    def classify_objects(self,equations):
-        ins = []
-        outs = []
-        inouts = []
-        consts = []
-        if isinstance(equations, list):
-            pass
-        else:
-            equations = [equations]
-        for eq in equations:
-            ins = ins + list(eq.rhs.atoms(Indexed))
-            outs = outs + list(eq.lhs.atoms(Indexed))
-            consts = consts + list(eq.atoms(EinsteinTerm))
-        inouts = set(outs).intersection(set(ins))
-        ins = set(ins).difference(inouts)
-        outs = set(outs).difference(inouts)
-        consts = set(consts)
 
-        return
 class SpatialDerivative():
     """
     This initializes the spatial derivatives of an arbitrary function 'F'
@@ -108,17 +80,17 @@ class SpatialDerivative():
         self.update_stencil(spatial,grid)
         self.derivatives = []
         self.der_direction = grid.indices
+        self.deltas = grid.deltas
         fn = IndexedBase('f',shape = grid.shape)[grid.indices]
         self.fn = fn
         self.Derivative_formulas(fn,max_order, grid)
-        #self.deriv_kernel = []
         return
 
     def update_stencil(self,spatial, grid):
         for dim, val in enumerate(grid.shape):
             if spatial.scheme == 'central':
                 points = list(i for i in range(-spatial.order/2, spatial.order/2+1))
-                grid.halos += tuple([-spatial.order/2, spatial.order/2])
+                grid.halos.append(tuple([-spatial.order/2, spatial.order/2]))
             else:
                 raise NotImplementedError("Only central difference schemes are supported")
             self.stencil[dim] = [grid.indices[dim] + i for i in points]
@@ -139,6 +111,7 @@ class SpatialDerivative():
             for ind in np.ndindex(*array.shape):
                 der_args = [grid.indices[i] for i in ind]
                 name = [str(arg) for arg in ind]
+                #name = tuple(ind)
                 name = "[%d][%s]"%(order,','.join(name))
                 deriv_kernel[ind] = Symbol(name)
                 array[ind] = fn.diff(*der_args)
@@ -155,7 +128,7 @@ class SpatialDerivative():
         self.derivative_formula = derivative_formula
         self.deriv_kernel = comp_kernels
         return
-    def get_derivativeformula(self, derivative, coord, grid):
+    def get_derivativeformula(self, derivative, order):
         '''This returns the formula for the derivative using the functions provided
         for getting a symbolic derivative for a general function use get_derivative
         used for ceval stuff
@@ -163,14 +136,12 @@ class SpatialDerivative():
         order = len(derivative.args[1:])
         inds = []
         for arg in derivative.args[1:]:
-            inds = inds +[coord.index(arg)]
-            derivative = derivative.subs(arg, grid.indices[coord.index(arg)])
-        formula = self.derivative_formula[order][tuple(inds)]
-        fn = derivative.args[0]
-        if order == 1:
-            pprint(derivative)
-            formula = as_finite_diff(derivative, self.stencil[inds[0]])
-        formula = []
+            inds = inds + [self.der_direction.index(arg)]
+        if order == 1 or len(set(inds)) ==1:
+            formula = as_finite_diff(derivative, self.stencil[inds[0]])*pow(self.deltas[inds[0]],-order)
+        else:
+            loweder = Derivative(derivative.args[0], *inds[:-1])
+            raise ValueError("first update the derivative of %s before calling %s"%(loweder, derivative))
         return formula
     def get_derivative(self, derivative):
         '''
@@ -185,7 +156,7 @@ class SpatialDerivative():
         subevals = []
         requires = []
         if order == 1 or len(set(inds)) ==1:
-            generalformula += [self.deriv_kernel[order][tuple(inds)]]
+            generalformula += [order,tuple(inds)]
             if len(derivative.args[0].atoms(Indexed)) >1:
                 subevals += [derivative.args[0]]
                 requires += list(derivative.args[0].atoms(Indexed))
@@ -200,7 +171,7 @@ class SpatialDerivative():
             else:
                 subevals += [None]
                 requires += [derivative.args[0]]
-            generalformula += [self.deriv_kernel[1][tuple([inds[-1]])]]
+            generalformula += [order-1,tuple([inds[-1]])]
             requires += [self.derivatives[order-1][inds[:-1]].subs(self.fn,derivative.args[0])]
 
         return generalformula, subevals, requires
@@ -279,7 +250,6 @@ def get_grid_variables(equations):
     count = {}
     for eq in equations:
         pot = preorder_traversal(eq)
-
         for p in pot:
             if p in variables:
                 pot.skip()
@@ -309,6 +279,7 @@ class Evaluations():
                 self.work = None
             self.formula = rhs
             self.requires = requires
+            self.evaluation_range = []
         else:
             self.is_formula = True
             self.is_der = False
@@ -322,8 +293,78 @@ class Evaluations():
                 self.work = None
             self.formula = rhs
             self.requires = requires
+            self.evaluation_range = []
         return
+class ComputationalKernel():
+    def __init__(self, equations, ranges, SD=None):
+        '''
+        This should do two things
+        1. Able to write the kernel calling function based on language
+            For this we require (IN OPSC)
+            a. Name of the kernel to call
+            b. Block on which it should work, dimensions of the block
+            c. ins, outs, inouts and their stencil of access, data type
+            d. Indices of the array if required
+        2. Write the computational kernel, requires writing kernel header
+        and the computations
+            Require for OPSC
+            a.Kernel header can be written with ins, outs,
+        inouts and indices along with the data type
+            b. TO write the computations the Indexed Objects are to be modified
+        this modification requires OPS_ACC values which can also be populated and
+        grid indices are replaced with 0's
+        All in all we require
+        1. Name
+        2. Block (updated from the call to ops_write)
+        3. ins, outs, inouts and so on
+        4. Stencils of access
+        '''
+        self.ranges = ranges# range of the kernel
+        self.name = None # None generates automatic kernel name
+        if isinstance(equations, list):
+            self.equations = equations
+        else:
+            self.equations = [equations]
 
+        self.inputs = {}
+        self.outputs = {}
+        self.inputoutoutput = {}
+        self.constants = {}
+        if not SD:
+            self.classify_indexed_objects()
+        else:
+            pass
+        return
+    def classify_indexed_objects(self):
+        ins = []
+        outs = []
+        inouts = []
+        consts = []
+        for eq in self.equations:
+            ins = ins + list(eq.rhs.atoms(Indexed))
+            outs = outs + list(eq.lhs.atoms(Indexed))
+            consts = consts + list(eq.atoms(EinsteinTerm))
+        inouts = set(outs).intersection(set(ins))
+        ins = set(ins).difference(inouts)
+        outs = set(outs).difference(inouts)
+        indexbase_ins = set([v.base for v in ins])
+        indexbase_outs = set([v.base for v in outs])
+        indexbase_inouts = set([v.base for v in inouts])
+        for v in indexbase_ins:
+            indexes = [vin.indices for vin in ins if vin.base==v]
+            self.inputs[v] = indexes
+        for v in indexbase_outs:
+            indexes = [vin.indices for vin in outs if vin.base==v]
+            self.outputs[v] = indexes
+        for v in indexbase_inouts:
+            indexes = [vin.indices for vin in inouts if vin.base==v]
+            self.inputoutoutput[v] = indexes
+        # TODO Add any Idx objects to the inputs as well if have one
+        consts = set(consts)
+        return
+    def classify_ders(self):
+
+        return
 class SpatialSolution():
     def __init__(self, equations, formulas, grid, spatial_scheme):
         alleqs = flatten(list(e.expanded for e in equations))
@@ -351,8 +392,7 @@ class SpatialSolution():
         coord = coord.tolist()
         wkarray = 'wk'; wkind = 0;
         for der in spatialders:
-            # Modify the derivative to be a derivative on grid
-            out = der
+            out = der# Modify the derivative to be a derivative on grid
             wk = grid.work_array('%s%d'%(wkarray,wkind)); wkind = wkind +1
             for atom in der.atoms(Indexed):
                 out = out.subs(atom, grid_arrays[atom])
@@ -364,13 +404,120 @@ class SpatialSolution():
             evals[out] = evaluated
         # we will assume that all the functions in time derivative are known at the start
         known = [grid_arrays[d.args[0]] for d in time_derivatives]
+        for val in known:
+            evaluated = Evaluations(val,val, None, None,val)
+            evals[val] =  evaluated
         # Sort the Formulas
-        orderof_evaluations = sort_evaluations(known,evals, Indexed)
+        orderof_evaluations = [grid_arrays[d.args[0]] for d in time_derivatives]
+        orderof_evaluations = sort_evaluations(orderof_evaluations,evals, Indexed)
         # sort the derivatives
         orderof_evaluations = sort_evaluations(orderof_evaluations,evals, Derivative)
-        pprint(orderof_evaluations)
+        # update the range of evaluations for each evaluation
+        range_of_evaluation(orderof_evaluations, evals,grid, SD)
+        # now define a ComputationalKernel for each of the evaluations
 
+        ''' All the primitive variables (IndexedObjects)
+        excluding those which have a time derivative are stored into a kernel
+        '''
+        forms = [ev for ev in orderof_evaluations if isinstance(ev, Indexed) and ev not in known]
+        ranges = [evals[ev].evaluation_range for ev in forms]
+        subevals = flatten([evals[ev].subevals for ev in forms])
+        subeval_truth = [ev == None for ev in subevals]
+        # check if all the ranges of evaluation are the same for the Formulas
+        range_truth = [ranges[0][i] == val[i] for val in ranges for i in range(len(ranges[0]))]
+        computations = []
+        eqs = []
+        eqs = [Eq(evals[ev].work, evals[ev].formula) for ev in forms]
+
+        # if same range then combine them into a single computation else store into different computations
+        if all(range_truth) and all(subeval_truth):
+            computations.append(ComputationalKernel(eqs, ranges))
+        else:
+            for number,eq in enumerate(eqs):
+                computations.append(ComputationalKernel(eq, ranges[number]))
+        # Now process the Derivatives
+        derivatives = [ev for ev in orderof_evaluations if isinstance(ev, Derivative) and ev not in known]
+        ranges = [evals[ev].evaluation_range for ev in derivatives]
+        subevals = [evals[ev].subevals for ev in derivatives]
+        require = [evals[ev].requires for ev in derivatives]
+        for number,der in enumerate(derivatives):
+            if not any(isinstance(req, Derivative) for req in require[number]):
+                if all(subev == None for subev in subevals[number]):
+                    rhs = SD.get_derivativeformula(der,evals[der].formula[0])
+                    eq = Eq(evals[der].work,rhs)
+                    computations.append(ComputationalKernel(eq, ranges[number]))
+                    #print "Computed"
+                else:
+                    # store into temporary array sub evaluation
+                    eqs = []
+                    tempwkind = wkind
+                    for subev in subevals[number]:
+                        wk = grid.work_array('%s%d'%(wkarray,tempwkind));tempwkind = tempwkind +1
+                        for req in require[number]:
+                            local_range = [req,evals[req].evaluation_range]
+                            subev = subev.subs(req,evals[req].work)
+                        eqs.append(Eq(wk,subev))
+                    computations.append(ComputationalKernel(eqs, local_range))
+                    for eq in eqs:
+                        newder = der.subs(eq.rhs,eq.lhs)
+                    rhs = SD.get_derivativeformula(newder,evals[der].formula[0])
+                    eq = Eq(evals[der].work,rhs)
+                    computations.append(ComputationalKernel(eq, ranges[number]))
+            else:
+                newder = der
+                if all(subev == None for subev in subevals[number]):
+                    for req in require[number]:
+                        newder = newder.subs(req,evals[req].work)
+                else:
+                    raise NotImplementedError("Sub evaluations in a mixed derivative")
+                rhs = SD.get_derivativeformula(newder,evals[der].formula[0])
+                eq = Eq(evals[der].work,rhs)
+                computations.append(ComputationalKernel(eq, ranges[number]))
+        updated_eq = [eq for eq in alleqs]
+        # All the spatial computations are performed now get the updated equations
+        for eqno,eq in enumerate(updated_eq):
+            spatialders, dercount, time_derivatives = get_spatial_derivatives([eq])
+            grid_variables, variable_count = get_grid_variables([eq])
+            spatialders = (sorted(spatialders, cmp = decreasing_order))
+            # substitute spatial ders first
+            for var in spatialders+grid_variables:
+                new = evals[grid_arrays[var]].work
+                updated_eq[eqno] = updated_eq[eqno].subs(var,new)
+            pprint(updated_eq[eqno])
         return
+
+def range_of_evaluation(orderof_evaluations, evaluations, grid, sdclass):
+    '''
+    First the ranges of derivatives are updated, then other ranges are updated
+    '''
+    ders = []
+    for ev in orderof_evaluations:
+        if isinstance(ev, Derivative):
+            ders.append(ev)
+        evaluations[ev].evaluation_range = [tuple([0,s]) for s in grid.shape]
+    # Update the range for the derivatives
+    grouped_ders = group_derivatives(ders)
+    for key, value in grouped_ders.iteritems():
+        for val in value:
+            require = evaluations[val].requires
+            form  = evaluations[val].formula
+            dire = form[1][0]
+            halos = grid.halos[dire]
+            for req in require:
+                erange = list(evaluations[req].evaluation_range[dire])
+                if erange[0] == 0 and erange[1] == grid.shape[dire]:
+                    erange[0] = erange[0]+halos[0]
+                    erange[1] = erange[1]+halos[1]
+                evaluations[req].evaluation_range[dire] = tuple(erange)
+    #update the range for the formulas
+    for ev in orderof_evaluations:
+        if isinstance(ev, Indexed):
+            require = evaluations[ev].requires
+            if require:
+                for req in require:
+                    evaluations[req].evaluation_range = evaluations[ev].evaluation_range
+
+    return
 
 def sort_evaluations(evaluated, evaluations, typef):
     for key in evaluations.keys():
@@ -383,20 +530,22 @@ def sort_evaluations(evaluated, evaluations, typef):
                         sort_evaluations(evaluated, {val:evaluations[val]}, typef)
                 evaluated.append(key)
     return evaluated
+def decreasing_order(s1, s2):
+    return cmp(len(s2.args), len(s1.args))
+def increasing_order(s1, s2):
+    return cmp(len(s1.args), len(s2.args))
+def group_derivatives(spatialders):
+    spatial_der_dict ={}
+    for der in spatialders:
+        if der.args[0] in spatial_der_dict.keys():
+            spatial_der_dict[der.args[0]] += [der]
+        else:
+            spatial_der_dict[der.args[0]] = [der]
 
-#class useful(object):
-        #spatial_der_dict ={}
-        #for der in spatialders:
-            #if der.args[0] in spatial_der_dict.keys():
-                #spatial_der_dict[der.args[0]] += [der]
-            #else:
-                #spatial_der_dict[der.args[0]] = [der]
-        #def mycmp(s1, s2):
-            #return cmp(len(s1.args), len(s2.args))
-        #for key,value in spatial_der_dict.iteritems():
-            #if len(value)>1:
-                #spatial_der_dict[key] = (sorted(value, cmp=mycmp))
-        #return
+    for key,value in spatial_der_dict.iteritems():
+        if len(value)>1:
+            spatial_der_dict[key] = (sorted(value, cmp=increasing_order))
+    return spatial_der_dict
 class System(object):
     '''
     Re arrange system with new spatial derivatives class etc..
@@ -832,7 +981,7 @@ class System(object):
             call, kernel = opsc.generate(saveeq, self)
             kernels = kernels + kernel
             final_algorithm[algorithm_template.get('a06')] = call
-            
+
             # Initial conditions kernel
             latex.write_equations(initial_conditions, variable_indices)
             call, kernel = opsc.generate(initial_conditions, self)
@@ -937,7 +1086,7 @@ class System(object):
                 LOG.error("Could not import the OPS translator. Aborting...")
                 LOG.exception(e)
                 return
-            
+
             try:
                 ops.main(["%s.cpp" % simulation_parameters["name"]])
             except Exception as e:
