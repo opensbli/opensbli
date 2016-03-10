@@ -481,17 +481,17 @@ class EinsteinExpansion(object):
             function.get_indexed_object(self.ndim, indexed_dict, ndimarrays, new_array_name)
 
         # Now evaluate the RHS of the equation
-        evaluated_rhs, rhs_ind = evaluate_expression(expression.rhs, ndimarrays, indexed_dict)
-        evaluated_lhs, lhs_ind = evaluate_expression(expression.lhs, ndimarrays, indexed_dict)
+        evaluated_rhs, rhs_indices = evaluate_expression(expression.rhs, ndimarrays, indexed_dict)
+        evaluated_lhs, lhs_indices = evaluate_expression(expression.lhs, ndimarrays, indexed_dict)
         
         # Sanity check: Check that the indices on the LHS and RHS match
-        if lhs_ind != rhs_ind:
+        if lhs_indices != rhs_indices:
             raise ValueError("Indices of the LHS do not match those of the RHS in the following expression: ", expression)
             
         array_types = (collections.Iterable, MatrixBase, NDimArray)
         if isinstance(evaluated_lhs, array_types):
-            for ind in np.ndindex(evaluated_lhs.shape):
-                self.expanded += [Eq(evaluated_lhs[ind], evaluated_rhs[ind])]
+            for index in np.ndindex(evaluated_lhs.shape):
+                self.expanded += [Eq(evaluated_lhs[index], evaluated_rhs[index])]
         else:
             self.expanded += [Eq(evaluated_lhs, evaluated_rhs)]
         return
