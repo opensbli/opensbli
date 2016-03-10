@@ -54,7 +54,7 @@ class Der(Function):
         # TODO: Add repeated calling of the derivatives and functions for support of higher orders
         derivative_function = self.args[0]
         indexobj = IndexedBase('%s'%derivative_function)
-        evaluated, index_structure = evaluate_expression(derivative_function,arrays,indexed_dict,ndim)
+        evaluated, index_structure = evaluate_expression(derivative_function, arrays, indexed_dict)
         if not index_structure == None:
             der_struct = index_structure
         else:
@@ -136,7 +136,7 @@ class Conservative(Function):
         arguments = {}
         derivative_function = self.args[0]
         indexobj = IndexedBase('%s' % derivative_function)
-        evaluated, index_structure = evaluate_expression(derivative_function,arrays,indexed_dict,ndim)
+        evaluated, index_structure = evaluate_expression(derivative_function, arrays, indexed_dict)
         
         if index_structure:
             der_struct = index_structure
@@ -436,8 +436,8 @@ class EinsteinExpansion(object):
             ev.IndexedObj(self.ndim, indexed_dict, ndimarrays, new_array_name)
 
         # Now evaluate the RHS of the equation
-        evaluated_rhs, rhs_ind = evaluate_expression(expression.rhs, ndimarrays, indexed_dict, self.ndim)
-        evaluated_lhs, lhs_ind = evaluate_expression(expression.lhs, ndimarrays, indexed_dict, self.ndim)
+        evaluated_rhs, rhs_ind = evaluate_expression(expression.rhs, ndimarrays, indexed_dict)
+        evaluated_lhs, lhs_ind = evaluate_expression(expression.lhs, ndimarrays, indexed_dict)
         array_types = (collections.Iterable, MatrixBase, NDimArray)
         if isinstance(evaluated_lhs, array_types):
             for ind in np.ndindex(evaluated_lhs.shape):
@@ -671,7 +671,7 @@ def apply_contraction(outer_indices, tensor_indices, array):
     return result
     
     
-def get_indexed_obj(expression):
+def get_indexed_object(expression):
     """ Perform a pre-order traversal of the expression tree to get all Indexed
     EinsteinTerms and functions such as Derivative or Conservative. """
     
@@ -693,9 +693,9 @@ def get_indexed_obj(expression):
     return functions + einstein_terms
 
 
-def evaluate_expression(expression, arrays, indexed_dict, ndim):
-    indexedobj = get_indexed_obj(expression)
-    for einstein_term in indexedobj:
+def evaluate_expression(expression, arrays, indexed_dict):
+    indexed_object = get_indexed_object(expression)
+    for einstein_term in indexed_object:
         expression = expression.xreplace({einstein_term:indexed_dict[einstein_term]})
     index_structure = get_index_structure(expression)
     evaluated, indices = evaluate_Indexed_expression(expression, arrays, index_structure)
