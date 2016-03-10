@@ -299,12 +299,17 @@ class LC(Function):
 class EinsteinTerm(Symbol):
 
     """ Represents any symbol in the equation as a SymPy Symbol object which in turn represents an Einstein term.
-    This could be e.g. tau_i_j, but can also be e.g. u, rho.
+    This could be e.g. tau_i_j, but can also be e.g. u_i, rho.
     In other words, all symbols in the equation are Einstein terms, but they can have zero or more indices. """
     
     is_commutative = False
     
     def __new__(self, symbol, **assumptions):
+        """ Create a new EinsteinTerm. 
+        
+        :arg str symbol: The symbol under consideration. This can have zero or more indices.
+        """
+    
         self._sanitize(assumptions, self) # Remove any 'None's, etc.
         self.name = str(symbol)
 
@@ -329,14 +334,19 @@ class EinsteinTerm(Symbol):
         return self.name.split('_')[0]
 
     def get_indexed_object(self, ndim):
+        """ Given the EinsteinTerm's base name (which gets transformed to an IndexedBase here) and its indices (i.e. Idx objects),
+        return an Indexed object. """
+    
         name = self.get_base()
         indices = self.get_indices()
+        
         if len(indices) > 0:
             shape_of_array = tuple([ndim for x in range(len(indices))])
         else:
             indices = [1, self.get_indices()]
             indices = flatten(indices)
             shape_of_array = tuple([1, ndim])
+            
         indexed_base = IndexedBase('%s' % name, shape=shape_of_array)
         indexed_array = indexed_base[tuple(indices)]
         indexed_array.is_commutative = False
@@ -387,8 +397,13 @@ class EinsteinExpansion(object):
     """ Expand an Einstein variable with respect to its indices. """
 
     def __init__(self, expression, ndim):
+        """ Initialise an Einstein expansion system.
+        
+        :arg str expression: The expression to expand.
+        :arg int ndim: The dimension of the equations.
+        """
+    
         self.expression = expression
-        self.expression_indexed = expression
         self.ndim = ndim
         self.expanded = []
 
