@@ -53,7 +53,7 @@ class Der(Function):
     def is_commutative(self):
         return False
         
-    def IndexedObj(self, ndim, indexed_dict, arrays, new_array_name):
+    def get_indexed_object(self, ndim, indexed_dict, arrays, new_array_name):
         # TODO: Add repeated calling of the derivatives and functions for support of higher orders
         
         derivative_function = self.args[0]
@@ -148,7 +148,7 @@ class Conservative(Function):
     def is_commutative(self):
         return False
 
-    def IndexedObj(self, ndim, indexed_dict, arrays, new_array_name):
+    def get_indexed_object(self, ndim, indexed_dict, arrays, new_array_name):
         # TODO: Add repeated calling of the derivatives and functions for support of higher orders
         
         arguments = {}
@@ -242,7 +242,7 @@ class KD(Function):
         return False
         
     # FIXME: Can combine the two functions below
-    def IndexedObj(self, ndim):
+    def get_indexed_object(self, ndim):
         name = str(self.func)
         
         if len(self.args) > 2:
@@ -274,7 +274,7 @@ class LC(Function):
     def is_commutative(self):
         return False
         
-    def IndexedObj(self, ndim):
+    def get_indexed_object(self, ndim):
         name = str(self.func)
         
         if len(self.args) != 3 or ndim != 3:
@@ -328,18 +328,18 @@ class EinsteinTerm(Symbol):
         """ Return the base name. """
         return self.name.split('_')[0]
 
-    def IndexedObj(self,ndim):
+    def get_indexed_object(self, ndim):
         name = self.get_base()
-        ind = self.get_indices()
-        if len(ind)>0 :
-            shape_of_array = tuple([ndim for x in range(len(ind))])
+        indices = self.get_indices()
+        if len(indices) > 0:
+            shape_of_array = tuple([ndim for x in range(len(indices))])
         else:
-            ind = [1,self.get_indices()]
-            ind = flatten(ind)
-            shape_of_array = tuple([1,ndim])
-        indexed_base = IndexedBase('%s'%name,shape= shape_of_array)
-        indexed_array = indexed_base[tuple(ind)]
-        indexed_array.is_commutative=False
+            indices = [1, self.get_indices()]
+            indices = flatten(indices)
+            shape_of_array = tuple([1, ndim])
+        indexed_base = IndexedBase('%s' % name, shape=shape_of_array)
+        indexed_array = indexed_base[tuple(indices)]
+        indexed_array.is_commutative = False
         return indexed_array
         
     def get_expanded(self, index_map):
@@ -404,7 +404,7 @@ class EinsteinExpansion(object):
             if atom.is_coordinate:
                 coord = True
                 if atom.get_indices():
-                    indict = atom.IndexedObj(self.ndim)
+                    indict = atom.get_indexed_object(self.ndim)
                     array = atom.ndimarray(indict)
                     coordinates = flatten(array.tolist())
 
@@ -421,7 +421,7 @@ class EinsteinExpansion(object):
             # Constant term
             if atom.is_constant:
                 if atom.get_indices():
-                    indexed_dict[atom] = atom.IndexedObj(self.ndim)
+                    indexed_dict[atom] = atom.get_indexed_object(self.ndim)
                     ndimarrays[indexed_dict[atom]] = atom.ndimarray(indexed_dict[atom])
                 else:
                     indexed_dict[atom] = atom
@@ -429,7 +429,7 @@ class EinsteinExpansion(object):
             else:
                 if atom.get_indices():
                     if atom.get_base():
-                        indexed_dict[atom] = atom.IndexedObj(self.ndim)
+                        indexed_dict[atom] = atom.get_indexed_object(self.ndim)
                         ndimarrays[indexed_dict[atom]] = atom.ndimarray(indexed_dict[atom], coordinates)
                 else:
                     indexed_dict[atom] = atom
@@ -439,13 +439,13 @@ class EinsteinExpansion(object):
         # Get the Ndim arrays for the Kronecker Delta function
         for kd in expression.atoms(KD):
             if not kd in indexed_dict.keys():
-                indexed_dict[kd] = kd.IndexedObj(self.ndim)
+                indexed_dict[kd] = kd.get_indexed_object(self.ndim)
                 ndimarrays[indexed_dict[kd]] = kd.ndimarray(indexed_dict[kd])
 
         # Get the Ndim arrays for the Levi-Civita function
         for lc in expression.atoms(LC):
             if not lc in indexed_dict.keys():
-                indexed_dict[lc] = lc.IndexedObj(self.ndim)
+                indexed_dict[lc] = lc.get_indexed_object(self.ndim)
                 ndimarrays[indexed_dict[lc]] = lc.ndimarray(indexed_dict[lc])
 
         # Do the Functions that are not nested
@@ -455,7 +455,7 @@ class EinsteinExpansion(object):
                 if not function in indexed_dict.keys():
                     new_array_name = '%s%d' % (self.indexed_object_name, self.indexed_object_number)
                     self.indexed_object_number = self.indexed_object_number + 1
-                    function.IndexedObj(self.ndim, indexed_dict, ndimarrays, new_array_name)
+                    function.get_indexed_object(self.ndim, indexed_dict, ndimarrays, new_array_name)
             else:
                 functions_to_eval.append(function)
 
@@ -463,7 +463,7 @@ class EinsteinExpansion(object):
         for function in functions_to_eval:
             new_array_name = '%s%d' % (self.indexed_object_name, self.indexed_object_number)
             self.indexed_object_number = self.indexed_object_number + 1
-            function.IndexedObj(self.ndim, indexed_dict, ndimarrays, new_array_name)
+            function.get_indexed_object(self.ndim, indexed_dict, ndimarrays, new_array_name)
 
         # Now evaluate the RHS of the equation
         evaluated_rhs, rhs_ind = evaluate_expression(expression.rhs, ndimarrays, indexed_dict)

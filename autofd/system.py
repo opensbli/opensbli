@@ -50,7 +50,7 @@ class NumericalGrid():
         #self.deltas = [EinsteinTerm'delta_i']
         self.time_grid = self.indices + [symbols('Time',integer=True)]
         et = EinsteinTerm('deltai_i');et.is_constant = True
-        self.deltas = et.ndimarray(et.IndexedObj(len(shape)))
+        self.deltas = et.ndimarray(et.get_indexed_object(len(shape)))
         self.halos = []
         return
     def work_array(self,name):
@@ -384,7 +384,7 @@ class SpatialSolution():
             evaluated = Evaluations(out.lhs,out.rhs, list(out.rhs.atoms(Indexed)), None,out.lhs)
             evals[out.lhs] = evaluated
         et = EinsteinTerm('x_i');et.is_constant = True
-        coord = et.ndimarray(et.IndexedObj(len(grid.shape)))
+        coord = et.ndimarray(et.get_indexed_object(len(grid.shape)))
         coord = coord.tolist()
         wkarray = 'wk'; wkind = 0;
         for der in spatialders:
