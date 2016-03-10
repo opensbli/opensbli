@@ -25,7 +25,7 @@ import re
 
 # AutoFD functions
 from .codegen_utils import END_OF_STATEMENT_DELIMITER
-from .equations import equations_to_dict
+#from .equations import equations_to_dict
 
 import logging
 LOG = logging.getLogger(__name__)

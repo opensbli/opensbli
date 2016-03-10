@@ -53,13 +53,13 @@ class Der(Function):
         # Add repeated calling of the derivatives and functions for support of higher orders
         derivative_function = self.args[0]
         indexobj = IndexedBase('%s'%derivative_function)
-        evaluated, index_struc = evaluate_expression(derivative_function,arrays,indexed_dict,ndim)
-        if not index_struc == None:
-            der_struct = index_struc
+        evaluated, index_structure = evaluate_expression(derivative_function,arrays,indexed_dict,ndim)
+        if not index_structure == None:
+            der_struct = index_structure
         else:
             der_struct = []
-        if index_struc:
-            functions = [indexobj[index_struc]]
+        if index_structure:
+            functions = [indexobj[index_structure]]
         else:
             functions = [indexobj]
         for arg in self.args[1:]:
@@ -135,14 +135,14 @@ class Conservative(Function):
         arguments = {}
         derivative_function = self.args[0]
         indexobj = IndexedBase('%s' % derivative_function)
-        evaluated, index_struc = evaluate_expression(derivative_function,arrays,indexed_dict,ndim)
+        evaluated, index_structure = evaluate_expression(derivative_function,arrays,indexed_dict,ndim)
         
-        if index_struc:
-            der_struct = index_struc
+        if index_structure:
+            der_struct = index_structure
         else:
             der_struct = []
-        if index_struc:
-            functions = [indexobj[index_struc]]
+        if index_structure:
+            functions = [indexobj[index_structure]]
         else:
             functions = [indexobj]
         for arg in self.args[1:]:
@@ -446,7 +446,8 @@ class Equation(object):
         :arg list constants: Any constants like the Reynolds number defined in the equations.
         :returns: None
         """
-        local_dict = {'Symbol':EinsteinTerm, 'symbols':EinsteinTerm, 'Der':Der, 'Conservative':Conservative, 'KD':KD, 'LC':LC}
+
+        local_dict = {'Symbol': EinsteinTerm, 'symbols': EinsteinTerm, 'Der': Der, 'Conservative': Conservative, 'KD': KD, 'LC': LC}
 
         self.original = expression
 
@@ -474,9 +475,10 @@ class Equation(object):
         self.expanded = expansion.expanded
         LOG.debug("The expanded expression is: %s" % (expansion.expanded))
         
-        # TODO: simplification of the equations
+        # TODO: Simplification of the equations
 
         return
+
 
 def get_index_structure(term):
     if isinstance(term, Indexed):
@@ -528,24 +530,24 @@ def get_Pow_indices(term):
     if exp.atoms(Indexed):
         raise ValueError('No indexed objects in exponents  are supported ::', term)
     else:
-        base_index_struc = get_index_structure(base)
-        if base_index_struc!=None:
+        base_index_structure = get_index_structure(base)
+        if base_index_structure!=None:
             if exp == 2:
-                base_index_struc = None
+                base_index_structure = None
             else:
                 raise NotImplementedError("Only Indexed objects to the power 2 are supported")
         else:
             pass
-        return base_index_struc
+        return base_index_structure
     return
     
     
-def evaluate_Pow_expression(term, arrays, index_struc):
+def evaluate_Pow_expression(term, arrays, index_structure):
     base, e = term.as_base_exp()
     if e.atoms(Indexed):
         raise ValueError('No indexed objects in exponents  are supported ::', term)
     else:
-        evaluated, indices = evaluate_Indexed_expression(base, arrays, index_struc)
+        evaluated, indices = evaluate_Indexed_expression(base, arrays, index_structure)
         if indices!=None:
             if e == 2:
                 evaluated = evaluated**e
@@ -559,52 +561,58 @@ def evaluate_Pow_expression(term, arrays, index_struc):
     return evaluated,indices
 
 
-def evaluate_ADD_expression(term, arrays,index_struc):
+def evaluate_Add_expression(term, arrays, index_structure):
     arg_evals = []
     arg_indices = []
     for arg in term.args:
-        argeval, arg_index = evaluate_Indexed_expression(arg, arrays, index_struc)
+        argeval, arg_index = evaluate_Indexed_expression(arg, arrays, index_structure)
         arg_evals.append(argeval)
         arg_indices.append(arg_index)
     add_evaluated, indices = add_args(arg_evals,arg_indices)
     return add_evaluated, indices
     
     
-def add_args(arg_evals,arg_indices):
+def add_args(arg_evals, arg_indices):
+    """ Add all arguments together. """
+
     if len(arg_evals)==1:
         return arg_evals[0], arg_indices[0]
-    # All arguments of addition are scalars, then
+        
+    # If all arguments of addition are scalars, then:
     if all([ind==None for ind in arg_indices]):
         evaluated = arg_evals[0]
         for arg in arg_evals[1:]:
             evaluated = evaluated+ arg
         return evaluated, arg_indices[0]
+        
     array_types = (collections.Iterable, MatrixBase, NDimArray)
-    for number,ind in enumerate(arg_indices):
+    
+    for number, ind in enumerate(arg_indices):
         if number == 0:
-            leading_ind = ind
+            leading_index = ind
             evaluated = arg_evals[number]
         else:
-            if leading_ind == ind:
+            if leading_index == ind:
                 evaluated = evaluated + arg_evals[number]
             else:
-                # check the transpose only 2D arrays are supported
+                # Check the transpose. Only 2D arrays are supported.
                 ind.reverse()
-                if leading_ind == ind and len(ind) == 2:
+                if leading_index == ind and len(ind) == 2:
                     arr = arg_evals[number]
                     for index in np.ndindex(*arr.shape):
                         transpose = tuple([index[1],index[0]])
                         evaluated[index] = evaluated[index] + arr[transpose]
                 else:
-                    raise ValueError("IMPLEMNT this in add_args", leading_ind, ind)
-    return evaluated, leading_ind
+                    raise NotImplementedError("Taking the array transpose is only supported for 2D arrays.", leading_index, ind)
+                    
+    return evaluated, leading_index
 
 
-def evaluate_MUL_expression(term, arrays,index_struc):
+def evaluate_Mul_expression(term, arrays,index_structure):
     out_expression = 1
     tensorprod_indices = []
     for arg in term.args:
-        argeval, arg_index = evaluate_Indexed_expression(arg, arrays, index_struc)
+        argeval, arg_index = evaluate_Indexed_expression(arg, arrays, index_structure)
         out_expression =tensorproduct(out_expression,argeval)
         if arg_index !=None:
             tensorprod_indices+= arg_index
@@ -651,19 +659,19 @@ def evaluate_expression(expression, arrays, indexed_dict,ndim):
     indexedobj = get_indexed_obj(expression)
     for Et in indexedobj:
         expression = expression.xreplace({Et:indexed_dict[Et]})
-    index_struc = get_index_structure(expression)
-    evaluated, indices = evaluate_Indexed_expression(expression, arrays, index_struc)
+    index_structure = get_index_structure(expression)
+    evaluated, indices = evaluate_Indexed_expression(expression, arrays, index_structure)
     return evaluated,indices
     
     
-def evaluate_Indexed_expression(expression, arrays, index_struc):
+def evaluate_Indexed_expression(expression, arrays, index_structure):
 
     """ Replace the Einstein terms in the expression by their constituent arrays """
     
     if expression.is_Mul:
-        return evaluate_MUL_expression(expression, arrays, index_struc)
+        return evaluate_Mul_expression(expression, arrays, index_structure)
     elif expression.is_Add:
-        return evaluate_ADD_expression(expression, arrays, index_struc)
+        return evaluate_Add_expression(expression, arrays, index_structure)
     elif isinstance(expression, Indexed):
         expindices = list(expression.indices)
         struc = remove_repeated_index(expindices)
@@ -672,7 +680,7 @@ def evaluate_Indexed_expression(expression, arrays, index_struc):
     elif isinstance(expression, EinsteinTerm):
         return arrays[expression],  None
     elif isinstance(expression,Pow):
-        return evaluate_Pow_expression(expression, arrays, index_struc)
+        return evaluate_Pow_expression(expression, arrays, index_structure)
     elif isinstance(expression, Integer):
         return expression, None
     elif expression.is_Atom:
