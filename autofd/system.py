@@ -296,7 +296,7 @@ class Evaluations():
             self.evaluation_range = []
         return
 class ComputationalKernel():
-    def __init__(self, equations, ranges, SD=None):
+    def __init__(self, equations, ranges, computation):
         '''
         This should do two things
         1. Able to write the kernel calling function based on language
@@ -319,6 +319,7 @@ class ComputationalKernel():
         3. ins, outs, inouts and so on
         4. Stencils of access
         '''
+        self.computation_type = computation
         self.ranges = ranges# range of the kernel
         self.name = None # None generates automatic kernel name
         if isinstance(equations, list):
@@ -330,10 +331,7 @@ class ComputationalKernel():
         self.outputs = {}
         self.inputoutoutput = {}
         self.constants = {}
-        if not SD:
-            self.classify_indexed_objects()
-        else:
-            pass
+        self.classify_indexed_objects()
         return
     def classify_indexed_objects(self):
         ins = []
@@ -362,9 +360,7 @@ class ComputationalKernel():
         # TODO Add any Idx objects to the inputs as well if have one
         consts = set(consts)
         return
-    def classify_ders(self):
 
-        return
 class SpatialSolution():
     def __init__(self, equations, formulas, grid, spatial_scheme):
         alleqs = flatten(list(e.expanded for e in equations))
@@ -431,7 +427,7 @@ class SpatialSolution():
 
         # if same range then combine them into a single computation else store into different computations
         if all(range_truth) and all(subeval_truth):
-            computations.append(ComputationalKernel(eqs, ranges))
+            computations.append(ComputationalKernel(eqs, ranges, "Formula Evaluation"))
         else:
             for number,eq in enumerate(eqs):
                 computations.append(ComputationalKernel(eq, ranges[number]))
@@ -445,7 +441,7 @@ class SpatialSolution():
                 if all(subev == None for subev in subevals[number]):
                     rhs = SD.get_derivativeformula(der,evals[der].formula[0])
                     eq = Eq(evals[der].work,rhs)
-                    computations.append(ComputationalKernel(eq, ranges[number]))
+                    computations.append(ComputationalKernel(eq, ranges[number], "Derivative Evaluation"))
                     #print "Computed"
                 else:
                     # store into temporary array sub evaluation
@@ -457,12 +453,12 @@ class SpatialSolution():
                             local_range = [req,evals[req].evaluation_range]
                             subev = subev.subs(req,evals[req].work)
                         eqs.append(Eq(wk,subev))
-                    computations.append(ComputationalKernel(eqs, local_range))
+                    computations.append(ComputationalKernel(eqs, local_range, "Temporary formula Evaluation"))
                     for eq in eqs:
                         newder = der.subs(eq.rhs,eq.lhs)
                     rhs = SD.get_derivativeformula(newder,evals[der].formula[0])
                     eq = Eq(evals[der].work,rhs)
-                    computations.append(ComputationalKernel(eq, ranges[number]))
+                    computations.append(ComputationalKernel(eq, ranges[number], "Derivative Evaluation"))
             else:
                 newder = der
                 if all(subev == None for subev in subevals[number]):
@@ -472,7 +468,7 @@ class SpatialSolution():
                     raise NotImplementedError("Sub evaluations in a mixed derivative")
                 rhs = SD.get_derivativeformula(newder,evals[der].formula[0])
                 eq = Eq(evals[der].work,rhs)
-                computations.append(ComputationalKernel(eq, ranges[number]))
+                computations.append(ComputationalKernel(eq, ranges[number], "Nested Derivative evaluation"))
         updated_eq = [eq for eq in alleqs]
         # All the spatial computations are performed now get the updated equations
         for eqno,eq in enumerate(updated_eq):
@@ -483,7 +479,16 @@ class SpatialSolution():
             for var in spatialders+grid_variables:
                 new = evals[grid_arrays[var]].work
                 updated_eq[eqno] = updated_eq[eqno].subs(var,new)
-            pprint(updated_eq[eqno])
+        #The final computations of the residual (change in the rhs terms of the equations)
+        # The residue equations are also named as work arrays
+        residue_eqs = []
+        for eq in updated_eq:
+            wk = grid.work_array('%s%d'%(wkarray,wkind)); wkind = wkind + 1
+            residue_eqs.append(Eq(wk,eq.rhs))
+        eval_range = [tuple([0,s]) for s in grid.shape]
+        computations.append(ComputationalKernel(residue_eqs, eval_range, "Residual of equation"))
+
+
         return
 
 def range_of_evaluation(orderof_evaluations, evaluations, grid, sdclass):
