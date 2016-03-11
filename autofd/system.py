@@ -58,7 +58,11 @@ class NumericalGrid():
         on the computations (including Halos or excluding halos)
         '''
         out = IndexedBase('%s'%name)[self.indices]
+        out.is_grid = True
         return out
+class IndexedBase(IndexedBase):
+    is_grid = True
+    is_constant = False
 
 class SpatialDerivative():
     """
@@ -269,11 +273,10 @@ class ComputationalKernel():
         for v in indexbase_inouts:
             indexes = [vin.indices for vin in inouts if vin.base==v]
             self.inputoutoutput[v] = indexes
-        # TODO Add any Idx objects to the inputs as well if have one
         idxs = flatten([list(eq.rhs.atoms(Idx)) for eq in self.equations])
         if idxs:
             self.inputs['array_index'] = ''
-        consts = set(consts)
+        self.constants = set(consts)
         return
 
 class SpatialSolution():
@@ -465,7 +468,11 @@ class RungeKutta():
     def __init__(self, order):
         self.stage = Symbol('stage', integer=True)
         self.old = IndexedBase('rkold')
+        self.old.is_grid = False
+        self.old.is_constant = True
         self.new = IndexedBase('rknew')
+        self.new.is_grid = False
+        self.new.is_constant = True
         self.old = self.old[self.stage]
         self.new = self.new[self.stage]
         if order == 3:
@@ -520,11 +527,12 @@ class BoundaryConditions():
 
 class GridBasedInitialization():
     def __init__(self, grid, Ics):
+        self.computations = []
         initialization_eq =[]
         for ic in Ics:
             initialization_eq.append(parse_expr(ic, local_dict= {'grid':grid}))
         range_ofevaluation = [tuple([0+grid.halos[i][0],s+grid.halos[i][1]]) for i,s in enumerate(grid.shape)]
-        self.computations = ComputationalKernel(initialization_eq,range_ofevaluation,"Initialization")
+        self.computations.append(ComputationalKernel(initialization_eq,range_ofevaluation,"Initialization"))
 
         return
 class Fileio():
@@ -537,6 +545,67 @@ class Fileio():
         self.save_arrays = [arrays]
         return
 
+class GenerateSystem():
+    '''
+    This template glues all the different solutions into a format that
+    can be used for code generation
+    '''
+    def AlgorithmMismatch(Exception):
+        return
+
+    def __init__(self, grid, spatial_solution, temporal_soln, boundary, Ics, IO):
+        self.check_consistency(grid,spatial_solution, temporal_soln, boundary, Ics,IO)
+        self.gridsizes = []
+        self.constants = []
+        self.arrays = []
+        self.get_arrays_constants()
+
+        return
+    def get_arrays_constants(self):
+        allinst = self.spatial_solution+self.temporal_soln+self.boundary+self.Ics
+        arrays = set()
+        const = set()
+        stencils = set()
+        for inst in self.temporal_soln:
+            for comp in inst.computations:
+                if comp != None:
+                    arrays = arrays.union(set(comp.inputs.keys())).union(set(comp.outputs.keys())).union(set(comp.inputoutoutput.keys()))
+                    const = arrays.union(set(comp.constants))
+        arrays = [arr for arr in arrays if not isinstance(arr,str) if arr.is_grid]
+        self.constants = [con for con in const]
+        return
+
+
+    def check_consistency(self,  grid, spatial_solution, temporal_soln, boundary, Ics, IO):
+        self.grid = self.listvar(grid)
+        length = len(self.grid)
+
+        self.spatial_solution = self.listvar(spatial_solution);
+        if len(self.spatial_solution) != length:
+            raise AlgorithmMismatch("The length of spatial solution doesnot match the grid")
+
+        self.temporal_soln = self.listvar(temporal_soln);
+        if len(self.temporal_soln) != length:
+            raise AlgorithmMismatch("The length of temporal solution doesnot match the grid")
+
+        self.boundary = self.listvar(boundary);
+        if len(self.boundary) != length:
+            raise AlgorithmMismatch("The length of boundary doesnot match the grid")
+
+        self.Ics = self.listvar(Ics);
+        if len(self.Ics) != length:
+            raise AlgorithmMismatch("The length of Ics doesnot match the grid")
+
+        self.IO = self.listvar(IO);
+        if len(self.IO) != length:
+            raise AlgorithmMismatch("The length of IO doesnot match the grid")
+
+        return
+    def listvar(self, var):
+        if isinstance(var, list):
+            return var
+        else:
+            return [var]
 def range_of_evaluation(orderof_evaluations, evaluations, grid, sdclass):
     '''
     First the ranges of derivatives are updated, then other ranges are updated
@@ -615,7 +684,7 @@ def vartoGridArray(variable,grid):
     returns: the Grid array
     '''
     if isinstance(variable, Indexed):
-        return variable.base[grid.indices]
+        return IndexedBase('%s'%variable.base)[grid.indices]
     elif isinstance(variable, Function):
         return IndexedBase('%s'%variable.func)[grid.indices]
     else:
