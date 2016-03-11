@@ -506,9 +506,11 @@ class TemporalSolution():
         # Any computations at the start of the time step generally save equations
         self.start = []
         self.computations = []
+        self.conservative = []
         out = []
         for soln in Spatialsolution.residual_arrays:
             out.append(self.time_derivative(soln.keys()[0].args[0], dt,soln[soln.keys()[0]], grid))
+            self.conservative.append(soln.keys()[0].args[0].base)
         if self.nstages !=1:
             start = [o[-1] for o in out]
             range_ofevaluation = [tuple([0+grid.halos[i][0],s+grid.halos[i][1]]) for i,s in enumerate(grid.shape)]
@@ -523,6 +525,7 @@ class TemporalSolution():
             self.start = None
             range_ofevaluation = [tuple([0,s]) for i,s in enumerate(grid.shape)]
             self.computations.append(ComputationalKernel(out,range_ofevaluation, "RK old update"))
+
         return
     def time_derivative(self, fn, dt, residual, grid):
         out = fn
@@ -547,6 +550,48 @@ class RungeKutta():
             self.coeffs[self.old] = [-1, 2, -1]
             self.coeffs[self.new] = [-1, 4, -6, 4, -1]
         return
+class exchange():
+    def __init__(self,grid):
+        range_ofevaluation = [tuple([0+grid.halos[i][0],s+grid.halos[i][1]]) for i,s in enumerate(grid.shape)]
+        #size of transfers
+        self.transfer_size = [r[1]-r[0] for r in range_ofevaluation]
+        self.transfer_from = [grid.halos[i][0] for i,s in enumerate(grid.shape)]
+        self.transfer_to = [grid.halos[i][0] for i,s in enumerate(grid.shape)]
+        self.transfer_arrays = []
+        return
+
+class BoundaryConditions():
+    types = {"periodic":"exchange_self", "symmetry":"exchange_self"}
+    def __init__(self, bcs, grid, arrays):
+        if len(bcs) != len(grid.shape):
+            raise ValueError("Boundary conditions and the dimensions of grid mismatch")
+        self.boundaries = bcs
+        self.computations = [None for b in bcs]
+        self.transfers = [None for b in bcs]
+        self.get_type()
+        for ind,bc in enumerate(self.boundaries):
+            if bc[0] == bc[1] and bc[0] == "periodic":
+                self.transfers[ind] = self.periodic_bc(ind,grid, arrays)
+            else:
+                raise NotImplementedError("Implement boundary conditions :",bc)
+        return
+    def get_type(self):
+        types = BoundaryConditions.types
+        self.type_of_boundary = [tuple([types[bc[0]], types[bc[1]]]) for bc in self.boundaries]
+        return
+    def periodic_bc(self, direction, grid,arrays):
+        transfers = []
+        # generic transfer for the grid
+        transfers_left = exchange(grid)
+        transfers_right = exchange(grid)
+        # the left transfers are from from start of grid to end of grid (nx)
+        transfers_left.transfer_from[direction] = 0
+        transfers_left.transfer_to[direction] = grid.shape[direction]
+        # Right transfers are from end of grid- halo points to the starting of halo points
+        transfers_right.transfer_from[direction] = grid.shape[direction]+ grid.halos[direction][0]
+        transfers_right.transfer_to[direction] = grid.halos[direction][0]
+        return tuple([transfers_left,transfers_right ])
+
 
 def range_of_evaluation(orderof_evaluations, evaluations, grid, sdclass):
     '''
