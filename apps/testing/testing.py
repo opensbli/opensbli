@@ -51,14 +51,15 @@ expanded_equations, expanded_formulas = problem.expand()
 # Output equations in LaTeX format.
 latex = LatexWriter()
 latex.open(path=BUILD_DIR + "/equations.tex")
-metadata = {"title": "Equations", "author": "Satya P Jammy", "institution": "University of Southampton"}
+metadata = {"title": "Equations", "author": "", "institution": ""}
 latex.write_header(metadata)
 temp = flatten([e.expanded for e in expanded_equations])
-latex.write_equations(temp)
+latex.write_expression(temp)
 temp = flatten([e.expanded for e in expanded_formulas])
-latex.write_equations(temp)
+latex.write_expression(temp)
 latex.write_footer()
 latex.close()
+
 # Solve the equations on a grid
 #grid = numerical_grid()# A HDF5 file or a user input
 start = time.time()
@@ -86,7 +87,7 @@ LOG.debug('The time taken to prepare the system in %d Dimensions is %.2f seconds
 
 latex = LatexWriter()
 latex.open(path=BUILD_DIR + "/computations.tex")
-metadata = {"title": "Equations", "author": "Satya P Jammy", "institution": "University of Southampton"}
+metadata = {"title": "Equations", "author": "", "institution": ""}
 latex.write_header(metadata)
 #temp = flatten([e.expanded for e in expanded_equations])
 #latex.write_equations(temp)
