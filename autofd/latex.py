@@ -97,7 +97,7 @@ class LatexWriter(LatexPrinter):
         :rtype: str
         """
         
-        self._settings['mode'] = "equation"
+        self._settings['mode'] = "dmath"
         self._settings['long_frac_ratio'] = 3
         self._settings['mul_symbol'] = "cdot"
     
@@ -113,8 +113,12 @@ class LatexWriter(LatexPrinter):
             env_str = self._settings['mode']
             output = r"\begin{%s}%s\end{%s}" % (env_str, tex, env_str)
         return output
+
+    def _print_Indexed(self, expr):
+        tex = '{%s}' % self._print(expr.base)+'_{%s}' % ','.join( map(self._print, expr.indices)) 
+        return tex
         
-    def write_expression(self, expression):
+    def write_expression(self, expression, substitutions = {}):
         """ Convert a single expression or list of expressions to LaTeX format and then write it/them to file.
         
         :arg expression: a single SymPy expression of list of SymPy expressions to format and write.
@@ -122,12 +126,17 @@ class LatexWriter(LatexPrinter):
         """
         
         output = []
-    
+
         if isinstance(expression, list):
             for e in expression:
                 output.append(self.latexify_expression(e))
         else:
             output.append(self.latexify_expression(expression))
+
+        # Perform any user-defined LaTeX substitutions
+        for key, value in substitutions.iteritems():
+            for i in range(len(output)):
+                output[i] = output[i].replace(key, value)
 
         output = ' \n'.join(output)
         output = ' \n'.join(textwrap.wrap(output, width=70, break_long_words=False))
