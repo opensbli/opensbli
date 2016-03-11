@@ -176,86 +176,6 @@ class SpatialDerivative():
 
         return generalformula, subevals, requires
 
-
-class TimeDerivative():
-    def __init__(self, temporal,grid, const_dt):
-        # This can be changed totally but as of now leave it
-        if const_dt:
-            dt = EinsteinTerm('deltat')
-            dt.is_constant = True; dt.is_commutative = True
-        else:
-            raise NotImplementedError("Varying delta t is not implemented in the code")
-        if temporal.scheme == "Forward":
-            if temporal.order == 1:
-                self.stages = 1
-                return
-            else:
-                raise ValueError("Forward time stepping scheme of first order accuracy is allowed")
-        elif temporal.scheme == "RungeKutta":
-            raise NotImplementedError("IMPLEMENT RUNGE KUTTA TIME STEPPING SCHEME")
-        else:
-            raise ValueError("Only forward or Runge-Kutta time stepping schemes are allowed")
-        return
-def maximum_derivative_order(equations):
-    order = set()
-    for eq in equations:
-        for atom in eq.atoms(Derivative):
-            order.add(len(atom.args)-1)
-    return max(order)
-def vartoGridArray(variable,grid):
-    '''
-    Converts a variable/ function or Indexed Object to a Indexed base on the Grid
-    inputs: variable, grid
-    returns: the Grid array
-    '''
-    if isinstance(variable, Indexed):
-        return variable.base[grid.indices]
-    elif isinstance(variable, Function):
-        return IndexedBase('%s'%variable.func)[grid.indices]
-    else:
-        raise ValueError("Only functions or Indexed Objects are supported", variable)
-    return
-def get_spatial_derivatives(equations):
-    ders = []
-    count = {}
-    time_ders = []
-    for eq in equations:
-        pot = preorder_traversal(eq)
-
-        for p in pot:
-            if p in ders:
-                pot.skip()
-                count[p] = count[p]+1
-                continue
-            elif isinstance(p, Derivative):
-                if all(arg != EinsteinTerm('t') for arg in p.args):
-                    pot.skip()
-                    ders.append(p)
-                    count[p] = 1
-                else:
-                    pot.skip()
-                    time_ders.append(p)
-            else:
-                continue
-    return ders, count, time_ders
-def get_grid_variables(equations):
-    variables = []
-    count = {}
-    for eq in equations:
-        pot = preorder_traversal(eq)
-        for p in pot:
-            if p in variables:
-                pot.skip()
-                count[p] = count[p]+1
-                continue
-            elif isinstance(p, Indexed):
-                pot.skip()
-                variables.append(p)
-                count[p] = 1
-            else:
-                continue
-    return variables, count
-
 class Evaluations():
     def __init__(self, lhs,rhs, requires,subevals = None, wk=None):
         self.store = True
@@ -486,6 +406,7 @@ class SpatialSolution():
         self.computations = computations
         self.residual_arrays = residual_arrays
         return
+
 class TemporalSolution():
     def __init__(self,temporal, grid, const_dt, Spatialsolution):
         if const_dt:
@@ -550,6 +471,7 @@ class RungeKutta():
             self.coeffs[self.old] = [-1, 2, -1]
             self.coeffs[self.new] = [-1, 4, -6, 4, -1]
         return
+
 class exchange():
     def __init__(self,grid):
         range_ofevaluation = [tuple([0+grid.halos[i][0],s+grid.halos[i][1]]) for i,s in enumerate(grid.shape)]
@@ -639,10 +561,13 @@ def sort_evaluations(evaluated, evaluations, typef):
                         sort_evaluations(evaluated, {val:evaluations[val]}, typef)
                 evaluated.append(key)
     return evaluated
+
 def decreasing_order(s1, s2):
     return cmp(len(s2.args), len(s1.args))
+
 def increasing_order(s1, s2):
     return cmp(len(s1.args), len(s2.args))
+
 def group_derivatives(spatialders):
     spatial_der_dict ={}
     for der in spatialders:
@@ -655,3 +580,66 @@ def group_derivatives(spatialders):
         if len(value)>1:
             spatial_der_dict[key] = (sorted(value, cmp=increasing_order))
     return spatial_der_dict
+
+def maximum_derivative_order(equations):
+    order = set()
+    for eq in equations:
+        for atom in eq.atoms(Derivative):
+            order.add(len(atom.args)-1)
+    return max(order)
+
+def vartoGridArray(variable,grid):
+    '''
+    Converts a variable/ function or Indexed Object to a Indexed base on the Grid
+    inputs: variable, grid
+    returns: the Grid array
+    '''
+    if isinstance(variable, Indexed):
+        return variable.base[grid.indices]
+    elif isinstance(variable, Function):
+        return IndexedBase('%s'%variable.func)[grid.indices]
+    else:
+        raise ValueError("Only functions or Indexed Objects are supported", variable)
+    return
+
+def get_spatial_derivatives(equations):
+    ders = []
+    count = {}
+    time_ders = []
+    for eq in equations:
+        pot = preorder_traversal(eq)
+
+        for p in pot:
+            if p in ders:
+                pot.skip()
+                count[p] = count[p]+1
+                continue
+            elif isinstance(p, Derivative):
+                if all(arg != EinsteinTerm('t') for arg in p.args):
+                    pot.skip()
+                    ders.append(p)
+                    count[p] = 1
+                else:
+                    pot.skip()
+                    time_ders.append(p)
+            else:
+                continue
+    return ders, count, time_ders
+
+def get_grid_variables(equations):
+    variables = []
+    count = {}
+    for eq in equations:
+        pot = preorder_traversal(eq)
+        for p in pot:
+            if p in variables:
+                pot.skip()
+                count[p] = count[p]+1
+                continue
+            elif isinstance(p, Indexed):
+                pot.skip()
+                variables.append(p)
+                count[p] = 1
+            else:
+                continue
+    return variables, count
