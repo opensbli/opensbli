@@ -78,6 +78,15 @@ def test_get_base(c, u_i, tau_i_j):
     assert tau_i_j.get_base() == "tau"  # Tensor
 
 
+def test_get_expanded(c, u_i, tau_i_j):
+    """ Check that the indices of an EinsteinTerm are expanded correctly to produce a new EinsteinTerm object. """
+
+    index_map = [(Idx(Symbol("i", integer=True)), 0), (Idx(Symbol("j", integer=True)), 1)]
+    assert c.get_expanded(index_map) == c  # Scalar. No indices should be expanded here.
+    assert u_i.get_expanded(index_map) == EinsteinTerm("u0")  # Vector.
+    assert tau_i_j.get_expanded(index_map) == EinsteinTerm("tau01")  # Tensor.
+
+
 def test_equation(mass, momentum, energy):
     """ Check that the Navier-Stokes equations are expanded correctly. """
 
@@ -92,7 +101,6 @@ def test_equation(mass, momentum, energy):
     assert str(momentum.parsed) == "Der(rhou_i, t) == -Conservative(p*KD(_i, _j) + rhou_i*u_j, x_j) + Der(mu*Re**(-1)*(Der(u_i, x_j) + Der(u_j, x_i) - 2*KD(_i, _j)*Der(u_k, x_k)/3), x_j)"
     assert isinstance(momentum.expanded, list)
     assert len(momentum.expanded) == 3  # Velocity is a vector, and the problem is 3D, so we should get 3 equations back (one for each component of the vector).
-    
     assert str(momentum.expanded[0]) == "Derivative(rhou0[x0, x1, x2, t], t) == mu*(Derivative(u0[x0, x1, x2, t], x1, x1) + Derivative(u1[x0, x1, x2, t], x0, x1))*Re**(-1) + mu*(Derivative(u0[x0, x1, x2, t], x2, x2) + Derivative(u2[x0, x1, x2, t], x0, x2))*Re**(-1) + mu*(4*Derivative(u0[x0, x1, x2, t], x0, x0)/3 - 2*Derivative(u1[x0, x1, x2, t], x0, x1)/3 - 2*Derivative(u2[x0, x1, x2, t], x0, x2)/3)*Re**(-1) - Derivative(rhou0[x0, x1, x2, t]*u1[x0, x1, x2, t], x1) - Derivative(rhou0[x0, x1, x2, t]*u2[x0, x1, x2, t], x2) - Derivative(p[x0, x1, x2, t] + rhou0[x0, x1, x2, t]*u0[x0, x1, x2, t], x0)"
     assert str(momentum.expanded[1]) == "Derivative(rhou1[x0, x1, x2, t], t) == mu*(Derivative(u0[x0, x1, x2, t], x0, x1) + Derivative(u1[x0, x1, x2, t], x0, x0))*Re**(-1) + mu*(Derivative(u1[x0, x1, x2, t], x2, x2) + Derivative(u2[x0, x1, x2, t], x1, x2))*Re**(-1) + mu*(-2*Derivative(u0[x0, x1, x2, t], x0, x1)/3 + 4*Derivative(u1[x0, x1, x2, t], x1, x1)/3 - 2*Derivative(u2[x0, x1, x2, t], x1, x2)/3)*Re**(-1) - Derivative(rhou1[x0, x1, x2, t]*u0[x0, x1, x2, t], x0) - Derivative(rhou1[x0, x1, x2, t]*u2[x0, x1, x2, t], x2) - Derivative(p[x0, x1, x2, t] + rhou1[x0, x1, x2, t]*u1[x0, x1, x2, t], x1)"
     assert str(momentum.expanded[2]) == "Derivative(rhou2[x0, x1, x2, t], t) == mu*(Derivative(u0[x0, x1, x2, t], x0, x2) + Derivative(u2[x0, x1, x2, t], x0, x0))*Re**(-1) + mu*(Derivative(u1[x0, x1, x2, t], x1, x2) + Derivative(u2[x0, x1, x2, t], x1, x1))*Re**(-1) + mu*(-2*Derivative(u0[x0, x1, x2, t], x0, x2)/3 - 2*Derivative(u1[x0, x1, x2, t], x1, x2)/3 + 4*Derivative(u2[x0, x1, x2, t], x2, x2)/3)*Re**(-1) - Derivative(rhou2[x0, x1, x2, t]*u0[x0, x1, x2, t], x0) - Derivative(rhou2[x0, x1, x2, t]*u1[x0, x1, x2, t], x1) - Derivative(p[x0, x1, x2, t] + rhou2[x0, x1, x2, t]*u2[x0, x1, x2, t], x2)"
@@ -102,6 +110,7 @@ def test_equation(mass, momentum, energy):
     assert isinstance(energy.expanded, list)
     assert len(energy.expanded) == 1
     assert str(energy.expanded[0]) == "Derivative(rhoE[x0, x1, x2, t], t) == mu*(Derivative(u0[x0, x1, x2, t], x1) + Derivative(u1[x0, x1, x2, t], x0))*Derivative(u0[x0, x1, x2, t], x1)*Re**(-1) + mu*(Derivative(u0[x0, x1, x2, t], x1) + Derivative(u1[x0, x1, x2, t], x0))*Derivative(u1[x0, x1, x2, t], x0)*Re**(-1) + mu*(Derivative(u0[x0, x1, x2, t], x2) + Derivative(u2[x0, x1, x2, t], x0))*Derivative(u0[x0, x1, x2, t], x2)*Re**(-1) + mu*(Derivative(u0[x0, x1, x2, t], x2) + Derivative(u2[x0, x1, x2, t], x0))*Derivative(u2[x0, x1, x2, t], x0)*Re**(-1) + mu*(Derivative(u1[x0, x1, x2, t], x2) + Derivative(u2[x0, x1, x2, t], x1))*Derivative(u1[x0, x1, x2, t], x2)*Re**(-1) + mu*(Derivative(u1[x0, x1, x2, t], x2) + Derivative(u2[x0, x1, x2, t], x1))*Derivative(u2[x0, x1, x2, t], x1)*Re**(-1) + mu*(Derivative(u0[x0, x1, x2, t], x0, x1) + Derivative(u1[x0, x1, x2, t], x0, x0))*u1[x0, x1, x2, t]*Re**(-1) + mu*(Derivative(u0[x0, x1, x2, t], x0, x2) + Derivative(u2[x0, x1, x2, t], x0, x0))*u2[x0, x1, x2, t]*Re**(-1) + mu*(Derivative(u0[x0, x1, x2, t], x1, x1) + Derivative(u1[x0, x1, x2, t], x0, x1))*u0[x0, x1, x2, t]*Re**(-1) + mu*(Derivative(u0[x0, x1, x2, t], x2, x2) + Derivative(u2[x0, x1, x2, t], x0, x2))*u0[x0, x1, x2, t]*Re**(-1) + mu*(Derivative(u1[x0, x1, x2, t], x1, x2) + Derivative(u2[x0, x1, x2, t], x1, x1))*u2[x0, x1, x2, t]*Re**(-1) + mu*(Derivative(u1[x0, x1, x2, t], x2, x2) + Derivative(u2[x0, x1, x2, t], x1, x2))*u1[x0, x1, x2, t]*Re**(-1) + mu*(-2*Derivative(u0[x0, x1, x2, t], x0)/3 - 2*Derivative(u1[x0, x1, x2, t], x1)/3 + 4*Derivative(u2[x0, x1, x2, t], x2)/3)*Derivative(u2[x0, x1, x2, t], x2)*Re**(-1) + mu*(-2*Derivative(u0[x0, x1, x2, t], x0)/3 + 4*Derivative(u1[x0, x1, x2, t], x1)/3 - 2*Derivative(u2[x0, x1, x2, t], x2)/3)*Derivative(u1[x0, x1, x2, t], x1)*Re**(-1) + mu*(4*Derivative(u0[x0, x1, x2, t], x0)/3 - 2*Derivative(u1[x0, x1, x2, t], x1)/3 - 2*Derivative(u2[x0, x1, x2, t], x2)/3)*Derivative(u0[x0, x1, x2, t], x0)*Re**(-1) + mu*(4*Derivative(u0[x0, x1, x2, t], x0, x0)/3 - 2*Derivative(u1[x0, x1, x2, t], x0, x1)/3 - 2*Derivative(u2[x0, x1, x2, t], x0, x2)/3)*u0[x0, x1, x2, t]*Re**(-1) + mu*(-2*Derivative(u0[x0, x1, x2, t], x0, x1)/3 + 4*Derivative(u1[x0, x1, x2, t], x1, x1)/3 - 2*Derivative(u2[x0, x1, x2, t], x1, x2)/3)*u1[x0, x1, x2, t]*Re**(-1) + mu*(-2*Derivative(u0[x0, x1, x2, t], x0, x2)/3 - 2*Derivative(u1[x0, x1, x2, t], x1, x2)/3 + 4*Derivative(u2[x0, x1, x2, t], x2, x2)/3)*u2[x0, x1, x2, t]*Re**(-1) - Derivative((p[x0, x1, x2, t] + rhoE[x0, x1, x2, t])*u0[x0, x1, x2, t], x0) - Derivative((p[x0, x1, x2, t] + rhoE[x0, x1, x2, t])*u1[x0, x1, x2, t], x1) - Derivative((p[x0, x1, x2, t] + rhoE[x0, x1, x2, t])*u2[x0, x1, x2, t], x2) - Derivative(q0[x0, x1, x2, t], x0) - Derivative(q1[x0, x1, x2, t], x1) - Derivative(q2[x0, x1, x2, t], x2)"
+
 
 #def test_get_einstein_indices():
 #    """ Get all the Einstein indices in the equation's RHS. """

@@ -354,7 +354,6 @@ class EinsteinTerm(Symbol):
         
     def get_expanded(self, index_map):
         """ Instantiate a new EinsteinTerm object which is the expanded version of self. """    
-    
         expanded = str(self)
         # Expand the indices
         for index in index_map:
