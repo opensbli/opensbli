@@ -45,13 +45,12 @@ class NumericalGrid():
     def __init__(self, shape):
         self.indices = [Symbol('i%d'%ind, integer = True) for ind, val in enumerate(shape)]
         self.shape = shape
-        # as of now uniform grid, later change this as and when required
         self.uniform = [True for ind,val in enumerate(shape)]
-        #self.deltas = [EinsteinTerm'delta_i']
         self.time_grid = self.indices + [symbols('Time',integer=True)]
         et = EinsteinTerm('deltai_i');et.is_constant = True
         self.deltas = et.ndimarray(et.get_indexed_object(len(shape)))
         self.halos = []
+        self.Idx = [Idx('idx[%d]'%ind) for ind, val in enumerate(shape)]
         return
     def work_array(self,name):
         '''
@@ -244,9 +243,9 @@ class ComputationalKernel():
         self.outputs = {}
         self.inputoutoutput = {}
         self.constants = {}
-        self.classify_indexed_objects()
+        self.classify_grid_objects()
         return
-    def classify_indexed_objects(self):
+    def classify_grid_objects(self):
         ins = []
         outs = []
         inouts = []
@@ -271,6 +270,9 @@ class ComputationalKernel():
             indexes = [vin.indices for vin in inouts if vin.base==v]
             self.inputoutoutput[v] = indexes
         # TODO Add any Idx objects to the inputs as well if have one
+        idxs = flatten([list(eq.rhs.atoms(Idx)) for eq in self.equations])
+        if idxs:
+            self.inputs['array_index'] = ''
         consts = set(consts)
         return
 
@@ -516,6 +518,24 @@ class BoundaryConditions():
         transfers_right.arrays = arrays
         return tuple([transfers_left,transfers_right ])
 
+class GridBasedInitialization():
+    def __init__(self, grid, Ics):
+        initialization_eq =[]
+        for ic in Ics:
+            initialization_eq.append(parse_expr(ic, local_dict= {'grid':grid}))
+        range_ofevaluation = [tuple([0+grid.halos[i][0],s+grid.halos[i][1]]) for i,s in enumerate(grid.shape)]
+        self.computations = ComputationalKernel(initialization_eq,range_ofevaluation,"Initialization")
+
+        return
+class Fileio():
+    '''
+    Saves the arrays provided after every n iterations into a HDF5 file. If niter is None
+    it is saved at the end of simulation
+    '''
+    def __init__(self, arrays, niter = None):
+        self.save_after = 'END'
+        self.save_arrays = [arrays]
+        return
 
 def range_of_evaluation(orderof_evaluations, evaluations, grid, sdclass):
     '''

@@ -20,7 +20,7 @@ energy = "Eq(Der(rhoE,t),- Conservative((p+rhoE)*u_j,x_j) +Der(q_j,x_j) + Der(u_
 lev = "Eq(vort_i, (LC(_i,_j,_k)*Der(u_k,x_j)))"
 test = "Eq(Der(phi,t),- c_j* Der(phi,x_j))"
 
-equations = [mass,momentum,energy]
+equations = [test]
 
 # Substitutions
 stress_tensor = "Eq(tau_i_j, (mu)*(Der(u_i,x_j)+ Conservative(u_j,x_i)- (2/3)* KD(_i,_j)* Der(u_k,x_k)))"
@@ -41,8 +41,8 @@ velocity = "Eq(u_i, rhou_i/rho)"
 pressure = "Eq(p, (gama-1)*(rhoE - (1/(2))*(u_j*u_j)))"
 temperature = "Eq(T, p*gama*Minf*Minf/(rho))"
 viscosity = "Eq(mu, T**(2/3))"
-formulas = [velocity, pressure, temperature]
-#formulas = []
+#formulas = [velocity, pressure, temperature]
+formulas = []
 
 # Create the TGV problem and expand the equations.
 problem = Problem(equations, substitutions, ndim, constants, coordinate_symbol, metrics, formulas)
@@ -68,21 +68,32 @@ order = 4
 spatial_scheme = Scheme(sch,order)
 temporal_scheme = Scheme("Forward", 1)
 grid = NumericalGrid(tuple(symbols('nx0:%d' % ndim, integer = True)))
-#central_derivatives = SpatialDerivative(spatial_scheme,grid)
 const_dt = True
-#time_advance = TimeDerivative(temporal_scheme, grid,const_dt)
+# get the spatial solution
 spatial_solution = SpatialSolution(expanded_equations,expanded_formulas, grid, spatial_scheme)
-TemporalSolution(temporal_scheme, grid,const_dt,spatial_solution)
+# get the temporal solution
+temporal_soln = TemporalSolution(temporal_scheme, grid,const_dt,spatial_solution)
+# Apply Boundary conditions
+bcs = [("periodic", "periodic"), ("periodic", "periodic")]
+boundary = BoundaryConditions(bcs, grid, temporal_soln.conservative)
+# Initial conditions
+initialize = ["Eq(grid.work_array(phi), sin((grid.Idx[0] -1)*grid.deltas[0]))"]
+Ics = GridBasedInitialization(grid, initialize)
+# I/O save conservative variables at the end of simulation
+IO = Fileio(temporal_soln.conservative)
 end = time.time()
 LOG.debug('The time taken to prepare the system in %d Dimensions is %.2f seconds.' % (problem.ndim, end - start))
-#scheme = "RK"
-#order = 3
-#temporal = scheme(scheme,order)
 
-#Bcs = BoundaryConditions()# Here are the boundary BoundaryConditions
-#Initialization = initialize()# Initialization
-#Diagnostics = []
-## call the Prepare solution with all the inputs
-#PrepareSolution(equations, grid, spatial, temporal, Bcs, Initialization, Diagnostics)
+latex = LatexWriter()
+latex.open(path=BUILD_DIR + "/computations.tex")
+metadata = {"title": "Equations", "author": "Satya P Jammy", "institution": "University of Southampton"}
+latex.write_header(metadata)
+#temp = flatten([e.expanded for e in expanded_equations])
+#latex.write_equations(temp)
+#temp = flatten([e.expanded for e in expanded_formulas])
+#latex.write_equations(temp)
+latex.write_footer()
+latex.close()
+
 end_total = time.time()
 LOG.debug('The time taken for the entire process for %d Dimensions is %.2f seconds.' % (problem.ndim, end_total - start_total))
