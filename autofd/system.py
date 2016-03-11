@@ -587,9 +587,11 @@ class BoundaryConditions():
         # the left transfers are from from start of grid to end of grid (nx)
         transfers_left.transfer_from[direction] = 0
         transfers_left.transfer_to[direction] = grid.shape[direction]
+        transfers_left.arrays = arrays
         # Right transfers are from end of grid- halo points to the starting of halo points
         transfers_right.transfer_from[direction] = grid.shape[direction]+ grid.halos[direction][0]
         transfers_right.transfer_to[direction] = grid.halos[direction][0]
+        transfers_right.arrays = arrays
         return tuple([transfers_left,transfers_right ])
 
 
