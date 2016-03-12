@@ -301,12 +301,14 @@ class SpatialSolution():
                 out = out.subs(atom, grid_arrays[atom])
             evaluated = Evaluations(out.lhs,out.rhs, list(out.rhs.atoms(Indexed)), None,out.lhs)
             evals[out.lhs] = evaluated
+        # TODO again a way of passing the coordinates
         et = EinsteinTerm('x_i');et.is_constant = True
         coord = et.ndimarray(et.get_indexed_object(len(grid.shape)))
         coord = coord.tolist()
+        # Work array is always named as wk
         wkarray = 'wk'; wkind = 0;
         for der in spatialders:
-            out = der# Modify the derivative to be a derivative on grid
+            out = der # Modify the derivative to be a derivative on grid
             wk = grid.work_array('%s%d'%(wkarray,wkind)); wkind = wkind +1
             for atom in der.atoms(Indexed):
                 out = out.subs(atom, grid_arrays[atom])
@@ -330,7 +332,7 @@ class SpatialSolution():
         range_of_evaluation(orderof_evaluations, evals,grid, SD)
         # now define a ComputationalKernel for each of the evaluations
 
-        ''' All the primitive variables (IndexedObjects)
+        ''' All the variables (IndexedObjects) in the equations
         excluding those which have a time derivative are stored into a kernel
         '''
         forms = [ev for ev in orderof_evaluations if isinstance(ev, Indexed) and ev not in known]
@@ -342,14 +344,16 @@ class SpatialSolution():
         computations = []
         eqs = []
         eqs = [Eq(evals[ev].work, evals[ev].formula) for ev in forms]
-
-        # if same range then combine them into a single computation else store into different computations
-        if all(range_truth) and all(subeval_truth):
-            computations.append(ComputationalKernel(eqs, ranges, "Formula Evaluation"))
-        else:
-            for number,eq in enumerate(eqs):
-                computations.append(ComputationalKernel(eq, ranges[number]))
+        if forms:
+            # if same range then combine them into a single computation else store into different computations
+            if all(range_truth) and all(subeval_truth):
+                computations.append(ComputationalKernel(eqs, ranges, "Formula Evaluation"))
+            else:
+                for number,eq in enumerate(eqs):
+                    computations.append(ComputationalKernel(eq, ranges[number]))
         # Now process the Derivatives
+        # TODO this can be moved out into a seperate function. Which can be used for Diagnostics/Genearalized
+        # coordinate equations evaluations
         derivatives = [ev for ev in orderof_evaluations if isinstance(ev, Derivative) and ev not in known]
         ranges = [evals[ev].evaluation_range for ev in derivatives]
         subevals = [evals[ev].subevals for ev in derivatives]
@@ -360,9 +364,8 @@ class SpatialSolution():
                     rhs = SD.get_derivativeformula(der,evals[der].formula[0])
                     eq = Eq(evals[der].work,rhs)
                     computations.append(ComputationalKernel(eq, ranges[number], "Derivative Evaluation"))
-                    #print "Computed"
                 else:
-                    # store into temporary array sub evaluation
+                    # store into temporary array the sub evaluation
                     eqs = []
                     tempwkind = wkind
                     for subev in subevals[number]:
@@ -387,8 +390,9 @@ class SpatialSolution():
                 rhs = SD.get_derivativeformula(newder,evals[der].formula[0])
                 eq = Eq(evals[der].work,rhs)
                 computations.append(ComputationalKernel(eq, ranges[number], "Nested Derivative evaluation"))
+        
+        # All the spatial computations are evaluated by this point now get the updated equations
         updated_eq = [eq for eq in alleqs]
-        # All the spatial computations are performed now get the updated equations
         for eqno,eq in enumerate(updated_eq):
             spatialders, dercount, time_derivatives = get_spatial_derivatives([eq])
             grid_variables, variable_count = get_grid_variables([eq])
@@ -399,6 +403,7 @@ class SpatialSolution():
                 updated_eq[eqno] = updated_eq[eqno].subs(var,new)
         # The final computations of the residual (change in the rhs terms of the equations)
         # The residual equations are also named as work arrays
+        # The residual arrays are tracked to for use in evaluation of temporal scheme
         residual_eqs = []
         residual_arrays = []
         for eq in updated_eq:
@@ -407,7 +412,8 @@ class SpatialSolution():
             residual_eqs.append(Eq(wk,eq.rhs))
         eval_range = [tuple([0,s]) for s in grid.shape]
         computations.append(ComputationalKernel(residual_eqs, eval_range, "Residual of equation"))
-        # The residual arrays are tracked to do the computations temporally
+        
+        # update the required computations and residual arrays to class
         self.computations = computations
         self.residual_arrays = residual_arrays
         return
@@ -450,7 +456,7 @@ class TemporalSolution():
         else:
             self.start = None
             range_ofevaluation = [tuple([0,s]) for i,s in enumerate(grid.shape)]
-            self.computations.append(ComputationalKernel(out,range_ofevaluation, "RK old update"))
+            self.computations.append(ComputationalKernel(out,range_ofevaluation, "Euler update"))
 
         return
     def time_derivative(self, fn, dt, residual, grid):
@@ -566,13 +572,15 @@ class GenerateSystem():
         arrays = set()
         const = set()
         stencils = set()
-        for inst in self.temporal_soln:
+        for inst in allinst:
             for comp in inst.computations:
                 if comp != None:
                     arrays = arrays.union(set(comp.inputs.keys())).union(set(comp.outputs.keys())).union(set(comp.inputoutoutput.keys()))
-                    const = arrays.union(set(comp.constants))
+                    pprint(["COMPUTATION IS ",comp.equations, comp.computation_type])
+                    const = const.union(set(comp.constants))
         arrays = [arr for arr in arrays if not isinstance(arr,str) if arr.is_grid]
         self.constants = [con for con in const]
+        pprint(["Constants are ", const])
         return
 
 
