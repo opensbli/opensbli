@@ -20,7 +20,7 @@ energy = "Eq(Der(rhoE,t),- Conservative((p+rhoE)*u_j,x_j) +Der(q_j,x_j) + Der(u_
 lev = "Eq(vort_i, (LC(_i,_j,_k)*Der(u_k,x_j)))"
 test = "Eq(Der(phi,t),- c_j* Der(phi,x_j))"
 
-equations = [test]
+equations = [mass, momentum, energy]
 
 # Substitutions
 stress_tensor = "Eq(tau_i_j, (mu)*(Der(u_i,x_j)+ Conservative(u_j,x_i)- (2/3)* KD(_i,_j)* Der(u_k,x_k)))"
@@ -52,11 +52,12 @@ expanded_equations, expanded_formulas = problem.expand()
 latex = LatexWriter()
 latex.open(path=BUILD_DIR + "/equations.tex")
 metadata = {"title": "Equations", "author": "", "institution": ""}
+latex_substitutions = {'gama':'\gamma', 'rhou':'\\rho u', 'rhoE':'\\rho E'}
 latex.write_header(metadata)
 temp = flatten([e.expanded for e in expanded_equations])
-latex.write_expression(temp)
+latex.write_expression(temp, substitutions=latex_substitutions)
 temp = flatten([e.expanded for e in expanded_formulas])
-latex.write_expression(temp)
+latex.write_expression(temp, substitutions=latex_substitutions)
 latex.write_footer()
 latex.close()
 
