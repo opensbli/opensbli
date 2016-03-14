@@ -28,7 +28,7 @@ LOG = logging.getLogger(__name__)
 
 from .equations import *
 from .algorithm import *
-from .codegen_utils import *
+#from .codegen_utils import *
 from .fortran import *
 from .opsc import *
 from .latex import LatexWriter
@@ -42,7 +42,8 @@ class Scheme():
         return
 
 class NumericalGrid():
-    def __init__(self, shape):
+    def __init__(self, ndim):
+        shape = tuple(symbols('nx0:%d'%ndim, integer=True))
         self.indices = [Symbol('i%d'%ind, integer = True) for ind, val in enumerate(shape)]
         self.shape = shape
         self.uniform = [True for ind,val in enumerate(shape)]
@@ -50,6 +51,7 @@ class NumericalGrid():
         et = EinsteinTerm('deltai_i');et.is_constant = True
         self.deltas = et.ndimarray(et.get_indexed_object(len(shape)))
         self.halos = []
+        # works fine now. But need a better idea
         self.Idx = [Idx('idx[%d]'%ind) for ind, val in enumerate(shape)]
         return
     def work_array(self,name):
@@ -245,7 +247,7 @@ class ComputationalKernel():
 
         self.inputs = {}
         self.outputs = {}
-        self.inputoutoutput = {}
+        self.inputoutput = {}
         self.constants = {}
         self.classify_grid_objects()
         return
@@ -272,10 +274,11 @@ class ComputationalKernel():
             self.outputs[v] = indexes
         for v in indexbase_inouts:
             indexes = [vin.indices for vin in inouts if vin.base==v]
-            self.inputoutoutput[v] = indexes
+            self.inputoutput[v] = indexes
         idxs = flatten([list(eq.rhs.atoms(Idx)) for eq in self.equations])
+        self.Idx = False
         if idxs:
-            self.inputs['array_index'] = ''
+            self.Idx = True
         self.constants = set(consts)
         return
 
@@ -390,7 +393,7 @@ class SpatialSolution():
                 rhs = SD.get_derivativeformula(newder,evals[der].formula[0])
                 eq = Eq(evals[der].work,rhs)
                 computations.append(ComputationalKernel(eq, ranges[number], "Nested Derivative evaluation"))
-        
+
         # All the spatial computations are evaluated by this point now get the updated equations
         updated_eq = [eq for eq in alleqs]
         for eqno,eq in enumerate(updated_eq):
@@ -412,7 +415,7 @@ class SpatialSolution():
             residual_eqs.append(Eq(wk,eq.rhs))
         eval_range = [tuple([0,s]) for s in grid.shape]
         computations.append(ComputationalKernel(residual_eqs, eval_range, "Residual of equation"))
-        
+
         # update the required computations and residual arrays to class
         self.computations = computations
         self.residual_arrays = residual_arrays
@@ -551,20 +554,34 @@ class Fileio():
         self.save_arrays = [arrays]
         return
 
-class GenerateSystem():
+class GenerateCode():
     '''
-    This template glues all the different solutions into a format that
-    can be used for code generation
+    This System generate the code for solving the equations
     '''
     def AlgorithmMismatch(Exception):
         return
 
-    def __init__(self, grid, spatial_solution, temporal_soln, boundary, Ics, IO):
+    def __init__(self, grid, spatial_solution, temporal_soln, boundary, Ics, IO, simulation_parameters,code = None):
+        '''
+        The default code generation is OPSC
+        '''
         self.check_consistency(grid,spatial_solution, temporal_soln, boundary, Ics,IO)
         self.gridsizes = []
         self.constants = []
         self.arrays = []
         self.get_arrays_constants()
+        # First generate the spatial solution files
+        assumptions = {'precission':'double'}
+        lang = OPSC()
+        for number,soln in enumerate(self.spatial_solution):
+            solution_file = open(BUILD_DIR+'/%s_solution_block%d.h' %(simulation_parameters["name"], number), 'w')
+            kernel_file = open(BUILD_DIR+'/%s_auto_kernel_block%d.h' %(simulation_parameters["name"], number), 'w')
+            for comp_number,comp in enumerate(soln.computations):
+                lang.kernel_computation(comp,[number,comp_number],**assumptions)
+            kernel_file.close()
+            solution_file.close()
+            return
+
 
         return
     def get_arrays_constants(self):
@@ -575,14 +592,13 @@ class GenerateSystem():
         for inst in allinst:
             for comp in inst.computations:
                 if comp != None:
-                    arrays = arrays.union(set(comp.inputs.keys())).union(set(comp.outputs.keys())).union(set(comp.inputoutoutput.keys()))
-                    pprint(["COMPUTATION IS ",comp.equations, comp.computation_type])
+                    arrays = arrays.union(set(comp.inputs.keys())).union(set(comp.outputs.keys())).union(set(comp.inputoutput.keys()))
+                    #pprint(["COMPUTATION IS ",comp.equations, comp.computation_type])
                     const = const.union(set(comp.constants))
-        arrays = [arr for arr in arrays if not isinstance(arr,str) if arr.is_grid]
-        self.constants = [con for con in const]
-        pprint(["Constants are ", const])
+        # The arrays are the ones that are to be declared on the grid
+        self.arrays = [arr for arr in arrays if not isinstance(arr,str) if arr.is_grid]
+        self.constants = [con for con in const] + [arr for arr in arrays if not isinstance(arr,str) if not arr.is_grid]
         return
-
 
     def check_consistency(self,  grid, spatial_solution, temporal_soln, boundary, Ics, IO):
         self.grid = self.listvar(grid)
