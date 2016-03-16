@@ -33,7 +33,7 @@ from .fortran import *
 from .opsc import *
 from .latex import LatexWriter
 from .array import MutableDenseNDimArray
-BUILD_DIR = os.getcwd()
+
 
 class Scheme():
     def __init__(self,scheme, order):
@@ -439,9 +439,11 @@ class TemporalSolution():
             raise ValueError("Only 1st order Forward or RungeKutta 3 order temporal schemes are allowed")
         eqs = []
         # Any computations at the start of the time step generally save equations
-        self.start = []
+        self.start_computations = []
         self.computations = []
         self.conservative = []
+        # as of now no end computations. This will be updated in the diagnostics
+        self.end_computations = None
         out = []
         for soln in Spatialsolution.residual_arrays:
             out.append(self.time_derivative(soln.keys()[0].args[0], dt,soln[soln.keys()[0]], grid))
@@ -449,7 +451,7 @@ class TemporalSolution():
         if self.nstages !=1:
             start = [o[-1] for o in out]
             range_ofevaluation = [tuple([0+grid.halos[i][0],s+grid.halos[i][1]]) for i,s in enumerate(grid.shape)]
-            self.start.append(ComputationalKernel(start,range_ofevaluation, "Save equations"))
+            self.start_computations.append(ComputationalKernel(start,range_ofevaluation, "Save equations"))
             range_ofevaluation = [tuple([0,s]) for i,s in enumerate(grid.shape)]
             # these are the update equations of the variables at t + k where k is rk loop
             eqs = [o[0] for o in out]
@@ -457,7 +459,7 @@ class TemporalSolution():
             eqs = [o[1] for o in out]
             self.computations.append(ComputationalKernel(eqs,range_ofevaluation, "RK old update"))
         else:
-            self.start = None
+            self.start_computations = None
             range_ofevaluation = [tuple([0,s]) for i,s in enumerate(grid.shape)]
             self.computations.append(ComputationalKernel(out,range_ofevaluation, "Euler update"))
 
@@ -505,19 +507,23 @@ class BoundaryConditions():
     def __init__(self, bcs, grid, arrays):
         if len(bcs) != len(grid.shape):
             raise ValueError("Boundary conditions and the dimensions of grid mismatch")
+        ndim = len(grid.shape)
         self.boundaries = bcs
-        self.computations = [None for b in bcs]
-        self.transfers = [None for b in bcs]
+        self.computations = [None for b in bcs for a in b]
+        self.transfers = [None for b in bcs for a in b]
         self.get_type()
         for ind,bc in enumerate(self.boundaries):
             if bc[0] == bc[1] and bc[0] == "periodic":
-                self.transfers[ind] = self.periodic_bc(ind,grid, arrays)
+                left, right = self.periodic_bc(ind,grid, arrays)
+                self.transfers[ind*ndim + 0] = left
+                self.transfers[ind*ndim + 1] = right
             else:
                 raise NotImplementedError("Implement boundary conditions :",bc)
         return
     def get_type(self):
         types = BoundaryConditions.types
-        self.type_of_boundary = [tuple([types[bc[0]], types[bc[1]]]) for bc in self.boundaries]
+        self.type_of_boundary = [[types[bc[0]], types[bc[1]]] for bc in self.boundaries]
+        self.type_of_boundary = flatten(self.type_of_boundary)
         return
     def periodic_bc(self, direction, grid,arrays):
         transfers = []
@@ -525,14 +531,16 @@ class BoundaryConditions():
         transfers_left = exchange(grid)
         transfers_right = exchange(grid)
         # the left transfers are from from start of grid to end of grid (nx)
+        transfers_left.transfer_size[direction] = abs(grid.halos[direction][0])
         transfers_left.transfer_from[direction] = 0
         transfers_left.transfer_to[direction] = grid.shape[direction]
-        transfers_left.arrays = arrays
+        transfers_left.transfer_arrays = arrays
         # Right transfers are from end of grid- halo points to the starting of halo points
+        transfers_right.transfer_size[direction] = abs(grid.halos[direction][0])
         transfers_right.transfer_from[direction] = grid.shape[direction]+ grid.halos[direction][0]
         transfers_right.transfer_to[direction] = grid.halos[direction][0]
-        transfers_right.arrays = arrays
-        return tuple([transfers_left,transfers_right ])
+        transfers_right.transfer_arrays = arrays
+        return transfers_left, transfers_right
 
 class GridBasedInitialization():
     def __init__(self, grid, Ics):
@@ -554,82 +562,6 @@ class Fileio():
         self.save_arrays = [arrays]
         return
 
-class GenerateCode():
-    '''
-    This System generate the code for solving the equations
-    '''
-    def AlgorithmMismatch(Exception):
-        return
-
-    def __init__(self, grid, spatial_solution, temporal_soln, boundary, Ics, IO, simulation_parameters,code = None):
-        '''
-        The default code generation is OPSC
-        '''
-        self.check_consistency(grid,spatial_solution, temporal_soln, boundary, Ics,IO)
-        self.gridsizes = []
-        self.constants = []
-        self.arrays = []
-        self.get_arrays_constants()
-        # First generate the spatial solution files
-        assumptions = {'precission':'double'}
-        lang = OPSC()
-        for number,soln in enumerate(self.spatial_solution):
-            solution_file = open(BUILD_DIR+'/%s_solution_block%d.h' %(simulation_parameters["name"], number), 'w')
-            kernel_file = open(BUILD_DIR+'/%s_auto_kernel_block%d.h' %(simulation_parameters["name"], number), 'w')
-            for comp_number,comp in enumerate(soln.computations):
-                lang.kernel_computation(comp,[number,comp_number],**assumptions)
-            kernel_file.close()
-            solution_file.close()
-            return
-
-
-        return
-    def get_arrays_constants(self):
-        allinst = self.spatial_solution+self.temporal_soln+self.boundary+self.Ics
-        arrays = set()
-        const = set()
-        stencils = set()
-        for inst in allinst:
-            for comp in inst.computations:
-                if comp != None:
-                    arrays = arrays.union(set(comp.inputs.keys())).union(set(comp.outputs.keys())).union(set(comp.inputoutput.keys()))
-                    #pprint(["COMPUTATION IS ",comp.equations, comp.computation_type])
-                    const = const.union(set(comp.constants))
-        # The arrays are the ones that are to be declared on the grid
-        self.arrays = [arr for arr in arrays if not isinstance(arr,str) if arr.is_grid]
-        self.constants = [con for con in const] + [arr for arr in arrays if not isinstance(arr,str) if not arr.is_grid]
-        return
-
-    def check_consistency(self,  grid, spatial_solution, temporal_soln, boundary, Ics, IO):
-        self.grid = self.listvar(grid)
-        length = len(self.grid)
-
-        self.spatial_solution = self.listvar(spatial_solution);
-        if len(self.spatial_solution) != length:
-            raise AlgorithmMismatch("The length of spatial solution doesnot match the grid")
-
-        self.temporal_soln = self.listvar(temporal_soln);
-        if len(self.temporal_soln) != length:
-            raise AlgorithmMismatch("The length of temporal solution doesnot match the grid")
-
-        self.boundary = self.listvar(boundary);
-        if len(self.boundary) != length:
-            raise AlgorithmMismatch("The length of boundary doesnot match the grid")
-
-        self.Ics = self.listvar(Ics);
-        if len(self.Ics) != length:
-            raise AlgorithmMismatch("The length of Ics doesnot match the grid")
-
-        self.IO = self.listvar(IO);
-        if len(self.IO) != length:
-            raise AlgorithmMismatch("The length of IO doesnot match the grid")
-
-        return
-    def listvar(self, var):
-        if isinstance(var, list):
-            return var
-        else:
-            return [var]
 def range_of_evaluation(orderof_evaluations, evaluations, grid, sdclass):
     '''
     First the ranges of derivatives are updated, then other ranges are updated
