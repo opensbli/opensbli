@@ -111,17 +111,20 @@ class Der(Function):
         
     def apply_derivative(self, index_map, arrays, functions, evaluated):
         """ Replace the Derivative calls using SymPy's diff function. """
+        
         if isinstance(functions[0], Indexed):
-            derivative_function = evaluated[index_map[functions[0]]]
+            function_to_differentiate = evaluated[index_map[functions[0]]]
         else:
-            derivative_function = evaluated
+            function_to_differentiate = evaluated
+
         derivative_direction = []
         for fn in functions[1:]:
             if isinstance(fn, Indexed):
                 derivative_direction += [arrays[fn][index_map[fn]]]
             else:
                 derivative_direction += [arrays[fn]]
-        derivative = derivative_function.diff(*derivative_direction)
+                
+        derivative = function_to_differentiate.diff(*derivative_direction)
         return derivative
         
     def split_index(self, index, arrays):
@@ -203,7 +206,10 @@ class Conservative(Function):
         return arrays, indexed
 
     def apply_derivative(self, index_map, arrays, functions, evaluated):
-        """ Replace the Conservative calls with Derivative calls (which in turn use SymPy's diff function). """
+        """ Replace the Conservative calls with Derivative calls (which in turn use SymPy's diff function).
+        
+        :returns: The derivative of the function provided, represented as a Derivative object.
+        """
         
         if isinstance(functions[0], Indexed):
             function_to_differentiate = evaluated[index_map[functions[0]]]
@@ -289,7 +295,7 @@ class LC(Function):
         indexed.is_commutative = False
         return indexed
         
-    def get_array(self, indexed_):
+    def get_array(self, indexed):
         """ Return an array of LeviCivita objects comprising the appropriate indices given in the user's equations. """
         
         array = MutableDenseNDimArray.zeros(*indexed.shape)
@@ -757,13 +763,11 @@ def evaluate_Mul_expression(term, arrays, index_structure):
 def apply_contraction(outer_indices, tensor_indices, array):
     """ Apply the contraction structure to the array of Indexed objects.
     
-    :arg outer_indices: 
-    :arg tensor_indices: 
-    :arg array: The Indexed arrays to apply the contraction to.
+    :arg outer_indices: The outer indices (i.e. any indices that are not repeated/summation indices)
+    :arg tensor_indices: The indices that need to be summed over.
+    :arg array: The Indexed arrays to apply the index contraction structure to.
     """
     
-    print outer_indices, tensor_indices, array
-
     contracting_indices = set(tensor_indices).difference(set(outer_indices))
     result = array
     if contracting_indices:
@@ -771,7 +775,6 @@ def apply_contraction(outer_indices, tensor_indices, array):
             match = tuple([i for i, x in enumerate(tensor_indices) if x == index])
             result = tensorcontraction(result, match)
             tensor_indices = [i for i in tensor_indices if i != index]
-    print result
     return result
     
     
