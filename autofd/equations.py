@@ -763,10 +763,15 @@ def apply_contraction(outer_indices, tensor_indices, array):
     return result
     
     
-def get_indexed(expression):
-    """ Perform a pre-order traversal of the expression tree to get all Indexed
-    EinsteinTerms and functions such as Derivative or Conservative. """
+def get_terms(expression):
+    """ Perform a pre-order traversal of the expression tree to split up the expression into individual
+    EinsteinTerms and functions such as Derivative or Conservative.
     
+    :arg expression: The expression from which to build and traverse an expression tree.
+    :returns: A list of all individual EinsteinTerms and functions in the expression.
+    :rtype: list
+    """
+
     pot = preorder_traversal(expression)
     einstein_terms = []
     functions = []
@@ -782,6 +787,7 @@ def get_indexed(expression):
             functions.append(p)
         else:
             continue
+
     return functions + einstein_terms
 
 
@@ -797,9 +803,11 @@ def evaluate_expression(expression, arrays, indexed):
     :rtype: tuple
     """
 
-    indexed_object = get_indexed(expression)
-    for einstein_term in indexed_object:
-        expression = expression.xreplace({einstein_term:indexed[einstein_term]})
+    # Get all the EinsteinTerms and functions (e.g. LeviCivita) and replace them by their Indexed versions.
+    terms = get_terms(expression)
+    for term in terms:
+        expression = expression.xreplace({term : indexed[term]})
+    # Find the index structure.
     index_structure = get_index_structure(expression)
     evaluated, indices = evaluate_Indexed_expression(expression, arrays, index_structure)
 
