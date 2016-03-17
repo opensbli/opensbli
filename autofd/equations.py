@@ -367,7 +367,7 @@ class EinsteinTerm(Symbol):
     def get_expanded(self, index_map):
         """ Instantiate a new EinsteinTerm object which is the expanded version of self.
         
-        :arg index_map: 
+        :arg list index_map: A list of (from, to) tuples which map from each alphabetical/non-expanded Einstein index to the corresponding numerical/expanded one.
         :returns: An expanded version of self, still of the same type (EinsteinTerm)
         :rtype: EinsteinTerm
         """
@@ -412,12 +412,15 @@ class EinsteinTerm(Symbol):
     def map_indices(self, from_indices, to_indices):
         """ Map each SymPy Idx object to a numerical index.
         
+        :arg tuple from_indices: The tuple of indices to map from.
+        :arg tuple to_indices: The tuple of indices to map to.
         :returns: A list of (from, to) tuples of type (Idx, int), e.g. [(j, 1)].
         :rtype: list
         """
-        
+
         mapping = []
         for number, index in enumerate(from_indices):
+            # Only consider indices of type sympy.Idx
             if isinstance(index, Idx):
                 mapping.append(tuple([index, to_indices[number]]))
         return mapping
@@ -512,9 +515,6 @@ class EinsteinExpansion(object):
             function.get_indexed(self.ndim, indexed, arrays, new_array_name)
 
         # Now evaluate the RHS of the equation
-        print indexed
-        print arrays        
-        
         evaluated_rhs, rhs_indices = evaluate_expression(expression.rhs, arrays, indexed)
         evaluated_lhs, lhs_indices = evaluate_expression(expression.lhs, arrays, indexed)
         
@@ -661,7 +661,7 @@ def evaluate_Pow_expression(term, arrays, index_structure):
 
     base, e = term.as_base_exp()
     if e.atoms(Indexed):
-        raise NotImplementedError('Indexed objects in exponents are not supported: ', term)
+        raise NotImplementedError("Indexed objects in exponents are not supported: ", term)
     else:
         evaluated, indices = evaluate_Indexed_expression(base, arrays, index_structure)
         
@@ -679,7 +679,7 @@ def evaluate_Pow_expression(term, arrays, index_structure):
 
 
 def evaluate_Add_expression(term, arrays, index_structure):
-    """ Evaluate an expression containing an addition. """
+    """ Evaluate an expression containing an addition operation. """
 
     arg_evals = []
     arg_indices = []
@@ -691,39 +691,42 @@ def evaluate_Add_expression(term, arrays, index_structure):
     return add_evaluated, indices
     
     
-def add_args(arg_evals, arg_indices):
-    """ Add all arguments together. """
+def add_args(arg_evaluated, arg_indices):
+    """ Add all arguments together.
+    
+    :arg arg_evaluated: An array of the evaluated EinsteinTerm and/or Function arguments.
+    :arg arg_indices: An array of the relevant indices of each of the evaluated EinsteinTerms and/or Functions.
+    :returns: The sum of all the evaluated terms.
+    """
 
-    if len(arg_evals)==1:
-        return arg_evals[0], arg_indices[0]
+    # The base case of only one evaluated argument - just return it.
+    if len(arg_evaluated) == 1:
+        return arg_evaluated[0], arg_indices[0]
         
-    # If all arguments of addition are scalars, then:
+    # If all arguments of addition are scalars, then sum them all up and return the result.
     if all([ind == None for ind in arg_indices]):
-        evaluated = arg_evals[0]
-        for arg in arg_evals[1:]:
-            evaluated = evaluated + arg
+        evaluated = sum(arg_evaluated)
         return evaluated, arg_indices[0]
-        
-    array_types = (collections.Iterable, MatrixBase, NDimArray)
     
     for number, index in enumerate(arg_indices):
         if number == 0:
+            # Use the first evaluated argument to initialise the 'evaluated' sum.
             leading_index = index
-            evaluated = arg_evals[number]
+            evaluated = arg_evaluated[number]
         else:
             if leading_index == index:
-                evaluated = evaluated + arg_evals[number]
+                evaluated += arg_evaluated[number]
             else:
                 # Check the transpose. Only 2D arrays are supported.
                 index.reverse()
                 if leading_index == index and len(index) == 2:
-                    arr = arg_evals[number]
-                    for index in np.ndindex(*arr.shape):
-                        transpose = tuple([index[1], index[0]])
-                        evaluated[index] = evaluated[index] + arr[transpose]
+                    array = arg_evaluated[number]
+                    for index in np.ndindex(*array.shape):
+                        transpose = tuple([index[1], index[0]]) # Swap the indices around and apply them to the array to get the transpose.
+                        evaluated[index] += array[transpose]
                 else:
-                    raise NotImplementedError("Taking the array transpose is only supported for 2D arrays.", leading_index, ind)
-                    
+                    raise NotImplementedError("Taking the array transpose is only supported for 2D arrays. ", leading_index, index)
+
     return evaluated, leading_index
 
 
@@ -734,11 +737,11 @@ def evaluate_Mul_expression(term, arrays, index_structure):
     tensor_product_indices = []
     
     for arg in term.args:
-        arg_eval, arg_index = evaluate_Indexed_expression(arg, arrays, index_structure)
-        evaluated = tensorproduct(evaluated, arg_eval)
+        arg_evaluated, arg_index = evaluate_Indexed_expression(arg, arrays, index_structure)
+        evaluated = tensorproduct(evaluated, arg_evaluated)
         if arg_index:
             tensor_product_indices += arg_index
-            
+
     indices = remove_repeated_index(tensor_product_indices)
     evaluated = apply_contraction(indices, tensor_product_indices, evaluated)
     if indices:
@@ -750,7 +753,12 @@ def evaluate_Mul_expression(term, arrays, index_structure):
 
 
 def apply_contraction(outer_indices, tensor_indices, array):
-    """ Apply the contraction structure to the array of Indexed objects. """
+    """ Apply the contraction structure to the array of Indexed objects.
+    
+    :arg outer_indices: 
+    :arg tensor_indices: 
+    :arg array: The Indexed arrays to apply the contraction to.
+    """
 
     contracting_indices = set(tensor_indices).difference(set(outer_indices))
     result = array
@@ -759,13 +767,13 @@ def apply_contraction(outer_indices, tensor_indices, array):
             match = tuple([i for i, x in enumerate(tensor_indices) if x == index])
             result = tensorcontraction(result, match)
             tensor_indices = [i for i in tensor_indices if i != index]
-            
+
     return result
     
     
 def walk_expression_tree(expression):
     """ Perform a pre-order traversal of the expression tree to split up the expression into individual
-    EinsteinTerms and functions such as Derivative or Conservative.
+    EinsteinTerms and functions such as Derivative or Conservative. Any other types (e.g. basic coefficients like 2/3) are skipped.
     
     :arg expression: The expression from which to build and traverse an expression tree.
     :returns: A list of all individual EinsteinTerms and functions in the expression.
@@ -815,20 +823,26 @@ def evaluate_expression(expression, arrays, indexed):
     
     
 def evaluate_Indexed_expression(expression, arrays, index_structure):
-    """ Replace the Einstein terms in the expression by their constituent arrays. """
+    """ Evaluate the Einstein terms in the expression by using their constituent arrays
+    and performing the appropriate add/multiply/power operations on them according to the index structure.
     
+    :arg expression: The SymPy expression to evaluate. Each term will be Indexed (as appropriate; constants like "-1" will of course not be Indexed).
+    :arg arrays: The arrays containing EinsteinTerms/Indexed components of shape NDim for vectors, or NDim x NDim for rank 2 tensors.
+    :arg index_structure: The index structure over which to apply the various mathematical operations.
+    """
+
     if expression.is_Mul:
         return evaluate_Mul_expression(expression, arrays, index_structure)
     elif expression.is_Add:
         return evaluate_Add_expression(expression, arrays, index_structure)
     elif isinstance(expression, Indexed):
-        expindices = list(expression.indices)
-        struc = remove_repeated_index(expindices)
-        evaluated = apply_contraction(struc,expindices,arrays[expression])
-        return evaluated, struc
+        indices = list(expression.indices)
+        index_structure = remove_repeated_index(indices)
+        evaluated = apply_contraction(index_structure, indices, arrays[expression])
+        return evaluated, index_structure
     elif isinstance(expression, EinsteinTerm):
         return arrays[expression],  None
-    elif isinstance(expression,Pow):
+    elif isinstance(expression, Pow):
         return evaluate_Pow_expression(expression, arrays, index_structure)
     elif isinstance(expression, Integer):
         return expression, None
