@@ -53,22 +53,22 @@ class Der(Function):
     def is_commutative(self):
         return False
         
-    def get_indexed_object(self, ndim, indexed_dict, arrays, new_array_name):
+    def get_indexed(self, ndim, indexed, arrays, new_array_name):
         # TODO: Add repeated calling of the derivatives and functions for support of higher orders
         
         derivative_function = self.args[0]
-        indexobj = IndexedBase('%s' % derivative_function)
-        evaluated, index_structure = evaluate_expression(derivative_function, arrays, indexed_dict)
+        base = IndexedBase('%s' % derivative_function)
+        evaluated, index_structure = evaluate_expression(derivative_function, arrays, indexed)
         if index_structure:
             derivative_structure = index_structure
-            functions = [indexobj[index_structure]]
+            functions = [base[index_structure]]
         else:
             derivative_structure = []
-            functions = [indexobj]
+            functions = [base]
 
         for arg in self.args[1:]:
-            derivative_structure = derivative_structure + list(indexed_dict[arg].indices)
-            functions.append(indexed_dict[arg])
+            derivative_structure = derivative_structure + list(indexed[arg].indices)
+            functions.append(indexed[arg])
 
         # Get the shape of the derivative index structure
         shape = []
@@ -99,14 +99,14 @@ class Der(Function):
                 raise ValueError("Indices do not match: ", new_outer_indices, outer_indices)
                 
             indexed_object_name.is_commutative = False
-            indexed_dict[self] = indexed_object_name
+            indexed[self] = indexed_object_name
             arrays[indexed_object_name] = derivative
         else:
             indexed_object_name = EinsteinTerm(new_array_name)
-            indexed_dict[self] = indexed_object_name
+            indexed[self] = indexed_object_name
             arrays[indexed_object_name] = derivative
             
-        return arrays, indexed_dict
+        return arrays, indexed
         
     def apply_derivative(self,index_map, arrays, functions, evaluated):
         """ Replace the Derivative calls using SymPy's diff function. """
@@ -148,24 +148,24 @@ class Conservative(Function):
     def is_commutative(self):
         return False
 
-    def get_indexed_object(self, ndim, indexed_dict, arrays, new_array_name):
+    def get_indexed(self, ndim, indexed, arrays, new_array_name):
         # TODO: Add repeated calling of the derivatives and functions for support of higher orders
         
         arguments = {}
         derivative_function = self.args[0]
-        indexobj = IndexedBase('%s' % derivative_function)
-        evaluated, index_structure = evaluate_expression(derivative_function, arrays, indexed_dict)
+        base = IndexedBase('%s' % derivative_function)
+        evaluated, index_structure = evaluate_expression(derivative_function, arrays, indexed)
         
         if index_structure:
             derivative_structure = index_structure
-            functions = [indexobj[index_structure]]
+            functions = [base[index_structure]]
         else:
             derivative_structure = []
-            functions = [indexobj]
+            functions = [base]
 
         for arg in self.args[1:]:
-            derivative_structure = derivative_structure + list(indexed_dict[arg].indices)
-            functions.append(indexed_dict[arg])
+            derivative_structure = derivative_structure + list(indexed[arg].indices)
+            functions.append(indexed[arg])
         
         shape = []
         for number, index in enumerate(derivative_structure):
@@ -192,14 +192,14 @@ class Conservative(Function):
             else:
                 raise ValueError("Indices do not match: ", new_outer_indices, outer_indices)
             indexed_object_name.is_commutative = False
-            indexed_dict[self] = indexed_object_name
+            indexed[self] = indexed_object_name
             arrays[indexed_object_name] = derivative
         else:
             indexed_object_name = EinsteinTerm(new_array_name)
-            indexed_dict[self] = indexed_object_name
+            indexed[self] = indexed_object_name
             arrays[indexed_object_name] = derivative
 
-        return arrays, indexed_dict
+        return arrays, indexed
 
     def apply_derivative(self, index_map, arrays, functions, evaluated):
         """ Replace the Conservative calls with Derivative calls (which in turn use SymPy's diff function). """
@@ -242,7 +242,7 @@ class KD(Function):
         return False
         
     # FIXME: Can combine the two functions below
-    def get_indexed_object(self, ndim):
+    def get_indexed(self, ndim):
         name = str(self.func)
         
         if len(self.args) > 2:
@@ -255,7 +255,7 @@ class KD(Function):
         indexed_array.is_commutative = False
         return indexed_array
         
-    def ndimarray(self, indexed_array):
+    def get_array(self, indexed_array):
         """ Return an array of KroneckerDelta objects comprising the appropriate indices given in the user's equations. """
         
         array = MutableDenseNDimArray.zeros(*indexed_array.shape)
@@ -274,7 +274,7 @@ class LC(Function):
     def is_commutative(self):
         return False
         
-    def get_indexed_object(self, ndim):
+    def get_indexed(self, ndim):
         name = str(self.func)
         
         if len(self.args) != 3 or ndim != 3:
@@ -287,7 +287,7 @@ class LC(Function):
         indexed_array.is_commutative = False
         return indexed_array
         
-    def ndimarray(self, indexed_array):
+    def get_array(self, indexed_array):
         """ Return an array of LeviCivita objects comprising the appropriate indices given in the user's equations. """
         
         array = MutableDenseNDimArray.zeros(*indexed_array.shape)
@@ -326,38 +326,58 @@ class EinsteinTerm(Symbol):
         return self
         
     def get_indices(self):
-        """ Return a list of the Einstein indices. """
+        """ Return a list of the Einstein indices.
+        
+        :returns: A list of the Einstein indices.
+        :rtype: list
+        """
         return self.indices
         
     def get_base(self):
-        """ Return the base name. """
+        """ Return the base name.
+        
+        :returns: The base name.
+        :rtype: str
+        """
         return self.name.split('_')[0]
 
-    def get_indexed_object(self, ndim):
+    def get_indexed(self, ndim):
         """ Given the EinsteinTerm's base name (which gets transformed to an IndexedBase here) and its indices (i.e. Idx objects),
-        return an Indexed object. """
+        return an Indexed object.
+        
+        :arg int ndim: The dimension of the problem.
+        :returns: The EinsteinTerm represented as a SymPy Indexed object.
+        """
     
         name = self.get_base()
         indices = self.get_indices()
         
         if len(indices) > 0:
-            shape_of_array = tuple([ndim for x in range(len(indices))])
+            shape = tuple([ndim for x in range(len(indices))])
         else:
             indices = [1, self.get_indices()]
             indices = flatten(indices)
-            shape_of_array = tuple([1, ndim])
+            shape = tuple([1, ndim])
             
-        indexed_base = IndexedBase('%s' % name, shape=shape_of_array)
-        indexed_array = indexed_base[tuple(indices)]
-        indexed_array.is_commutative = False
-        return indexed_array
+        indexed_base = IndexedBase('%s' % name, shape=shape)
+        indexed = indexed_base[tuple(indices)]
+        indexed.is_commutative = False
+        return indexed
         
     def get_expanded(self, index_map):
-        """ Instantiate a new EinsteinTerm object which is the expanded version of self. """    
+        """ Instantiate a new EinsteinTerm object which is the expanded version of self.
+        
+        :arg index_map: 
+        :returns: An expanded version of self, still of the same type (EinsteinTerm)
+        :rtype: EinsteinTerm
+        """
+        
         expanded = str(self)
+        
         # Expand the indices
         for index in index_map:
             expanded = expanded.replace('_%s' % index[0], str(index[1]))
+            
         # If the term is a constant then ensure that the relevant flag is set in the new EinsteinTerm object.
         if self.is_constant:
             expanded = EinsteinTerm(expanded)
@@ -366,19 +386,20 @@ class EinsteinTerm(Symbol):
         else:
             return EinsteinTerm(expanded)
             
-    def ndimarray(self, indexed_array, function=None):
+    def get_array(self, indexed, function=None):
         """ Return an array of Indexed/EinsteinTerm objects. """
         
-        array = MutableDenseNDimArray.zeros(*indexed_array.shape)
-        array_indices = indexed_array.indices
-        for index in np.ndindex(*indexed_array.shape):
-            index_map = self.map_indices(array_indices, index)
+        array = MutableDenseNDimArray.zeros(*indexed.shape)
+        indices = indexed.indices
+        for index in np.ndindex(*indexed.shape):
+            index_map = self.map_indices(indices, index)
             value = self.get_expanded(index_map)
             value.is_commutative = True
-            if not function:
-                array[index] = value
-            else:
+            if function:
                 array[index] = IndexedBase('%s' % value)[function]
+            else:
+                array[index] = value
+                
         return array
         
     def map_indices(self, array_indices, indices):
@@ -406,69 +427,70 @@ class EinsteinExpansion(object):
         self.ndim = ndim
         self.expanded = []
 
-        indexed_dict = {}
+        indexed = {}
         self.indexed_object_number = 0
         self.indexed_object_name = 'Arr'
-        ndimarrays = {}
-        coord = False
+        arrays = {}
+        have_coordinate = False
         
-        # Update the coordinate ndimarrays
+        # Get the coordinates if the coordinate vector is used in the expression.
         for atom in expression.atoms(EinsteinTerm):
             if atom.is_coordinate:
-                coord = True
+                have_coordinate = True
                 if atom.get_indices():
-                    indict = atom.get_indexed_object(self.ndim)
-                    array = atom.ndimarray(indict)
+                    indict = atom.get_indexed(self.ndim)
+                    array = atom.get_array(indict)
                     coordinates = flatten(array.tolist())
 
-        # Time derivative added in here along with the expanded coordinate symbol.
-        if coord:
+        # The time symbol is added in here along with the expanded coordinate symbol.
+        if have_coordinate:
             coordinates = tuple(flatten([coordinates + [EinsteinTerm('t')]]))
         else:
+            # If we do not know the coordinate vector, then generate the coordinates here, and assume that the coordinate vector is called "x".
             coordinates = tuple([EinsteinTerm('x%d' % dim) for dim in range(self.ndim)] + [EinsteinTerm('t')])
 
-        # Get the ndim arrays for the Einstein Terms in the equations (u_i,u_j,x_j,x_i) and so on.
+        # Get the arrays for the EinsteinTerms in the equations (u_i,u_j,x_j,x_i) and so on.
         # All the Einstein Terms that are not constants are converted into coordinate functions.
         # TODO: Maybe change them later into coordinate indexed objects
         for atom in expression.atoms(EinsteinTerm):
             # Constant term
             if atom.is_constant:
                 if atom.get_indices():
-                    indexed_dict[atom] = atom.get_indexed_object(self.ndim)
-                    ndimarrays[indexed_dict[atom]] = atom.ndimarray(indexed_dict[atom])
+                    indexed[atom] = atom.get_indexed(self.ndim)
+                    arrays[indexed[atom]] = atom.get_array(indexed[atom])
                 else:
-                    indexed_dict[atom] = atom
-                    ndimarrays[indexed_dict[atom]] = atom
+                    indexed[atom] = atom
+                    arrays[indexed[atom]] = atom
             else:
                 if atom.get_indices():
                     if atom.get_base():
-                        indexed_dict[atom] = atom.get_indexed_object(self.ndim)
-                        ndimarrays[indexed_dict[atom]] = atom.ndimarray(indexed_dict[atom], coordinates)
+                        indexed[atom] = atom.get_indexed(self.ndim)
+                        arrays[indexed[atom]] = atom.get_array(indexed[atom], coordinates)
                 else:
-                    indexed_dict[atom] = atom
+                    indexed[atom] = atom
                     # Change here for Function or IndexedBase
-                    ndimarrays[indexed_dict[atom]] = IndexedBase('%s' % atom)[coordinates]
+                    arrays[indexed[atom]] = IndexedBase('%s' % atom)[coordinates]
 
-        # Get the Ndim arrays for the Kronecker Delta function
+        # Get the arrays for the Kronecker Delta function
         for kd in expression.atoms(KD):
-            if not kd in indexed_dict.keys():
-                indexed_dict[kd] = kd.get_indexed_object(self.ndim)
-                ndimarrays[indexed_dict[kd]] = kd.ndimarray(indexed_dict[kd])
+            if not kd in indexed.keys():
+                indexed[kd] = kd.get_indexed(self.ndim)
+                arrays[indexed[kd]] = kd.get_array(indexed[kd])
 
-        # Get the Ndim arrays for the Levi-Civita function
+        # Get the arrays for the Levi-Civita function
         for lc in expression.atoms(LC):
-            if not lc in indexed_dict.keys():
-                indexed_dict[lc] = lc.get_indexed_object(self.ndim)
-                ndimarrays[indexed_dict[lc]] = lc.ndimarray(indexed_dict[lc])
+            if not lc in indexed.keys():
+                indexed[lc] = lc.get_indexed(self.ndim)
+                arrays[indexed[lc]] = lc.get_array(indexed[lc])
 
         # Do the Functions that are not nested
         functions_to_eval = []
         for function in expression.atoms(Function):
             if not function.args[0].atoms(Function):
-                if not function in indexed_dict.keys():
+                if not function in indexed.keys():
                     new_array_name = '%s%d' % (self.indexed_object_name, self.indexed_object_number)
                     self.indexed_object_number = self.indexed_object_number + 1
-                    function.get_indexed_object(self.ndim, indexed_dict, ndimarrays, new_array_name)
+                    function.get_indexed(self.ndim, indexed, arrays, new_array_name)
             else:
                 functions_to_eval.append(function)
 
@@ -476,16 +498,20 @@ class EinsteinExpansion(object):
         for function in functions_to_eval:
             new_array_name = '%s%d' % (self.indexed_object_name, self.indexed_object_number)
             self.indexed_object_number = self.indexed_object_number + 1
-            function.get_indexed_object(self.ndim, indexed_dict, ndimarrays, new_array_name)
+            function.get_indexed(self.ndim, indexed, arrays, new_array_name)
 
         # Now evaluate the RHS of the equation
-        evaluated_rhs, rhs_indices = evaluate_expression(expression.rhs, ndimarrays, indexed_dict)
-        evaluated_lhs, lhs_indices = evaluate_expression(expression.lhs, ndimarrays, indexed_dict)
+        print indexed
+        print arrays        
+        
+        evaluated_rhs, rhs_indices = evaluate_expression(expression.rhs, arrays, indexed)
+        evaluated_lhs, lhs_indices = evaluate_expression(expression.lhs, arrays, indexed)
         
         # Sanity check: Check that the indices on the LHS and RHS match
         if lhs_indices != rhs_indices:
             raise ValueError("Indices of the LHS do not match those of the RHS in the following expression: ", expression)
-            
+        
+        # The expanded equations will be of type SymPy Eq.
         array_types = (collections.Iterable, MatrixBase, NDimArray)
         if isinstance(evaluated_lhs, array_types):
             for index in np.ndindex(evaluated_lhs.shape):
@@ -719,7 +745,7 @@ def apply_contraction(outer_indices, tensor_indices, array):
     return result
     
     
-def get_indexed_object(expression):
+def get_indexed(expression):
     """ Perform a pre-order traversal of the expression tree to get all Indexed
     EinsteinTerms and functions such as Derivative or Conservative. """
     
@@ -741,21 +767,21 @@ def get_indexed_object(expression):
     return functions + einstein_terms
 
 
-def evaluate_expression(expression, arrays, indexed_dict):
+def evaluate_expression(expression, arrays, indexed):
     """ Evaluate a given expression, thereby expanding the indices and performing any function calls
     (e.g. actually applying the effect of the Kronecker Delta function).
     
     :arg expression: The expression to evaluate. This will be a SymPy data type.
     :arg dict arrays: A dictionary of (array name, NDimArray) pairs. The NDimArrays contain the expanded variables.
-    :arg indexed_dict: A dictionary of (non-Indexed, Indexed) pairs. Effectively, each key contains the original
+    :arg dict indexed: A dictionary of (non-Indexed, Indexed) pairs. Effectively, each key contains the original
     (non-expanded) EinsteinTerm, and its corresponding value is its equivalent Indexed version. E.g. (rhou_j, rhou[j]). 
     :returns: A tuple containing the evaluated expression and a list of indices (e.g. [i,j]).
     :rtype: tuple
     """
 
-    indexed_object = get_indexed_object(expression)
+    indexed_object = get_indexed(expression)
     for einstein_term in indexed_object:
-        expression = expression.xreplace({einstein_term:indexed_dict[einstein_term]})
+        expression = expression.xreplace({einstein_term:indexed[einstein_term]})
     index_structure = get_index_structure(expression)
     evaluated, indices = evaluate_Indexed_expression(expression, arrays, index_structure)
 

@@ -49,7 +49,7 @@ class NumericalGrid():
         self.uniform = [True for ind,val in enumerate(shape)]
         self.time_grid = self.indices + [symbols('Time',integer=True)]
         et = EinsteinTerm('deltai_i');et.is_constant = True
-        self.deltas = et.ndimarray(et.get_indexed_object(len(shape)))
+        self.deltas = et.get_array(et.get_indexed(len(shape)))
         self.halos = []
         # works fine now. But need a better idea
         self.Idx = [Idx('idx[%d]'%ind) for ind, val in enumerate(shape)]
@@ -306,7 +306,7 @@ class SpatialSolution():
             evals[out.lhs] = evaluated
         # TODO again a way of passing the coordinates
         et = EinsteinTerm('x_i');et.is_constant = True
-        coord = et.ndimarray(et.get_indexed_object(len(grid.shape)))
+        coord = et.get_array(et.get_indexed(len(grid.shape)))
         coord = coord.tolist()
         # Work array is always named as wk
         wkarray = 'wk'; wkind = 0;
