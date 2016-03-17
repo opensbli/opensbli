@@ -91,6 +91,7 @@ class Der(Function):
         outer_indices = remove_repeated_index(derivative_structure)
         if derivative_structure:
             derivative = apply_contraction(outer_indices, derivative_structure, derivative)
+            
         if outer_indices:
             new_outer_indices = [outer for outer in outer_indices if outer != 1]
             if new_outer_indices == outer_indices:
@@ -108,7 +109,7 @@ class Der(Function):
             
         return arrays, indexed
         
-    def apply_derivative(self,index_map, arrays, functions, evaluated):
+    def apply_derivative(self, index_map, arrays, functions, evaluated):
         """ Replace the Derivative calls using SymPy's diff function. """
         if isinstance(functions[0], Indexed):
             derivative_function = evaluated[index_map[functions[0]]]
@@ -179,9 +180,9 @@ class Conservative(Function):
         for index in np.ndindex(*shape):
             index_map = self.split_index(index,functions)
             derivative[index] = self.apply_derivative(index_map, arrays, functions, evaluated)
-        outer_indices = remove_repeated_index(derivative_structure)
 
         # Apply the contraction structure
+        outer_indices = remove_repeated_index(derivative_structure)
         if derivative_structure:
             derivative = apply_contraction(outer_indices, derivative_structure, derivative)
 
@@ -249,17 +250,17 @@ class KD(Function):
             raise ValueError('Kronecker Delta function should have only two indices')
             
         indices = flatten([p.get_indices() for p in self.args if p.get_indices])
-        shape_of_array = tuple([ndim for x in range(len(indices))])
-        indexed_base = IndexedBase('%s' % name, shape=shape_of_array)
-        indexed_array = indexed_base[tuple(indices)]
-        indexed_array.is_commutative = False
-        return indexed_array
+        shape = tuple([ndim for x in range(len(indices))])
+        indexed_base = IndexedBase('%s' % name, shape=shape)
+        indexed = indexed_base[tuple(indices)]
+        indexed.is_commutative = False
+        return indexed
         
-    def get_array(self, indexed_array):
+    def get_array(self, indexed):
         """ Return an array of KroneckerDelta objects comprising the appropriate indices given in the user's equations. """
         
-        array = MutableDenseNDimArray.zeros(*indexed_array.shape)
-        for index in np.ndindex(*indexed_array.shape):
+        array = MutableDenseNDimArray.zeros(*indexed.shape)
+        for index in np.ndindex(*indexed.shape):
             array[index[:]] = KroneckerDelta(*index)
         return array
 
@@ -281,17 +282,17 @@ class LC(Function):
             raise ValueError("LeviCivita function should have only three indices.")
             
         indices = flatten([p.get_indices() for p in self.args if p.get_indices])
-        shape_of_array = tuple([ndim for x in range(len(indices))])
-        indexed_base = IndexedBase('%s' % name, shape=shape_of_array)
-        indexed_array = indexed_base[tuple(indices)]
-        indexed_array.is_commutative = False
-        return indexed_array
+        shape = tuple([ndim for x in range(len(indices))])
+        indexed_base = IndexedBase('%s' % name, shape=shape)
+        indexed = indexed_base[tuple(indices)]
+        indexed.is_commutative = False
+        return indexed
         
-    def get_array(self, indexed_array):
+    def get_array(self, indexed_):
         """ Return an array of LeviCivita objects comprising the appropriate indices given in the user's equations. """
         
-        array = MutableDenseNDimArray.zeros(*indexed_array.shape)
-        for index in np.ndindex(*indexed_array.shape):
+        array = MutableDenseNDimArray.zeros(*indexed.shape)
+        for index in np.ndindex(*indexed.shape):
             array[index[:]] = LeviCivita(*index)
         return array
 
@@ -681,13 +682,13 @@ def evaluate_Pow_expression(term, arrays, index_structure):
 def evaluate_Add_expression(term, arrays, index_structure):
     """ Evaluate an expression containing an addition operation. """
 
-    arg_evals = []
+    arg_evaluations = []
     arg_indices = []
     for arg in term.args:
-        arg_eval, arg_index = evaluate_Indexed_expression(arg, arrays, index_structure)
-        arg_evals.append(arg_eval)
+        arg_evaluated, arg_index = evaluate_Indexed_expression(arg, arrays, index_structure)
+        arg_evaluations.append(arg_evaluated)
         arg_indices.append(arg_index)
-    add_evaluated, indices = add_args(arg_evals, arg_indices)
+    add_evaluated, indices = add_args(arg_evaluations, arg_indices)
     return add_evaluated, indices
     
     
@@ -759,6 +760,8 @@ def apply_contraction(outer_indices, tensor_indices, array):
     :arg tensor_indices: 
     :arg array: The Indexed arrays to apply the contraction to.
     """
+    
+    print outer_indices, tensor_indices, array
 
     contracting_indices = set(tensor_indices).difference(set(outer_indices))
     result = array
@@ -767,7 +770,7 @@ def apply_contraction(outer_indices, tensor_indices, array):
             match = tuple([i for i, x in enumerate(tensor_indices) if x == index])
             result = tensorcontraction(result, match)
             tensor_indices = [i for i in tensor_indices if i != index]
-
+    print result
     return result
     
     
