@@ -204,10 +204,11 @@ class Conservative(Function):
 
     def apply_derivative(self, index_map, arrays, functions, evaluated):
         """ Replace the Conservative calls with Derivative calls (which in turn use SymPy's diff function). """
+        
         if isinstance(functions[0], Indexed):
-            derivative_function = evaluated[index_map[functions[0]]]
+            function_to_differentiate = evaluated[index_map[functions[0]]]
         else:
-            derivative_function = evaluated
+            function_to_differentiate = evaluated
 
         derivative_direction = []
         for fn in functions[1:]:
@@ -216,7 +217,7 @@ class Conservative(Function):
             else:
                 derivative_direction += [arrays[fn]]
 
-        derivative = Derivative(derivative_function, *derivative_direction)
+        derivative = Derivative(function_to_differentiate, *derivative_direction)
         return derivative
         
     def split_index(self, index, arrays):
