@@ -13,7 +13,7 @@ def test_expand():
     substitutions = []
     ndim = 1
     constants = ["c"]
-    coordinate_symbol = ["x"]
+    coordinate_symbol = "x"
     metrics = [False, False]
     formulas = ["Eq(u_i, rhou_i/rho)"]
 
@@ -21,10 +21,10 @@ def test_expand():
 
     expanded_equations, expanded_formulas = problem.expand()
     assert len(expanded_equations) == 1
-    assert str(expanded_equations[0].expanded) == "[Derivative(rho(x0, t), t) == -c*Derivative(rhou0(x0, t), x0)]"
+    assert str(expanded_equations[0].expanded) == "[Derivative(rho[x0, t], t) == -c*Derivative(rhou0[x0, t], x0)]"
 
     assert len(expanded_formulas) == 1
-    assert str(expanded_formulas[0].expanded) == "[u0 == rhou0/rho]"
+    assert str(expanded_formulas[0].expanded) == "[u0[x0, t] == rhou0[x0, t]/rho[x0, t]]"
 
     return
 
