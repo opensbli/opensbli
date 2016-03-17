@@ -374,7 +374,7 @@ class SpatialSolution():
                     for subev in subevals[number]:
                         wk = grid.work_array('%s%d'%(wkarray,tempwkind));tempwkind = tempwkind +1
                         for req in require[number]:
-                            local_range = [req,evals[req].evaluation_range]
+                            local_range = [evals[req].evaluation_range]
                             subev = subev.subs(req,evals[req].work)
                         eqs.append(Eq(wk,subev))
                     computations.append(ComputationalKernel(eqs, local_range, "Temporary formula Evaluation"))
@@ -558,8 +558,13 @@ class Fileio():
     it is saved at the end of simulation
     '''
     def __init__(self, arrays, niter = None):
-        self.save_after = 'END'
-        self.save_arrays = [arrays]
+        self.save_after = []
+        self.save_arrays = []
+        self.save_after += [Symbol('niter', integer=True)]
+        if isinstance(arrays, list):
+            self.save_arrays += arrays
+        else:
+            self.save_arrays += [arrays]
         return
 
 def range_of_evaluation(orderof_evaluations, evaluations, grid, sdclass):
