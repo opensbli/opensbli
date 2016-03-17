@@ -20,7 +20,7 @@ energy = "Eq(Der(rhoE,t),- Conservative((p+rhoE)*u_j,x_j) +Der(q_j,x_j) + Der(u_
 lev = "Eq(vort_i, (LC(_i,_j,_k)*Der(u_k,x_j)))"
 test = "Eq(Der(phi,t),- c_j* Der(phi,x_j))"
 
-equations = [mass, momentum, energy]
+equations = [test]
 
 # Substitutions
 stress_tensor = "Eq(tau_i_j, (mu)*(Der(u_i,x_j)+ Conservative(u_j,x_i)- (2/3)* KD(_i,_j)* Der(u_k,x_k)))"
@@ -68,8 +68,9 @@ start = time.time()
 sch = "central"
 order = 4
 spatial_scheme = Scheme(sch,order)
-temporal_scheme = Scheme("Forward", 1)
-grid = NumericalGrid(tuple(symbols('nx0:%d' % ndim, integer = True)))
+temporal_scheme = Scheme("RungeKutta", 3)
+# create a grid instance
+grid = NumericalGrid(ndim)
 const_dt = True
 # get the spatial solution
 spatial_solution = SpatialSolution(expanded_equations,expanded_formulas, grid, spatial_scheme)
@@ -83,6 +84,14 @@ initialize = ["Eq(grid.work_array(phi), sin((grid.Idx[0] -1)*grid.deltas[0]))"]
 Ics = GridBasedInitialization(grid, initialize)
 # I/O save conservative variables at the end of simulation
 IO = Fileio(temporal_soln.conservative)
+# here define the grid parameters like number of points, Length in each direction and delta in each direction
+length = [1.0]*ndim
+np = [8]*ndim
+deltas = [length[i]/np[i] for i in range(len(length)) ] # how to define them
+nsteps = 100
+# constants in the system
+simulation_parameters = {"name":"testing"}
+GenerateCode(grid, spatial_solution, temporal_soln, boundary, Ics, IO, simulation_parameters)
 end = time.time()
 LOG.debug('The time taken to prepare the system in %d Dimensions is %.2f seconds.' % (problem.ndim, end - start))
 
