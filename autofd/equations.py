@@ -460,8 +460,8 @@ class EinsteinExpansion(object):
             if atom.is_coordinate:
                 have_coordinate = True
                 if atom.get_indices():
-                    indict = atom.get_indexed(self.ndim)
-                    array = atom.get_array(indict)
+                    indices = atom.get_indexed(self.ndim)
+                    array = atom.get_array(indices)
                     coordinates = flatten(array.tolist())
 
         # The time symbol is added in here along with the expanded coordinate symbol.
