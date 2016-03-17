@@ -248,7 +248,7 @@ class ComputationalKernel():
         self.inputs = {}
         self.outputs = {}
         self.inputoutput = {}
-        self.constants = {}
+        #self.constants = {}
         self.classify_grid_objects()
         return
     def classify_grid_objects(self):
@@ -481,9 +481,11 @@ class RungeKutta():
         self.old = IndexedBase('rkold')
         self.old.is_grid = False
         self.old.is_constant = True
+        self.old.ranges = order
         self.new = IndexedBase('rknew')
         self.new.is_grid = False
         self.new.is_constant = True
+        self.new.ranges = order
         self.old = self.old[self.stage]
         self.new = self.new[self.stage]
         if order == 3:
