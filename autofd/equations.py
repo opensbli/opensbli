@@ -374,7 +374,7 @@ class EinsteinTerm(Symbol):
         
         expanded = str(self)
         
-        # Expand the indices
+        # Expand the indices. This involves replacing the alphabetical Einstein indices with actual numerical indices (e.g. replacing "_j" with "0")
         for index in index_map:
             expanded = expanded.replace('_%s' % index[0], str(index[1]))
             
@@ -386,29 +386,40 @@ class EinsteinTerm(Symbol):
         else:
             return EinsteinTerm(expanded)
             
-    def get_array(self, indexed, function=None):
-        """ Return an array of Indexed/EinsteinTerm objects. """
+    def get_array(self, indexed, args=None):
+        """ Return an array of Indexed/EinsteinTerm objects.
+        
+        :arg sympy.Indexed indexed: A SymPy Indexed term.
+        :arg args: A tuple of arguments to be provided to a function (e.g. the LeviCivita function). By default this is None.
+        :returns: An array of Indexed/EinsteinTerm objects
+        :rtype: sympy.MutableDenseNDimArray
+        """
         
         array = MutableDenseNDimArray.zeros(*indexed.shape)
-        indices = indexed.indices
+        from_indices = indexed.indices
         for index in np.ndindex(*indexed.shape):
-            index_map = self.map_indices(indices, index)
+            index_map = self.map_indices(from_indices, index)
             value = self.get_expanded(index_map)
             value.is_commutative = True
-            if function:
-                array[index] = IndexedBase('%s' % value)[function]
+            if args:
+                # If this is a function such as the Levi-Civita function, then it will have arguments (e.g. x0, x1, t) which need to be included here.
+                array[index] = IndexedBase('%s' % value)[args]
             else:
                 array[index] = value
                 
         return array
         
-    def map_indices(self, array_indices, indices):
-        """ Map each array index to a SymPy Idx object. """
+    def map_indices(self, from_indices, to_indices):
+        """ Map each SymPy Idx object to a numerical index.
+        
+        :returns: A list of (from, to) tuples of type (Idx, int), e.g. [(j, 1)].
+        :rtype: list
+        """
         
         mapping = []
-        for number, index in enumerate(array_indices):
+        for number, index in enumerate(from_indices):
             if isinstance(index, Idx):
-                mapping.append(tuple([index, indices[number]]))
+                mapping.append(tuple([index, to_indices[number]]))
         return mapping
        
 
@@ -570,7 +581,11 @@ class Equation(object):
 
 
 def get_index_structure(term):
-    """ Get all the Einstein indices of a given term. """
+    """ Get all the Einstein indices of a given term.
+    
+    :arg term: The term to get the Einstein indices of.
+    :returns: The alphabetical/non-expanded Einstein indices of a given object (or None, if no indices are present).
+    """
 
     if isinstance(term, Indexed):
         c = term.indices
@@ -589,15 +604,18 @@ def get_index_structure(term):
             return get_Add_indices(term)
         elif term.is_Pow or isinstance(term, exp):
             return get_Pow_indices(term)
-    return
     
     
 def get_Mul_indices(term):
-    """ Get all the Einstein indices in an multiplicative term. """
+    """ Get all the Einstein indices in a multiplicative term. """
     
+    # For each of the 'arguments' of a term (e.g. a coefficient like 2/3, or a function like KD[i, j])
+    # get the index structure of each one. If no indices exist (e.g. for the coefficient 2/3), then this will be None.
+    # For e.g. KD[i, j], this will be [i, j].
     indices = list(map(get_index_structure, term.args))
+    # Remove the None's.
     indices = [i for i in indices if i != None]
-    # Remove duplicate indices
+    # Remove duplicate indices.
     indices = remove_repeated_index(flatten(indices))
     if indices:
         return indices
