@@ -1,5 +1,4 @@
 from sympy import *
-from sympy.parsing.sympy_parser import *
 
 from .equations import EinsteinTerm
 
@@ -27,8 +26,9 @@ class Kernel(object):
         3. ins, outs, inouts and so on
         4. Stencils of access
         '''
+        
         self.computation_type = computation
-        self.ranges = ranges# range of the kernel
+        self.ranges = ranges # Range of the indices of the points the kernel iterates over.
         self.name = None # None generates automatic kernel name
         if isinstance(equations, list):
             self.equations = equations
@@ -38,9 +38,11 @@ class Kernel(object):
         self.inputs = {}
         self.outputs = {}
         self.inputoutput = {}
-        #self.constants = {}
+        
         self.classify_grid_objects()
+        
         return
+        
     def classify_grid_objects(self):
         ins = []
         outs = []

@@ -30,6 +30,7 @@ from .equations import *
 from .opsc import *
 from .latex import LatexWriter
 from .array import MutableDenseNDimArray
+from .grid import *
 from .timestepping import *
 
 class Scheme():
@@ -38,36 +39,6 @@ class Scheme():
         self.order = order
         return
 
-class Grid(object):
-    
-    """ The numerical grid of solution points on which to discretise the equations. """
-
-    def __init__(self, ndim):
-        shape = tuple(symbols('nx0:%d' % ndim, integer=True))
-        self.indices = [Symbol('i%d' % ind, integer = True) for ind, val in enumerate(shape)]
-        self.shape = shape
-        self.uniform = [True for ind, val in enumerate(shape)]
-        self.time_grid = self.indices + [symbols('Time',integer=True)]
-        term = EinsteinTerm('deltai_i')
-        term.is_constant = True
-        self.deltas = term.get_array(term.get_indexed(len(shape)))
-        self.halos = []
-        # FIXME: This works fine now. But need a better idea
-        self.Idx = [Idx('idx[%d]' % ind) for ind, val in enumerate(shape)]
-        return
-        
-    def work_array(self, name):
-        """ No shape information will be provided; as the shape of the arrays might change based
-        on the computations (including Halos or excluding halos) """
-        
-        out = IndexedBase('%s' % name)[self.indices]
-        out.is_grid = True
-        return out
-        
-        
-class IndexedBase(IndexedBase):
-    is_grid = True
-    is_constant = False
 
 class SpatialDerivative(object):
     """  This initialises the spatial derivatives of an arbitrary function 'F'
@@ -87,7 +58,9 @@ class SpatialDerivative(object):
         self.derivatives = []
         self.der_direction = grid.indices
         self.deltas = grid.deltas
-        fn = IndexedBase('f',shape = grid.shape)[grid.indices]
+        base = IndexedBase('f',shape = grid.shape)
+        base.is_grid = True; base.is_constant = False
+        fn = base[grid.indices]
         self.fn = fn
         self.Derivative_formulas(fn,max_order, grid)
         return
@@ -529,9 +502,13 @@ def vartoGridArray(variable,grid):
     returns: the Grid array
     '''
     if isinstance(variable, Indexed):
-        return IndexedBase('%s'%variable.base)[grid.indices]
+        base = IndexedBase('%s'%variable.base)
+        base.is_grid = True; base.is_constant = False
+        return base[grid.indices]
     elif isinstance(variable, Function):
-        return IndexedBase('%s'%variable.func)[grid.indices]
+        base = IndexedBase('%s'%variable.func)
+        base.is_grid = True; base.is_constant = False
+        return base[grid.indices]
     else:
         raise ValueError("Only functions or Indexed Objects are supported", variable)
     return
