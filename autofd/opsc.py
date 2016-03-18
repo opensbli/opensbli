@@ -76,10 +76,18 @@ class GenerateCode():
 
         # FIXME presently copying the stencils from this to OPSC, stencils should be implicit to OPSC
         language.stencils = self.stencils
-        # Get the code till the main time loop
+        # Get the header code
+        code = (language.header(**assumptions))
+        code_dictionary['header'] = '\n'.join(code)
+        # get the language declarations, allocations and soon
+        code = language.defdec(grid,assumptions)
+        code_dictionary['defdec'] = '\n'.join(code)
+
 
         code_template = code_template.safe_substitute(code_dictionary)
-        print(code_template)
+        main_file = open(BUILD_DIR+'/%s.cpp' % simulation_parameters["name"], 'w')
+        main_file.write(code_template)
+        main_file.close()
         # write the final code
         return
     def get_IO_code(self, language, assumptions):
@@ -649,6 +657,8 @@ class OPSC(object):
                 % (c, OPSC.end_of_statement)]
             code += convervative_variable_to_hdf5
         return code
-    def write_code(self):
-
-        return
+    def defdec(self, grid, assumptions):
+        defdec = []
+        defdec += self.ops_init() + self.define_block() + self.initialize_block() + self.define_dat()
+        defdec += self.initialize_dat(grid, assumptions)
+        return defdec
