@@ -27,9 +27,6 @@ import logging
 LOG = logging.getLogger(__name__)
 
 from .equations import *
-from .algorithm import *
-#from .codegen_utils import *
-from .fortran import *
 from .opsc import *
 from .latex import LatexWriter
 from .array import MutableDenseNDimArray

@@ -24,8 +24,6 @@ from sympy.parsing.sympy_parser import parse_expr
 import re
 import os
 from string import Template
-# AutoFD functions
-from .codegen_utils import END_OF_STATEMENT_DELIMITER
 
 import logging
 LOG = logging.getLogger(__name__)

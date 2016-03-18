@@ -21,7 +21,6 @@
 import time
 
 from .equations import *
-from .algorithm import *
 
 import logging
 LOG = logging.getLogger(__name__)
