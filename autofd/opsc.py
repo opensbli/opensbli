@@ -29,8 +29,6 @@ import logging
 LOG = logging.getLogger(__name__)
 BUILD_DIR = os.getcwd()
 
-COMMENT_DELIMITER = {"OPSC": "//", "F90": "!"}
-END_OF_STATEMENT_DELIMITER = {"OPSC": ";", "F90": ""}
 
 class GenerateCode():
     '''
@@ -53,25 +51,33 @@ class GenerateCode():
         assumptions['exchange_self']= 0
         simulation_params = {'niter': 1000}
         language = OPSC(grid.shape)
-        # inner time loop calls and kernels
         code_template,code_dictionary  = self.template(language,assumptions)
+        # Process the main time loop
         time_calls, time_kernels, assumptions = self.get_inner_timeloop_code(language, assumptions)
         code_dictionary['time_calls'] = '\n'.join(time_calls)
 
-        # get the Bc's code
-        boundary_calls, boundary_kernels = self.get_bc_code(language,assumptions)
-        code_dictionary['bccall'] = '\n'.join(boundary_calls)
-        # get the Initialization code and kernels
-        init_calls, init_kernels = self.get_initial_condition(language, assumptions)
-        code_dictionary['init_call'] = '\n'.join(init_calls)
         time_start_call, time_start_kernel = self.time_start(language,assumptions)
         code_dictionary['time_start_call'] = '\n'.join(time_start_call)
+
         time_end_call, time_end_kernel = self.time_end(language,assumptions)
         code_dictionary['time_end_call'] = '\n'.join(time_end_call)
+
+        # Process the Boundary conditions
+        boundary_calls, boundary_kernels = self.get_bc_code(language,assumptions)
+        code_dictionary['bccall'] = '\n'.join(boundary_calls)
+
+        # Process the initialization
+        init_calls, init_kernels = self.get_initial_condition(language, assumptions)
+        code_dictionary['init_call'] = '\n'.join(init_calls)
+
+        # Process IO calls
         io_calls, io_kernels = self.get_IO_code(language, assumptions)
         code_dictionary['io_calls'] = '\n'.join(io_calls)
+
         # FIXME presently copying the stencils from this to OPSC, stencils should be implicit to OPSC
         language.stencils = self.stencils
+        # Get the code till the main time loop
+
         code_template = code_template.safe_substitute(code_dictionary)
         print(code_template)
         # write the final code
@@ -249,11 +255,12 @@ class GenerateCode():
         else:
             return [var]
     def template(self,language, assumptions):
-
+        '''
         # header contains all the header information for that language
         # defdec contains all the declarations and initializations of
         #
         # This is the template of the code for a n stage Runge-Kutta method
+        '''
         code_template = '''$header \n$defdec \n$init_call \n$bccall \n$timeloop \n$time_start_call
         \n$innerloop \n$time_calls \n $bccall \n$end_inner_loop \n$time_end_call \n$time_io \n$end_time_loop
         \n$io_calls \n$footer'''
