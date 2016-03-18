@@ -290,7 +290,7 @@ class SpatialDiscretisation():
         grid_variables, variable_count = get_grid_variables(alleqs+allformulas)
         for atom in grid_variables:
             grid_arrays[atom] = vartoGridArray(atom, grid)
-        spatialders, dercount, time_derivatives = get_spatial_derivatives(alleqs+allformulas)
+        spatialders, dercount, time_derivatives = self.get_spatial_derivatives(alleqs+allformulas)
         # Define the formulas on the grid, this is substituting the old with new
         # TODO do a sanity check of the formulas, i.e. remove all the formulas that
         # are not used in the equations
@@ -324,18 +324,18 @@ class SpatialDiscretisation():
             evaluated = Evaluations(val,val, None, None,val)
             evals[val] =  evaluated
         # Sort the Formulas
-        orderof_evaluations = [grid_arrays[d.args[0]] for d in time_derivatives]
-        orderof_evaluations = sort_evaluations(orderof_evaluations,evals, Indexed)
+        order_of_evaluations = [grid_arrays[d.args[0]] for d in time_derivatives]
+        order_of_evaluations = sort_evaluations(order_of_evaluations,evals, Indexed)
         # sort the derivatives
-        orderof_evaluations = sort_evaluations(orderof_evaluations,evals, Derivative)
+        order_of_evaluations = sort_evaluations(order_of_evaluations,evals, Derivative)
         # update the range of evaluations for each evaluation
-        range_of_evaluation(orderof_evaluations, evals,grid, SD)
+        range_of_evaluation(order_of_evaluations, evals,grid, SD)
         # now define a ComputationalKernel for each of the evaluations
 
         ''' All the variables (IndexedObjects) in the equations
         excluding those which have a time derivative are stored into a kernel
         '''
-        forms = [ev for ev in orderof_evaluations if isinstance(ev, Indexed) and ev not in known]
+        forms = [ev for ev in order_of_evaluations if isinstance(ev, Indexed) and ev not in known]
         ranges = [evals[ev].evaluation_range for ev in forms]
         subevals = flatten([evals[ev].subevals for ev in forms])
         subeval_truth = [ev == None for ev in subevals]
@@ -354,7 +354,7 @@ class SpatialDiscretisation():
         # Now process the Derivatives
         # TODO this can be moved out into a seperate function. Which can be used for Diagnostics/Genearalized
         # coordinate equations evaluations
-        derivatives = [ev for ev in orderof_evaluations if isinstance(ev, Derivative) and ev not in known]
+        derivatives = [ev for ev in order_of_evaluations if isinstance(ev, Derivative) and ev not in known]
         ranges = [evals[ev].evaluation_range for ev in derivatives]
         subevals = [evals[ev].subevals for ev in derivatives]
         require = [evals[ev].requires for ev in derivatives]
@@ -394,7 +394,7 @@ class SpatialDiscretisation():
         # All the spatial computations are evaluated by this point now get the updated equations
         updated_eq = [eq for eq in alleqs]
         for eqno,eq in enumerate(updated_eq):
-            spatialders, dercount, time_derivatives = get_spatial_derivatives([eq])
+            spatialders, dercount, time_derivatives = self.get_spatial_derivatives([eq])
             grid_variables, variable_count = get_grid_variables([eq])
             spatialders = (sorted(spatialders, cmp = decreasing_order))
             # substitute spatial ders first
@@ -418,86 +418,39 @@ class SpatialDiscretisation():
         self.residual_arrays = residual_arrays
         return
 
-class TemporalDiscretisation():
-    def __init__(self,temporal, grid, const_dt, Spatialsolution):
-        if const_dt:
-            dt = EinsteinTerm('deltat')
-            dt.is_constant = True; dt.is_commutative = True
-        else:
-            raise NotImplementedError("Varying delta t is not implemented in the code")
-        self.nstages = temporal.order
-        if temporal.scheme == "Forward" and self.nstages == 1:
-            self.coeff = None
-            pass
-        elif temporal.scheme == "RungeKutta" and self.nstages == 3:
-            self.coeff = RungeKutta(self.nstages)
-            pass
-        else:
-            raise ValueError("Only 1st order Forward or RungeKutta 3 order temporal schemes are allowed")
-        eqs = []
-        # Any computations at the start of the time step generally save equations
-        self.start_computations = []
-        self.computations = []
-        self.conservative = []
-        # as of now no end computations. This will be updated in the diagnostics
-        self.end_computations = None
-        out = []
-        for soln in Spatialsolution.residual_arrays:
-            out.append(self.time_derivative(soln.keys()[0].args[0], dt,soln[soln.keys()[0]], grid))
-            self.conservative.append(soln.keys()[0].args[0].base)
-        if self.nstages !=1:
-            start = [o[-1] for o in out]
-            range_ofevaluation = [tuple([0+grid.halos[i][0],s+grid.halos[i][1]]) for i,s in enumerate(grid.shape)]
-            self.start_computations.append(ComputationalKernel(start,range_ofevaluation, "Save equations"))
-            range_ofevaluation = [tuple([0,s]) for i,s in enumerate(grid.shape)]
-            # these are the update equations of the variables at t + k where k is rk loop
-            eqs = [o[0] for o in out]
-            self.computations.append(ComputationalKernel(eqs,range_ofevaluation, "Rk new (subloop) update"))
-            eqs = [o[1] for o in out]
-            self.computations.append(ComputationalKernel(eqs,range_ofevaluation, "RK old update"))
-        else:
-            self.start_computations = None
-            range_ofevaluation = [tuple([0,s]) for i,s in enumerate(grid.shape)]
-            self.computations.append(ComputationalKernel(out,range_ofevaluation, "Euler update"))
+    def get_spatial_derivatives(self, equations):
+        ders = []
+        count = {}
+        time_ders = []
+        for eq in equations:
+            pot = preorder_traversal(eq)
 
-        return
-    def time_derivative(self, fn, dt, residual, grid):
-        out = fn
-        if self.nstages == 1:
-            eqn = Eq(fn, fn + dt*residual, evaluate=False)
-        elif self.nstages == 3:
-            old = grid.work_array('%s_old'%fn.base)
-            eqn_fn = Eq(fn, old + self.coeff.new*residual, evaluate=False)
-            eqn_old = Eq(old, old + self.coeff.old*residual, evaluate=False)
-            saveeq = Eq(old, fn)
-            eqn = [eqn_fn,eqn_old, saveeq]
-        return eqn
-class RungeKutta():
-    def __init__(self, order):
-        self.stage = Symbol('stage', integer=True)
-        self.old = IndexedBase('rkold')
-        self.old.is_grid = False
-        self.old.is_constant = True
-        self.old.ranges = order
-        self.new = IndexedBase('rknew')
-        self.new.is_grid = False
-        self.new.is_constant = True
-        self.new.ranges = order
-        self.old = self.old[self.stage]
-        self.new = self.new[self.stage]
-        if order == 3:
-            self.coeffs = {}
-            self.coeffs[self.old] = [-1, 2, -1]
-            self.coeffs[self.new] = [-1, 4, -6, 4, -1]
-        return
+            for p in pot:
+                if p in ders:
+                    pot.skip()
+                    count[p] = count[p]+1
+                    continue
+                elif isinstance(p, Derivative):
+                    if all(arg != EinsteinTerm('t') for arg in p.args):
+                        pot.skip()
+                        ders.append(p)
+                        count[p] = 1
+                    else:
+                        pot.skip()
+                        time_ders.append(p)
+                else:
+                    continue
+        return ders, count, time_ders
+    
 
-class exchange():
-    def __init__(self,grid):
-        range_ofevaluation = [tuple([0+grid.halos[i][0],s+grid.halos[i][1]]) for i,s in enumerate(grid.shape)]
-        #size of transfers
-        self.transfer_size = [r[1]-r[0] for r in range_ofevaluation]
-        self.transfer_from = [grid.halos[i][0] for i,s in enumerate(grid.shape)]
-        self.transfer_to = [grid.halos[i][0] for i,s in enumerate(grid.shape)]
+
+class Exchange(object):
+    def __init__(self, grid):
+        range_of_evaluation = [tuple([0 + grid.halos[i][0], s + grid.halos[i][1]]) for i, s in enumerate(grid.shape)]
+        # Size of transfers
+        self.transfer_size = [r[1] - r[0] for r in range_of_evaluation]
+        self.transfer_from = [grid.halos[i][0] for i, s in enumerate(grid.shape)]
+        self.transfer_to = [grid.halos[i][0] for i, s in enumerate(grid.shape)]
         self.transfer_arrays = []
         return
 
@@ -527,8 +480,8 @@ class BoundaryConditions():
     def periodic_bc(self, direction, grid,arrays):
         transfers = []
         # generic transfer for the grid
-        transfers_left = exchange(grid)
-        transfers_right = exchange(grid)
+        transfers_left = Exchange(grid)
+        transfers_right = Exchange(grid)
         # the left transfers are from from start of grid to end of grid (nx)
         transfers_left.transfer_size[direction] = abs(grid.halos[direction][0])
         transfers_left.transfer_from[direction] = 0
@@ -566,12 +519,12 @@ class Fileio():
             self.save_arrays += [arrays]
         return
 
-def range_of_evaluation(orderof_evaluations, evaluations, grid, sdclass):
+def range_of_evaluation(order_of_evaluations, evaluations, grid, sdclass):
     '''
     First the ranges of derivatives are updated, then other ranges are updated
     '''
     ders = []
-    for ev in orderof_evaluations:
+    for ev in order_of_evaluations:
         if isinstance(ev, Derivative):
             ders.append(ev)
         evaluations[ev].evaluation_range = [tuple([0,s]) for s in grid.shape]
@@ -590,7 +543,7 @@ def range_of_evaluation(orderof_evaluations, evaluations, grid, sdclass):
                     erange[1] = erange[1]+halos[1]
                 evaluations[req].evaluation_range[dire] = tuple(erange)
     #update the range for the formulas
-    for ev in orderof_evaluations:
+    for ev in order_of_evaluations:
         if isinstance(ev, Indexed):
             require = evaluations[ev].requires
             if require:
@@ -651,29 +604,6 @@ def vartoGridArray(variable,grid):
         raise ValueError("Only functions or Indexed Objects are supported", variable)
     return
 
-def get_spatial_derivatives(equations):
-    ders = []
-    count = {}
-    time_ders = []
-    for eq in equations:
-        pot = preorder_traversal(eq)
-
-        for p in pot:
-            if p in ders:
-                pot.skip()
-                count[p] = count[p]+1
-                continue
-            elif isinstance(p, Derivative):
-                if all(arg != EinsteinTerm('t') for arg in p.args):
-                    pot.skip()
-                    ders.append(p)
-                    count[p] = 1
-                else:
-                    pot.skip()
-                    time_ders.append(p)
-            else:
-                continue
-    return ders, count, time_ders
 
 def get_grid_variables(equations):
     variables = []
