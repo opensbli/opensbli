@@ -877,6 +877,13 @@ def remove_repeated_index(indices):
     return indices
     
 def maximum_derivative_order(equations):
+    """ Get the maximum order of the derivatives across the list of equations provided.
+    
+    :arg list equations: The list of equations to consider.
+    :returns: The maximum order of the derivatives.
+    :rtype: int
+    """
+
     order = set()
     for e in equations:
         for atom in e.atoms(Derivative):
