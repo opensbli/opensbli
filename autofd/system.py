@@ -279,7 +279,7 @@ class ComputationalKernel():
         self.constants = set(consts)
         return
 
-class SpatialSolution():
+class SpatialDiscretisation():
     def __init__(self, equations, formulas, grid, spatial_scheme):
         alleqs = flatten(list(e.expanded for e in equations))
         allformulas = flatten(list(e.expanded for e in formulas))
@@ -418,7 +418,7 @@ class SpatialSolution():
         self.residual_arrays = residual_arrays
         return
 
-class TemporalSolution():
+class TemporalDiscretisation():
     def __init__(self,temporal, grid, const_dt, Spatialsolution):
         if const_dt:
             dt = EinsteinTerm('deltat')
