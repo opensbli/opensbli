@@ -76,13 +76,17 @@ class GenerateCode():
 
         # FIXME presently copying the stencils from this to OPSC, stencils should be implicit to OPSC
         language.stencils = self.stencils
+
         # Get the header code
         code = (language.header(**assumptions))
         code_dictionary['header'] = '\n'.join(code)
+
+        # get the footer code
+        code = language.footer()
+        code_dictionary['footer'] = '\n'.join(code)
         # get the language declarations, allocations and soon
         code = language.defdec(grid,assumptions)
         code_dictionary['defdec'] = '\n'.join(code)
-
 
         code_template = code_template.safe_substitute(code_dictionary)
         main_file = open(BUILD_DIR+'/%s.cpp' % simulation_parameters["name"], 'w')
@@ -104,18 +108,19 @@ class GenerateCode():
         for block_number, temp in enumerate(self.temporal_soln):
             blk_code = []
             blk_calls = []
-            for comp in temp.start_computations:
-                blk_code += language.kernel_computation(comp,['temp_start',block_number],**assumptions)
-                stencils = language.get_stencils(comp)
-                for sten,value in stencils.iteritems():
-                    key = self.stencil_to_string(value)
-                    if key not in self.stencils.keys():
-                        self.stencils[key] = stencil_name%(stencil_index);
-                        stencil_index = stencil_index+1
-                    # update the stencil name in stencils
-                    stencils[sten] = self.stencils[key]
-                call, assumptions = language.kernel_call(comp,stencils, **assumptions)
-                blk_calls += call
+            if temp.end_computations:
+                for comp in temp.end_computations:
+                    blk_code += language.kernel_computation(comp,['time_end',block_number],**assumptions)
+                    stencils = language.get_stencils(comp)
+                    for sten,value in stencils.iteritems():
+                        key = self.stencil_to_string(value)
+                        if key not in self.stencils.keys():
+                            self.stencils[key] = stencil_name%(stencil_index);
+                            stencil_index = stencil_index+1
+                        # update the stencil name in stencils
+                        stencils[sten] = self.stencils[key]
+                    call, assumptions = language.kernel_call(comp,stencils, **assumptions)
+                    blk_calls += call
             tend_kernel += blk_code
             tend_call += blk_calls
         return tend_call, tend_kernel
@@ -126,7 +131,7 @@ class GenerateCode():
             blk_code = []
             blk_calls = []
             for comp in temp.start_computations:
-                blk_code += language.kernel_computation(comp,['temp_start',block_number],**assumptions)
+                blk_code += language.kernel_computation(comp,['time_start',block_number],**assumptions)
                 stencils = language.get_stencils(comp)
                 for sten,value in stencils.iteritems():
                     key = self.stencil_to_string(value)
@@ -277,11 +282,17 @@ class GenerateCode():
             diction = {}
             ns = self.temporal_soln[0].nstages
             var = self.temporal_soln[0].coeff.stage
-            diction['innerloop'] = language.loop_open(var,(0,ns))
+            diction['innerloop'] = language.loop_open(var,(0,ns))+ '\n'
             diction['end_inner_loop'] = language.loop_close()
 
         else:
             diction = {'innerloop':'', 'end_inner_loop':''}
+        # Process the time loop
+        # FIXME to read iteration ranges from the simulation parameters
+        var = 'iteration' # name for iteration
+        niter = 100 # Number of iterations, this need to be read in from simulation parameters
+        diction['timeloop'] = language.loop_open(var,(0,ns)) + '\n'
+        diction['end_time_loop'] = language.loop_close()
 
 
         return templated_code, diction
@@ -494,7 +505,7 @@ class OPSC(object):
         name = 'halo_exchange_self%d'%(assumptions['exchange_self'])
         # update exchange self index
         assumptions['exchange_self']= assumptions['exchange_self']+1
-        code = []
+        code = ['%s Boundary condition exchange code'%OPSC.line_comment]
         code += ['ops_halo_group %s %s'%(name, OPSC.end_of_statement)]
         code += [OPSC.open_brace]
         code += ['int halo_iter[] = {%s}%s'%(', '.join([str(s) for s in instance.transfer_size]), OPSC.end_of_statement)]
@@ -511,7 +522,7 @@ class OPSC(object):
         code += ['%s = ops_decl_halo_group(%d,grp)'%(name, off)]
         code += [OPSC.close_brace]
         # finished OPS halo exchange, now get the call
-        call = ['ops_halo_transfer(%s)%s'%(name,OPSC.end_of_statement)]
+        call = ['%s Boundary condition exchange calls'%OPSC.line_comment,'ops_halo_transfer(%s)%s'%(name,OPSC.end_of_statement)]
         return call, code
     def loop_open(self, var, range_of_loop):
         return 'for (int %s=%d; %s<%d, %s++)%s'%(var, range_of_loop[0], var, range_of_loop[1], var,\
@@ -544,12 +555,13 @@ class OPSC(object):
         the default diagnostics level in 1 which is the best performance
         refer to ops user manual
         '''
+        out = ['%s Initializing OPS '%OPSC.line_comment]
         if diagnostics_level:
             self.ops_diagnostics = True
-            return ['ops_init(argc,argv,%d)%s'%(diagnostics_level, OPSC.end_of_statement)]
+            return out + ['ops_init(argc,argv,%d)%s'%(diagnostics_level, OPSC.end_of_statement)]
         else:
             self.ops_diagnostics = False
-            return ['ops_init(argc,argv,%d)%s'%(1, OPSC.end_of_statement)]
+            return out + ['ops_init(argc,argv,%d)%s'%(1, OPSC.end_of_statement)]
     def ops_diagnostics(self):
         '''
         untested OPS diagnostics output need to check if it gives the result or not
@@ -560,9 +572,9 @@ class OPSC(object):
             return []
         return
     def ops_exit(self):
-        return ['ops exit()']
+        return ['%s Exit OPS '%OPSC.line_comment,'ops_exit()']
     def ops_partition(self):
-        return ['ops_partition(\" \")']
+        return ['%s Init OPS partition'%OPSC.line_comment,'ops_partition(\" \")']
     def ops_timers(self):
         st = ["cpu_start", "elapsed_start"]
         en = ["cpu_end", "elapsed_end"]
@@ -579,35 +591,38 @@ class OPSC(object):
         code += ["ops_printf(\"Total Wall time %%lf\\n\",%s-%s)%s"%(en[1], st[1],OPSC.end_of_statement)]
         return
     def define_block(self):
+        code = ['%s Defining block in OPS Format'%(OPSC.line_comment)]
         if not self.MultiBlock:
             # no dynamic memory allocation required
-            code = ['ops_block  %s%s'\
+            code += ['ops_block  %s%s'\
             % (OPSC.block_name, OPSC.end_of_statement)]
         else:
-            code = ['ops_block *%s = (ops_block *)malloc(%s*sizeof(ops_block*))%s'\
+            code += ['ops_block *%s = (ops_block *)malloc(%s*sizeof(ops_block*))%s'\
                 % (OPSC.block_name, self.nblocks, OPSC.end_of_statement )]
         #print('\n'.join(code))
         return code
     def initialize_block(self):
+        code = ['%s Initializing block in OPS Format'%(OPSC.line_comment)]
         if not self.MultiBlock:
-            code = ['%s = ops_decl_block(%d, \"%s\")%s'\
+            code += ['%s = ops_decl_block(%d, \"%s\")%s'\
                 %(OPSC.block_name,self.ndim, OPSC.block_name,OPSC.end_of_statement)]
         else:
             raise NotImplementedError("Multi block is not implemented")
         #print('\n'.join(code))
         return code
     def define_dat(self):
+        code = ['%s Define data files'%(OPSC.line_comment)]
         if not self.MultiBlock:
             def_format = 'ops_dat %%s%s'% OPSC.end_of_statement
-            code = [def_format%arr for arr in self.grid_based_arrays]
+            code += [def_format%arr for arr in self.grid_based_arrays]
         else:
             raise NotImplementedError("Multi block is not implemented")
         #print('\n'.join(code))
         return code
     def initialize_dat(self, grid, assumptions):
+        code = ['%s Initialize/ Allocate data files'%(OPSC.line_comment)]
         precision = assumptions['precission']
         dtype_int = 'int'
-        code = []
         if not self.MultiBlock:
             code += [self.helper_array(dtype_int, 'halo_p', [halo[1] for halo in grid.halos])]
             code += [self.helper_array(dtype_int, 'halo_m', [halo[0] for halo in grid.halos])]
@@ -637,7 +652,7 @@ class OPSC(object):
         We donot differentiate between the stencils for each block.
         returns the code
         '''
-        code = []
+        code = ['%s Declare all the stencils used '%(OPSC.line_comment)]
         dtype_int = 'int'
         sten_format = 'ops_stencil %%s = ops_decl_stencil(%%d,%%d,%%s,\"%%s\")%s'%(OPSC.end_of_statement)
         for key, value in self.stencils.iteritems():
@@ -659,6 +674,14 @@ class OPSC(object):
         return code
     def defdec(self, grid, assumptions):
         defdec = []
-        defdec += self.ops_init() + self.define_block() + self.initialize_block() + self.define_dat()
-        defdec += self.initialize_dat(grid, assumptions)
+        defdec += self.ops_init() + ['\n'] + self.define_block()+ ['\n'] + self.initialize_block()+ ['\n'] + self.define_dat()+ ['\n']
+        defdec += self.initialize_dat(grid, assumptions) + ['\n']
+        defdec += self.declare_stencils() + ['\n']
         return defdec
+    def footer(self):
+        '''
+        This writes out the footer code in OPSC this is a call to OPS_exit and closing the main loop
+        '''
+        code = self.ops_exit()
+        code += [OPSC.close_brace]
+        return code
