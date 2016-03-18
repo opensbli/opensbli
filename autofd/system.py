@@ -197,9 +197,9 @@ class SpatialDiscretisation():
         SD = SpatialDerivative(spatial_scheme, grid, max_order)
         grid_arrays = {}
         range_used = {}
-        grid_variables, variable_count = get_grid_variables(alleqs+allformulas)
+        grid_variables, variable_count = get_indexed_grid_variables(alleqs+allformulas)
         for atom in grid_variables:
-            grid_arrays[atom] = vartoGridArray(atom, grid)
+            grid_arrays[atom] = indexed_by_grid(atom, grid)
         spatialders, dercount, time_derivatives = self.get_spatial_derivatives(alleqs+allformulas)
         # Define the formulas on the grid, this is substituting the old with new
         # TODO do a sanity check of the formulas, i.e. remove all the formulas that
@@ -305,7 +305,7 @@ class SpatialDiscretisation():
         updated_eq = [eq for eq in alleqs]
         for eqno,eq in enumerate(updated_eq):
             spatialders, dercount, time_derivatives = self.get_spatial_derivatives([eq])
-            grid_variables, variable_count = get_grid_variables([eq])
+            grid_variables, variable_count = get_indexed_grid_variables([eq])
             spatialders = (sorted(spatialders, cmp = decreasing_order))
             # substitute spatial ders first
             for var in spatialders+grid_variables:
@@ -495,26 +495,32 @@ def group_derivatives(spatialders):
 
 
 
-def vartoGridArray(variable,grid):
-    '''
-    Converts a variable/ function or Indexed Object to a Indexed base on the Grid
-    inputs: variable, grid
-    returns: the Grid array
-    '''
+def indexed_by_grid(variable, grid):
+    """ Converts a variable/function or Indexed object to an Indexed object indexed by the Grid indices.
+    :arg variable: The variable to convert to a Grid-based Indexed variable
+    :arg grid: The numerical Grid of solution points.
+    :returns: An Indexed variable, which is the same variable as the one provided, but is indexed by the Grid indices.
+    :rtype: sympy.Indexed
+    """
+    
     if isinstance(variable, Indexed):
-        base = IndexedBase('%s'%variable.base)
-        base.is_grid = True; base.is_constant = False
-        return base[grid.indices]
+        base = IndexedBase('%s' % variable.base)
     elif isinstance(variable, Function):
-        base = IndexedBase('%s'%variable.func)
-        base.is_grid = True; base.is_constant = False
-        return base[grid.indices]
+        base = IndexedBase('%s' % variable.func)
     else:
         raise ValueError("Only functions or Indexed Objects are supported", variable)
-    return
+    base.is_grid = True; base.is_constant = False
+    return base[grid.indices]
 
 
-def get_grid_variables(equations):
+def get_indexed_grid_variables(equations):
+    """ Return all the variables in the equations that are Indexed on the Grid.
+    
+    :arg list equations: A list of SymPy equations to consider.
+    :returns: A list of the variables in the equations that are Indexed on the Grid, and also the count of all the specific terms in the equations (Indexed or not).
+    :rtype: (list, int)
+    """
+
     variables = []
     count = {}
     for eq in equations:
