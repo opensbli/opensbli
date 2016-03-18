@@ -347,7 +347,7 @@ class SpatialDiscretisation():
         if forms:
             # if same range then combine them into a single computation else store into different computations
             if all(range_truth) and all(subeval_truth):
-                computations.append(ComputationalKernel(eqs, ranges, "Formula Evaluation"))
+                computations.append(ComputationalKernel(eqs, ranges[0], "Formula Evaluation"))
             else:
                 for number,eq in enumerate(eqs):
                     computations.append(ComputationalKernel(eq, ranges[number]))
@@ -371,7 +371,7 @@ class SpatialDiscretisation():
                     for subev in subevals[number]:
                         wk = grid.work_array('%s%d'%(wkarray,tempwkind));tempwkind = tempwkind +1
                         for req in require[number]:
-                            local_range = [evals[req].evaluation_range]
+                            local_range = evals[req].evaluation_range
                             subev = subev.subs(req,evals[req].work)
                         eqs.append(Eq(wk,subev))
                     computations.append(ComputationalKernel(eqs, local_range, "Temporary formula Evaluation"))
