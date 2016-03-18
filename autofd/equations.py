@@ -875,3 +875,10 @@ def remove_repeated_index(indices):
             sum_index[i] = 0
     indices = [x for x in indices if not sum_index[x]]
     return indices
+    
+def maximum_derivative_order(equations):
+    order = set()
+    for e in equations:
+        for atom in e.atoms(Derivative):
+            order.add(len(atom.args)-1)
+    return max(order)

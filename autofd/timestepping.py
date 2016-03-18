@@ -1,3 +1,6 @@
+from .equations import *
+from .kernel import *
+
 class TemporalDiscretisation(object):
 
     def __init__(self,temporal, grid, const_dt, Spatialsolution):
@@ -29,17 +32,17 @@ class TemporalDiscretisation(object):
         if self.nstages !=1:
             start = [o[-1] for o in out]
             range_ofevaluation = [tuple([0+grid.halos[i][0],s+grid.halos[i][1]]) for i,s in enumerate(grid.shape)]
-            self.start_computations.append(ComputationalKernel(start,range_ofevaluation, "Save equations"))
+            self.start_computations.append(Kernel(start,range_ofevaluation, "Save equations"))
             range_ofevaluation = [tuple([0,s]) for i,s in enumerate(grid.shape)]
             # these are the update equations of the variables at t + k where k is rk loop
             eqs = [o[0] for o in out]
-            self.computations.append(ComputationalKernel(eqs,range_ofevaluation, "Rk new (subloop) update"))
+            self.computations.append(Kernel(eqs,range_ofevaluation, "Rk new (subloop) update"))
             eqs = [o[1] for o in out]
-            self.computations.append(ComputationalKernel(eqs,range_ofevaluation, "RK old update"))
+            self.computations.append(Kernel(eqs,range_ofevaluation, "RK old update"))
         else:
             self.start_computations = None
             range_ofevaluation = [tuple([0,s]) for i,s in enumerate(grid.shape)]
-            self.computations.append(ComputationalKernel(out,range_ofevaluation, "Euler update"))
+            self.computations.append(Kernel(out,range_ofevaluation, "Euler update"))
 
         return
         

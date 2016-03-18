@@ -30,7 +30,7 @@ from .equations import *
 from .opsc import *
 from .latex import LatexWriter
 from .array import MutableDenseNDimArray
-
+from .timestepping import *
 
 class Scheme():
     def __init__(self,scheme, order):
@@ -210,74 +210,7 @@ class Evaluations():
             self.requires = requires
             self.evaluation_range = []
         return
-class ComputationalKernel():
-    def __init__(self, equations, ranges, computation):
-        '''
-        This should do two things
-        1. Able to write the kernel calling function based on language
-            For this we require (IN OPSC)
-            a. Name of the kernel to call
-            b. Block on which it should work, dimensions of the block
-            c. ins, outs, inouts and their stencil of access, data type
-            d. Indices of the array if required
-        2. Write the computational kernel, requires writing kernel header
-        and the computations
-            Require for OPSC
-            a.Kernel header can be written with ins, outs,
-        inouts and indices along with the data type
-            b. TO write the computations the Indexed Objects are to be modified
-        this modification requires OPS_ACC values which can also be populated and
-        grid indices are replaced with 0's
-        All in all we require
-        1. Name
-        2. Block (updated from the call to ops_write)
-        3. ins, outs, inouts and so on
-        4. Stencils of access
-        '''
-        self.computation_type = computation
-        self.ranges = ranges# range of the kernel
-        self.name = None # None generates automatic kernel name
-        if isinstance(equations, list):
-            self.equations = equations
-        else:
-            self.equations = [equations]
 
-        self.inputs = {}
-        self.outputs = {}
-        self.inputoutput = {}
-        #self.constants = {}
-        self.classify_grid_objects()
-        return
-    def classify_grid_objects(self):
-        ins = []
-        outs = []
-        inouts = []
-        consts = []
-        for eq in self.equations:
-            ins = ins + list(eq.rhs.atoms(Indexed))
-            outs = outs + list(eq.lhs.atoms(Indexed))
-            consts = consts + list(eq.atoms(EinsteinTerm))
-        inouts = set(outs).intersection(set(ins))
-        ins = set(ins).difference(inouts)
-        outs = set(outs).difference(inouts)
-        indexbase_ins = set([v.base for v in ins])
-        indexbase_outs = set([v.base for v in outs])
-        indexbase_inouts = set([v.base for v in inouts])
-        for v in indexbase_ins:
-            indexes = [vin.indices for vin in ins if vin.base==v]
-            self.inputs[v] = indexes
-        for v in indexbase_outs:
-            indexes = [vin.indices for vin in outs if vin.base==v]
-            self.outputs[v] = indexes
-        for v in indexbase_inouts:
-            indexes = [vin.indices for vin in inouts if vin.base==v]
-            self.inputoutput[v] = indexes
-        idxs = flatten([list(eq.rhs.atoms(Idx)) for eq in self.equations])
-        self.Idx = False
-        if idxs:
-            self.Idx = True
-        self.constants = set(consts)
-        return
 
 class SpatialDiscretisation():
     def __init__(self, equations, formulas, grid, spatial_scheme):
@@ -330,7 +263,7 @@ class SpatialDiscretisation():
         order_of_evaluations = sort_evaluations(order_of_evaluations,evals, Derivative)
         # update the range of evaluations for each evaluation
         range_of_evaluation(order_of_evaluations, evals,grid, SD)
-        # now define a ComputationalKernel for each of the evaluations
+        # now define a Kernel for each of the evaluations
 
         ''' All the variables (IndexedObjects) in the equations
         excluding those which have a time derivative are stored into a kernel
@@ -347,10 +280,10 @@ class SpatialDiscretisation():
         if forms:
             # if same range then combine them into a single computation else store into different computations
             if all(range_truth) and all(subeval_truth):
-                computations.append(ComputationalKernel(eqs, ranges[0], "Formula Evaluation"))
+                computations.append(Kernel(eqs, ranges[0], "Formula Evaluation"))
             else:
                 for number,eq in enumerate(eqs):
-                    computations.append(ComputationalKernel(eq, ranges[number]))
+                    computations.append(Kernel(eq, ranges[number]))
         # Now process the Derivatives
         # TODO this can be moved out into a seperate function. Which can be used for Diagnostics/Genearalized
         # coordinate equations evaluations
@@ -363,7 +296,7 @@ class SpatialDiscretisation():
                 if all(subev == None for subev in subevals[number]):
                     rhs = SD.get_derivativeformula(der,evals[der].formula[0])
                     eq = Eq(evals[der].work,rhs)
-                    computations.append(ComputationalKernel(eq, ranges[number], "Derivative Evaluation"))
+                    computations.append(Kernel(eq, ranges[number], "Derivative Evaluation"))
                 else:
                     # store into temporary array the sub evaluation
                     eqs = []
@@ -374,12 +307,12 @@ class SpatialDiscretisation():
                             local_range = evals[req].evaluation_range
                             subev = subev.subs(req,evals[req].work)
                         eqs.append(Eq(wk,subev))
-                    computations.append(ComputationalKernel(eqs, local_range, "Temporary formula Evaluation"))
+                    computations.append(Kernel(eqs, local_range, "Temporary formula Evaluation"))
                     for eq in eqs:
                         newder = der.subs(eq.rhs,eq.lhs)
                     rhs = SD.get_derivativeformula(newder,evals[der].formula[0])
                     eq = Eq(evals[der].work,rhs)
-                    computations.append(ComputationalKernel(eq, ranges[number], "Derivative Evaluation"))
+                    computations.append(Kernel(eq, ranges[number], "Derivative Evaluation"))
             else:
                 newder = der
                 if all(subev == None for subev in subevals[number]):
@@ -389,7 +322,7 @@ class SpatialDiscretisation():
                     raise NotImplementedError("Sub evaluations in a mixed derivative")
                 rhs = SD.get_derivativeformula(newder,evals[der].formula[0])
                 eq = Eq(evals[der].work,rhs)
-                computations.append(ComputationalKernel(eq, ranges[number], "Nested Derivative evaluation"))
+                computations.append(Kernel(eq, ranges[number], "Nested Derivative evaluation"))
 
         # All the spatial computations are evaluated by this point now get the updated equations
         updated_eq = [eq for eq in alleqs]
@@ -411,7 +344,7 @@ class SpatialDiscretisation():
             residual_arrays.append({eq.lhs:wk})
             residual_eqs.append(Eq(wk,eq.rhs))
         eval_range = [tuple([0,s]) for s in grid.shape]
-        computations.append(ComputationalKernel(residual_eqs, eval_range, "Residual of equation"))
+        computations.append(Kernel(residual_eqs, eval_range, "Residual of equation"))
 
         # update the required computations and residual arrays to class
         self.computations = computations
@@ -501,7 +434,7 @@ class GridBasedInitialization():
         for ic in Ics:
             initialization_eq.append(parse_expr(ic, local_dict= {'grid':grid}))
         range_ofevaluation = [tuple([0+grid.halos[i][0],s+grid.halos[i][1]]) for i,s in enumerate(grid.shape)]
-        self.computations.append(ComputationalKernel(initialization_eq,range_ofevaluation,"Initialization"))
+        self.computations.append(Kernel(initialization_eq,range_ofevaluation,"Initialization"))
 
         return
 class Fileio():
@@ -583,12 +516,7 @@ def group_derivatives(spatialders):
             spatial_der_dict[key] = (sorted(value, cmp=increasing_order))
     return spatial_der_dict
 
-def maximum_derivative_order(equations):
-    order = set()
-    for eq in equations:
-        for atom in eq.atoms(Derivative):
-            order.add(len(atom.args)-1)
-    return max(order)
+
 
 def vartoGridArray(variable,grid):
     '''
