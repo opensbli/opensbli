@@ -100,8 +100,8 @@ class SpatialDerivative(object):
             else:
                 raise NotImplementedError("Only central difference schemes are supported")
             self.stencil[dim] = [grid.indices[dim] + i for i in points]
-            #print points, grid.indices[dim], self.stencil[dim]
         return
+        
     def Derivative_formulas(self, fn, max_order, grid):
         derivatives = []
         derivatives += [fn] # later change this to interpolation

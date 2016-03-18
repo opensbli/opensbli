@@ -67,8 +67,8 @@ class Kernel(object):
             self.inputoutput[v] = indexes
         idxs = flatten([list(eq.rhs.atoms(Idx)) for eq in self.equations])
         if idxs:
-            self.has_indices = True
+            self.has_Idx = True
         else:
-            self.has_indices = False
+            self.has_Idx = False
         self.constants = set(consts)
         return

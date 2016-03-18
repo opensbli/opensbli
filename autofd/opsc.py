@@ -372,7 +372,7 @@ class OPSC(object):
             [OPSC.ops_header['outputs']%(precission,inp) for inp in computation.outputs.keys() if not inp.is_grid ] + \
                 [OPSC.ops_header['inputoutput']%(precission,inp) for inp in computation.inputoutput.keys() if not inp.is_grid])
         header = gridbased + nongrid
-        if computation.has_indices:
+        if computation.has_Idx:
             header += [OPSC.ops_header['Idx']%('idx') ]
         header = [name + ' , '.join(header) + OPSC.close_parentheses ]
         header += [OPSC.open_brace]
@@ -484,7 +484,7 @@ class OPSC(object):
                     for inp, value in computation.outputs.iteritems() if not inp.is_grid ] + \
                         [self.ops_global_call(inp, value, precission, OPSC.ops_access['inputoutput'])\
                             for inp, value in computation.inputoutput.iteritems() if not inp.is_grid ]
-        if computation.has_indices:
+        if computation.has_Idx:
             nongrid += [self.grid_index_call()]
         kercall = kercall + gridbased + nongrid
         call = [k+',' for k in kercall[:-1]]
