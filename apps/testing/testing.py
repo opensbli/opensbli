@@ -4,7 +4,6 @@ import sys
 # Import local utility functions
 import autofd
 from autofd.problem import *
-from autofd.algorithm import *
 from autofd.latex import LatexWriter
 from autofd.system import *
 
@@ -20,7 +19,8 @@ energy = "Eq(Der(rhoE,t),- Conservative((p+rhoE)*u_j,x_j) +Der(q_j,x_j) + Der(u_
 lev = "Eq(vort_i, (LC(_i,_j,_k)*Der(u_k,x_j)))"
 test = "Eq(Der(phi,t),- c_j* Der(phi,x_j))"
 
-equations = [test]
+equations = [mass, momentum, energy]
+#equations = [test]
 
 # Substitutions
 stress_tensor = "Eq(tau_i_j, (mu)*(Der(u_i,x_j)+ Conservative(u_j,x_i)- (2/3)* KD(_i,_j)* Der(u_k,x_k)))"
@@ -41,8 +41,8 @@ velocity = "Eq(u_i, rhou_i/rho)"
 pressure = "Eq(p, (gama-1)*(rhoE - (1/(2))*(u_j*u_j)))"
 temperature = "Eq(T, p*gama*Minf*Minf/(rho))"
 viscosity = "Eq(mu, T**(2/3))"
-#formulas = [velocity, pressure, temperature]
-formulas = []
+formulas = [velocity, pressure, temperature, viscosity]
+#formulas = []
 
 # Create the TGV problem and expand the equations.
 problem = Problem(equations, substitutions, ndim, constants, coordinate_symbol, metrics, formulas)
@@ -70,12 +70,12 @@ order = 4
 spatial_scheme = Scheme(sch,order)
 temporal_scheme = Scheme("RungeKutta", 3)
 # create a grid instance
-grid = NumericalGrid(ndim)
+grid = Grid(ndim)
 const_dt = True
 # get the spatial solution
-spatial_solution = SpatialSolution(expanded_equations,expanded_formulas, grid, spatial_scheme)
+spatial_solution = SpatialDiscretisation(expanded_equations,expanded_formulas, grid, spatial_scheme)
 # get the temporal solution
-temporal_soln = TemporalSolution(temporal_scheme, grid,const_dt,spatial_solution)
+temporal_soln = TemporalDiscretisation(temporal_scheme, grid,const_dt,spatial_solution)
 # Apply Boundary conditions
 bcs = [("periodic", "periodic"), ("periodic", "periodic")]
 boundary = BoundaryConditions(bcs, grid, temporal_soln.conservative)

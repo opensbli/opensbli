@@ -1,7 +1,7 @@
 from sympy import *
 from sympy.parsing.sympy_parser import *
 
-from .equations import *
+from .equations import EinsteinTerm
 
 class Kernel(object):
     def __init__(self, equations, ranges, computation):
@@ -66,8 +66,9 @@ class Kernel(object):
             indexes = [vin.indices for vin in inouts if vin.base==v]
             self.inputoutput[v] = indexes
         idxs = flatten([list(eq.rhs.atoms(Idx)) for eq in self.equations])
-        self.Idx = False
         if idxs:
-            self.Idx = True
+            self.has_indices = True
+        else:
+            self.has_indices = False
         self.constants = set(consts)
         return

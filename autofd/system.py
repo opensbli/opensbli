@@ -38,39 +38,43 @@ class Scheme():
         self.order = order
         return
 
-class NumericalGrid():
+class Grid(object):
+    
+    """ The numerical grid of solution points on which to discretise the equations. """
+
     def __init__(self, ndim):
-        shape = tuple(symbols('nx0:%d'%ndim, integer=True))
-        self.indices = [Symbol('i%d'%ind, integer = True) for ind, val in enumerate(shape)]
+        shape = tuple(symbols('nx0:%d' % ndim, integer=True))
+        self.indices = [Symbol('i%d' % ind, integer = True) for ind, val in enumerate(shape)]
         self.shape = shape
-        self.uniform = [True for ind,val in enumerate(shape)]
+        self.uniform = [True for ind, val in enumerate(shape)]
         self.time_grid = self.indices + [symbols('Time',integer=True)]
-        et = EinsteinTerm('deltai_i');et.is_constant = True
-        self.deltas = et.get_array(et.get_indexed(len(shape)))
+        term = EinsteinTerm('deltai_i')
+        term.is_constant = True
+        self.deltas = term.get_array(term.get_indexed(len(shape)))
         self.halos = []
-        # works fine now. But need a better idea
-        self.Idx = [Idx('idx[%d]'%ind) for ind, val in enumerate(shape)]
+        # FIXME: This works fine now. But need a better idea
+        self.Idx = [Idx('idx[%d]' % ind) for ind, val in enumerate(shape)]
         return
-    def work_array(self,name):
-        '''
-        No shape information will be provided; as the shape of the arrays might change based
-        on the computations (including Halos or excluding halos)
-        '''
-        out = IndexedBase('%s'%name)[self.indices]
+        
+    def work_array(self, name):
+        """ No shape information will be provided; as the shape of the arrays might change based
+        on the computations (including Halos or excluding halos) """
+        
+        out = IndexedBase('%s' % name)[self.indices]
         out.is_grid = True
         return out
+        
+        
 class IndexedBase(IndexedBase):
     is_grid = True
     is_constant = False
 
-class SpatialDerivative():
-    """
-    This initializes the spatial derivatives of an arbitrary function 'F'
+class SpatialDerivative(object):
+    """  This initialises the spatial derivatives of an arbitrary function 'F'
     on the numerical grid with the provided spatial scheme.
     For wall boundary condition this will have a dependency on grid range need to think of
-    that
-    """
-    def __init__(self, spatial,grid, max_order):
+    that """
+    def __init__(self, spatial_scheme, grid, max_order):
         """
         This initializes the spatial derivative class, which gives the equations
         of spatial Derivatives for combinations of
@@ -79,7 +83,7 @@ class SpatialDerivative():
         """
         # stencil should be formula dependant
         self.stencil = [[] for dim in grid.shape]
-        self.update_stencil(spatial,grid)
+        self.update_stencil(spatial_scheme, grid)
         self.derivatives = []
         self.der_direction = grid.indices
         self.deltas = grid.deltas
@@ -88,11 +92,11 @@ class SpatialDerivative():
         self.Derivative_formulas(fn,max_order, grid)
         return
 
-    def update_stencil(self,spatial, grid):
+    def update_stencil(self, spatial_scheme, grid):
         for dim, val in enumerate(grid.shape):
-            if spatial.scheme == 'central':
-                points = list(i for i in range(-spatial.order/2, spatial.order/2+1))
-                grid.halos.append(tuple([-spatial.order/2, spatial.order/2]))
+            if spatial_scheme.scheme == 'central':
+                points = list(i for i in range(-spatial_scheme.order/2, spatial_scheme.order/2+1))
+                grid.halos.append(tuple([-spatial_scheme.order/2, spatial_scheme.order/2]))
             else:
                 raise NotImplementedError("Only central difference schemes are supported")
             self.stencil[dim] = [grid.indices[dim] + i for i in points]
@@ -217,7 +221,7 @@ class SpatialDiscretisation():
         alleqs = flatten(list(e.expanded for e in equations))
         allformulas = flatten(list(e.expanded for e in formulas))
         max_order = maximum_derivative_order(alleqs)
-        SD = SpatialDerivative(spatial_scheme,grid,max_order)
+        SD = SpatialDerivative(spatial_scheme, grid, max_order)
         grid_arrays = {}
         range_used = {}
         grid_variables, variable_count = get_grid_variables(alleqs+allformulas)
