@@ -32,36 +32,36 @@ class TemporalDiscretisation(object):
         self.end_computations = None
         
         out = []
-        
         for residual in spatial_discretisation.residual_arrays:
             out.append(self.time_derivative(residual.keys()[0].args[0], dt, residual[residual.keys()[0]], grid))
             self.conservative.append(residual.keys()[0].args[0].base)
             
         if self.nstages != 1:
+            # The 'save' equations
             start = [o[-1] for o in out]
-            range_of_evaluation = [tuple([0+grid.halos[i][0],s+grid.halos[i][1]]) for i,s in enumerate(grid.shape)]
-            self.start_computations.append(Kernel(start,range_of_evaluation, "Save equations"))
-            range_of_evaluation = [tuple([0,s]) for i,s in enumerate(grid.shape)]
-            # The update equations of the variables at t + k where k is the Runge-Kutta loop iteration
+            range_of_evaluation = [tuple([0 + grid.halos[i][0], s + grid.halos[i][1]]) for i, s in enumerate(grid.shape)]
+            self.start_computations.append(Kernel(start, range_of_evaluation, "Save equations"))
+
+            # The 'update' equations of the variables at time 't + k', where k is the Runge-Kutta loop iteration.
+            range_of_evaluation = [tuple([0, s]) for i, s in enumerate(grid.shape)]
             equations = [o[0] for o in out]
-            self.computations.append(Kernel(equations,range_of_evaluation, "Rk new (subloop) update"))
+            self.computations.append(Kernel(equations, range_of_evaluation, "Rk new (subloop) update"))
             equations = [o[1] for o in out]
-            self.computations.append(Kernel(equations,range_of_evaluation, "RK old update"))
+            self.computations.append(Kernel(equations, range_of_evaluation, "RK old update"))
         else:
             self.start_computations = None
-            range_of_evaluation = [tuple([0,s]) for i,s in enumerate(grid.shape)]
+            range_of_evaluation = [tuple([0, s]) for i, s in enumerate(grid.shape)]
             self.computations.append(Kernel(out, range_of_evaluation, "Euler update"))
 
         return
         
     def time_derivative(self, fn, dt, residual, grid):
         """ Return the equations used to advance the model equations forward in time. """
-    
-        out = fn
+
         if self.nstages == 1:
             eqn = Eq(fn, fn + dt*residual, evaluate=False)
         elif self.nstages == 3:
-            old = grid.work_array('%s_old'%fn.base)
+            old = grid.work_array('%s_old' % fn.base)
             eqn_fn = Eq(fn, old + self.coeff.new*residual, evaluate=False)
             eqn_old = Eq(old, old + self.coeff.old*residual, evaluate=False)
             save_equation = Eq(old, fn)
