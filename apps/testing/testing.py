@@ -5,7 +5,12 @@ import sys
 import autofd
 from autofd.problem import *
 from autofd.latex import LatexWriter
-from autofd.system import *
+from autofd.spatial import *
+from autofd.bcs import *
+from autofd.grid import *
+from autofd.timestepping import *
+
+BUILD_DIR = os.getcwd()
 
 autofd.LOG.info("Generating code for the 2D Taylor-Green Vortex simulation...")
 start_total = time.time()

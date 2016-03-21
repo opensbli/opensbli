@@ -28,11 +28,7 @@ LOG = logging.getLogger(__name__)
 
 from .equations import *
 from .opsc import *
-from .latex import LatexWriter
-from .array import MutableDenseNDimArray
-from .grid import *
-from .bcs import *
-from .timestepping import *
+from .kernel import *
 
 class SpatialDerivative(object):
 
