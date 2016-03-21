@@ -178,10 +178,10 @@ class GenerateCode():
             # loop over boundaries of the instance
             call_block = []
             code_block = []
-            ninst = len(self.boundary[block_number].type_of_boundary)
+            ninst = len(self.boundary[block_number].type)
             boundary_inst = self.boundary[block_number]
             for inst in range(ninst):
-                if boundary_inst.type_of_boundary[inst] == 'exchange_self':
+                if boundary_inst.type[inst] == 'exchange_self':
                     call, code = language.bc_exchange(boundary_inst.transfers[inst], assumptions)
                     call_block += call
                     code_block += code

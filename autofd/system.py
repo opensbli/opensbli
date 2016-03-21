@@ -52,6 +52,7 @@ class SpatialDerivative(object):
         
         # FIXME: The stencil should be formula dependant
         self.stencil = self.create_stencil(spatial_scheme, grid)
+        
         self.derivatives = []
         self.derivative_direction = grid.indices
         self.deltas = grid.deltas
@@ -59,6 +60,7 @@ class SpatialDerivative(object):
         base.is_grid = True; base.is_constant = False
         fn = base[grid.indices]
         self.fn = fn
+        
         self.create_derivative_formulas(fn, max_order, grid)
         return
 
@@ -404,29 +406,40 @@ class Exchange(object):
 
 
 class BoundaryConditions(object):
+
+    """ Boundary conditions applied to the equations by enforcing values at the boundary grid points. """
+
     types = {"periodic":"exchange_self", "symmetry":"exchange_self"}
+    
     def __init__(self, bcs, grid, arrays):
+        """ Initialise the boundary conditions. """
+    
         if len(bcs) != len(grid.shape):
-            raise ValueError("Boundary conditions and the dimensions of grid mismatch")
+            raise ValueError("The number of boundary conditions and the dimensions of the grid do not match.")
         ndim = len(grid.shape)
         self.boundaries = bcs
         self.computations = [None for b in bcs for a in b]
         self.transfers = [None for b in bcs for a in b]
-        self.get_type()
+        self.type = self.get_type()
         for ind,bc in enumerate(self.boundaries):
             if bc[0] == bc[1] and bc[0] == "periodic":
-                left, right = self.periodic_bc(ind,grid, arrays)
+                left, right = self.periodic_bc(ind, grid, arrays)
                 self.transfers[ind*ndim + 0] = left
                 self.transfers[ind*ndim + 1] = right
             else:
-                raise NotImplementedError("Implement boundary conditions :",bc)
+                raise NotImplementedError("Boundary condition %s not implemented" % bc)
         return
+        
     def get_type(self):
+        """ Return the type of boundary condition to be applied. """
         types = BoundaryConditions.types
-        self.type_of_boundary = [[types[bc[0]], types[bc[1]]] for bc in self.boundaries]
-        self.type_of_boundary = flatten(self.type_of_boundary)
-        return
-    def periodic_bc(self, direction, grid,arrays):
+        type_of_boundary = [[types[bc[0]], types[bc[1]]] for bc in self.boundaries]
+        type_of_boundary = flatten(type_of_boundary)
+        return type_of_boundary
+        
+    def periodic_bc(self, direction, grid, arrays):
+        """ Periodic boundary condition. """
+    
         transfers = []
         # Generic transfer for the grid
         transfers_left = Exchange(grid)
