@@ -84,8 +84,8 @@ bcs = [("periodic", "periodic"), ("periodic", "periodic")]
 boundary = BoundaryConditions(bcs, grid, temporal_discretisation.conservative)
 
 # Initial conditions
-initial_conditions = ["Eq(grid.work_array(phi), sin((grid.Idx[0] -1)*grid.deltas[0]))"]
-initial_conditions = GridBasedInitialization(grid, initial_conditions)
+initial_conditions = ["Eq(grid.work_array(phi), sin((grid.Idx[0] - 1)*grid.deltas[0]))"]
+initial_conditions = GridBasedInitialisation(grid, initial_conditions)
 
 # I/O save conservative variables at the end of simulation
 io = FileIO(temporal_discretisation.conservative)

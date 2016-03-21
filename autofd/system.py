@@ -450,15 +450,29 @@ class BoundaryConditions():
         transfers_right.transfer_arrays = arrays
         return transfers_left, transfers_right
 
-class GridBasedInitialization():
+
+class GridBasedInitialisation(object):
+
+    """ Initialise the equations on the grid of solution points.  """
+
     def __init__(self, grid, ics):
+        """ Create the initialisation kernels.
+        
+        :arg grid: The numerical grid of solution points.
+        :arg list ics: A list of initial condition formulas.
+        :returns: None
+        """
+    
         self.computations = []
-        initialization_eq =[]
+        initialisation_equation =[]
         for ic in ics:
-            initialization_eq.append(parse_expr(ic, local_dict = {'grid':grid}))
+            initialisation_equation.append(parse_expr(ic, local_dict = {'grid':grid}))
         range_of_evaluation = [tuple([0 + grid.halos[i][0], s + grid.halos[i][1]]) for i, s in enumerate(grid.shape)]
-        self.computations.append(Kernel(initialization_eq, range_of_evaluation, "Initialization"))
+        
+        self.computations.append(Kernel(initialisation_equation, range_of_evaluation, "Initialisation"))
+        
         return
+        
         
 class FileIO(object):
     """ Saves the arrays provided after every n iterations into a HDF5 file.
