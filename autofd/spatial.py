@@ -368,9 +368,9 @@ class SpatialDiscretisation(object):
                 new = evals[grid_arrays[var]].work
                 updated_equations[equation_number] = updated_equations[equation_number].subs(var, new)
                 
-        # The final computations of the residual (change in the rhs terms of the equations)
-        # The residual equations are also named as work arrays
-        # The residual arrays are tracked to for use in evaluation of temporal scheme
+        # The final computations of the residual (change in the RHS terms of the equations).
+        # The residual equations are also named as work arrays.
+        # The residual arrays are tracked for use in the evaluation of the temporal scheme.
         residual_equations = []
         residual_arrays = []
         for e in updated_equations:
@@ -474,14 +474,14 @@ def range_of_evaluation(order_of_evaluations, evaluations, grid, sdclass):
         for val in value:
             require = evaluations[val].requires
             formula  = evaluations[val].formula
-            dire = formula[1][0]
-            halos = grid.halos[dire]
+            direction = formula[1][0]
+            halos = grid.halos[direction]
             for req in require:
-                erange = list(evaluations[req].evaluation_range[dire])
-                if erange[0] == 0 and erange[1] == grid.shape[dire]:
+                erange = list(evaluations[req].evaluation_range[direction])
+                if erange[0] == 0 and erange[1] == grid.shape[direction]:
                     erange[0] = erange[0]+halos[0]
                     erange[1] = erange[1]+halos[1]
-                evaluations[req].evaluation_range[dire] = tuple(erange)
+                evaluations[req].evaluation_range[direction] = tuple(erange)
                 
     # Update the range for the formulas
     for ev in order_of_evaluations:
