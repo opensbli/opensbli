@@ -45,7 +45,7 @@ class TemporalDiscretisation(object):
             # The 'update' equations of the variables at time 't + k', where k is the Runge-Kutta loop iteration.
             range_of_evaluation = [tuple([0, s]) for i, s in enumerate(grid.shape)]
             equations = [o[0] for o in out]
-            self.computations.append(Kernel(equations, range_of_evaluation, "Rk new (subloop) update"))
+            self.computations.append(Kernel(equations, range_of_evaluation, "RK new (subloop) update"))
             equations = [o[1] for o in out]
             self.computations.append(Kernel(equations, range_of_evaluation, "RK old update"))
         else:
