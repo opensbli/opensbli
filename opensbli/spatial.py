@@ -404,7 +404,7 @@ class SpatialDiscretisation(object):
             for p in pot:
                 if p in derivatives:
                     pot.skip()
-                    count[p] = count[p]+1
+                    count[p] += 1
                     continue
                 elif isinstance(p, Derivative):
                     if all(arg != EinsteinTerm('t') for arg in p.args):
