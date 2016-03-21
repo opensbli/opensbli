@@ -3,8 +3,8 @@
 import os
 import pytest
 
-# AutoFD functions
-from autofd.problem import *
+# OpenSBLI functions
+from opensbli.problem import *
 
 def test_expand():
     """ Ensure that an equation is expanded correctly. """

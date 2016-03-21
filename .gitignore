@@ -1,6 +1,6 @@
 *.o
 *.f
 *.mod
-autofd/*.pyc
+opensbli/*.pyc
 bin/*.pyc
 tests/__pycache__

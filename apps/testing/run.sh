@@ -5,7 +5,7 @@ ALGORITHM_FILE="algorithm.tex"
 
 # Clean up any old build files
 echo ">>> Cleaning all build files..."
-../../bin/autofd-clean --include-generated-code .
+../../bin/opensbli-clean --include-generated-code .
 echo ">>> Done."
 
 # Code generation step
@@ -41,7 +41,7 @@ echo ">>> Done."
 
 # Clean up the build files (except the newly-generated code).
 echo ">>> Cleaning up build files (excluding the generated model code)..."
-../../bin/autofd-clean .
+../../bin/opensbli-clean .
 echo ">>> Done."
 
 # Compile the generated code.

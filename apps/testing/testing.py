@@ -2,18 +2,18 @@
 import sys
 
 # Import local utility functions
-import autofd
-from autofd.problem import *
-from autofd.latex import LatexWriter
-from autofd.spatial import *
-from autofd.bcs import *
-from autofd.grid import *
-from autofd.timestepping import *
-from autofd.io import *
+import opensbli
+from opensbli.problem import *
+from opensbli.latex import LatexWriter
+from opensbli.spatial import *
+from opensbli.bcs import *
+from opensbli.grid import *
+from opensbli.timestepping import *
+from opensbli.io import *
 
 BUILD_DIR = os.getcwd()
 
-autofd.LOG.info("Generating code for the 2D Taylor-Green Vortex simulation...")
+opensbli.LOG.info("Generating code for the 2D Taylor-Green Vortex simulation...")
 start_total = time.time()
 # Problem dimension
 ndim = 2

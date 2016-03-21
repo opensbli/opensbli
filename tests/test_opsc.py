@@ -3,8 +3,8 @@
 import os
 import pytest
 
-# AutoFD functions
-from autofd.opsc import *
+# OpenSBLI functions
+from opensbli.opsc import *
 
 def test_ccode():
     """ Check that the OPSC code writer outputs the expected C code statement.

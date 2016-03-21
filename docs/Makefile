@@ -85,17 +85,17 @@ qthelp:
 	@echo
 	@echo "Build finished; now you can run "qcollectiongenerator" with the" \
 	      ".qhcp project file in $(BUILDDIR)/qthelp, like this:"
-	@echo "# qcollectiongenerator $(BUILDDIR)/qthelp/AutoFD.qhcp"
+	@echo "# qcollectiongenerator $(BUILDDIR)/qthelp/OpenSBLI.qhcp"
 	@echo "To view the help file:"
-	@echo "# assistant -collectionFile $(BUILDDIR)/qthelp/AutoFD.qhc"
+	@echo "# assistant -collectionFile $(BUILDDIR)/qthelp/OpenSBLI.qhc"
 
 devhelp:
 	$(SPHINXBUILD) -b devhelp $(ALLSPHINXOPTS) $(BUILDDIR)/devhelp
 	@echo
 	@echo "Build finished."
 	@echo "To view the help file:"
-	@echo "# mkdir -p $$HOME/.local/share/devhelp/AutoFD"
-	@echo "# ln -s $(BUILDDIR)/devhelp $$HOME/.local/share/devhelp/AutoFD"
+	@echo "# mkdir -p $$HOME/.local/share/devhelp/OpenSBLI"
+	@echo "# ln -s $(BUILDDIR)/devhelp $$HOME/.local/share/devhelp/OpenSBLI"
 	@echo "# devhelp"
 
 epub:
@@ -177,4 +177,4 @@ pseudoxml:
 	@echo "Build finished. The pseudo-XML files are in $(BUILDDIR)/pseudoxml."
 
 apidoc:
-	sphinx-apidoc ../autofd -o source/ -f -T
+	sphinx-apidoc ../opensbli -o source/ -f -T

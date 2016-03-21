@@ -5,7 +5,7 @@ import pytest
 
 from sympy import Symbol, Idx
 
-from autofd.equations import *
+from opensbli.equations import *
 
 @pytest.fixture
 def coordinate_symbol():

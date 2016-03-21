@@ -2,13 +2,13 @@
 import sys
 
 # Import local utility functions
-import autofd
-from autofd.problem import *
-from autofd.algorithm import *
-from autofd.latex import LatexWriter
-from autofd.system import *
+import opensbli
+from opensbli.problem import *
+from opensbli.algorithm import *
+from opensbli.latex import LatexWriter
+from opensbli.system import *
 
-autofd.LOG.info("Generating code for the 2D Taylor-Green Vortex simulation...")
+opensbli.LOG.info("Generating code for the 2D Taylor-Green Vortex simulation...")
 
 # Problem dimension
 ndim = 2

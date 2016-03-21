@@ -4,7 +4,7 @@ Introduction
 Overview
 --------
 
-`OpenSBLI <https://bitbucket.org/spjammy/autofd>`_ is an automatic code generator that expands a set of equations written in Einstein notation, and automatically generates code (in the OPSC language) which performs the finite difference approximation to obtain a solution. This OPSC code can then be targetted with the `OPS library <http://www.oerc.ox.ac.uk/projects/ops>`_ towards specific hardware backends, such as MPI/OpenMP for execution on CPUs, and CUDA/OpenCL for execution on GPUs.
+`OpenSBLI <https://bitbucket.org/spjammy/opensbli>`_ is an automatic code generator that expands a set of equations written in Einstein notation, and automatically generates code (in the OPSC language) which performs the finite difference approximation to obtain a solution. This OPSC code can then be targetted with the `OPS library <http://www.oerc.ox.ac.uk/projects/ops>`_ towards specific hardware backends, such as MPI/OpenMP for execution on CPUs, and CUDA/OpenCL for execution on GPUs.
 
 The main focus of OpenSBLI is on the solution of the compressible Navier-Stokes equations with application to shock-boundary layer interactions (SBLI). However, in principle, any set of equations that can be written in Einstein notation may be solved using the code generation framework. This highlights one of the main advantages of such a high-level, abstract approach to computational model development.
 
