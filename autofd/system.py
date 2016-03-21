@@ -49,7 +49,13 @@ class SpatialDerivative(object):
     
     def __init__(self, spatial_scheme, grid, max_order):
         """ Initialise the spatial derivative, which gives the equations
-        of spatial Derivatives for the various combinations of the spatial scheme and order of accuracy. """
+        of spatial Derivatives for the various combinations of the spatial scheme and order of accuracy.
+        
+        :arg spatial_scheme: The spatial discretisation scheme to use.
+        :arg grid: The numerical grid of solution points.
+        :arg int max_order: The maximum order of the derivative in the function.
+        :returns: None
+        """
         
         # FIXME: The stencil should be formula dependant
         self.stencil = self.create_stencil(spatial_scheme, grid)
@@ -88,7 +94,7 @@ class SpatialDerivative(object):
         based on the stencil pattern provided.
         
         :arg fn: The function whose differential needs computing.
-        :arg max_order: The maximum order of the derivative in the function.
+        :arg int max_order: The maximum order of the derivative in the function.
         :arg grid: The numerical grid of solution points.
         :returns: None
         """
@@ -132,20 +138,23 @@ class SpatialDerivative(object):
         self.derivative_kernel = kernels
         return
         
-    def get_derivative_formula(self, derivative, order):
-        """ Return the formula for the derivative using the functions provided.
-        For getting a symbolic derivative for a general function, use get_derivative.
-        Used for ceval stuff. """
+    def get_derivative_formula(self, derivative):
+        """ Return the formula for the derivative. For getting a symbolic derivative for a general function, use get_derivative.
+        Used for ceval stuff.
+        
+        :arg derivative: The derivative you want to get the formula for.
+        :returns: The derivative's formula.
+        """
         
         order = len(derivative.args[1:])
         indices = []
         for arg in derivative.args[1:]:
             indices = indices + [self.derivative_direction.index(arg)]
         if order == 1 or len(set(indices)) == 1:
-            formula = as_finite_diff(derivative, self.stencil[indices[0]])*pow(self.deltas[indices[0]],-order)
+            formula = as_finite_diff(derivative, self.stencil[indices[0]])*pow(self.deltas[indices[0]], -order)
         else:
-            loweder = Derivative(derivative.args[0], *indices[:-1])
-            raise ValueError("First update the derivative of %s before calling %s" % (loweder, derivative))
+            lower_derivative = Derivative(derivative.args[0], *indices[:-1])
+            raise ValueError("First update the derivative of %s before calling %s" % (lower_derivative, derivative))
         return formula
         
     def get_derivative(self, derivative):
@@ -296,7 +305,7 @@ class SpatialDiscretisation(object):
         for number,der in enumerate(derivatives):
             if not any(isinstance(req, Derivative) for req in require[number]):
                 if all(subev == None for subev in subevals[number]):
-                    rhs = SD.get_derivative_formula(der,evals[der].formula[0])
+                    rhs = SD.get_derivative_formula(der)
                     eq = Eq(evals[der].work,rhs)
                     computations.append(Kernel(eq, ranges[number], "Derivative Evaluation"))
                 else:
@@ -312,7 +321,7 @@ class SpatialDiscretisation(object):
                     computations.append(Kernel(eqs, local_range, "Temporary formula Evaluation"))
                     for eq in eqs:
                         new_derivative = der.subs(eq.rhs,eq.lhs)
-                    rhs = SD.get_derivative_formula(new_derivative,evals[der].formula[0])
+                    rhs = SD.get_derivative_formula(new_derivative)
                     eq = Eq(evals[der].work,rhs)
                     computations.append(Kernel(eq, ranges[number], "Derivative Evaluation"))
             else:
@@ -322,7 +331,7 @@ class SpatialDiscretisation(object):
                         new_derivative = new_derivative.subs(req,evals[req].work)
                 else:
                     raise NotImplementedError("Sub evaluations in a mixed derivative")
-                rhs = SD.get_derivative_formula(new_derivative,evals[der].formula[0])
+                rhs = SD.get_derivative_formula(new_derivative)
                 eq = Eq(evals[der].work,rhs)
                 computations.append(Kernel(eq, ranges[number], "Nested Derivative evaluation"))
 
