@@ -281,7 +281,7 @@ class GenerateCode():
         if self.temporal_soln[0].nstages >1:
             diction = {}
             ns = self.temporal_soln[0].nstages
-            var = self.temporal_soln[0].coeff.stage
+            var = self.temporal_soln[0].scheme.stage
             diction['innerloop'] = language.loop_open(var,(0,ns))+ '\n'
             diction['end_inner_loop'] = language.loop_close()
 

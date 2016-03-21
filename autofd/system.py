@@ -74,7 +74,7 @@ class SpatialDerivative(object):
         stencil = [[] for dim in grid.shape]
         
         for dim, val in enumerate(grid.shape):
-            if spatial_scheme.scheme == "central":
+            if spatial_scheme.name == "central":
                 points = list(i for i in range(-spatial_scheme.order/2, spatial_scheme.order/2+1)) # The local indices of each point in the stencil (in dimension 'dim').
                 grid.halos.append((-spatial_scheme.order/2, spatial_scheme.order/2)) # The range of the indices of the stencil at the boundary which includes the halo points.
             else:

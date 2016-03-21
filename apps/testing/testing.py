@@ -67,7 +67,7 @@ start = time.time()
 scheme = "central"
 order = 4
 spatial_scheme = Scheme(scheme, order)
-temporal_scheme = Scheme("RungeKutta", 3)
+temporal_scheme = RungeKutta(3) # Third-order Runge-Kutta time-stepping scheme.
 
 # Create a numerical grid of solution points
 grid = Grid(ndim) # FIXME: A HDF5 file or a user input

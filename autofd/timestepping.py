@@ -1,4 +1,4 @@
-from .equations import *
+from .equations import EinsteinTerm
 from .scheme import *
 from .kernel import *
 
@@ -7,7 +7,9 @@ class TemporalDiscretisation(object):
 
     """ Perform a temporal discretisation of the equations on the numerical grid of solution points. """
 
-    def __init__(self, temporal, grid, const_dt, spatial_discretisation):
+    def __init__(self, temporal_scheme, grid, const_dt, spatial_discretisation):
+    
+        self.scheme = temporal_scheme
     
         if const_dt:
             dt = EinsteinTerm('deltat')
@@ -16,11 +18,11 @@ class TemporalDiscretisation(object):
         else:
             raise NotImplementedError("Varying delta t is not implemented in the code.")
             
-        self.nstages = temporal.order
-        if temporal.scheme == "Forward" and self.nstages == 1:
+        self.nstages = temporal_scheme.order
+        if temporal_scheme.name == "Forward" and self.nstages == 1:
             self.coeff = None
-        elif temporal.scheme == "RungeKutta" and self.nstages == 3:
-            self.coeff = RungeKutta(self.nstages)
+        elif temporal_scheme.name == "RungeKutta" and self.nstages == 3:
+            self.coeff = self.scheme.get_coefficients()
         else:
             raise ValueError("Only first-order Forward or third-order Runge-Kutta temporal discretisation schemes are allowed.")
         
@@ -62,8 +64,8 @@ class TemporalDiscretisation(object):
             eqn = Eq(fn, fn + dt*residual, evaluate=False)
         elif self.nstages == 3:
             old = grid.work_array('%s_old' % fn.base)
-            eqn_fn = Eq(fn, old + self.coeff.new*residual, evaluate=False)
-            eqn_old = Eq(old, old + self.coeff.old*residual, evaluate=False)
+            eqn_fn = Eq(fn, old + self.scheme.new*residual, evaluate=False)
+            eqn_old = Eq(old, old + self.scheme.old*residual, evaluate=False)
             save_equation = Eq(old, fn)
             eqn = [eqn_fn, eqn_old, save_equation]
         return eqn
@@ -76,6 +78,8 @@ class RungeKutta(Scheme):
     def __init__(self, order):
         """ Set up the Runge-Kutta stages and the coefficients. """
     
+        Scheme.__init__(self, "RungeKutta", order)
+    
         self.stage = Symbol('stage', integer=True)
         self.old = IndexedBase('rkold')
         self.old.is_grid = False
@@ -87,10 +91,18 @@ class RungeKutta(Scheme):
         self.new.ranges = order
         self.old = self.old[self.stage]
         self.new = self.new[self.stage]
-        
-        if order == 3:
-            self.coeffs = {}
-            self.coeffs[self.old] = [-1, 2, -1]
-            self.coeffs[self.new] = [-1, 4, -6, 4, -1]
-            
+
         return
+     
+    def get_coefficients(self):
+        """ Return the coefficients of the Runge-Kutta update equations. 
+        
+        :returns: A dictionary of (update_equation, coefficients) pairs.
+        :rtype: dict
+        """
+        
+        if self.order == 3:
+            coeffs = {}
+            coeffs[self.old] = [-1, 2, -1]
+            coeffs[self.new] = [-1, 4, -6, 4, -1]
+        return coeffs
