@@ -267,10 +267,12 @@ class SpatialDiscretisation(object):
         coord = coord.tolist()
         
         # Work array is always named as wk
-        work_array = 'wk'; work_array_index = 0;
+        work_array = 'wk'
+        work_array_index = 0
         for derivative in spatial_derivatives:
             out = derivative # Modify the derivative to be a derivative on grid
-            wk = grid.work_array('%s%d'%(work_array,work_array_index)); work_array_index = work_array_index +1
+            wk = grid.work_array('%s%d' % (work_array, work_array_index))
+            work_array_index += 1
             for atom in derivative.atoms(Indexed):
                 out = out.subs(atom, grid_arrays[atom])
             for arg in out.args[1:]:
@@ -286,12 +288,12 @@ class SpatialDiscretisation(object):
             evaluated = Evaluations(val,val, None, None,val)
             evals[val] =  evaluated
             
-        # Sort the Formulas
+        # Sort the formulas
         order_of_evaluations = [grid_arrays[d.args[0]] for d in time_derivatives]
-        order_of_evaluations = sort_evaluations(order_of_evaluations,evals, Indexed)
+        order_of_evaluations = sort_evaluations(order_of_evaluations, evals, Indexed)
         
         # Sort the derivatives
-        order_of_evaluations = sort_evaluations(order_of_evaluations,evals, Derivative)
+        order_of_evaluations = sort_evaluations(order_of_evaluations, evals, Derivative)
         
         # Update the range of evaluations for each evaluation
         range_of_evaluation(order_of_evaluations, evals,grid, spatial_derivative)
@@ -307,7 +309,6 @@ class SpatialDiscretisation(object):
         # Check if all the ranges of evaluation are the same for the formulas.
         range_truth = [ranges[0][i] == val[i] for val in ranges for i in range(len(ranges[0]))]
         computations = []
-        eqs = []
         eqs = [Eq(evals[ev].work, evals[ev].formula) for ev in forms]
         if forms:
             # If same range then combine them into a single computation else store into different computations
