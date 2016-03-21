@@ -3,6 +3,8 @@ from .kernel import *
 
 class TemporalDiscretisation(object):
 
+    """ Perform a temporal discretisation of the equations on the numerical grid of solution points. """
+
     def __init__(self, temporal, grid, const_dt, spatial_discretisation):
     
         if const_dt:
@@ -53,6 +55,8 @@ class TemporalDiscretisation(object):
         return
         
     def time_derivative(self, fn, dt, residual, grid):
+        """ Return the equations used to advance the model equations forward in time. """
+    
         out = fn
         if self.nstages == 1:
             eqn = Eq(fn, fn + dt*residual, evaluate=False)
@@ -60,12 +64,18 @@ class TemporalDiscretisation(object):
             old = grid.work_array('%s_old'%fn.base)
             eqn_fn = Eq(fn, old + self.coeff.new*residual, evaluate=False)
             eqn_old = Eq(old, old + self.coeff.old*residual, evaluate=False)
-            saveeq = Eq(old, fn)
-            eqn = [eqn_fn,eqn_old, saveeq]
+            save_equation = Eq(old, fn)
+            eqn = [eqn_fn, eqn_old, save_equation]
         return eqn
 
-class RungeKutta():
+
+class RungeKutta(object):
+    
+    """ Runge-Kutta time-stepping scheme. """
+
     def __init__(self, order):
+        """ Set up the Runge-Kutta stages and the coefficients. """
+    
         self.stage = Symbol('stage', integer=True)
         self.old = IndexedBase('rkold')
         self.old.is_grid = False
@@ -77,8 +87,10 @@ class RungeKutta():
         self.new.ranges = order
         self.old = self.old[self.stage]
         self.new = self.new[self.stage]
+        
         if order == 3:
             self.coeffs = {}
             self.coeffs[self.old] = [-1, 2, -1]
             self.coeffs[self.new] = [-1, 4, -6, 4, -1]
+            
         return
