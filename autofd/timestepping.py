@@ -3,12 +3,15 @@ from .kernel import *
 
 class TemporalDiscretisation(object):
 
-    def __init__(self,temporal, grid, const_dt, Spatialsolution):
+    def __init__(self, temporal, grid, const_dt, spatial_discretisation):
+    
         if const_dt:
             dt = EinsteinTerm('deltat')
-            dt.is_constant = True; dt.is_commutative = True
+            dt.is_constant = True
+            dt.is_commutative = True
         else:
-            raise NotImplementedError("Varying delta t is not implemented in the code")
+            raise NotImplementedError("Varying delta t is not implemented in the code.")
+            
         self.nstages = temporal.order
         if temporal.scheme == "Forward" and self.nstages == 1:
             self.coeff = None
@@ -17,32 +20,35 @@ class TemporalDiscretisation(object):
             self.coeff = RungeKutta(self.nstages)
             pass
         else:
-            raise ValueError("Only 1st order Forward or RungeKutta 3 order temporal schemes are allowed")
-        eqs = []
-        # Any computations at the start of the time step generally save equations
+            raise ValueError("Only first-order Forward or third-order Runge-Kutta temporal discretisation schemes are allowed.")
+        
+        # Any computations at the start of the time-step. Generally these are the save equations.
         self.start_computations = []
         self.computations = []
         self.conservative = []
-        # as of now no end computations. This will be updated in the diagnostics
+        # As of now, no end computations. This will be updated in the diagnostics.
         self.end_computations = None
+        
         out = []
-        for soln in Spatialsolution.residual_arrays:
-            out.append(self.time_derivative(soln.keys()[0].args[0], dt,soln[soln.keys()[0]], grid))
-            self.conservative.append(soln.keys()[0].args[0].base)
-        if self.nstages !=1:
+        
+        for residual in spatial_discretisation.residual_arrays:
+            out.append(self.time_derivative(residual.keys()[0].args[0], dt, residual[residual.keys()[0]], grid))
+            self.conservative.append(residual.keys()[0].args[0].base)
+            
+        if self.nstages != 1:
             start = [o[-1] for o in out]
-            range_ofevaluation = [tuple([0+grid.halos[i][0],s+grid.halos[i][1]]) for i,s in enumerate(grid.shape)]
-            self.start_computations.append(Kernel(start,range_ofevaluation, "Save equations"))
-            range_ofevaluation = [tuple([0,s]) for i,s in enumerate(grid.shape)]
-            # these are the update equations of the variables at t + k where k is rk loop
-            eqs = [o[0] for o in out]
-            self.computations.append(Kernel(eqs,range_ofevaluation, "Rk new (subloop) update"))
-            eqs = [o[1] for o in out]
-            self.computations.append(Kernel(eqs,range_ofevaluation, "RK old update"))
+            range_of_evaluation = [tuple([0+grid.halos[i][0],s+grid.halos[i][1]]) for i,s in enumerate(grid.shape)]
+            self.start_computations.append(Kernel(start,range_of_evaluation, "Save equations"))
+            range_of_evaluation = [tuple([0,s]) for i,s in enumerate(grid.shape)]
+            # The update equations of the variables at t + k where k is the Runge-Kutta loop iteration
+            equations = [o[0] for o in out]
+            self.computations.append(Kernel(equations,range_of_evaluation, "Rk new (subloop) update"))
+            equations = [o[1] for o in out]
+            self.computations.append(Kernel(equations,range_of_evaluation, "RK old update"))
         else:
             self.start_computations = None
-            range_ofevaluation = [tuple([0,s]) for i,s in enumerate(grid.shape)]
-            self.computations.append(Kernel(out,range_ofevaluation, "Euler update"))
+            range_of_evaluation = [tuple([0,s]) for i,s in enumerate(grid.shape)]
+            self.computations.append(Kernel(out, range_of_evaluation, "Euler update"))
 
         return
         

@@ -126,8 +126,8 @@ class SpatialDerivative(object):
                 if order == 1 or len(set(derivative_args)) == 1:
                     fdarray[ind] = as_finite_diff(array[ind], self.stencil[ind[0]])*pow(grid.deltas[ind[0]],-order)
                 else:
-                    new_derivative = array[ind].subs(derivatives[order-1][ind[:-1]],derivative_formula[order-1][ind[:-1]])
-                    fdarray[ind] = as_finite_diff(new_derivative,self.stencil[ind[-1]], wrt=grid.indices[ind[-1]])*pow(grid.deltas[ind[-1]],-1)
+                    new_derivative = array[ind].subs(derivatives[order-1][ind[:-1]], derivative_formula[order-1][ind[:-1]])
+                    fdarray[ind] = as_finite_diff(new_derivative, self.stencil[ind[-1]], wrt=grid.indices[ind[-1]])*pow(grid.deltas[ind[-1]],-1)
                     
             derivatives.append(array)
             derivative_formula.append(fdarray)
@@ -158,18 +158,21 @@ class SpatialDerivative(object):
         return formula
         
     def get_derivative(self, derivative):
-        """ Return a tuple to which the derivaitve formula exists in
-        the already-evaluated derivatives. """
+        """ Return a tuple to which the derivative formula exists in
+        the already-evaluated derivatives.
+        
+        :arg derivative: The derivative you want to get the formula for.
+        """
         
         order = len(derivative.args[1:])
         indices = []
         for arg in derivative.args[1:]:
             indices = indices + [self.derivative_direction.index(arg)]
-        generalformula = []
+        general_formula = []
         subevals = []
         requires = []
         if order == 1 or len(set(indices)) == 1:
-            generalformula += [order,tuple(indices)]
+            general_formula += [order,tuple(indices)]
             if len(derivative.args[0].atoms(Indexed)) > 1:
                 subevals += [derivative.args[0]]
                 requires += list(derivative.args[0].atoms(Indexed))
@@ -184,17 +187,22 @@ class SpatialDerivative(object):
             else:
                 subevals += [None]
                 requires += [derivative.args[0]]
-            generalformula += [order-1,tuple([indices[-1]])]
-            requires += [self.derivatives[order-1][indices[:-1]].subs(self.fn,derivative.args[0])]
+            general_formula += [order-1, tuple([indices[-1]])]
+            requires += [self.derivatives[order-1][indices[:-1]].subs(self.fn, derivative.args[0])]
 
-        return generalformula, subevals, requires
+        return general_formula, subevals, requires
 
-class Evaluations():
-    def __init__(self, lhs,rhs, requires,subevals = None, wk=None):
+
+class Evaluations(object):
+
+    def __init__(self, lhs, rhs, requires, subevals = None, wk=None):
+    
         self.store = True
+        
         if isinstance(lhs, Derivative):
-            self.is_der = True
+            self.is_derivative = True
             self.is_formula = False
+            
             if subevals:
                 self.subevals = subevals
             else:
@@ -203,12 +211,14 @@ class Evaluations():
                 self.work = wk
             else:
                 self.work = None
+                
             self.formula = rhs
             self.requires = requires
             self.evaluation_range = []
         else:
             self.is_formula = True
-            self.is_der = False
+            self.is_derivative = False
+            
             if subevals:
                 self.subevals = subevals
             else:
@@ -217,9 +227,11 @@ class Evaluations():
                 self.work = wk
             else:
                 self.work = None
+                
             self.formula = rhs
             self.requires = requires
             self.evaluation_range = []
+            
         return
 
 
@@ -258,9 +270,9 @@ class SpatialDiscretisation(object):
                 out = out.subs(atom, grid_arrays[atom])
             for arg in out.args[1:]:
                 out = out.subs(arg, grid.indices[coord.index(arg)])
-            generalformula, subevals, requires = SD.get_derivative(out)
+            general_formula, subevals, requires = SD.get_derivative(out)
             grid_arrays[der] = out
-            evaluated = Evaluations(out,generalformula,requires, subevals, wk)
+            evaluated = Evaluations(out,general_formula,requires, subevals, wk)
             evals[out] = evaluated
         # we will assume that all the functions in time derivative are known at the start
         known = [grid_arrays[d.args[0]] for d in time_derivatives]
@@ -341,7 +353,7 @@ class SpatialDiscretisation(object):
             spatialders, dercount, time_derivatives = self.get_spatial_derivatives([eq])
             grid_variables, variable_count = get_indexed_grid_variables([eq])
             spatialders = (sorted(spatialders, cmp = decreasing_order))
-            # substitute spatial ders first
+            # substitute spatial derivatives first
             for var in spatialders+grid_variables:
                 new = evals[grid_arrays[var]].work
                 updated_eq[eqno] = updated_eq[eqno].subs(var,new)
@@ -363,28 +375,28 @@ class SpatialDiscretisation(object):
         return
 
     def get_spatial_derivatives(self, equations):
-        ders = []
+        derivatives = []
         count = {}
-        time_ders = []
+        time_derivatives = []
         for eq in equations:
             pot = preorder_traversal(eq)
 
             for p in pot:
-                if p in ders:
+                if p in derivatives:
                     pot.skip()
                     count[p] = count[p]+1
                     continue
                 elif isinstance(p, Derivative):
                     if all(arg != EinsteinTerm('t') for arg in p.args):
                         pot.skip()
-                        ders.append(p)
+                        derivatives.append(p)
                         count[p] = 1
                     else:
                         pot.skip()
-                        time_ders.append(p)
+                        time_derivatives.append(p)
                 else:
                     continue
-        return ders, count, time_ders
+        return derivatives, count, time_derivatives
     
 
 
@@ -423,15 +435,15 @@ class BoundaryConditions():
         return
     def periodic_bc(self, direction, grid,arrays):
         transfers = []
-        # generic transfer for the grid
+        # Generic transfer for the grid
         transfers_left = Exchange(grid)
         transfers_right = Exchange(grid)
-        # the left transfers are from from start of grid to end of grid (nx)
+        # Left transfers are from the start of grid to the end of grid (nx)
         transfers_left.transfer_size[direction] = abs(grid.halos[direction][0])
         transfers_left.transfer_from[direction] = 0
         transfers_left.transfer_to[direction] = grid.shape[direction]
         transfers_left.transfer_arrays = arrays
-        # Right transfers are from end of grid- halo points to the starting of halo points
+        # Right transfers are from end of grid halo points to the start of the halo points
         transfers_right.transfer_size[direction] = abs(grid.halos[direction][0])
         transfers_right.transfer_from[direction] = grid.shape[direction]+ grid.halos[direction][0]
         transfers_right.transfer_to[direction] = grid.halos[direction][0]
@@ -439,20 +451,19 @@ class BoundaryConditions():
         return transfers_left, transfers_right
 
 class GridBasedInitialization():
-    def __init__(self, grid, Ics):
+    def __init__(self, grid, ics):
         self.computations = []
         initialization_eq =[]
-        for ic in Ics:
-            initialization_eq.append(parse_expr(ic, local_dict= {'grid':grid}))
-        range_ofevaluation = [tuple([0+grid.halos[i][0],s+grid.halos[i][1]]) for i,s in enumerate(grid.shape)]
-        self.computations.append(Kernel(initialization_eq,range_ofevaluation,"Initialization"))
-
+        for ic in ics:
+            initialization_eq.append(parse_expr(ic, local_dict = {'grid':grid}))
+        range_of_evaluation = [tuple([0 + grid.halos[i][0], s + grid.halos[i][1]]) for i, s in enumerate(grid.shape)]
+        self.computations.append(Kernel(initialization_eq, range_of_evaluation, "Initialization"))
         return
+        
 class Fileio():
-    '''
-    Saves the arrays provided after every n iterations into a HDF5 file. If niter is None
-    it is saved at the end of simulation
-    '''
+    """ Saves the arrays provided after every n iterations into a HDF5 file. If niter is None
+    it is saved at the end of the simulation. """
+    
     def __init__(self, arrays, niter = None):
         self.save_after = []
         self.save_arrays = []
@@ -464,17 +475,16 @@ class Fileio():
         return
 
 def range_of_evaluation(order_of_evaluations, evaluations, grid, sdclass):
-    '''
-    First the ranges of derivatives are updated, then other ranges are updated
-    '''
-    ders = []
+    """ First the ranges of derivatives are updated, then other ranges are updated. """
+    
+    derivatives = []
     for ev in order_of_evaluations:
         if isinstance(ev, Derivative):
-            ders.append(ev)
+            derivatives.append(ev)
         evaluations[ev].evaluation_range = [tuple([0,s]) for s in grid.shape]
     # Update the range for the derivatives
-    grouped_ders = group_derivatives(ders)
-    for key, value in grouped_ders.iteritems():
+    grouped_derivatives = group_derivatives(derivatives)
+    for key, value in grouped_derivatives.iteritems():
         for val in value:
             require = evaluations[val].requires
             form  = evaluations[val].formula

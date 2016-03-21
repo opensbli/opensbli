@@ -61,39 +61,49 @@ latex.write_expression(temp, substitutions=latex_substitutions)
 latex.write_footer()
 latex.close()
 
-# Solve the equations on a grid
-#grid = numerical_grid()# A HDF5 file or a user input
+# Discretise the equations
 start = time.time()
 
-sch = "central"
+scheme = "central"
 order = 4
-spatial_scheme = Scheme(sch,order)
+spatial_scheme = Scheme(scheme, order)
 temporal_scheme = Scheme("RungeKutta", 3)
-# create a grid instance
-grid = Grid(ndim)
+
+# Create a numerical grid of solution points
+grid = Grid(ndim) # FIXME: A HDF5 file or a user input
+
+# Perform the spatial discretisation
+spatial_discretisation = SpatialDiscretisation(expanded_equations,expanded_formulas, grid, spatial_scheme)
+
+# Perform the temporal discretisation
 const_dt = True
-# get the spatial solution
-spatial_solution = SpatialDiscretisation(expanded_equations,expanded_formulas, grid, spatial_scheme)
-# get the temporal solution
-temporal_soln = TemporalDiscretisation(temporal_scheme, grid,const_dt,spatial_solution)
+temporal_discretisation = TemporalDiscretisation(temporal_scheme, grid, const_dt, spatial_discretisation)
+
 # Apply Boundary conditions
 bcs = [("periodic", "periodic"), ("periodic", "periodic")]
-boundary = BoundaryConditions(bcs, grid, temporal_soln.conservative)
+boundary = BoundaryConditions(bcs, grid, temporal_discretisation.conservative)
+
 # Initial conditions
-initialize = ["Eq(grid.work_array(phi), sin((grid.Idx[0] -1)*grid.deltas[0]))"]
-Ics = GridBasedInitialization(grid, initialize)
+initial_conditions = ["Eq(grid.work_array(phi), sin((grid.Idx[0] -1)*grid.deltas[0]))"]
+initial_conditions = GridBasedInitialization(grid, initial_conditions)
+
 # I/O save conservative variables at the end of simulation
-IO = Fileio(temporal_soln.conservative)
-# here define the grid parameters like number of points, Length in each direction and delta in each direction
+IO = Fileio(temporal_discretisation.conservative)
+
+# Grid parameters like number of points, length in each direction, and delta in each direction
 length = [1.0]*ndim
 np = [8]*ndim
 deltas = [length[i]/np[i] for i in range(len(length)) ] # how to define them
 nsteps = 100
-# constants in the system
+
+# Constants in the system
 simulation_parameters = {"name":"testing"}
-GenerateCode(grid, spatial_solution, temporal_soln, boundary, Ics, IO, simulation_parameters)
+
+# Generate the code.
+GenerateCode(grid, spatial_discretisation, temporal_discretisation, boundary, initial_conditions, IO, simulation_parameters)
+
 end = time.time()
-LOG.debug('The time taken to prepare the system in %d Dimensions is %.2f seconds.' % (problem.ndim, end - start))
+LOG.debug('The time taken to prepare the system in %d dimensions is %.2f seconds.' % (problem.ndim, end - start))
 
 latex = LatexWriter()
 latex.open(path=BUILD_DIR + "/computations.tex")
@@ -107,4 +117,4 @@ latex.write_footer()
 latex.close()
 
 end_total = time.time()
-LOG.debug('The time taken for the entire process for %d Dimensions is %.2f seconds.' % (problem.ndim, end_total - start_total))
+LOG.debug('The time taken for the entire process for %d dimensions is %.2f seconds.' % (problem.ndim, end_total - start_total))
