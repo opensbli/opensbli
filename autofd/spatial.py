@@ -443,21 +443,6 @@ class GridBasedInitialisation(object):
         
         return
         
-        
-class FileIO(object):
-    """ Saves the arrays provided after every n iterations into a HDF5 file.
-    If niter is None, the arrays are saved at the end of the simulation. """
-    
-    def __init__(self, arrays, niter = None):
-        self.save_after = []
-        self.save_arrays = []
-        self.save_after += [Symbol('niter', integer=True)]
-        if isinstance(arrays, list):
-            self.save_arrays += arrays
-        else:
-            self.save_arrays += [arrays]
-        return
-
 
 def range_of_evaluation(order_of_evaluations, evaluations, grid, sdclass):
     """ First the ranges of derivatives are updated, then other ranges are updated. """

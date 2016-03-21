@@ -9,6 +9,7 @@ from autofd.spatial import *
 from autofd.bcs import *
 from autofd.grid import *
 from autofd.timestepping import *
+from autofd.io import *
 
 BUILD_DIR = os.getcwd()
 
