@@ -33,125 +33,135 @@ from .array import MutableDenseNDimArray
 from .grid import *
 from .timestepping import *
 
-class Scheme():
-    def __init__(self,scheme, order):
+class Scheme(object):
+    def __init__(self, scheme, order):
         self.scheme = scheme
         self.order = order
         return
 
 
 class SpatialDerivative(object):
-    """  This initialises the spatial derivatives of an arbitrary function 'F'
-    on the numerical grid with the provided spatial scheme.
-    For wall boundary condition this will have a dependency on grid range need to think of
-    that """
-    def __init__(self, spatial_scheme, grid, max_order):
-        """
-        This initializes the spatial derivative class, which gives the equations
-        of spatial Derivatives for combinations of
 
-        Spatial scheme, and order of accuracy
-        """
-        # stencil should be formula dependant
-        self.stencil = [[] for dim in grid.shape]
-        self.update_stencil(spatial_scheme, grid)
+    """ The spatial derivatives of an arbitrary function 'F'
+    on the numerical grid with the provided spatial scheme.
+    
+    For a wall boundary condition this will have a dependency on the grid range. """
+    
+    def __init__(self, spatial_scheme, grid, max_order):
+        """ Initialise the spatial derivative, which gives the equations
+        of spatial Derivatives for the various combinations of the spatial scheme and order of accuracy. """
+        
+        # FIXME: The stencil should be formula dependant
+        self.stencil = self.create_stencil(spatial_scheme, grid)
         self.derivatives = []
-        self.der_direction = grid.indices
+        self.derivative_direction = grid.indices
         self.deltas = grid.deltas
         base = IndexedBase('f',shape = grid.shape)
         base.is_grid = True; base.is_constant = False
         fn = base[grid.indices]
         self.fn = fn
-        self.Derivative_formulas(fn,max_order, grid)
+        self.Derivative_formulas(fn, max_order, grid)
         return
 
-    def update_stencil(self, spatial_scheme, grid):
+    def create_stencil(self, spatial_scheme, grid):
+        """ Create the computational stencil referenced by the grid indices.
+        
+        :arg spatial_scheme: The spatial discretisation scheme to use.
+        :arg grid: The numerical grid of solution points.
+        :returns: A list of solution points indexed on the grid describing the computational stencil.
+        :rtype: list
+        """
+        stencil = [[] for dim in grid.shape]
+        
         for dim, val in enumerate(grid.shape):
-            if spatial_scheme.scheme == 'central':
-                points = list(i for i in range(-spatial_scheme.order/2, spatial_scheme.order/2+1))
-                grid.halos.append(tuple([-spatial_scheme.order/2, spatial_scheme.order/2]))
+            if spatial_scheme.scheme == "central":
+                points = list(i for i in range(-spatial_scheme.order/2, spatial_scheme.order/2+1)) # The local indices of each point in the stencil (in dimension 'dim').
+                grid.halos.append((-spatial_scheme.order/2, spatial_scheme.order/2)) # The range of the indices of the stencil at the boundary which includes the halo points.
             else:
-                raise NotImplementedError("Only central difference schemes are supported")
-            self.stencil[dim] = [grid.indices[dim] + i for i in points]
-        return
+                raise NotImplementedError("Only central difference schemes are supported.")
+            stencil[dim] = [grid.indices[dim] + i for i in points] # The indices in the grid offset by the local indices of each stencil point (e.g. i-1, i, i+1)
+        return stencil
         
     def Derivative_formulas(self, fn, max_order, grid):
         derivatives = []
-        derivatives += [fn] # later change this to interpolation
+        derivatives += [fn] # FIXME: Later change this to interpolation
         derivative_formula = []
         derivative_formula += [fn]
-        comp_kernels = []
-        comp_kernels += [fn]
-        for order in range(1,max_order+1):
-            shape = tuple( [len(grid.indices) for ind in range(order)])
+        kernels = []
+        kernels += [fn]
+        for order in range(1, max_order+1):
+            shape = tuple([len(grid.indices) for ind in range(order)])
             array = MutableDenseNDimArray.zeros(*shape)
             fdarray = MutableDenseNDimArray.zeros(*shape)
-            deriv_kernel = MutableDenseNDimArray.zeros(*shape)
+            derivative_kernel = MutableDenseNDimArray.zeros(*shape)
+            
             for ind in np.ndindex(*array.shape):
-                der_args = [grid.indices[i] for i in ind]
+                derivative_args = [grid.indices[i] for i in ind]
                 name = [str(arg) for arg in ind]
-                #name = tuple(ind)
                 name = "[%d][%s]"%(order,','.join(name))
-                deriv_kernel[ind] = Symbol(name)
-                array[ind] = fn.diff(*der_args)
-                # find the finite difference formula
-                if order == 1 or len(set(der_args)) ==1:
+                derivative_kernel[ind] = Symbol(name)
+                array[ind] = fn.diff(*derivative_args)
+                
+                # Find the finite difference formula
+                if order == 1 or len(set(derivative_args)) == 1:
                     fdarray[ind] = as_finite_diff(array[ind], self.stencil[ind[0]])*pow(grid.deltas[ind[0]],-order)
                 else:
                     newder = array[ind].subs(derivatives[order-1][ind[:-1]],derivative_formula[order-1][ind[:-1]])
                     fdarray[ind] = as_finite_diff(newder,self.stencil[ind[-1]], wrt=grid.indices[ind[-1]])*pow(grid.deltas[ind[-1]],-1)
+                    
             derivatives.append(array)
             derivative_formula.append(fdarray)
-            comp_kernels.append(deriv_kernel)
+            kernels.append(derivative_kernel)
         self.derivatives = derivatives
         self.derivative_formula = derivative_formula
-        self.deriv_kernel = comp_kernels
+        self.derivative_kernel = kernels
         return
-    def get_derivativeformula(self, derivative, order):
-        '''This returns the formula for the derivative using the functions provided
-        for getting a symbolic derivative for a general function use get_derivative
-        used for ceval stuff
-        '''
+        
+    def get_derivative_formula(self, derivative, order):
+        """ Return the formula for the derivative using the functions provided.
+        For getting a symbolic derivative for a general function, use get_derivative.
+        Used for ceval stuff. """
+        
         order = len(derivative.args[1:])
-        inds = []
+        indices = []
         for arg in derivative.args[1:]:
-            inds = inds + [self.der_direction.index(arg)]
-        if order == 1 or len(set(inds)) ==1:
-            formula = as_finite_diff(derivative, self.stencil[inds[0]])*pow(self.deltas[inds[0]],-order)
+            indices = indices + [self.derivative_direction.index(arg)]
+        if order == 1 or len(set(indices)) == 1:
+            formula = as_finite_diff(derivative, self.stencil[indices[0]])*pow(self.deltas[indices[0]],-order)
         else:
-            loweder = Derivative(derivative.args[0], *inds[:-1])
-            raise ValueError("first update the derivative of %s before calling %s"%(loweder, derivative))
+            loweder = Derivative(derivative.args[0], *indices[:-1])
+            raise ValueError("First update the derivative of %s before calling %s" % (loweder, derivative))
         return formula
+        
     def get_derivative(self, derivative):
-        '''
-        This returns a tuple to which the derivaitve formula exists in
-        already evaluated derivatives.
-        '''
+        """ Return a tuple to which the derivaitve formula exists in
+        the already-evaluated derivatives. """
+        
         order = len(derivative.args[1:])
-        inds = []
+        indices = []
         for arg in derivative.args[1:]:
-            inds = inds + [self.der_direction.index(arg)]
+            indices = indices + [self.derivative_direction.index(arg)]
         generalformula = []
         subevals = []
         requires = []
-        if order == 1 or len(set(inds)) ==1:
-            generalformula += [order,tuple(inds)]
-            if len(derivative.args[0].atoms(Indexed)) >1:
+        if order == 1 or len(set(indices)) == 1:
+            generalformula += [order,tuple(indices)]
+            if len(derivative.args[0].atoms(Indexed)) > 1:
                 subevals += [derivative.args[0]]
                 requires += list(derivative.args[0].atoms(Indexed))
             else:
                 subevals += [None]
                 requires += [derivative.args[0]]
         else:
-            if len(derivative.args[0].atoms(Indexed)) >1:
+            if len(derivative.args[0].atoms(Indexed)) > 1:
                 subevals += [derivative.args[0]]
                 requires += list(derivative.args[0].atoms(Indexed))
 
             else:
                 subevals += [None]
                 requires += [derivative.args[0]]
-            generalformula += [order-1,tuple([inds[-1]])]
-            requires += [self.derivatives[order-1][inds[:-1]].subs(self.fn,derivative.args[0])]
+            generalformula += [order-1,tuple([indices[-1]])]
+            requires += [self.derivatives[order-1][indices[:-1]].subs(self.fn,derivative.args[0])]
 
         return generalformula, subevals, requires
 
@@ -189,7 +199,7 @@ class Evaluations():
         return
 
 
-class SpatialDiscretisation():
+class SpatialDiscretisation(object):
     def __init__(self, equations, formulas, grid, spatial_scheme):
         alleqs = flatten(list(e.expanded for e in equations))
         allformulas = flatten(list(e.expanded for e in formulas))
@@ -271,7 +281,7 @@ class SpatialDiscretisation():
         for number,der in enumerate(derivatives):
             if not any(isinstance(req, Derivative) for req in require[number]):
                 if all(subev == None for subev in subevals[number]):
-                    rhs = SD.get_derivativeformula(der,evals[der].formula[0])
+                    rhs = SD.get_derivative_formula(der,evals[der].formula[0])
                     eq = Eq(evals[der].work,rhs)
                     computations.append(Kernel(eq, ranges[number], "Derivative Evaluation"))
                 else:
@@ -287,7 +297,7 @@ class SpatialDiscretisation():
                     computations.append(Kernel(eqs, local_range, "Temporary formula Evaluation"))
                     for eq in eqs:
                         newder = der.subs(eq.rhs,eq.lhs)
-                    rhs = SD.get_derivativeformula(newder,evals[der].formula[0])
+                    rhs = SD.get_derivative_formula(newder,evals[der].formula[0])
                     eq = Eq(evals[der].work,rhs)
                     computations.append(Kernel(eq, ranges[number], "Derivative Evaluation"))
             else:
@@ -297,7 +307,7 @@ class SpatialDiscretisation():
                         newder = newder.subs(req,evals[req].work)
                 else:
                     raise NotImplementedError("Sub evaluations in a mixed derivative")
-                rhs = SD.get_derivativeformula(newder,evals[der].formula[0])
+                rhs = SD.get_derivative_formula(newder,evals[der].formula[0])
                 eq = Eq(evals[der].work,rhs)
                 computations.append(Kernel(eq, ranges[number], "Nested Derivative evaluation"))
 
