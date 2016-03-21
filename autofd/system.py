@@ -246,7 +246,7 @@ class SpatialDiscretisation(object):
         grid_variables, variable_count = get_indexed_grid_variables(alleqs+allformulas)
         for atom in grid_variables:
             grid_arrays[atom] = indexed_by_grid(atom, grid)
-        spatialders, dercount, time_derivatives = self.get_spatial_derivatives(alleqs+allformulas)
+        spatial_derivatives, dercount, time_derivatives = self.get_spatial_derivatives(alleqs+allformulas)
         # Define the formulas on the grid, this is substituting the old with new
         # TODO do a sanity check of the formulas, i.e. remove all the formulas that
         # are not used in the equations
@@ -263,15 +263,15 @@ class SpatialDiscretisation(object):
         coord = coord.tolist()
         # Work array is always named as wk
         wkarray = 'wk'; wkind = 0;
-        for der in spatialders:
-            out = der # Modify the derivative to be a derivative on grid
+        for derivative in spatial_derivatives:
+            out = derivative # Modify the derivative to be a derivative on grid
             wk = grid.work_array('%s%d'%(wkarray,wkind)); wkind = wkind +1
-            for atom in der.atoms(Indexed):
+            for atom in derivative.atoms(Indexed):
                 out = out.subs(atom, grid_arrays[atom])
             for arg in out.args[1:]:
                 out = out.subs(arg, grid.indices[coord.index(arg)])
             general_formula, subevals, requires = SD.get_derivative(out)
-            grid_arrays[der] = out
+            grid_arrays[derivative] = out
             evaluated = Evaluations(out,general_formula,requires, subevals, wk)
             evals[out] = evaluated
         # we will assume that all the functions in time derivative are known at the start
@@ -314,11 +314,11 @@ class SpatialDiscretisation(object):
         ranges = [evals[ev].evaluation_range for ev in derivatives]
         subevals = [evals[ev].subevals for ev in derivatives]
         require = [evals[ev].requires for ev in derivatives]
-        for number,der in enumerate(derivatives):
+        for number,derivative in enumerate(derivatives):
             if not any(isinstance(req, Derivative) for req in require[number]):
                 if all(subev == None for subev in subevals[number]):
-                    rhs = SD.get_derivative_formula(der)
-                    eq = Eq(evals[der].work,rhs)
+                    rhs = SD.get_derivative_formula(derivative)
+                    eq = Eq(evals[derivative].work,rhs)
                     computations.append(Kernel(eq, ranges[number], "Derivative Evaluation"))
                 else:
                     # store into temporary array the sub evaluation
@@ -332,29 +332,29 @@ class SpatialDiscretisation(object):
                         eqs.append(Eq(wk,subev))
                     computations.append(Kernel(eqs, local_range, "Temporary formula Evaluation"))
                     for eq in eqs:
-                        new_derivative = der.subs(eq.rhs,eq.lhs)
+                        new_derivative = derivative.subs(eq.rhs,eq.lhs)
                     rhs = SD.get_derivative_formula(new_derivative)
-                    eq = Eq(evals[der].work,rhs)
+                    eq = Eq(evals[derivative].work,rhs)
                     computations.append(Kernel(eq, ranges[number], "Derivative Evaluation"))
             else:
-                new_derivative = der
+                new_derivative = derivative
                 if all(subev == None for subev in subevals[number]):
                     for req in require[number]:
                         new_derivative = new_derivative.subs(req,evals[req].work)
                 else:
                     raise NotImplementedError("Sub evaluations in a mixed derivative")
                 rhs = SD.get_derivative_formula(new_derivative)
-                eq = Eq(evals[der].work,rhs)
+                eq = Eq(evals[derivative].work,rhs)
                 computations.append(Kernel(eq, ranges[number], "Nested Derivative evaluation"))
 
         # All the spatial computations are evaluated by this point now get the updated equations
         updated_eq = [eq for eq in alleqs]
         for eqno,eq in enumerate(updated_eq):
-            spatialders, dercount, time_derivatives = self.get_spatial_derivatives([eq])
+            spatial_derivatives, dercount, time_derivatives = self.get_spatial_derivatives([eq])
             grid_variables, variable_count = get_indexed_grid_variables([eq])
-            spatialders = (sorted(spatialders, cmp = decreasing_order))
+            spatial_derivatives = (sorted(spatial_derivatives, cmp = decreasing_order))
             # substitute spatial derivatives first
-            for var in spatialders+grid_variables:
+            for var in spatial_derivatives+grid_variables:
                 new = evals[grid_arrays[var]].work
                 updated_eq[eqno] = updated_eq[eqno].subs(var,new)
         # The final computations of the residual (change in the rhs terms of the equations)
@@ -460,9 +460,9 @@ class GridBasedInitialization():
         self.computations.append(Kernel(initialization_eq, range_of_evaluation, "Initialization"))
         return
         
-class Fileio():
-    """ Saves the arrays provided after every n iterations into a HDF5 file. If niter is None
-    it is saved at the end of the simulation. """
+class FileIO(object):
+    """ Saves the arrays provided after every n iterations into a HDF5 file.
+    If niter is None, the arrays are saved at the end of the simulation. """
     
     def __init__(self, arrays, niter = None):
         self.save_after = []
@@ -482,6 +482,7 @@ def range_of_evaluation(order_of_evaluations, evaluations, grid, sdclass):
         if isinstance(ev, Derivative):
             derivatives.append(ev)
         evaluations[ev].evaluation_range = [tuple([0,s]) for s in grid.shape]
+        
     # Update the range for the derivatives
     grouped_derivatives = group_derivatives(derivatives)
     for key, value in grouped_derivatives.iteritems():
@@ -496,7 +497,8 @@ def range_of_evaluation(order_of_evaluations, evaluations, grid, sdclass):
                     erange[0] = erange[0]+halos[0]
                     erange[1] = erange[1]+halos[1]
                 evaluations[req].evaluation_range[dire] = tuple(erange)
-    #update the range for the formulas
+                
+    # Update the range for the formulas
     for ev in order_of_evaluations:
         if isinstance(ev, Indexed):
             require = evaluations[ev].requires
@@ -505,6 +507,7 @@ def range_of_evaluation(order_of_evaluations, evaluations, grid, sdclass):
                     evaluations[req].evaluation_range = evaluations[ev].evaluation_range
 
     return
+
 
 def sort_evaluations(evaluated, evaluations, typef):
     for key in evaluations.keys():
@@ -518,29 +521,42 @@ def sort_evaluations(evaluated, evaluations, typef):
                 evaluated.append(key)
     return evaluated
 
+
 def decreasing_order(s1, s2):
     return cmp(len(s2.args), len(s1.args))
+
 
 def increasing_order(s1, s2):
     return cmp(len(s1.args), len(s2.args))
 
-def group_derivatives(spatialders):
-    spatial_der_dict ={}
-    for der in spatialders:
-        if der.args[0] in spatial_der_dict.keys():
-            spatial_der_dict[der.args[0]] += [der]
+
+def group_derivatives(derivatives):
+    """ For each SymPy Derivative term, get the term that it is operating on and
+    form (function, Derivative(function)) pairs in a dictionary.
+    
+    :arg list derivatives: A list of all the Derivative terms to consider.
+    :returns: A dictionary of the (function, Derivative(function)) pairs.
+    :rtype: dict
+    """
+
+    derivative_dict = {}
+    
+    for derivative in derivatives:
+        if derivative.args[0] in derivative_dict.keys():
+            derivative_dict[derivative.args[0]] += [derivative]
         else:
-            spatial_der_dict[der.args[0]] = [der]
+            derivative_dict[derivative.args[0]] = [derivative]
 
-    for key,value in spatial_der_dict.iteritems():
-        if len(value)>1:
-            spatial_der_dict[key] = (sorted(value, cmp=increasing_order))
-    return spatial_der_dict
+    for key,value in derivative_dict.iteritems():
+        if len(value) > 1:
+            derivative_dict[key] = (sorted(value, cmp=increasing_order))
 
+    return derivative_dict
 
 
 def indexed_by_grid(variable, grid):
-    """ Converts a variable/function or Indexed object to an Indexed object indexed by the Grid indices.
+    """ Convert a variable/function or Indexed object to an Indexed object indexed by the Grid indices.
+    
     :arg variable: The variable to convert to a Grid-based Indexed variable
     :arg grid: The numerical Grid of solution points.
     :returns: An Indexed variable, which is the same variable as the one provided, but is indexed by the Grid indices.

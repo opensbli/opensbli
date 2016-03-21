@@ -88,7 +88,7 @@ initial_conditions = ["Eq(grid.work_array(phi), sin((grid.Idx[0] -1)*grid.deltas
 initial_conditions = GridBasedInitialization(grid, initial_conditions)
 
 # I/O save conservative variables at the end of simulation
-IO = Fileio(temporal_discretisation.conservative)
+io = FileIO(temporal_discretisation.conservative)
 
 # Grid parameters like number of points, length in each direction, and delta in each direction
 length = [1.0]*ndim
@@ -100,7 +100,7 @@ nsteps = 100
 simulation_parameters = {"name":"testing"}
 
 # Generate the code.
-GenerateCode(grid, spatial_discretisation, temporal_discretisation, boundary, initial_conditions, IO, simulation_parameters)
+GenerateCode(grid, spatial_discretisation, temporal_discretisation, boundary, initial_conditions, io, simulation_parameters)
 
 end = time.time()
 LOG.debug('The time taken to prepare the system in %d dimensions is %.2f seconds.' % (problem.ndim, end - start))
