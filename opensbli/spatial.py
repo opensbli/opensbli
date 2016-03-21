@@ -285,7 +285,7 @@ class SpatialDiscretisation(object):
         # We will assume that all the functions in time derivative are known at the start
         known = [grid_arrays[d.args[0]] for d in time_derivatives]
         for val in known:
-            evaluated = Evaluations(val,val, None, None,val)
+            evaluated = Evaluations(val, val, None, None, val)
             evals[val] =  evaluated
             
         # Sort the formulas
@@ -319,7 +319,7 @@ class SpatialDiscretisation(object):
                     computations.append(Kernel(eq, ranges[number]))
                     
         # Now process the Derivatives
-        # TODO: This can be moved out into a seperate function. Which can be used for Diagnostics/Generalised coordinate equations evaluations
+        # TODO: This can be moved out into a seperate function. Which can be used for diagnostics / generalised coordinate equations evaluations
         derivatives = [ev for ev in order_of_evaluations if isinstance(ev, Derivative) and ev not in known]
         ranges = [evals[ev].evaluation_range for ev in derivatives]
         subevals = [evals[ev].subevals for ev in derivatives]
@@ -340,12 +340,12 @@ class SpatialDiscretisation(object):
                         for req in require[number]:
                             local_range = evals[req].evaluation_range
                             subev = subev.subs(req, evals[req].work)
-                        eqs.append(Eq(wk,subev))
+                        eqs.append(Eq(wk, subev))
                     computations.append(Kernel(eqs, local_range, "Temporary formula Evaluation"))
                     for eq in eqs:
                         new_derivative = derivative.subs(eq.rhs, eq.lhs)
                     rhs = spatial_derivative.get_derivative_formula(new_derivative)
-                    eq = Eq(evals[derivative].work,rhs)
+                    eq = Eq(evals[derivative].work, rhs)
                     computations.append(Kernel(eq, ranges[number], "Derivative Evaluation"))
             else:
                 new_derivative = derivative
@@ -355,7 +355,7 @@ class SpatialDiscretisation(object):
                 else:
                     raise NotImplementedError("Sub evaluations in a mixed derivative")
                 rhs = spatial_derivative.get_derivative_formula(new_derivative)
-                eq = Eq(evals[derivative].work,rhs)
+                eq = Eq(evals[derivative].work, rhs)
                 computations.append(Kernel(eq, ranges[number], "Nested Derivative evaluation"))
 
         # All the spatial computations are evaluated by this point now get the updated equations
@@ -435,7 +435,7 @@ class GridBasedInitialisation(object):
         """
     
         self.computations = []
-        initialisation_equation =[]
+        initialisation_equation = []
         for ic in ics:
             initialisation_equation.append(parse_expr(ic, local_dict = {'grid':grid}))
         range_of_evaluation = [tuple([0 + grid.halos[i][0], s + grid.halos[i][1]]) for i, s in enumerate(grid.shape)]
@@ -465,8 +465,8 @@ def range_of_evaluation(order_of_evaluations, evaluations, grid, sdclass):
             for req in require:
                 erange = list(evaluations[req].evaluation_range[direction])
                 if erange[0] == 0 and erange[1] == grid.shape[direction]:
-                    erange[0] = erange[0]+halos[0]
-                    erange[1] = erange[1]+halos[1]
+                    erange[0] += halos[0]
+                    erange[1] += halos[1]
                 evaluations[req].evaluation_range[direction] = tuple(erange)
                 
     # Update the range for the formulas
