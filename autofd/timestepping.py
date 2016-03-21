@@ -1,5 +1,7 @@
 from .equations import *
+from .scheme import *
 from .kernel import *
+
 
 class TemporalDiscretisation(object):
 
@@ -17,10 +19,8 @@ class TemporalDiscretisation(object):
         self.nstages = temporal.order
         if temporal.scheme == "Forward" and self.nstages == 1:
             self.coeff = None
-            pass
         elif temporal.scheme == "RungeKutta" and self.nstages == 3:
             self.coeff = RungeKutta(self.nstages)
-            pass
         else:
             raise ValueError("Only first-order Forward or third-order Runge-Kutta temporal discretisation schemes are allowed.")
         
@@ -69,7 +69,7 @@ class TemporalDiscretisation(object):
         return eqn
 
 
-class RungeKutta(object):
+class RungeKutta(Scheme):
     
     """ Runge-Kutta time-stepping scheme. """
 

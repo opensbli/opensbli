@@ -33,13 +33,6 @@ from .array import MutableDenseNDimArray
 from .grid import *
 from .timestepping import *
 
-class Scheme(object):
-    def __init__(self, scheme, order):
-        self.scheme = scheme
-        self.order = order
-        return
-
-
 class SpatialDerivative(object):
 
     """ The spatial derivatives of an arbitrary function 'F'
@@ -399,7 +392,6 @@ class SpatialDiscretisation(object):
         return derivatives, count, time_derivatives
     
 
-
 class Exchange(object):
     def __init__(self, grid):
         range_of_evaluation = [tuple([0 + grid.halos[i][0], s + grid.halos[i][1]]) for i, s in enumerate(grid.shape)]
@@ -410,7 +402,8 @@ class Exchange(object):
         self.transfer_arrays = []
         return
 
-class BoundaryConditions():
+
+class BoundaryConditions(object):
     types = {"periodic":"exchange_self", "symmetry":"exchange_self"}
     def __init__(self, bcs, grid, arrays):
         if len(bcs) != len(grid.shape):
@@ -487,6 +480,7 @@ class FileIO(object):
         else:
             self.save_arrays += [arrays]
         return
+
 
 def range_of_evaluation(order_of_evaluations, evaluations, grid, sdclass):
     """ First the ranges of derivatives are updated, then other ranges are updated. """
