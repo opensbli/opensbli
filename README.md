@@ -9,7 +9,7 @@ First ensure that the following dependencies are satisfied:
 
 * Python 2.7
 * astyle
-* Sympy >= 0.7.6.1
+* Sympy >= 1.0
 * python-h5py
 * OPS (to generate OPSC code)
 * pytest (for running the test suite)
