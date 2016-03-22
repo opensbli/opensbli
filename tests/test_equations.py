@@ -118,5 +118,11 @@ def test_maximum_derivative_order(mass, momentum, energy):
     assert maximum_derivative_order(flatten([mass.expanded, momentum.expanded, energy.expanded])) == 2
     
 
+def test_remove_repeated_index():
+    """ Check that repeated indices are removed. """
+    indices = [Idx("i"), Idx("j"), Idx("j")]
+    assert remove_repeated_index(indices) == [Idx("i")]
+    
+    
 if __name__ == '__main__':
     pytest.main(os.path.abspath(__file__))
