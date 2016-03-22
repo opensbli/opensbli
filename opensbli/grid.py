@@ -10,9 +10,10 @@ class Grid(object):
     """
 
     def __init__(self, ndim, grid_data=None):
+        # Number of grid points in each dimension.
         self.shape = tuple(symbols('nx0:%d' % ndim, integer=True))
-        # The indices of the grid solution points
-        self.indices = [Symbol('i%d' % ind, integer = True) for ind, val in enumerate(self.shape)]
+        # Indices of the grid solution points in each dimension.
+        self.indices = tuple(Symbol('i%d' % ind, integer = True) for ind, val in enumerate(self.shape))
         self.uniform = [True for ind, val in enumerate(self.shape)]
         term = EinsteinTerm('deltai_i')
         term.is_constant = True
