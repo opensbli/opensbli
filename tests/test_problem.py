@@ -19,7 +19,7 @@ def test_expand():
 
     problem = Problem(equations, substitutions, ndim, constants, coordinate_symbol, metrics, formulas)
 
-    expanded_equations, expanded_formulas = problem.expand()
+    expanded_equations, expanded_formulas = problem.get_expanded()
     assert len(expanded_equations) == 1
     assert str(expanded_equations[0]) == "[Derivative(rho[x0, t], t) == -c*Derivative(rhou0[x0, t], x0)]"
 

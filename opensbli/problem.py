@@ -39,6 +39,17 @@ class Problem(object):
         self.coordinate_symbol = coordinate_symbol
         self.metrics = metrics
         
+        self.expand(equations, formulas)
+
+        return
+
+    def expand(self, equations, formulas):
+        """ Find the Einstein indices in the equations and formulas, and then expand them. """
+
+        LOG.info("Expanding equations...")
+
+        start = time.time()
+
         self.equations = []
         for e in equations:
             self.equations.append(Equation(e, self.ndim, self.coordinate_symbol, self.substitutions, self.constants))
@@ -46,22 +57,20 @@ class Problem(object):
         self.formulas = []
         for f in formulas:
             self.formulas.append(Equation(f, self.ndim, self.coordinate_symbol, self.substitutions, self.constants))
+            
+        end = time.time()
 
+        LOG.debug('The time taken for tensor expansion of equations in %d Dimensions is %.2f seconds.' % (self.ndim, end - start))
         return
-
-    def expand(self):
-        """ Find the Einstein indices in the equations, and then expand the equations and formulas. """
-
-        LOG.info("Expanding equations...")
-
-        start = time.time()
+        
+    def get_expanded(self):  
+        """ Return the lists of expanded equations and formulas. """
+        
         expanded_equations = []
         for e in self.equations:
             expanded_equations.append(e.expanded)
         expanded_formulas = []
         for f in self.formulas:
             expanded_formulas.append(f.expanded)
-        end = time.time()
-
-        LOG.debug('The time taken for tensor expansion of equations in %d Dimensions is %.2f seconds.' % (self.ndim, end - start))
+        
         return expanded_equations, expanded_formulas

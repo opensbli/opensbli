@@ -52,7 +52,7 @@ formulas = [velocity, pressure, temperature, viscosity]
 
 # Create the TGV problem and expand the equations.
 problem = Problem(equations, substitutions, ndim, constants, coordinate_symbol, metrics, formulas)
-expanded_equations, expanded_formulas = problem.expand()
+expanded_equations, expanded_formulas = problem.get_expanded()
 
 # Output equations in LaTeX format.
 latex = LatexWriter()

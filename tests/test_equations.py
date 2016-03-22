@@ -114,10 +114,9 @@ def test_equation(mass, momentum, energy):
 
 
 def test_maximum_derivative_order(mass, momentum, energy):
-    """ Check that all indices of an EinsteinTerm are parsed correctly. """
-
-    assert maximum_derivative_order([mass, momentum, energy]) == 2
-
+    """ Check that the maximum Derivative order is second-order. """
+    assert maximum_derivative_order(flatten([mass.expanded, momentum.expanded, energy.expanded])) == 2
+    
 
 if __name__ == '__main__':
     pytest.main(os.path.abspath(__file__))
