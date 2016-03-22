@@ -67,18 +67,26 @@ class TemporalDiscretisation(object):
 
         return
         
-    def time_derivative(self, fn, dt, residual, grid):
-        """ Return the equations used to advance the model equations forward in time. """
+    def time_derivative(self, function, dt, residual, grid):
+        """ Return the equation(s) used to advance the model equations forward in time.
+        
+        :arg function: The function that the LHS time derivative operates on.
+        :arg dt: The time-step.
+        :arg residual: The residual (i.e. the change in the RHS of the equation).
+        :arg grid: The grid of solution points.
+        :returns: An equation, or list of equations (if there is more than one step involved in the temporal scheme), used to advance the model equations forward in time.
+        :rtype: sympy.Eq, or list of sympy.Eq
+        """
 
         if self.nstages == 1:
-            eqn = Eq(fn, fn + dt*residual, evaluate=False)
+            equation = Eq(function, function + dt*residual, evaluate=False)
         elif self.nstages == 3:
-            old = grid.work_array('%s_old' % fn.base)
-            eqn_fn = Eq(fn, old + self.scheme.new*residual, evaluate=False)
-            eqn_old = Eq(old, old + self.scheme.old*residual, evaluate=False)
-            save_equation = Eq(old, fn)
-            eqn = [eqn_fn, eqn_old, save_equation]
-        return eqn
+            old = grid.work_array('%s_old' % function.base)
+            equation_function = Eq(function, old + self.scheme.new*residual, evaluate=False)
+            equation_old = Eq(old, old + self.scheme.old*residual, evaluate=False)
+            save_equation = Eq(old, function)
+            equation = [equation_function, equation_old, save_equation]
+        return equation
 
 
 class RungeKutta(Scheme):
