@@ -247,7 +247,14 @@ class SpatialDiscretisation(object):
     """ The spatial discretisation using the provided scheme on the provided grid. """
 
     def __init__(self, expanded_equations, expanded_formulas, grid, spatial_scheme):
-        """ Perform the spatial discretisation. """
+        """ Perform the spatial discretisation.
+        
+        :arg list expanded_equations: A list of the equations expanded with respect to the Einstein indices.
+        :arg list expanded_formulas: A list of the formulas expanded with respect to the Einstein indices.
+        :arg grid: The numerical grid of solution points.
+        :arg spatial_scheme: The spatial scheme used to perform the spatial discretisation.
+        :returns: None
+        """
     
         all_equations = flatten(expanded_equations)
         all_formulas = flatten(expanded_formulas)
