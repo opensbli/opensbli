@@ -246,11 +246,11 @@ class SpatialDiscretisation(object):
 
     """ The spatial discretisation using the provided scheme on the provided grid. """
 
-    def __init__(self, equations, formulas, grid, spatial_scheme):
+    def __init__(self, expanded_equations, expanded_formulas, grid, spatial_scheme):
         """ Perform the spatial discretisation. """
     
-        all_equations = flatten(list(e.expanded for e in equations))
-        all_formulas = flatten(list(e.expanded for e in formulas))
+        all_equations = flatten(expanded_equations)
+        all_formulas = flatten(expanded_formulas)
         max_order = maximum_derivative_order(all_equations)
         
         spatial_derivative = SpatialDerivative(spatial_scheme, grid, max_order)

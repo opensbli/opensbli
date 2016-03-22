@@ -60,9 +60,9 @@ latex.open(path=BUILD_DIR + "/equations.tex")
 metadata = {"title": "Equations", "author": "", "institution": ""}
 latex_substitutions = {'gama':'\gamma', 'rhou':'\\rho u', 'rhoE':'\\rho E'}
 latex.write_header(metadata)
-temp = flatten([e.expanded for e in expanded_equations])
+temp = flatten(expanded_equations)
 latex.write_expression(temp, substitutions=latex_substitutions)
-temp = flatten([e.expanded for e in expanded_formulas])
+temp = flatten(expanded_formulas)
 latex.write_expression(temp, substitutions=latex_substitutions)
 latex.write_footer()
 latex.close()

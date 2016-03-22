@@ -3,9 +3,23 @@
 import os
 import pytest
 
+from sympy import Symbol, Idx
+
 # OpenSBLI functions
+from opensbli.equations import *
 from opensbli.timestepping import *
+from opensbli.spatial import *
 from opensbli.grid import *
+
+@pytest.fixture
+def coordinate_symbol():
+    return "x"
+
+
+@pytest.fixture
+def mass(coordinate_symbol):
+    return Equation("Eq(Der(rho,t), -Conservative(rhou_j,x_j))", 2, coordinate_symbol, substitutions=[], constants=[])
+
 
 @pytest.fixture
 def grid():
@@ -23,10 +37,15 @@ def max_order():
     
     
 @pytest.fixture
-def spatial_derivative(grid, central_scheme, max_order):
-    return SpatialDerivative(central_scheme, grid, max_order)
+def spatial_discretisation(mass, grid, central_scheme):
+    return SpatialDiscretisation([mass.expanded], [], grid, central_scheme)
 
 
+@pytest.fixture
+def temporal_discretisation(rk3, grid, spatial_discretisation):
+    return TemporalDiscretisation(temporal_scheme=rk3, grid=grid, const_dt=True, spatial_discretisation=spatial_discretisation)
+    
+    
 @pytest.fixture
 def rk3():
     return RungeKutta(order=3)
@@ -57,6 +76,12 @@ def test_rk3(rk3):
 def test_forward_euler(forward_euler):
     """ Ensure that the forward Euler time-stepping scheme is set up correctly. """
     assert forward_euler.order == 1
+    return
+    
+
+def test_temporal_discretisation(temporal_discretisation):
+    """ Ensure that the time discretisation scheme is applied correctly. """
+    assert temporal_discretisation.conservative == []
     return
     
     

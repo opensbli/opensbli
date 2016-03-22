@@ -5,6 +5,7 @@ import pytest
 
 from sympy import Symbol, Idx
 
+# OpenSBLI functions
 from opensbli.equations import *
 
 @pytest.fixture
@@ -112,14 +113,10 @@ def test_equation(mass, momentum, energy):
     assert str(energy.expanded[0]) == "Derivative(rhoE[x0, x1, x2, t], t) == mu*(Derivative(u0[x0, x1, x2, t], x1) + Derivative(u1[x0, x1, x2, t], x0))*Derivative(u0[x0, x1, x2, t], x1)*Re**(-1) + mu*(Derivative(u0[x0, x1, x2, t], x1) + Derivative(u1[x0, x1, x2, t], x0))*Derivative(u1[x0, x1, x2, t], x0)*Re**(-1) + mu*(Derivative(u0[x0, x1, x2, t], x2) + Derivative(u2[x0, x1, x2, t], x0))*Derivative(u0[x0, x1, x2, t], x2)*Re**(-1) + mu*(Derivative(u0[x0, x1, x2, t], x2) + Derivative(u2[x0, x1, x2, t], x0))*Derivative(u2[x0, x1, x2, t], x0)*Re**(-1) + mu*(Derivative(u1[x0, x1, x2, t], x2) + Derivative(u2[x0, x1, x2, t], x1))*Derivative(u1[x0, x1, x2, t], x2)*Re**(-1) + mu*(Derivative(u1[x0, x1, x2, t], x2) + Derivative(u2[x0, x1, x2, t], x1))*Derivative(u2[x0, x1, x2, t], x1)*Re**(-1) + mu*(Derivative(u0[x0, x1, x2, t], x0, x1) + Derivative(u1[x0, x1, x2, t], x0, x0))*u1[x0, x1, x2, t]*Re**(-1) + mu*(Derivative(u0[x0, x1, x2, t], x0, x2) + Derivative(u2[x0, x1, x2, t], x0, x0))*u2[x0, x1, x2, t]*Re**(-1) + mu*(Derivative(u0[x0, x1, x2, t], x1, x1) + Derivative(u1[x0, x1, x2, t], x0, x1))*u0[x0, x1, x2, t]*Re**(-1) + mu*(Derivative(u0[x0, x1, x2, t], x2, x2) + Derivative(u2[x0, x1, x2, t], x0, x2))*u0[x0, x1, x2, t]*Re**(-1) + mu*(Derivative(u1[x0, x1, x2, t], x1, x2) + Derivative(u2[x0, x1, x2, t], x1, x1))*u2[x0, x1, x2, t]*Re**(-1) + mu*(Derivative(u1[x0, x1, x2, t], x2, x2) + Derivative(u2[x0, x1, x2, t], x1, x2))*u1[x0, x1, x2, t]*Re**(-1) + mu*(-2*Derivative(u0[x0, x1, x2, t], x0)/3 - 2*Derivative(u1[x0, x1, x2, t], x1)/3 + 4*Derivative(u2[x0, x1, x2, t], x2)/3)*Derivative(u2[x0, x1, x2, t], x2)*Re**(-1) + mu*(-2*Derivative(u0[x0, x1, x2, t], x0)/3 + 4*Derivative(u1[x0, x1, x2, t], x1)/3 - 2*Derivative(u2[x0, x1, x2, t], x2)/3)*Derivative(u1[x0, x1, x2, t], x1)*Re**(-1) + mu*(4*Derivative(u0[x0, x1, x2, t], x0)/3 - 2*Derivative(u1[x0, x1, x2, t], x1)/3 - 2*Derivative(u2[x0, x1, x2, t], x2)/3)*Derivative(u0[x0, x1, x2, t], x0)*Re**(-1) + mu*(4*Derivative(u0[x0, x1, x2, t], x0, x0)/3 - 2*Derivative(u1[x0, x1, x2, t], x0, x1)/3 - 2*Derivative(u2[x0, x1, x2, t], x0, x2)/3)*u0[x0, x1, x2, t]*Re**(-1) + mu*(-2*Derivative(u0[x0, x1, x2, t], x0, x1)/3 + 4*Derivative(u1[x0, x1, x2, t], x1, x1)/3 - 2*Derivative(u2[x0, x1, x2, t], x1, x2)/3)*u1[x0, x1, x2, t]*Re**(-1) + mu*(-2*Derivative(u0[x0, x1, x2, t], x0, x2)/3 - 2*Derivative(u1[x0, x1, x2, t], x1, x2)/3 + 4*Derivative(u2[x0, x1, x2, t], x2, x2)/3)*u2[x0, x1, x2, t]*Re**(-1) - Derivative((p[x0, x1, x2, t] + rhoE[x0, x1, x2, t])*u0[x0, x1, x2, t], x0) - Derivative((p[x0, x1, x2, t] + rhoE[x0, x1, x2, t])*u1[x0, x1, x2, t], x1) - Derivative((p[x0, x1, x2, t] + rhoE[x0, x1, x2, t])*u2[x0, x1, x2, t], x2) - Derivative(q0[x0, x1, x2, t], x0) - Derivative(q1[x0, x1, x2, t], x1) - Derivative(q2[x0, x1, x2, t], x2)"
 
 
-#def test_get_einstein_indices():
-#    """ Get all the Einstein indices in the equation's RHS. """
-#    ndim = 2
-#    equation = Equation("Eq(Der(rhoE,t), Der(u_i*Der(u_i,x_j),x_j) )", ndim)
-#    expansion = EinsteinExpansion(equation.parsed, ndim)
-#    indices = expansion.get_einstein_indices(expression=equation.parsed.rhs)
-#    assert len(indices) == 2
-#    assert indices == set(["_i", "_j"])
+def test_maximum_derivative_order(mass, momentum, energy):
+    """ Check that all indices of an EinsteinTerm are parsed correctly. """
+
+    assert maximum_derivative_order([mass, momentum, energy]) == 2
 
 
 if __name__ == '__main__':

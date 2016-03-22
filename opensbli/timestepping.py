@@ -8,6 +8,14 @@ class TemporalDiscretisation(object):
     """ Perform a temporal discretisation of the equations on the numerical grid of solution points. """
 
     def __init__(self, temporal_scheme, grid, const_dt, spatial_discretisation):
+        """ Formulate the time discretisation scheme as a series of computational kernels.
+        
+        :arg temporal_scheme: The time discretisation scheme.
+        :arg grid: The numerical Grid of solution points.
+        :arg bool const_dt: True if the time-step is constant, and False otherwise.
+        :arg spatial_discretisation: The object that performs the spatial discretisation.
+        :returns: None
+        """
     
         # Time-stepping scheme
         self.scheme = temporal_scheme
