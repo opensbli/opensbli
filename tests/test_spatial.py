@@ -16,6 +16,7 @@ def grid():
 def central_scheme():
     return Central(order=4)
     
+    
 @pytest.fixture
 def max_order():
     return 1
@@ -27,7 +28,7 @@ def spatial_derivative(grid, central_scheme, max_order):
 
 
 def test_create_stencil(spatial_derivative, central_scheme, grid):
-    """ Ensure that a stencil is constructured properly for a given derivative on a given grid. """
+    """ Ensure that a central difference stencil is constructured properly on a given grid. """
 
     stencil = spatial_derivative.create_stencil(central_scheme, grid)
     assert len(stencil) == 2
