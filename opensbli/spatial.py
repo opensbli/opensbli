@@ -281,20 +281,20 @@ class SpatialDiscretisation(object):
         coord = term.get_array(term.get_indexed(len(grid.shape)))
         coord = coord.tolist()
         
-        # Work array is always named as wk
-        work_array = 'wk'
+        # Create a work array for each spatial derivative. Work arrays are always named as 'wk'.
+        work_array_name = 'wk'
         work_array_index = 0
         for derivative in spatial_derivatives:
-            out = derivative # Modify the derivative to be a derivative on grid
-            wk = grid.work_array('%s%d' % (work_array, work_array_index))
+            wk = grid.work_array('%s%d' % (work_array_name, work_array_index))
             work_array_index += 1
+            out = derivative # Modify the derivative to be a derivative on grid
             for atom in derivative.atoms(Indexed):
                 out = out.subs(atom, grid_arrays[atom])
             for arg in out.args[1:]:
                 out = out.subs(arg, grid.indices[coord.index(arg)])
             general_formula, subevals, requires = spatial_derivative.get_derivative(out)
             grid_arrays[derivative] = out
-            evaluated = Evaluations(out,general_formula,requires, subevals, wk)
+            evaluated = Evaluations(out, general_formula, requires, subevals, wk)
             evals[out] = evaluated
             
         # We will assume that all the functions in time derivative are known at the start
@@ -326,7 +326,7 @@ class SpatialDiscretisation(object):
         computations = []
         eqs = [Eq(evals[ev].work, evals[ev].formula) for ev in forms]
         if forms:
-            # If same range then combine them into a single computation else store into different computations
+            # If same range then combine them into a single computation, else store into different computations.
             if all(range_truth) and all(subeval_truth):
                 computations.append(Kernel(eqs, ranges[0], "Formula Evaluation"))
             else:
@@ -334,7 +334,7 @@ class SpatialDiscretisation(object):
                     computations.append(Kernel(eq, ranges[number]))
                     
         # Now process the Derivatives
-        # TODO: This can be moved out into a seperate function. Which can be used for diagnostics / generalised coordinate equations evaluations
+        # TODO: This can be moved out into a seperate function which can be used for diagnostics / generalised coordinate equations evaluations.
         derivatives = [ev for ev in order_of_evaluations if isinstance(ev, Derivative) and ev not in known]
         ranges = [evals[ev].evaluation_range for ev in derivatives]
         subevals = [evals[ev].subevals for ev in derivatives]
@@ -350,7 +350,7 @@ class SpatialDiscretisation(object):
                     eqs = []
                     temp_work_array_index = work_array_index
                     for subev in subevals[number]:
-                        wk = grid.work_array('%s%d' % (work_array, temp_work_array_index))
+                        wk = grid.work_array('%s%d' % (work_array_name, temp_work_array_index))
                         temp_work_array_index += 1
                         for req in require[number]:
                             local_range = evals[req].evaluation_range
@@ -373,13 +373,13 @@ class SpatialDiscretisation(object):
                 eq = Eq(evals[derivative].work, rhs)
                 computations.append(Kernel(eq, ranges[number], "Nested Derivative evaluation"))
 
-        # All the spatial computations are evaluated by this point now get the updated equations
+        # All the spatial computations are evaluated by this point. Now get the updated equations.
         updated_equations = [e for e in all_equations]
         for equation_number, equation in enumerate(updated_equations):
             spatial_derivatives, derivative_count, time_derivatives = self.get_spatial_derivatives([equation])
             grid_variables, variable_count = get_indexed_grid_variables([equation])
             spatial_derivatives = (sorted(spatial_derivatives, cmp = decreasing_order))
-            # Substitute spatial derivatives first
+            # Substitute spatial derivatives first.
             for var in spatial_derivatives + grid_variables:
                 new = evals[grid_arrays[var]].work
                 updated_equations[equation_number] = updated_equations[equation_number].subs(var, new)
@@ -390,7 +390,7 @@ class SpatialDiscretisation(object):
         residual_equations = []
         residual_arrays = []
         for e in updated_equations:
-            work_array = grid.work_array('%s%d' % (work_array, work_array_index))
+            work_array = grid.work_array('%s%d' % (work_array_name, work_array_index))
             work_array_index += 1
             residual_arrays.append({e.lhs : work_array})
             residual_equations.append(Eq(work_array, e.rhs))
