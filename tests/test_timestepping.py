@@ -53,10 +53,12 @@ def test_rk3(rk3):
         
     return
 
+
 def test_forward_euler(forward_euler):
     """ Ensure that the forward Euler time-stepping scheme is set up correctly. """
     assert forward_euler.order == 1
     return
+    
     
 if __name__ == '__main__':
     pytest.main(os.path.abspath(__file__))
