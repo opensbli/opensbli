@@ -35,7 +35,7 @@ from sympy.functions.special.tensor_functions import eval_levicivita
 import sympy.core as core
 from sympy import factorial
 
-from .array import MutableDenseNDimArray, derive_by_array, tensorcontraction,tensorproduct,ImmutableDenseNDimArray
+from .array import MutableDenseNDimArray, derive_by_array, tensorcontraction, tensorproduct, ImmutableDenseNDimArray
 from .array import NDimArray
 
 LOG = logging.getLogger(__name__)

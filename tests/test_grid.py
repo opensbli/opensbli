@@ -3,6 +3,8 @@
 import os
 import pytest
 
+from opensbli.array import MutableDenseNDimArray
+
 # OpenSBLI functions
 from opensbli.grid import *
 
@@ -17,7 +19,9 @@ def test_grid(grid):
     assert len(grid.shape) == 3
     assert grid.shape == tuple(symbols('nx0:3', integer=True)) # nx x ny x nz grid shape
     assert grid.indices == tuple(symbols('i0:3', integer=True)) # Grid index for each dimension
-        
+    assert len(grid.deltas) == 3
+    indices = tuple(symbols('i0:3', integer=True))
+    assert grid.work_array("test") == IndexedBase("test")[indices]
     return
 
     
