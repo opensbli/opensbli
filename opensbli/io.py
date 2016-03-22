@@ -14,10 +14,10 @@ class FileIO(object):
         
         self.save_after = []
         self.save_arrays = []
-        self.save_after += [Symbol('niter', integer=True)]
+        self.save_after.append(Symbol('niter', integer=True))
         if isinstance(arrays, list):
             self.save_arrays += arrays
         else:
-            self.save_arrays += [arrays]
+            self.save_arrays.append(arrays)
         return
 

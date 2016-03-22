@@ -379,7 +379,7 @@ class SpatialDiscretisation(object):
             spatial_derivatives, derivative_count, time_derivatives = self.get_spatial_derivatives([equation])
             grid_variables, variable_count = get_indexed_grid_variables([equation])
             spatial_derivatives = (sorted(spatial_derivatives, cmp = decreasing_order))
-            # substitute spatial derivatives first
+            # Substitute spatial derivatives first
             for var in spatial_derivatives + grid_variables:
                 new = evals[grid_arrays[var]].work
                 updated_equations[equation_number] = updated_equations[equation_number].subs(var, new)

@@ -77,7 +77,7 @@ temporal_scheme = RungeKutta(3) # Third-order Runge-Kutta time-stepping scheme.
 grid = Grid(ndim) # FIXME: A HDF5 file or a user input
 
 # Perform the spatial discretisation
-spatial_discretisation = SpatialDiscretisation(expanded_equations,expanded_formulas, grid, spatial_scheme)
+spatial_discretisation = SpatialDiscretisation(expanded_equations, expanded_formulas, grid, spatial_scheme)
 
 # Perform the temporal discretisation
 const_dt = True
