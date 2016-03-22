@@ -9,15 +9,18 @@ class TemporalDiscretisation(object):
 
     def __init__(self, temporal_scheme, grid, const_dt, spatial_discretisation):
     
+        # Time-stepping scheme
         self.scheme = temporal_scheme
     
+        # Constant or variable time-step
         if const_dt:
             dt = EinsteinTerm('deltat')
             dt.is_constant = True
             dt.is_commutative = True
         else:
             raise NotImplementedError("Varying delta t is not implemented in the code.")
-            
+        
+        # Coefficients required for the time-stepping scheme, from the relevant Butcher tableau.
         self.nstages = temporal_scheme.order
         if isinstance(temporal_scheme, ForwardEuler) and self.nstages == 1:
             self.coeff = None
@@ -26,33 +29,40 @@ class TemporalDiscretisation(object):
         else:
             raise ValueError("Only first-order Forward or third-order Runge-Kutta temporal discretisation schemes are allowed.")
         
-        # Any computations at the start of the time-step. Generally these are the save equations.
+        # Start computations: Any computations at the start of the time-step. Generally these are the 'save' equations.
         self.start_computations = []
+        
+        # Computations: The main computations to perform during each time-step.
         self.computations = []
+        
+        # The conservative variables (e.g. rho, rhou0, rhou1, rhoE in the Navier-Stokes equations) that should be updated.
         self.conservative = []
-        # As of now, no end computations. This will be updated in the diagnostics.
+        
+        # End computations: As of now, no end computations.
+        # TODO: This will be updated in the diagnostics.
         self.end_computations = None
         
+        # The residual arrays that contain the change in the RHS of each equation.
         out = []
         for residual in spatial_discretisation.residual_arrays:
             out.append(self.time_derivative(residual.keys()[0].args[0], dt, residual[residual.keys()[0]], grid))
             self.conservative.append(residual.keys()[0].args[0].base)
-            
+        
+        # Formulate each step of the time-stepping scheme here as a computational Kernel.
+        range_of_evaluation = [tuple([0, s]) for i, s in enumerate(grid.shape)] # Grid point index 0 to nx (or ny or nz)
         if self.nstages != 1:
-            # The 'save' equations
+            # The 'save' equations.
             start = [o[-1] for o in out]
             range_of_evaluation = [tuple([0 + grid.halos[i][0], s + grid.halos[i][1]]) for i, s in enumerate(grid.shape)]
             self.start_computations.append(Kernel(start, range_of_evaluation, "Save equations"))
 
             # The 'update' equations of the variables at time 't + k', where k is the Runge-Kutta loop iteration.
-            range_of_evaluation = [tuple([0, s]) for i, s in enumerate(grid.shape)]
             equations = [o[0] for o in out]
             self.computations.append(Kernel(equations, range_of_evaluation, "RK new (subloop) update"))
             equations = [o[1] for o in out]
             self.computations.append(Kernel(equations, range_of_evaluation, "RK old update"))
         else:
             self.start_computations = None
-            range_of_evaluation = [tuple([0, s]) for i, s in enumerate(grid.shape)]
             self.computations.append(Kernel(out, range_of_evaluation, "Euler update"))
 
         return
