@@ -4,16 +4,13 @@ from .equations import EinsteinTerm
 
 class Grid(object):
     
-    """ The numerical grid of solution points on which to discretise the equations.
-    If grid data dictionary is provided it will update with the exact values, else
-    symbolic representations are generated
-    """
+    """ The numerical grid of solution points on which to discretise the equations. """
 
     def __init__(self, ndim, grid_data=None):
         """ Initialise the grid of dimension ndim, and number of points nx0 x nx1 x nx2 (for the case of ndim = 3).
         
         :arg int ndim: The dimension of the grid.
-        :arg dict grid_data: Optional user-defined grid parameters including the number of points and grid point spacing.
+        :arg dict grid_data: Optional user-defined grid parameters including the exact number of points and grid point spacing. If not provided, symbolic representations are used instead.
         :returns: None
         """
         
