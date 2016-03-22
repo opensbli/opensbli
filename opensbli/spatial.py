@@ -322,7 +322,7 @@ class SpatialDiscretisation(object):
         
         # Now define a Kernel for each of the evaluations
 
-        # All the variables (IndexedObjects) in the equations excluding those which have a time derivative are stored into a kernel
+        # All the variables (Indexed objects) in the equations, excluding those which have a time derivative, are now stored into a kernel
         forms = [ev for ev in order_of_evaluations if isinstance(ev, Indexed) and ev not in known]
         ranges = [evals[ev].evaluation_range for ev in forms]
         subevals = flatten([evals[ev].subevals for ev in forms])
