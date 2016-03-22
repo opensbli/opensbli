@@ -29,6 +29,21 @@ LOG = logging.getLogger(__name__)
 from .equations import *
 from .opsc import *
 from .kernel import *
+from .scheme import *
+
+
+class Central(Scheme):
+    
+    """ Spatial discretisation scheme using central differences. """
+
+    def __init__(self, order):
+        """ Set up the scheme.
+        
+        :arg int order: The order of accuracy of the scheme.
+        """
+        Scheme.__init__(self, "Central", order)
+        return
+        
 
 class SpatialDerivative(object):
 
@@ -73,7 +88,7 @@ class SpatialDerivative(object):
         stencil = [[] for dim in grid.shape]
         
         for dim, val in enumerate(grid.shape):
-            if spatial_scheme.name == "central":
+            if isinstance(spatial_scheme, Central):
                 points = list(i for i in range(-spatial_scheme.order/2, spatial_scheme.order/2+1)) # The local indices of each point in the stencil (in dimension 'dim').
                 grid.halos.append((-spatial_scheme.order/2, spatial_scheme.order/2)) # The range of the indices of the stencil at the boundary which includes the halo points.
             else:

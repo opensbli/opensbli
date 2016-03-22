@@ -70,9 +70,7 @@ latex.close()
 # Discretise the equations
 start = time.time()
 
-scheme = "central"
-order = 4
-spatial_scheme = Scheme(scheme, order)
+spatial_scheme = Central(4) # Fourth-order central differencing in space.
 temporal_scheme = RungeKutta(3) # Third-order Runge-Kutta time-stepping scheme.
 
 # Create a numerical grid of solution points

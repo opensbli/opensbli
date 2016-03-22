@@ -19,9 +19,9 @@ class TemporalDiscretisation(object):
             raise NotImplementedError("Varying delta t is not implemented in the code.")
             
         self.nstages = temporal_scheme.order
-        if temporal_scheme.name == "Forward" and self.nstages == 1:
+        if isinstance(temporal_scheme, ForwardEuler) and self.nstages == 1:
             self.coeff = None
-        elif temporal_scheme.name == "RungeKutta" and self.nstages == 3:
+        elif isinstance(temporal_scheme, RungeKutta) and self.nstages == 3:
             self.coeff = self.scheme.get_coefficients()
         else:
             raise ValueError("Only first-order Forward or third-order Runge-Kutta temporal discretisation schemes are allowed.")
@@ -76,7 +76,10 @@ class RungeKutta(Scheme):
     """ Runge-Kutta time-stepping scheme. """
 
     def __init__(self, order):
-        """ Set up the Runge-Kutta stages and the coefficients. """
+        """ Set up the Runge-Kutta stages and the coefficients.
+        
+        :arg int order: The order of accuracy of the scheme.
+        """
     
         Scheme.__init__(self, "RungeKutta", order)
     
@@ -106,3 +109,15 @@ class RungeKutta(Scheme):
             coeffs[self.old] = [-1, 2, -1]
             coeffs[self.new] = [-1, 4, -6, 4, -1]
         return coeffs
+        
+
+class ForwardEuler(Scheme):
+    
+    """ First-order forward/explicit Euler time-stepping scheme. """
+
+    def __init__(self):
+        """ Set up the forward Euler scheme. """
+    
+        Scheme.__init__(self, "ForwardEuler", 1)
+
+        return
