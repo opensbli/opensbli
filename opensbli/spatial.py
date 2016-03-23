@@ -314,7 +314,7 @@ class SpatialDiscretisation(object):
             evaluated = Evaluations(val, val, None, None, val)
             evals[val] =  evaluated
             
-        # Sort the formulas
+        # Sort the terms in the order they should be evaluated (with respect to their dependencies).
         # First get the primitive variables that the time derivatives are applied to (e.g. u_i in Der(u_i, t))
         order_of_evaluations = [grid_arrays[d.args[0]] for d in time_derivatives]
         order_of_evaluations = sort_evaluations(order_of_evaluations, evals, Indexed)
