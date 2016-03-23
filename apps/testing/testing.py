@@ -85,14 +85,14 @@ temporal_discretisation = TemporalDiscretisation(temporal_scheme, grid, const_dt
 
 # Apply Boundary conditions
 bcs = [("periodic", "periodic"), ("periodic", "periodic")]
-boundary = BoundaryConditions(bcs, grid, temporal_discretisation.conservative)
+boundary = BoundaryConditions(bcs, grid, temporal_discretisation.prognostic_variables)
 
 # Initial conditions
 initial_conditions = ["Eq(grid.work_array(phi), sin((grid.Idx[0] - 1)*grid.deltas[0]))"]
 initial_conditions = GridBasedInitialisation(grid, initial_conditions)
 
 # I/O save conservative variables at the end of simulation
-io = FileIO(temporal_discretisation.conservative)
+io = FileIO(temporal_discretisation.prognostic_variables)
 
 # Grid parameters like number of points, length in each direction, and delta in each direction
 length = [1.0]*ndim

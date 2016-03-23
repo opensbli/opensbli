@@ -43,8 +43,8 @@ class TemporalDiscretisation(object):
         # Computations: The main computations to perform during each time-step.
         self.computations = []
         
-        # The conservative variables (e.g. rho, rhou0, rhou1, rhoE in the Navier-Stokes equations) that should be updated.
-        self.conservative = []
+        # The prognostic variables (e.g. rho, rhou0, rhou1, rhoE in the Navier-Stokes equations) that should be updated.
+        self.prognostic_variables = []
         
         # End computations: As of now, no end computations.
         # TODO: This will be updated in the diagnostics.
@@ -54,7 +54,7 @@ class TemporalDiscretisation(object):
         out = []
         for residual in spatial_discretisation.residual_arrays:
             out.append(self.time_derivative(residual.keys()[0].args[0], dt, residual[residual.keys()[0]], grid))
-            self.conservative.append(residual.keys()[0].args[0].base)
+            self.prognostic_variables.append(residual.keys()[0].args[0].base)
         
         # Formulate each step of the time-stepping scheme here as a computational Kernel.
         range_of_evaluation = [tuple([0, s]) for i, s in enumerate(grid.shape)] # Grid point index 0 to nx (or ny or nz)
