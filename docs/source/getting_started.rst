@@ -43,3 +43,8 @@ from within the base directory of OpenSBLI. Alternatively, particularly for deve
 
     export PYTHONPATH=$PYTHONPATH:~/OpenSBLI
 
+After installation, it is recommended that you run the test suite to check that OpenSBLI is performing as it should by using
+
+.. code-block:: bash
+
+    make test
