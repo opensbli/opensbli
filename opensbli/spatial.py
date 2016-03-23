@@ -320,11 +320,11 @@ class SpatialDiscretisation(object):
         order_of_evaluations = sort_evaluations(order_of_evaluations, evals, Indexed)
         # Then sort the derivatives
         order_of_evaluations = sort_evaluations(order_of_evaluations, evals, Derivative)
+        
         # Update the range of evaluations for each evaluation
-        range_of_evaluation(order_of_evaluations, evals, grid, spatial_derivative)
+        set_range_of_evaluation(order_of_evaluations, evals, grid, spatial_derivative)
         
         # Now define a Kernel for each of the evaluations
-
         # All the variables (Indexed objects) in the equations, excluding those which have a time derivative, are now stored into a kernel
         forms = [ev for ev in order_of_evaluations if isinstance(ev, Indexed) and ev not in known]
         ranges = [evals[ev].evaluation_range for ev in forms]
@@ -470,8 +470,9 @@ class GridBasedInitialisation(object):
         return
         
 
-def range_of_evaluation(order_of_evaluations, evaluations, grid, sdclass):
-    """ First the ranges of derivatives are updated, then other ranges are updated. """
+def set_range_of_evaluation(order_of_evaluations, evaluations, grid):
+    """ Set the evaluation ranges of each Evaluation object based on the shape of the grid of points.
+    First the ranges of derivatives are updated, then other ranges are updated. """
     
     derivatives = []
     for ev in order_of_evaluations:
