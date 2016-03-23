@@ -3,29 +3,31 @@ from sympy import *
 from .equations import EinsteinTerm
 
 class Kernel(object):
+
+    """ A computational kernel which will be executed over all the grid points. """
+
     def __init__(self, equations, ranges, computation):
-        '''
-        This should do two things
-        1. Able to write the kernel calling function based on language
-            For this we require (IN OPSC)
-            a. Name of the kernel to call
-            b. Block on which it should work, dimensions of the block
-            c. ins, outs, inouts and their stencil of access, data type
-            d. Indices of the array if required
-        2. Write the computational kernel, requires writing kernel header
-        and the computations
-            Require for OPSC
-            a.Kernel header can be written with ins, outs,
-        inouts and indices along with the data type
-            b. TO write the computations the Indexed Objects are to be modified
-        this modification requires OPS_ACC values which can also be populated and
-        grid indices are replaced with 0's
-        All in all we require
-        1. Name
-        2. Block (updated from the call to ops_write)
-        3. ins, outs, inouts and so on
-        4. Stencils of access
-        '''
+        """ Set up the kernel. This object will:
+        
+        1. Write the kernel's calling function based on the desired language.
+            For this we require (for OPSC):
+                a. Name of the kernel to call
+                b. The block on which it should execute, and the dimensions of the block
+                c. The ins, outs, and inouts variables, and their stencil of access and data type
+                d. Indices of the array, if required
+                
+        2. Write the computational kernel, which requires writing kernel header and the computations
+            For this we require (for OPSC):
+                a. The kernel header with ins, outs, inouts and indices, specified along with the data type.
+                b. To write the computations the Indexed objects are to be modified.
+                   This modification requires OPS_ACC values which can also be populated and grid indices are replaced with 0's.
+                   
+        All in all we require:
+            1. Name
+            2. Block (updated from the call to ops_write)
+            3. ins, outs, inouts and so on
+            4. Stencils of access
+        """
         
         self.computation_type = computation
         self.ranges = ranges # Range of the indices of the points the kernel iterates over.
@@ -44,14 +46,20 @@ class Kernel(object):
         return
         
     def classify_grid_objects(self):
+    
+        """ Classify the individual terms in the kernel's equation(s) 
+        as inputs, outputs, or inputoutputs (i.e. both an input and an output). """
+        
         ins = []
         outs = []
         inouts = []
         consts = []
+        
         for eq in self.equations:
             ins = ins + list(eq.rhs.atoms(Indexed))
             outs = outs + list(eq.lhs.atoms(Indexed))
             consts = consts + list(eq.atoms(EinsteinTerm))
+            
         inouts = set(outs).intersection(set(ins))
         ins = set(ins).difference(inouts)
         outs = set(outs).difference(inouts)
@@ -62,15 +70,18 @@ class Kernel(object):
             indexes = [vin.indices for vin in ins if vin.base==v]
             self.inputs[v] = indexes
         for v in indexbase_outs:
-            indexes = [vin.indices for vin in outs if vin.base==v]
+            indexes = [vout.indices for vout in outs if vout.base==v]
             self.outputs[v] = indexes
         for v in indexbase_inouts:
-            indexes = [vin.indices for vin in inouts if vin.base==v]
+            indexes = [vinout.indices for vinout in inouts if vinout.base==v]
             self.inputoutput[v] = indexes
-        idxs = flatten([list(eq.rhs.atoms(Idx)) for eq in self.equations])
+            
+        idxs = flatten([list(e.rhs.atoms(Idx)) for e in self.equations])
         if idxs:
             self.has_Idx = True
         else:
             self.has_Idx = False
+            
         self.constants = set(consts)
+        
         return
