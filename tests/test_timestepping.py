@@ -18,7 +18,7 @@ def coordinate_symbol():
 
 @pytest.fixture
 def mass(coordinate_symbol):
-    return Equation("Eq(Der(rho,t), -Conservative(rhou_j,x_j))", 2, coordinate_symbol, substitutions=[], constants=[])
+    return Equation("Eq(Der(phi,t),- c_j*Der(phi,x_j))", 2, coordinate_symbol, substitutions=[], constants=["c_j"])
 
 
 @pytest.fixture
@@ -81,7 +81,11 @@ def test_forward_euler(forward_euler):
 
 def test_temporal_discretisation(temporal_discretisation):
     """ Ensure that the time discretisation scheme is applied correctly. """
-    assert temporal_discretisation.conservative == []
+    assert temporal_discretisation.conservative == [IndexedBase("phi")]
+    
+    assert len(temporal_discretisation.start_computations) == 1 # For the 'save' equations.
+    assert len(temporal_discretisation.computations) == 2 # There should be 2 stages in the main body of the computation, since an RK3 scheme is being used.
+    
     return
     
     
