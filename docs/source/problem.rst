@@ -7,7 +7,7 @@ Essentially, OpenSBLI comprises the following classes and modules (emboldened be
 
 * A **Problem** defines the physical problem's dimension, the equations that must be solved, and any accompanying formulas, constants, etc.
 * This Problem comprises many **Equations** representing the governing model equations and any constitutive formulas that need to be solved for. The Problem also performs the expansion on these equations and formulas about the Einstein indices.
-* Once the equations are expanded, a numerical **Grid** of solution points and numerical **Scheme**s are created in order to discretise the expanded equations. Several Schemes are available, such as **RungeKutta** and **Explicit** for time-stepping schemes, and **Central** for central differencing in space. The spatial and temporal discretisation is handled by the **SpatialDiscretisation** and **TemporalDiscretisation** classes, respectively.
+* Once the equations are expanded, a numerical **Grid** of solution points and numerical **Scheme** s are created in order to discretise the expanded equations. Several Schemes are available, such as **RungeKutta** and **Explicit** for time-stepping schemes, and **Central** for central differencing in space. The spatial and temporal discretisation is handled by the **SpatialDiscretisation** and **TemporalDiscretisation** classes, respectively.
 * The setting of any boundary conditions and initial conditions are handled by the **BoundaryConditions** and **GridBasedInitialisation** classes.
 * The computational steps performed by the discretisation processes are described by a series of **Kernel** objects.
 * All of the above classes come together to form a computational system which is written out as **OPSC** code.
