@@ -6,12 +6,14 @@ Problem setup
 Essentially, OpenSBLI comprises the following classes and modules (emboldened below), which define the abstraction employed:
 
 * A **Problem** defines the physical problem's dimension, the equations that must be solved, and any accompanying formulas, constants, etc.
-* This Problem comprises many **Equations**, and an **Algorithm**.
-* After expanding the Equations, the Algorithm is applied to the expanded equations and formulas to prepare a computational **System**.
-* With this System, and the help of ``codegen_utils.py``, the **OPSC** code can be generated.
-* All LaTeX writing is handled by the **LatexWriter** class.
+* This Problem comprises many **Equations** representing the governing model equations and any constitutive formulas that need to be solved for. The Problem also performs the expansion on these equations and formulas about the Einstein indices.
+* Once the equations are expanded, a numerical **Grid** of solution points and numerical **Scheme**s are created in order to discretise the expanded equations. Several Schemes are available, such as **RungeKutta** and **Explicit** for time-stepping schemes, and **Central** for central differencing in space. The spatial and temporal discretisation is handled by the **SpatialDiscretisation** and **TemporalDiscretisation** classes, respectively.
+* The setting of any boundary conditions and initial conditions are handled by the **BoundaryConditions** and **GridBasedInitialisation** classes.
+* The computational steps performed by the discretisation processes are described by a series of **Kernel** objects.
+* All of the above classes come together to form a computational system which is written out as **OPSC** code.
+* All LaTeX writing (mainly for debugging purposes) is handled by the **LatexWriter** class.
 
-OpenSBLI will expect all the problem-specific settings and configurations (the governing equations, any constitutive equations for e.g. temperature-dependent viscosity, what time-stepping scheme is to be used, the boundary conditions, etc.) to be defined in a Python script, which will call the various OpenSBLI code generation routines. There are several examples provided in the applications (``apps``) directory of the OpenSBLI package.
+OpenSBLI will expect all these problem-specific settings and configurations (the governing equations, any constitutive formulas for e.g. temperature-dependent viscosity, what time-stepping scheme is to be used, the boundary conditions, etc.) to be defined in a Python script, which will call the various OpenSBLI code generation routines. There are several examples provided in the applications (``apps``) directory of the OpenSBLI package.
 
 Generating and compiling the model code
 ---------------------------------------
