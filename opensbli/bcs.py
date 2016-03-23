@@ -26,7 +26,7 @@ class BoundaryConditions(object):
         self.computations = [None for b in bcs for a in b]
         self.transfers = [None for b in bcs for a in b]
         self.type = self.get_type()
-        for ind,bc in enumerate(self.boundaries):
+        for ind, bc in enumerate(self.boundaries):
             if bc[0] == bc[1] and bc[0] == "periodic":
                 left, right = self.periodic_bc(ind, grid, arrays)
                 self.transfers[ind*2 + 0] = left

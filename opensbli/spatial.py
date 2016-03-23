@@ -202,9 +202,13 @@ class SpatialDerivative(object):
 
 class Evaluations(object):
 
+    """ The evaluation of a LHS and RHS, containing information about what the LHS and RHS requires, whether there are any
+    subevaluations that need doing (e.g. for second derivatives, e.g. d(du/dx)dy, du/dx should be evaluated first),
+    and what the work arrays are. """
+
     def __init__(self, lhs, rhs, requires, subevals = None, wk=None):
     
-        self.store = True
+        """ Set up the evaluation information. """
         
         if isinstance(lhs, Derivative):
             self.is_derivative = True
@@ -311,14 +315,13 @@ class SpatialDiscretisation(object):
             evals[val] =  evaluated
             
         # Sort the formulas
+        # First get the primitive variables that the time derivatives are applied to (e.g. u_i in Der(u_i, t))
         order_of_evaluations = [grid_arrays[d.args[0]] for d in time_derivatives]
         order_of_evaluations = sort_evaluations(order_of_evaluations, evals, Indexed)
-        
-        # Sort the derivatives
+        # Then sort the derivatives
         order_of_evaluations = sort_evaluations(order_of_evaluations, evals, Derivative)
-        
         # Update the range of evaluations for each evaluation
-        range_of_evaluation(order_of_evaluations, evals,grid, spatial_derivative)
+        range_of_evaluation(order_of_evaluations, evals, grid, spatial_derivative)
         
         # Now define a Kernel for each of the evaluations
 
@@ -502,17 +505,28 @@ def range_of_evaluation(order_of_evaluations, evaluations, grid, sdclass):
     return
 
 
-def sort_evaluations(evaluated, evaluations, typef):
+def sort_evaluations(order, evaluations, typef):
+    """ Sort the evaluations based on the requirements of each term. For example, if we have
+    the primitive variables p, u0, u1, and T, then the pressure p may depend on the velocity u0 and u1, and T may depend on p,
+    so we need this be evaluate in the following order: u0, u1, p, T.
+    
+    :arg list order: The list of terms to sort.
+    :arg evaluations: The evaluation information, containing dependency information.
+    :arg typef: The type of term to sort.
+    :returns: A list of ordered terms.
+    :rtype: list
+    """
+
     for key in evaluations.keys():
-        if isinstance(key, typef) and not key in evaluated:
-            if all(ev in evaluated for ev in evaluations[key].requires):
-                evaluated.append(key)
+        if isinstance(key, typef) and not key in order:
+            if all(ev in order for ev in evaluations[key].requires):
+                order.append(key)
             else:
                 for val in evaluations[key].requires:
-                    if not val in evaluated:
-                        sort_evaluations(evaluated, {val:evaluations[val]}, typef)
-                evaluated.append(key)
-    return evaluated
+                    if not val in order:
+                        sort_evaluations(order, {val:evaluations[val]}, typef)
+                order.append(key)
+    return order
 
 
 def decreasing_order(s1, s2):
