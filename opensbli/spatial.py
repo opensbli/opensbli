@@ -317,12 +317,12 @@ class SpatialDiscretisation(object):
         # Sort the terms in the order they should be evaluated (with respect to their dependencies).
         # First get the primitive variables that the time derivatives are applied to (e.g. u_i in Der(u_i, t))
         order_of_evaluations = [grid_arrays[d.args[0]] for d in time_derivatives]
-        order_of_evaluations = sort_evaluations(order_of_evaluations, evals, Indexed)
+        order_of_evaluations = self.sort_evaluations(order_of_evaluations, evals, Indexed)
         # Then sort the derivatives
-        order_of_evaluations = sort_evaluations(order_of_evaluations, evals, Derivative)
+        order_of_evaluations = self.sort_evaluations(order_of_evaluations, evals, Derivative)
         
         # Update the range of evaluations for each evaluation
-        set_range_of_evaluation(order_of_evaluations, evals, grid, spatial_derivative)
+        self.set_range_of_evaluations(order_of_evaluations, evals, grid)
         
         # Now define a Kernel for each of the evaluations
         # All the variables (Indexed objects) in the equations, excluding those which have a time derivative, are now stored into a kernel
@@ -446,6 +446,65 @@ class SpatialDiscretisation(object):
         return derivatives, count, time_derivatives
     
 
+    def set_range_of_evaluations(self, order_of_evaluations, evaluations, grid):
+        """ Set the evaluation ranges of each Evaluation object based on the shape of the grid of points.
+        First the ranges of derivatives are updated, then other ranges are updated. """
+        
+        derivatives = []
+        for ev in order_of_evaluations:
+            if isinstance(ev, Derivative):
+                derivatives.append(ev)
+            evaluations[ev].evaluation_range = [tuple([0, s]) for s in grid.shape]
+            
+        # Update the range for the derivatives
+        grouped_derivatives = group_derivatives(derivatives)
+        for key, value in grouped_derivatives.iteritems():
+            for val in value:
+                require = evaluations[val].requires
+                formula  = evaluations[val].formula
+                direction = formula[1][0]
+                halos = grid.halos[direction]
+                for req in require:
+                    erange = list(evaluations[req].evaluation_range[direction])
+                    if erange[0] == 0 and erange[1] == grid.shape[direction]:
+                        erange[0] += halos[0]
+                        erange[1] += halos[1]
+                    evaluations[req].evaluation_range[direction] = tuple(erange)
+                    
+        # Update the range for the formulas
+        for ev in order_of_evaluations:
+            if isinstance(ev, Indexed):
+                require = evaluations[ev].requires
+                if require:
+                    for req in require:
+                        evaluations[req].evaluation_range = evaluations[ev].evaluation_range
+
+        return
+
+
+    def sort_evaluations(self, order, evaluations, typef):
+        """ Sort the evaluations based on the requirements of each term. For example, if we have
+        the primitive variables p, u0, u1, and T, then the pressure p may depend on the velocity u0 and u1, and T may depend on p,
+        so we need this be evaluate in the following order: u0, u1, p, T.
+        
+        :arg list order: The list of terms to sort.
+        :arg evaluations: The evaluation information, containing dependency information.
+        :arg typef: The type of term to sort.
+        :returns: A list of ordered terms.
+        :rtype: list
+        """
+
+        for key in evaluations.keys():
+            if isinstance(key, typef) and not key in order:
+                if all(ev in order for ev in evaluations[key].requires):
+                    order.append(key)
+                else:
+                    for val in evaluations[key].requires:
+                        if not val in order:
+                            self.sort_evaluations(order, {val:evaluations[val]}, typef)
+                    order.append(key)
+        return order
+
 
 class GridBasedInitialisation(object):
 
@@ -469,66 +528,6 @@ class GridBasedInitialisation(object):
         
         return
         
-
-def set_range_of_evaluation(order_of_evaluations, evaluations, grid):
-    """ Set the evaluation ranges of each Evaluation object based on the shape of the grid of points.
-    First the ranges of derivatives are updated, then other ranges are updated. """
-    
-    derivatives = []
-    for ev in order_of_evaluations:
-        if isinstance(ev, Derivative):
-            derivatives.append(ev)
-        evaluations[ev].evaluation_range = [tuple([0, s]) for s in grid.shape]
-        
-    # Update the range for the derivatives
-    grouped_derivatives = group_derivatives(derivatives)
-    for key, value in grouped_derivatives.iteritems():
-        for val in value:
-            require = evaluations[val].requires
-            formula  = evaluations[val].formula
-            direction = formula[1][0]
-            halos = grid.halos[direction]
-            for req in require:
-                erange = list(evaluations[req].evaluation_range[direction])
-                if erange[0] == 0 and erange[1] == grid.shape[direction]:
-                    erange[0] += halos[0]
-                    erange[1] += halos[1]
-                evaluations[req].evaluation_range[direction] = tuple(erange)
-                
-    # Update the range for the formulas
-    for ev in order_of_evaluations:
-        if isinstance(ev, Indexed):
-            require = evaluations[ev].requires
-            if require:
-                for req in require:
-                    evaluations[req].evaluation_range = evaluations[ev].evaluation_range
-
-    return
-
-
-def sort_evaluations(order, evaluations, typef):
-    """ Sort the evaluations based on the requirements of each term. For example, if we have
-    the primitive variables p, u0, u1, and T, then the pressure p may depend on the velocity u0 and u1, and T may depend on p,
-    so we need this be evaluate in the following order: u0, u1, p, T.
-    
-    :arg list order: The list of terms to sort.
-    :arg evaluations: The evaluation information, containing dependency information.
-    :arg typef: The type of term to sort.
-    :returns: A list of ordered terms.
-    :rtype: list
-    """
-
-    for key in evaluations.keys():
-        if isinstance(key, typef) and not key in order:
-            if all(ev in order for ev in evaluations[key].requires):
-                order.append(key)
-            else:
-                for val in evaluations[key].requires:
-                    if not val in order:
-                        sort_evaluations(order, {val:evaluations[val]}, typef)
-                order.append(key)
-    return order
-
 
 def decreasing_order(s1, s2):
     return cmp(len(s2.args), len(s1.args))
