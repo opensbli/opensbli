@@ -30,279 +30,6 @@ LOG = logging.getLogger(__name__)
 BUILD_DIR = os.getcwd()
 
 
-class GenerateCode():
-    '''
-    This System generate the code for solving the equations
-    '''
-    def AlgorithmMismatch(Exception):
-        return
-    def stencil_to_string(self, stencil):
-        string = ','.join([str(s) for s in stencil])
-        return string
-
-    def __init__(self, grid, spatial_solution, temporal_soln, boundary, Ics, IO, simulation_parameters, Diagnostics = None):
-        '''
-        The default code generation is OPSC
-        '''
-        self.check_consistency(grid, spatial_solution, temporal_soln, boundary, Ics,IO)
-        self.stencils = {}
-        assumptions = {'precission':'double', 'iter_range':0, 'stencil_name':'stencil%d'}
-        assumptions['stencil_index']= 0
-        assumptions['exchange_self']= 0
-        simulation_params = {'niter': 1000}
-        settings = {'precision':'double'}
-        language = OPSC(grid.shape,settings)
-        code_template, code_dictionary  = self.template(language,assumptions)
-        # Process the main time loop
-        time_calls, time_kernels, assumptions = self.get_inner_timeloop_code(language, assumptions)
-        code_dictionary['time_calls'] = '\n'.join(time_calls)
-
-        time_start_call, time_start_kernel = self.time_start(language,assumptions)
-        code_dictionary['time_start_call'] = '\n'.join(time_start_call)
-
-        time_end_call, time_end_kernel = self.time_end(language,assumptions)
-        code_dictionary['time_end_call'] = '\n'.join(time_end_call)
-
-        # Process the Boundary conditions
-        boundary_calls, boundary_kernels = self.get_bc_code(language,assumptions)
-        code_dictionary['bccall'] = '\n'.join(boundary_calls)
-
-        # Process the initialization
-        init_calls, init_kernels = self.get_initial_condition(language, assumptions)
-        code_dictionary['init_call'] = '\n'.join(init_calls)
-
-        # Process IO calls
-        io_calls, io_kernels = self.get_IO_code(language, assumptions)
-        code_dictionary['io_calls'] = '\n'.join(io_calls)
-
-        # FIXME presently copying the stencils from this to OPSC, stencils should be implicit to OPSC
-        language.stencils = self.stencils
-
-        # Get the header code
-        code = (language.header(**assumptions))
-        code_dictionary['header'] = '\n'.join(code)
-
-        # get the footer code
-        code = language.footer()
-        code_dictionary['footer'] = '\n'.join(code)
-        # get the language declarations, allocations and soon
-        code = language.defdec(grid,assumptions)
-        code_dictionary['defdec'] = '\n'.join(code)
-
-        code_template = code_template.safe_substitute(code_dictionary)
-        main_file = open(BUILD_DIR+'/%s.cpp' % simulation_parameters["name"], 'w')
-        main_file.write(code_template)
-        main_file.close()
-        # Testing the kernels written
-        kernel_file = open(BUILD_DIR+'/%s_kernels.h' % simulation_parameters["name"], 'w')
-        all_kernels = time_kernels + time_start_kernel +time_end_kernel + boundary_kernels+ init_kernels + io_kernels
-        kernel_file.write('\n'.join(all_kernels))
-        kernel_file.close()
-        # write the final code
-        return
-    def get_IO_code(self, language, assumptions):
-        IO_call = []
-        IO_kernel = []
-        # As of now only arrays at the end of the simulation
-        for block_number, temp in enumerate(self.IO):
-            IO_call += language.HDF5_array_fileIO(temp)
-        return IO_call, IO_kernel
-    def time_end(self, language, assumptions):
-        tend_call = []
-        tend_kernel = []
-        for block_number, temp in enumerate(self.temporal_soln):
-            blk_code = []
-            blk_calls = []
-            if temp.end_computations:
-                for comp in temp.end_computations:
-                    blk_code += language.kernel_computation(comp,[block_number],**assumptions)
-                    stencils = language.get_stencils(comp)
-                    for sten,value in stencils.iteritems():
-                        key = self.stencil_to_string(value)
-                        if key not in self.stencils.keys():
-                            self.stencils[key] = stencil_name%(stencil_index);
-                            stencil_index = stencil_index+1
-                        # update the stencil name in stencils
-                        stencils[sten] = self.stencils[key]
-                    call, assumptions = language.kernel_call(comp,stencils, **assumptions)
-                    blk_calls += call
-            tend_kernel += blk_code
-            tend_call += blk_calls
-        return tend_call, tend_kernel
-    def time_start(self, language, assumptions):
-        tstart_call = []
-        tstart_kernel = []
-        for block_number, temp in enumerate(self.temporal_soln):
-            blk_code = []
-            blk_calls = []
-            for comp in temp.start_computations:
-                blk_code += language.kernel_computation(comp,[block_number],**assumptions)
-                stencils = language.get_stencils(comp)
-                for sten,value in stencils.iteritems():
-                    key = self.stencil_to_string(value)
-                    if key not in self.stencils.keys():
-                        self.stencils[key] = stencil_name%(stencil_index);
-                        stencil_index = stencil_index+1
-                    # update the stencil name in stencils
-                    stencils[sten] = self.stencils[key]
-                call, assumptions = language.kernel_call(comp,stencils, **assumptions)
-                blk_calls += call
-            tstart_kernel += blk_code
-            tstart_call += blk_calls
-        return tstart_call, tstart_kernel
-    def get_initial_condition(self, language, assumptions):
-        '''
-        All works fine for single block, need to do something for multiblock sense
-        '''
-        init_kernel = []
-        init_call = []
-        for block_number,ic in enumerate(self.Ics):
-            blk_code = []
-            blk_calls = []
-            for comp_number,comp in enumerate(ic.computations):
-                blk_code += language.kernel_computation(comp,[block_number],**assumptions)
-                stencils = language.get_stencils(comp)
-                for sten,value in stencils.iteritems():
-                    key = self.stencil_to_string(value)
-                    if key not in self.stencils.keys():
-                        self.stencils[key] = stencil_name%(stencil_index);
-                        stencil_index = stencil_index+1
-                    # update the stencil name in stencils
-                    stencils[sten] = self.stencils[key]
-                call, assumptions = language.kernel_call(comp,stencils, **assumptions)
-                blk_calls += call
-            init_kernel += blk_code
-            init_call += blk_calls
-
-        return init_call, init_kernel
-    def get_bc_code(self, language, assumptions):
-        ''' loop over boundary conditions instances'''
-        bc_calls = []
-        bc_kernels = []
-        for block_number in range(len(self.boundary)):
-            # loop over boundaries of the instance
-            call_block = []
-            code_block = []
-            ninst = len(self.boundary[block_number].type)
-            boundary_inst = self.boundary[block_number]
-            for inst in range(ninst):
-                if boundary_inst.type[inst] == 'exchange_self':
-                    call, code = language.bc_exchange(boundary_inst.transfers[inst], assumptions)
-                    call_block += call
-                    code_block += code
-            bc_calls += call_block
-            bc_kernels += code_block
-        return bc_calls, bc_kernels
-    def get_inner_timeloop_code(self, language, assumptions):
-        '''
-        This will evaluate all the inner time loop if exists or this is the time loop
-        Returns a list of lists depending on the number of blocks
-        '''
-        stencil_name = assumptions.get('stencil_name')
-        stencil_index = assumptions.get('stencil_index')
-        inner_tloop_calls = []
-        inner_tloop_kernels = []
-        for block_number in range(len(self.spatial_solution)):
-            allinst = [self.spatial_solution[block_number]] + [self.temporal_soln[block_number]]
-            calls = []
-            kernels = []
-            # get the spatial and temporal solutions
-            for soln in allinst:
-                for comp_number,comp in enumerate(soln.computations):
-                    code = language.kernel_computation(comp,[block_number],**assumptions)
-                    kernels += code
-                    stencils = language.get_stencils(comp)
-                    for sten,value in stencils.iteritems():
-                        key = self.stencil_to_string(value)
-                        if key not in self.stencils.keys():
-                            self.stencils[key] = stencil_name%(stencil_index);
-                            stencil_index = stencil_index+1
-                        # update the stencil name in stencils
-                        stencils[sten] = self.stencils[key]
-                    call, assumptions = language.kernel_call(comp,stencils, **assumptions)
-                    calls += call
-            inner_tloop_kernels += kernels
-            inner_tloop_calls += calls
-        assumptions['stencil_index'] = stencil_index
-
-        return inner_tloop_calls, inner_tloop_kernels, assumptions
-    def get_arrays_constants(self):
-        allinst = self.spatial_solution+self.temporal_soln+self.boundary+self.Ics
-        arrays = set()
-        const = set()
-        stencils = set()
-        for inst in allinst:
-            for comp in inst.computations:
-                if comp != None:
-                    arrays = arrays.union(set(comp.inputs.keys())).union(set(comp.outputs.keys())).union(set(comp.inputoutput.keys()))
-                    #pprint(["COMPUTATION IS ",comp.equations, comp.computation_type])
-                    const = const.union(set(comp.constants))
-        # The arrays are the ones that are to be declared on the grid
-        self.arrays = [arr for arr in arrays if not isinstance(arr,str) if arr.is_grid]
-        self.constants = [con for con in const] + [arr for arr in arrays if not isinstance(arr,str) if not arr.is_grid]
-        return
-
-    def check_consistency(self,  grid, spatial_solution, temporal_soln, boundary, Ics, IO):
-        self.grid = self.listvar(grid)
-        length = len(self.grid)
-
-        self.spatial_solution = self.listvar(spatial_solution);
-        if len(self.spatial_solution) != length:
-            raise AlgorithmMismatch("The length of spatial solution doesnot match the grid")
-
-        self.temporal_soln = self.listvar(temporal_soln);
-        if len(self.temporal_soln) != length:
-            raise AlgorithmMismatch("The length of temporal solution doesnot match the grid")
-
-        self.boundary = self.listvar(boundary);
-        if len(self.boundary) != length:
-            raise AlgorithmMismatch("The length of boundary doesnot match the grid")
-
-        self.Ics = self.listvar(Ics);
-        if len(self.Ics) != length:
-            raise AlgorithmMismatch("The length of Ics doesnot match the grid")
-
-        self.IO = self.listvar(IO);
-        if len(self.IO) != length:
-            raise AlgorithmMismatch("The length of IO doesnot match the grid")
-
-        return
-    def listvar(self, var):
-        if isinstance(var, list):
-            return var
-        else:
-            return [var]
-    def template(self,language, assumptions):
-        '''
-        # header contains all the header information for that language
-        # defdec contains all the declarations and initializations of
-        #
-        # This is the template of the code for a n stage Runge-Kutta method
-        '''
-        code_template = '''$header \n$defdec \n$init_call \n$bccall \n$timeloop \n$time_start_call
-        \n$innerloop \n$time_calls \n $bccall \n$end_inner_loop \n$time_end_call \n$time_io \n$end_time_loop
-        \n$io_calls \n$footer'''
-        templated_code = Template(code_template)
-        if self.temporal_soln[0].nstages >1:
-            diction = {}
-            ns = self.temporal_soln[0].nstages
-            var = self.temporal_soln[0].scheme.stage
-            diction['innerloop'] = language.loop_open(var,(0,ns))+ '\n'
-            diction['end_inner_loop'] = language.loop_close()
-
-        else:
-            diction = {'innerloop':'', 'end_inner_loop':''}
-        # Process the time loop
-        # FIXME to read iteration ranges from the simulation parameters
-        var = 'iteration' # name for iteration
-        niter = 100 # Number of iterations, this need to be read in from simulation parameters
-        diction['timeloop'] = language.loop_open(var,(0,niter)) + '\n'
-        diction['end_time_loop'] = language.loop_close()
-
-
-        return templated_code, diction
-
-
 class OPSCCodePrinter(CCodePrinter):
     def __init__(self, Indexed_accs, constants):
         settings = {}
@@ -311,15 +38,7 @@ class OPSCCodePrinter(CCodePrinter):
         self.Indexed_accs = Indexed_accs
         self.constants = constants
     def _print_Rational(self, expr):
-        ''' This logic is to be used for printing rational constants,
-        However, we need to return the constants back to the ccode. Once this
-        is done we can remove all the rational constant division multiplication
-        else: this logic needs to be applied in OPSC class
-        if expr in self.constants.keys():
-            return self.constants[expr]
-        else:
-            self.constants[expr] = 'rational_constant%d'%len(self.constants.keys())
-            return self._print(self.constants[expr])
+        '''
         '''
         p, q = int(expr.p), int(expr.q)
         return '%d.0/%d.0' %(p,q)
@@ -395,11 +114,11 @@ class OPSC(object):
         self.block_name = '%s_block'%name
 
         # File names for computational kernels, each block will have its own computational kernel file
-        self.computational_routines_filename = ['%s_kernels_block_%d.h'%(name,block) \
+        self.computational_routines_filename = ['%s_block_%d_kernel.h'%(name,block) \
             for block in range(self.nblocks)]
 
         # kernel names for each block this will be the file name + kernel number a hash key
-        self.computational_kernel_names = ['%s_kernels_block%d_%%d'%(name,block) \
+        self.computational_kernel_names = ['%s_block%d_%%d_kernel'%(name,block) \
             for block in range(self.nblocks)]
 
         # hash for exchange boundary condition, stencil, iteration range and kernelname
@@ -576,7 +295,7 @@ class OPSC(object):
     def initialize_constants(self):
         '''
         '''
-        # Get the constants defined every where. i.e. in 
+        # Get the constants defined every where. i.e. in
         const_init = []
         for con in self.constants:
             val = self.simulation_parameters[str(con)]
@@ -859,7 +578,7 @@ class OPSC(object):
         header += gridbased + nongrid
         if computation.has_Idx:
             header += [self.ops_header['Idx']%('idx') ]
-        header = comment_eq + [name + ' , '.join(header) + self.close_parentheses ]
+        header = comment_eq + ['void ' + name + ' , '.join(header) + self.close_parentheses ]
         header += [self.open_brace]
         code =  header
         ops_accs = self.get_OPS_ACCESS_number(computation)
