@@ -62,10 +62,10 @@ class TemporalDiscretisation(object):
 
         # Computations: The main computations to perform during each time-step.
         self.computations = []
-        
+
         # The prognostic variables (e.g. rho, rhou0, rhou1, rhoE in the Navier-Stokes equations) that should be updated.
         self.prognostic_variables = []
-        
+
 
         # End computations: As of now, no end computations.
         # TODO: This will be updated in the diagnostics.
@@ -76,7 +76,7 @@ class TemporalDiscretisation(object):
         for residual in spatial_discretisation.residual_arrays:
             out.append(self.time_derivative(residual.keys()[0].args[0], dt, residual[residual.keys()[0]], grid))
             self.prognostic_variables.append(residual.keys()[0].args[0].base)
-        
+
         # Formulate each step of the time-stepping scheme here as a computational Kernel.
         range_of_evaluation = [tuple([0, s]) for i, s in enumerate(grid.shape)] # Grid point index 0 to nx (or ny or nz)
         if self.nstages != 1:
@@ -153,8 +153,8 @@ class RungeKutta(Scheme):
 
         if self.order == 3:
             coeffs = {}
-            coeffs[self.old.base] = [-1, 2, -1]
-            coeffs[self.new.base] = [-1, 4, -6]
+            coeffs[self.old.base] = [Rational(1/4), Rational(3/20), Rational(3/5)]
+            coeffs[self.new.base] = [Rational(2/3), Rational(5/12), Rational(3/5)]
         return coeffs
 
 
