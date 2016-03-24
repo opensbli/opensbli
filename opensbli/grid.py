@@ -49,16 +49,19 @@ class Grid(object):
         # Grid point spacing in each dimension.
         self.deltas = di.get_array(di.get_indexed(len(self.shape)))
         
-        # Use user-define grid data, if available.
-        if grid_data:
-            self.deltas = [grid_data['delta'][i] for i in range(ndim)]
-            self.shape = tuple([grid_data['number_of_points'][i] for i in range(ndim)])
-        
         # Halo points. This will be populated when the stencil is created on the Grid.
         self.halos = []
         
         # FIXME: This works fine for now. But need a better idea.
         self.Idx = [Idx('idx[%d]' % ind) for ind, val in enumerate(self.shape)]
+        
+        # Use user-define grid data, if available and store in a dictionary to use it later.
+        self.grid_data_dictionary = {}
+        if grid_data:
+            self.grid_data_dictionary  = dict(zip([str(d) for d in self.deltas], \
+                [grid_data['delta'][i] for i in range(ndim)])) 
+            self.shape = tuple([grid_data['number_of_points'][i] for i in range(ndim)])
+        
         return
         
     def work_array(self, name):

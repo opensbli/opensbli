@@ -74,7 +74,11 @@ spatial_scheme = Central(4) # Fourth-order central differencing in space.
 temporal_scheme = RungeKutta(3) # Third-order Runge-Kutta time-stepping scheme.
 
 # Create a numerical grid of solution points
-grid = Grid(ndim) # FIXME: A HDF5 file or a user input
+length = [1.0]*ndim
+np = [8]*ndim
+deltas = [length[i]/np[i] for i in range(len(length)) ] # how to define them
+
+grid = Grid(ndim,{'delta':deltas, 'number_of_points':np}) # FIXME: A HDF5 file or a user input
 
 # Perform the spatial discretisation
 spatial_discretisation = SpatialDiscretisation(expanded_equations, expanded_formulas, grid, spatial_scheme)
@@ -95,16 +99,13 @@ initial_conditions = GridBasedInitialisation(grid, initial_conditions)
 io = FileIO(temporal_discretisation.prognostic_variables)
 
 # Grid parameters like number of points, length in each direction, and delta in each direction
-length = [1.0]*ndim
-np = [8]*ndim
-deltas = [length[i]/np[i] for i in range(len(length)) ] # how to define them
-nsteps = 100
-
+l1 = ['niter', 'Re', 'Pr', 'gama', 'Minf', 'mu', 'precision', 'name']
+l2 = [1000,100,0.72, 1.4,0.3, 1.0, "double", "testing"]
 # Constants in the system
-simulation_parameters = {"name":"testing"}
+simulation_parameters = dict(zip(l1,l2))
 
 # Generate the code.
-GenerateCode(grid, spatial_discretisation, temporal_discretisation, boundary, initial_conditions, io, simulation_parameters)
+OPSC(grid, spatial_discretisation, temporal_discretisation, boundary, initial_conditions, io, simulation_parameters)
 
 end = time.time()
 LOG.debug('The time taken to prepare the system in %d dimensions is %.2f seconds.' % (problem.ndim, end - start))
