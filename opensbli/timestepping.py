@@ -111,8 +111,8 @@ class TemporalDiscretisation(object):
             equation = Eq(function, function + dt*residual, evaluate=False)
         elif self.nstages == 3:
             old = grid.work_array('%s_old' % function.base)
-            equation_function = Eq(function, old + self.scheme.new*residual, evaluate=False)
-            equation_old = Eq(old, old + self.scheme.old*residual, evaluate=False)
+            equation_function = Eq(function, old + dt*self.scheme.new*residual, evaluate=False)
+            equation_old = Eq(old, old + dt*self.scheme.old*residual, evaluate=False)
             save_equation = Eq(old, function)
             equation = [equation_function, equation_old, save_equation]
         return equation
