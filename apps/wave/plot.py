@@ -9,13 +9,10 @@ import h5py
 
 def plot(path):
     # Number of grid points
-    nx = 8
+    nx = 1000
     
      # Number of halo nodes at each end
     halo = 2
-    
-    # Time-step size
-    t = 0.1
 
     # Read in the simulation output
     f = h5py.File(path + "/state.h5", 'r')
@@ -27,7 +24,7 @@ def plot(path):
     phi = phi[halo:nx+halo]
     print phi
     # Grid spacing
-    dx = 1/(nx);
+    dx = 1.0/(nx);
     
     # Coordinate array
     x = numpy.zeros(nx)
@@ -40,8 +37,9 @@ def plot(path):
         #v_analytical[i,j] = -sin(x[i,j])*cos(y[i,j])*exp(-2*nu*t)
         #u_error[i,j] = u[i,j] - u_analytical[i,j]
         #v_error[i,j] = v[i,j] - v_analytical[i,j]
-
-    plt.imshow(phi)
+    print x
+    print phi
+    plt.plot(x, phi)
     plt.show()
 
 

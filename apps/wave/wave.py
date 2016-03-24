@@ -69,7 +69,7 @@ temporal_scheme = RungeKutta(3) # Third-order Runge-Kutta time-stepping scheme.
 
 # Create a numerical grid of solution points
 length = [1.0]*ndim
-np = [8]*ndim
+np = [1000]*ndim
 deltas = [length[i]/np[i] for i in range(len(length))]
 
 grid = Grid(ndim,{'delta':deltas, 'number_of_points':np})
@@ -86,7 +86,7 @@ bcs = [("periodic", "periodic")]
 boundary = BoundaryConditions(bcs, grid, temporal_discretisation.prognostic_variables)
 
 # Initial conditions
-initial_conditions = ["Eq(grid.work_array(phi), 1.0)"]
+initial_conditions = ["Eq(grid.work_array(phi), sin(M_PI*(grid.Idx[0])*grid.deltas[0]))"]
 initial_conditions = GridBasedInitialisation(grid, initial_conditions)
 
 # I/O save conservative variables at the end of simulation
