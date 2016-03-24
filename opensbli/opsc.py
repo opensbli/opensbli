@@ -480,7 +480,7 @@ class OPSC(object):
                 %(halo, off, arr, arr, self.end_of_statement)]
             off = off+1
         code += ['ops_halo grp[] = {%s}%s'%(','.join([str('%s%s'%(halo, of)) for of in range(off)]),self.end_of_statement )]
-        code += ['%s = ops_decl_halo_group(%d,grp)'%(name, off)]
+        code += ['%s = ops_decl_halo_group(%d,grp)%s'%(name, off, self.end_of_statement)]
         code += [self.close_brace]
         # finished OPS halo exchange, now get the call
         call = ['%s Boundary condition exchange calls'%self.line_comment,'ops_halo_transfer(%s)%s'%(name,self.end_of_statement)]
@@ -515,8 +515,8 @@ class OPSC(object):
         for key, value in self.stencil_dictionary.iteritems():
             count = len(key.split(','))/ self.ndim
             # value is the name in the stencils format
-            code += [self.helper_array(dtype_int, value, [key])]
-            code += [sten_format%(value, self.ndim, count, value, key)]
+            code += [self.helper_array(dtype_int, value + "_temp", [key])]
+            code += [sten_format%(value, self.ndim, count, value + "_temp", key)]
         return code
     def HDF5_array_fileIO(self,instance):
         code = []
@@ -611,7 +611,7 @@ class OPSC(object):
     Some ops stuff
     '''
     def loop_open(self, var, range_of_loop):
-        return 'for (int %s=%d; %s<%d, %s++)%s'%(var, range_of_loop[0], var, range_of_loop[1], var,\
+        return 'for (int %s=%d; %s<%d; %s++)%s'%(var, range_of_loop[0], var, range_of_loop[1], var,\
             self.open_brace)
     def loop_close(self):
         return self.close_brace
@@ -657,7 +657,7 @@ class OPSC(object):
             return []
         return
     def ops_partition(self):
-        return ['%s Init OPS partition'%self.line_comment,'ops_partition(\" \")']
+        return ['%s Init OPS partition'%self.line_comment,'ops_partition(\" \")%s' % self.end_of_statement]
     '''
     Timer stuff of OPS
     '''
@@ -708,7 +708,7 @@ class OPSC(object):
         '''
         helper function for footer code
         '''
-        return ['%s Exit OPS '%self.line_comment,'ops_exit()']
+        return ['%s Exit OPS '%self.line_comment,'ops_exit()%s' % self.end_of_statement]
     def footer(self):
         '''
         This writes out the footer code in OPSC this is a call to OPS_exit
