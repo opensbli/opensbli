@@ -306,7 +306,7 @@ class OPSC(object):
                 for r in range(con.ranges):
                     const_init += ["%s[%d] = %s%s"%(con, r, ccode(val[r]), self.end_of_statement)]
             else:
-                const_init += ["%s = %s%s"%(con, val, self.end_of_statement)]
+                const_init += ["%s = %s%s"%(con, ccode(val), self.end_of_statement)]
         return const_init
     def declare_ops_constants(self):
         ops_const = []
