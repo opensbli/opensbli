@@ -316,9 +316,13 @@ class OPSC(object):
         return ops_const
     def write_main_file(self, code_template):
         mainfile = open(self.CODE_DIR+'/'+'%s.cpp'%self.simulation_parameters["name"], 'w')
+        code_template = self.indent_code(code_template)
         mainfile.write(code_template)
         mainfile.close()
         return
+    def indent_code(self, code_lines):
+        p = CCodePrinter()
+        return p.indent_code(code_lines)
     def update_boundary_conditions(self, code_dictionary):
         bc_call = [[] for block in range(self.nblocks)]
         bc_exchange_code = [[] for block in range(self.nblocks)]
@@ -598,13 +602,20 @@ class OPSC(object):
     def write_computational_routines(self, kernels):
         '''
         Writes the computational routines to files.
-        # TODO indent the code using CCodePrinter indent code
         '''
         for block in range(self.nblocks):
+            code_lines = ["#ifndef block_%d_KERNEL_H"%block + '\n' + "#define block_%d_KERNEL_H"%block + '\n']
+            code_lines += ['\n'.join(kernels[block])]
+            code_lines += ['\n' + "#endif"]
+            code_lines = '\n'.join(code_lines)
+            from sympy.core.compatibility import string_types
+            pprint(isinstance(code_lines, string_types))
+            code_lines  = self.indent_code(code_lines)
             kernel_file = open(self.CODE_DIR+'/'+self.computational_routines_filename[block], 'w')
-            kernel_file.write("#ifndef block_%d_KERNEL_H"%block + '\n' + "#define block_%d_KERNEL_H"%block + '\n')
-            kernel_file.write('\n'.join(kernels[block]))
-            kernel_file.write('\n' + "#endif")
+            kernel_file.write(code_lines)
+            #kernel_file.write("#ifndef block_%d_KERNEL_H"%block + '\n' + "#define block_%d_KERNEL_H"%block + '\n')
+            #kernel_file.write('\n'.join(kernels[block]))
+            #kernel_file.write('\n' + "#endif")
             kernel_file.close()
         return
     '''
