@@ -19,31 +19,38 @@ def dt(dx, c):
 
 BUILD_DIR = os.getcwd()
 
-opensbli.LOG.info("Generating code for the 1D wave propagation simulation...")
+opensbli.LOG.info("Generating code for the 3D Taylor-Green vortex simulation...")
 start_total = time.time()
 
 # Problem dimension
-ndim = 1
+ndim = 3
 
-# Define the wave equation in Einstein notation.
-wave = "Eq(Der(phi,t), -c_j*Der(phi,x_j))"
-
-equations = [wave]
+# Define the compresible Navier-Stokes equations in Einstein notation.
+mass = "Eq(Der(rho,t),- Conservative(rhou_j,x_j))"
+momentum = "Eq(Der(rhou_i,t) ,-Conservative(rhou_i*u_j + p* KD(_i,_j),x_j) + Der(tau_i_j,x_j) )"
+energy = "Eq(Der(rhoE,t),- Conservative((p+rhoE)*u_j,x_j) +Der(q_j,x_j) + Der(u_i*tau_i_j ,x_j) )"
+equations = [mass, momentum, energy]
 
 # Substitutions
-substitutions = []
+stress_tensor = "Eq(tau_i_j, (mu)*(Der(u_i,x_j)+ Conservative(u_j,x_i)- (2/3)* KD(_i,_j)* Der(u_k,x_k)))"
+heat_flux = "Eq(q_j,  (mu/((gama-1)*Minf*Minf*Pr*Re))*Der(T,x_j))"
+substitutions = [stress_tensor, heat_flux]
 
-# The wave speed
-constants = ["c_j"]
+# Define all the constants in the equations
+constants = ["Re", "Pr", "gama", "mu", "Minf", "C23"]
 
 # Coordinate direction symbol (x) this will be x_i, x_j, x_k
 coordinate_symbol = "x"
 
 # Metrics
-metrics = [False]
+metrics = [False, False, False]
 
 # Formulas for the variables used in the equations
-formulas = []
+velocity = "Eq(u_i, rhou_i/rho)"
+pressure = "Eq(p, (gama-1)*(rhoE - (1/(2))*(u_j*u_j)))"
+temperature = "Eq(T, p*gama*Minf*Minf/(rho))"
+viscosity = "Eq(mu, T**(2/3))"
+formulas = [velocity, pressure, temperature, viscosity]
 
 # Create the problem and expand the equations.
 problem = Problem(equations, substitutions, ndim, constants, coordinate_symbol, metrics, formulas)
@@ -69,7 +76,7 @@ temporal_scheme = RungeKutta(3) # Third-order Runge-Kutta time-stepping scheme.
 
 # Create a numerical grid of solution points
 length = [1.0]*ndim
-np = [1000]*ndim
+np = [10]*ndim
 deltas = [length[i]/np[i] for i in range(len(length))]
 
 grid = Grid(ndim,{'delta':deltas, 'number_of_points':np})
@@ -82,31 +89,31 @@ const_dt = True
 temporal_discretisation = TemporalDiscretisation(temporal_scheme, grid, const_dt, spatial_discretisation)
 
 # Apply Boundary conditions
-bcs = [("periodic", "periodic")]
+bcs = [("periodic", "periodic"), ("periodic", "periodic"), ("periodic", "periodic")]
 boundary = BoundaryConditions(bcs, grid, temporal_discretisation.prognostic_variables)
 
 # Initial conditions
-initial_conditions = ["Eq(grid.work_array(phi), sin(M_PI*(grid.Idx[0])*grid.deltas[0]))"]
+u0 = 1.0
+x = 
+initial_conditions = ["Eq(grid.work_array(rho), 1.0)", "Eq(grid.work_array(rhou0), -%f*sin(x/L) cos(y/L) cos(z/L))" % u0]
 initial_conditions = GridBasedInitialisation(grid, initial_conditions)
 
 # I/O save conservative variables at the end of simulation
 io = FileIO(temporal_discretisation.prognostic_variables)
 
 # Grid parameters like number of points, length in each direction, and delta in each direction
-c0 = 0.5
-deltat = dt(deltas[0], c0)
-niter = ceil(1.0/deltat)
-l1 = ['niter', 'c0', 'deltat', 'precision', 'name']
-l2 = [niter, c0, deltat, "double", "wave"]
-
-# Constants in the system
-simulation_parameters = dict(zip(l1,l2))
+deltat = dt(max(deltas), u0)
+T = 10.0
+niter = ceil(T/deltat)
+Re = 1600.0
+Pr = 0.72
+Minf = 0.08
+C23 = 2.0/3.0
+gamma = 1.4
+simulation_parameters = {"niter":niter, "gama":gamma, "C23":C23, "Re":Re, "Pr":Pr, "Minf":Minf, "deltat":deltat, "precision":"double", "name":"taylor_green_vortex"}
 
 # Generate the code.
 opsc = OPSC(grid, spatial_discretisation, temporal_discretisation, boundary, initial_conditions, io, simulation_parameters)
-#opsc.set_diagnostics_level(1)
-#opsc.generate()
-#opsc.translate()
 
 
 end = time.time()
