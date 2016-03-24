@@ -561,13 +561,24 @@ class OPSC(object):
     def kernel_computation(self, computation, block_number):
         '''
         This generates the computation kernel for the computation
-        This acts as a helper function for the block computaitons
+        This acts as a helper function for the block computations
         '''
         header = []
         comment_eq = [self.block_comment[0]]
+        # Flops count for grid point
+        count = sum([count_ops(eq.rhs) for eq in computation.equations])
+        # Flops count for the entire grid
+        rang = [(ran[1]- ran[0]) for ran in computation.ranges]
+        gridcount = count
+        for r in rang:
+            gridcount = gridcount*r
+
         for eq in computation.equations:
             comment_eq += [pretty(eq,use_unicode=False)]
+        comment_eq += ['The count of operations per grid point for the kernel is %d'%count]
+        comment_eq += ['The count of operations on the range of evaluation for the kernel is %d'%gridcount]
         comment_eq += [self.block_comment[1]]
+
         if computation.name == None:
             computation.name = self.computational_kernel_names[block_number]%self.kernel_name_number[block_number]
 
@@ -605,17 +616,12 @@ class OPSC(object):
         '''
         for block in range(self.nblocks):
             code_lines = ["#ifndef block_%d_KERNEL_H"%block + '\n' + "#define block_%d_KERNEL_H"%block + '\n']
-            code_lines += ['\n'.join(kernels[block])]
-            code_lines += ['\n' + "#endif"]
-            code_lines = '\n'.join(code_lines)
-            from sympy.core.compatibility import string_types
-            pprint(isinstance(code_lines, string_types))
-            code_lines  = self.indent_code(code_lines)
+            code_lines += kernels[block]
+            code_lines += ["#endif"]
+            #code_lines  = self.indent_code(code_lines)
+
             kernel_file = open(self.CODE_DIR+'/'+self.computational_routines_filename[block], 'w')
-            kernel_file.write(code_lines)
-            #kernel_file.write("#ifndef block_%d_KERNEL_H"%block + '\n' + "#define block_%d_KERNEL_H"%block + '\n')
-            #kernel_file.write('\n'.join(kernels[block]))
-            #kernel_file.write('\n' + "#endif")
+            kernel_file.write('\n'.join(code_lines))
             kernel_file.close()
         return
     '''
@@ -805,3 +811,4 @@ class OPSC(object):
              self.end_of_statement)
     def AlgorithmMismatch(Exception):
         return
+
