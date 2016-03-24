@@ -495,7 +495,7 @@ class OPSC(object):
             code += [self.helper_array(dtype_int, 'halo_m', [halo[0] for halo in grid.halos])]
             code += [self.helper_array(dtype_int, 'size', grid.shape)]
             code += [self.helper_array(dtype_int, 'base', [0 for g in grid.shape])]
-            code += ['%s* val= Null;'%(self.dtype)]
+            code += ['%s* val = NULL;'%(self.dtype)]
             init_format = '%%s = ops_decl_dat(%s, 1, size, base, halo_m, halo_p, val, \"%%s\", \"%%s\")%s'\
             % (self.block_name, self.end_of_statement)
             inits = [init_format%(arr, self.dtype, arr) for arr in self.grid_based_arrays]
