@@ -153,8 +153,8 @@ class RungeKutta(Scheme):
 
         if self.order == 3:
             coeffs = {}
-            coeffs[self.old.base] = [Rational(1/4), Rational(3/20), Rational(3/5)]
-            coeffs[self.new.base] = [Rational(2/3), Rational(5/12), Rational(3/5)]
+            coeffs[self.old.base] = [Rational(1.0,4.0), Rational(3.0,20), Rational(3.0,5.0)]
+            coeffs[self.new.base] = [Rational(2,3), Rational(5,12), Rational(3,5)]
         return coeffs
 
 

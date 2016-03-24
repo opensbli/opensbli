@@ -56,11 +56,11 @@ class OPSCCodePrinter(CCodePrinter):
             , ','.join([self._print(ind)  for ind in expr.indices]))
         return out
 
-def ccode(expr, Indexed_accs, constants):
+def ccode(expr, Indexed_accs=None, constants=None):
     if isinstance(expr, Eq):
         return OPSCCodePrinter(Indexed_accs, constants).doprint(expr.lhs) \
         + ' = ' + OPSCCodePrinter(Indexed_accs, constants).doprint(expr.rhs)
-    return OPSCCodePrinter(Indexed_accs).doprint(expr)
+    return OPSCCodePrinter(Indexed_accs, constants).doprint(expr)
 
 class OPSC(object):
     '''
@@ -304,7 +304,7 @@ class OPSC(object):
                     raise ValueError("The indexed constant %s should have only %d values"\
                         %(con,con.ranges))
                 for r in range(con.ranges):
-                    const_init += ["%s[%d] = %s%s"%(con, r, str(val[r]), self.end_of_statement)]
+                    const_init += ["%s[%d] = %s%s"%(con, r, ccode(val[r]), self.end_of_statement)]
             else:
                 const_init += ["%s = %s%s"%(con, val, self.end_of_statement)]
         return const_init
@@ -566,19 +566,19 @@ class OPSC(object):
         comment_eq += [self.block_comment[1]]
         if computation.name == None:
             computation.name = self.computational_kernel_names[block_number]%self.kernel_name_number[block_number]
-            
+
         # process inputs
         gridbased = ([self.ops_header['inputs']%(self.dtype,inp) for inp in computation.inputs.keys() if inp.is_grid] + \
             [self.ops_header['outputs']%(self.dtype,inp) for inp in computation.outputs.keys() if inp.is_grid ] + \
                 [self.ops_header['inputoutput']%(self.dtype,inp) for inp in computation.inputoutput.keys() if inp.is_grid])
-                
+
         # nongrid based inputs are
         nongrid = ([self.ops_header['inputs']%(self.dtype,inp) for inp in computation.inputs.keys() if not inp.is_grid] + \
             [self.ops_header['outputs']%(self.dtype,inp) for inp in computation.outputs.keys() if not inp.is_grid ] + \
                 [self.ops_header['inputoutput']%(self.dtype,inp) for inp in computation.inputoutput.keys() if not inp.is_grid])
-                
+
         header += gridbased + nongrid
-        
+
         if computation.has_Idx:
             header += [self.ops_header['Idx']%('idx') ]
         header = comment_eq + ['void ' + computation.name + self.open_parentheses + ' , '.join(header) + self.close_parentheses ]
