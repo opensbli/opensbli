@@ -148,9 +148,9 @@ class OPSC(object):
         self.dtype = self.simulation_parameters['precision']
 
         # create the code directory
-        if not os.path.exists(BUILD_DIR+'/%s_OpsC_code'%name):
-            os.makedirs(BUILD_DIR+'/%s_OpsC_code'%name)
-        self.CODE_DIR = BUILD_DIR + '/%s_OpsC_code'%name
+        if not os.path.exists(BUILD_DIR+'/%s_opsc_code'%name):
+            os.makedirs(BUILD_DIR+'/%s_opsc_code'%name)
+        self.CODE_DIR = BUILD_DIR + '/%s_opsc_code'%name
         return
     def template(self):
         '''
