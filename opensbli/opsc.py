@@ -566,19 +566,22 @@ class OPSC(object):
         comment_eq += [self.block_comment[1]]
         if computation.name == None:
             computation.name = self.computational_kernel_names[block_number]%self.kernel_name_number[block_number]
-        name = computation.name + self.open_parentheses
+            
         # process inputs
         gridbased = ([self.ops_header['inputs']%(self.dtype,inp) for inp in computation.inputs.keys() if inp.is_grid] + \
             [self.ops_header['outputs']%(self.dtype,inp) for inp in computation.outputs.keys() if inp.is_grid ] + \
                 [self.ops_header['inputoutput']%(self.dtype,inp) for inp in computation.inputoutput.keys() if inp.is_grid])
+                
         # nongrid based inputs are
         nongrid = ([self.ops_header['inputs']%(self.dtype,inp) for inp in computation.inputs.keys() if not inp.is_grid] + \
             [self.ops_header['outputs']%(self.dtype,inp) for inp in computation.outputs.keys() if not inp.is_grid ] + \
                 [self.ops_header['inputoutput']%(self.dtype,inp) for inp in computation.inputoutput.keys() if not inp.is_grid])
+                
         header += gridbased + nongrid
+        
         if computation.has_Idx:
             header += [self.ops_header['Idx']%('idx') ]
-        header = comment_eq + ['void ' + name + ' , '.join(header) + self.close_parentheses ]
+        header = comment_eq + ['void ' + computation.name + self.open_parentheses + ' , '.join(header) + self.close_parentheses ]
         header += [self.open_brace]
         code =  header
         ops_accs = self.get_OPS_ACCESS_number(computation)
