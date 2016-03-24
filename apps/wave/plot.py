@@ -40,10 +40,17 @@ def plot(path):
 
     plt.plot(x, phi_error, label=r"Absolute error in $\phi$")
     plt.xlabel(r"$x$ (m)")
-    plt.ylabel(r"$\phi$")
+    plt.ylabel(r"Error in $\phi$")
     plt.legend()
     plt.savefig("phi_error.pdf")
-    plt.show()
+
+    plt.clf()
+    plt.plot(x, phi, label=r"Solution field $\phi$")
+    plt.xlabel(r"$x$ (m)")
+    plt.ylabel(r"$\phi$")
+    plt.legend()
+    plt.savefig("phi.pdf")
+    
 
 
 if(__name__ == "__main__"):
