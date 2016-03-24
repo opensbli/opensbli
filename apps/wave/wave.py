@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import sys
+from math import ceil
 
 # Import local utility functions
 import opensbli
@@ -10,6 +11,11 @@ from opensbli.bcs import *
 from opensbli.grid import *
 from opensbli.timestepping import *
 from opensbli.io import *
+
+def dt(dx, c):
+    """ Given a grid spacing dx and the wave speed c, return the value of dt such that the CFL condition is respected. """
+    courant_number = 0.2
+    return (dx*courant_number)/c
 
 BUILD_DIR = os.getcwd()
 
@@ -64,7 +70,7 @@ temporal_scheme = RungeKutta(3) # Third-order Runge-Kutta time-stepping scheme.
 # Create a numerical grid of solution points
 length = [1.0]*ndim
 np = [8]*ndim
-deltas = [length[i]/np[i] for i in range(len(length)) ]
+deltas = [length[i]/np[i] for i in range(len(length))]
 
 grid = Grid(ndim,{'delta':deltas, 'number_of_points':np})
 
@@ -87,14 +93,21 @@ initial_conditions = GridBasedInitialisation(grid, initial_conditions)
 io = FileIO(temporal_discretisation.prognostic_variables)
 
 # Grid parameters like number of points, length in each direction, and delta in each direction
+c0 = 0.5
+deltat = dt(deltas[0], c0)
+niter = ceil(1.0/deltat)
 l1 = ['niter', 'c0', 'deltat', 'precision', 'name']
-l2 = [100, 0.01, 0.000001, "double", "wave"]
+l2 = [niter, c0, deltat, "double", "wave"]
 
 # Constants in the system
 simulation_parameters = dict(zip(l1,l2))
 
 # Generate the code.
-OPSC(grid, spatial_discretisation, temporal_discretisation, boundary, initial_conditions, io, simulation_parameters)
+opsc = OPSC(grid, spatial_discretisation, temporal_discretisation, boundary, initial_conditions, io, simulation_parameters)
+#opsc.set_diagnostics_level(1)
+#opsc.generate()
+#opsc.translate()
+
 
 end = time.time()
 LOG.debug('The time taken to prepare the system in %d dimensions is %.2f seconds.' % (problem.ndim, end - start))
