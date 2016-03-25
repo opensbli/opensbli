@@ -32,7 +32,7 @@ energy = "Eq(Der(rhoE,t),- Conservative((p+rhoE)*u_j,x_j) +Der(q_j,x_j) + Der(u_
 equations = [mass, momentum, energy]
 
 # Substitutions
-stress_tensor = "Eq(tau_i_j, (mu)*(Der(u_i,x_j)+ Conservative(u_j,x_i)- (2/3)* KD(_i,_j)* Der(u_k,x_k)))"
+stress_tensor = "Eq(tau_i_j, (mu/Re)*(Der(u_i,x_j)+ Conservative(u_j,x_i)- (2/3)* KD(_i,_j)* Der(u_k,x_k)))"
 heat_flux = "Eq(q_j,  (mu/((gama-1)*Minf*Minf*Pr*Re))*Der(T,x_j))"
 substitutions = [stress_tensor, heat_flux]
 
@@ -47,7 +47,7 @@ metrics = [False, False, False]
 
 # Formulas for the variables used in the equations
 velocity = "Eq(u_i, rhou_i/rho)"
-pressure = "Eq(p, (gama-1)*(rhoE - (1/(2))*(u_j*u_j)))"
+pressure = "Eq(p, (gama-1)*(rhoE/rho - (1/2)*(u_j*u_j)))"
 temperature = "Eq(T, p*gama*Minf*Minf/(rho))"
 viscosity = "Eq(mu, T**(2/3))"
 formulas = [velocity, pressure, temperature, viscosity]
@@ -76,7 +76,7 @@ temporal_scheme = RungeKutta(3) # Third-order Runge-Kutta time-stepping scheme.
 
 # Create a numerical grid of solution points
 length = [1.0]*ndim
-np = [10]*ndim
+np = [25]*ndim
 deltas = [length[i]/np[i] for i in range(len(length))]
 
 grid = Grid(ndim,{'delta':deltas, 'number_of_points':np})
@@ -117,7 +117,7 @@ niter = ceil(T/deltat)
 Re = 1600.0
 Pr = 0.72
 mu = 1.0
-Minf = 0.08
+Minf = 0.1
 C23 = 2.0/3.0
 gamma = 1.4
 simulation_parameters = {"niter":niter, "gama":gamma, "mu":mu,"C23":C23, "Re":Re, "Pr":Pr, "Minf":Minf, "deltat":deltat, "precision":"double", "name":"taylor_green_vortex"}
