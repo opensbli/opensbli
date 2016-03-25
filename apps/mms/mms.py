@@ -26,15 +26,17 @@ start_total = time.time()
 ndim = 2
 
 # Define the advection-diffusion equation in Einstein notation.
+
 phi_analytical = "sin(x_j)"
-advection_diffusion = "Eq( Der(phi,t), -Der(phi*u_j,x_j) + k*Der(Der(phi,x_j),x_j) - ( -Der(%s, x_j) - k*Der(Der(%s, x_j), x_j) ) )" % (phi_analytical, phi_analytical)
+advection_diffusion = "Eq( Der(phi,t), -Der(phi*u_j,x_j) + k*Der(Der(phi,x_j),x_j) + analy )" 
+
 equations = [advection_diffusion]
 
 # Substitutions
 substitutions = []
 
 # Define all the constants in the equations
-constants = ["k", "u_j"]
+constants = ["k", "u_j","analy"]
 
 # Coordinate direction symbol (x) this will be x_i, x_j, x_k
 coordinate_symbol = "x"
@@ -43,11 +45,12 @@ coordinate_symbol = "x"
 metrics = [False, False]
 
 # Formulas for the variables used in the equations
-formulas = []
+formulas = ["Eq(analy, Der(l_j,x_j))"]
 
 # Create the problem and expand the equations.
 problem = Problem(equations, substitutions, ndim, constants, coordinate_symbol, metrics, formulas)
 expanded_equations, expanded_formulas = problem.get_expanded()
+
 
 # Output equations in LaTeX format.
 latex = LatexWriter()
@@ -73,7 +76,27 @@ np = [10]*ndim
 deltas = [length[i]/np[i] for i in range(len(length))]
 
 grid = Grid(ndim,{'delta':deltas, 'number_of_points':np})
-
+# Modify the expanded equations to be functions of grid 
+# create a temporart term 
+temp = EinsteinTerm('x_j')
+x1 = temp.get_array(temp.get_indexed(ndim))
+#make the array sin 
+arr = [sin(x1[j]) for j,val in enumerate(x1)]
+pprint(arr)
+# use this temporart variable in the equation (named as l_j)
+temp = EinsteinTerm('l_j')
+# as these are returnded as a function make temporary coordinate function
+coordinates = tuple([EinsteinTerm('x%d' % dim) for dim in range(ndim)] + [EinsteinTerm('t')])
+l_j = temp.get_array(temp.get_indexed(ndim), coordinates)
+su = dict(zip(l_j, arr))
+# Substitute l_j into equations
+expanded_formulas = [eq.subs(su).doit() for eq in expanded_formulas[0]]
+pprint(expanded_formulas)
+# now do the substitutions for x0, x1 that are grid evaluations
+su = dict(zip(x1, [grid.Idx[0]*grid.deltas[0], grid.Idx[1]*grid.deltas[1]]))
+expanded_formulas = [eq.subs(su).doit() for eq in expanded_formulas]
+pprint(expanded_formulas)
+expanded_equations = [eq.subs(f.lhs, f.rhs) for f in expanded_formulas for eq in expanded_equations[0]] 
 # Perform the spatial discretisation
 spatial_discretisation = SpatialDiscretisation(expanded_equations, expanded_formulas, grid, spatial_scheme)
 
@@ -85,10 +108,10 @@ temporal_discretisation = TemporalDiscretisation(temporal_scheme, grid, const_dt
 bcs = [("periodic", "periodic"), ("periodic", "periodic")]
 boundary = BoundaryConditions(bcs, grid, temporal_discretisation.prognostic_variables)
 
-# Initial conditions
-x = "(grid.Idx[0]*grid.deltas[0])"
-y = "(grid.Idx[1]*grid.deltas[1])"
-initial_conditions = ["Eq(grid.work_array(phi), sin(%s))" % x]
+# Initial conditions to be consistent we use x0, an x1
+x0 = "(grid.Idx[0]*grid.deltas[0])"
+x1 = "(grid.Idx[1]*grid.deltas[1])"
+initial_conditions = ["Eq(grid.work_array(phi), sin(%s))" % x0]
 initial_conditions = GridBasedInitialisation(grid, initial_conditions)
 
 # I/O save conservative variables at the end of simulation
