@@ -75,7 +75,8 @@ spatial_scheme = Central(4) # Fourth-order central differencing in space.
 temporal_scheme = RungeKutta(3) # Third-order Runge-Kutta time-stepping scheme.
 
 # Create a numerical grid of solution points
-length = [1.0]*ndim
+L = 1
+length = [2*pi*L]*ndim
 np = [25]*ndim
 deltas = [length[i]/np[i] for i in range(len(length))]
 
@@ -111,7 +112,7 @@ initial_conditions = GridBasedInitialisation(grid, initial_conditions)
 io = FileIO(temporal_discretisation.prognostic_variables)
 
 # Grid parameters like number of points, length in each direction, and delta in each direction
-deltat = dt(max(deltas), u0)
+deltat = 3.385e-3
 T = 10.0
 niter = ceil(T/deltat)
 Re = 1600.0
