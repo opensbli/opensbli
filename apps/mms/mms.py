@@ -26,14 +26,15 @@ start_total = time.time()
 ndim = 2
 
 # Define the advection-diffusion equation in Einstein notation.
-advection_diffusion = "Eq( Der(phi,t), -Der(phi*u_j,x_j) + k*Der(Der(phi,x_j),x_j) - s_j*Der(sin(x_j), x_j) - k*s_j*Der(-cos(x_j), x_j) )"
+phi_analytical = "sin(x_j)"
+advection_diffusion = "Eq( Der(phi,t), -Der(phi*u_j,x_j) + k*Der(Der(phi,x_j),x_j) - ( -Der(%s, x_j) - k*Der(Der(%s, x_j), x_j) ) )" % (phi_analytical, phi_analytical)
 equations = [advection_diffusion]
 
 # Substitutions
 substitutions = []
 
 # Define all the constants in the equations
-constants = ["k", "u_j", "s_j"]
+constants = ["k", "u_j"]
 
 # Coordinate direction symbol (x) this will be x_i, x_j, x_k
 coordinate_symbol = "x"
@@ -102,7 +103,7 @@ print "Going to do %d iterations." % niter
 u0 = 1.0
 u1 = 0.0
 k = 0.5
-simulation_parameters = {"niter":niter, "k":k, "u0":u0, "u1":u1, "s0":u0, "s1":u1, "deltat":deltat, "precision":"double", "name":"mms"}
+simulation_parameters = {"niter":niter, "k":k, "u0":u0, "u1":u1, "deltat":deltat, "precision":"double", "name":"mms"}
 
 # Generate the code.
 opsc = OPSC(grid, spatial_discretisation, temporal_discretisation, boundary, initial_conditions, io, simulation_parameters)
