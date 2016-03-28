@@ -244,7 +244,7 @@ class OPSC(object):
         code_dictionary['print_timings'] = '\n'.join(timer[2])
 
         # Define the main time loop
-        var = 'iteration' # name for iteration
+        var = 'iteration' # Name for the iteration.
         code_dictionary['timeloop'] = self.loop_open(var,(0,self.simulation_parameters['niter'])) + '\n'
         code_dictionary['end_time_loop'] = self.loop_close()
 
@@ -416,17 +416,17 @@ class OPSC(object):
         return calls
 
     def kernel_call(self, computation):
-        iterrange = self.iteration_range_name%self.iteration_range_index
-        self.iteration_range_index = self.iteration_range_index +1
+        iteration_range = self.iteration_range_name % self.iteration_range_index
+        self.iteration_range_index += 1
         stencils = self.get_stencils(computation)
-        kercall = []
-        # range of iterations
-        range_main =  self.array('int', iterrange, [r for ran in computation.ranges for r in ran])
+        kernel_calls = []
+        
+        # Iteration range (i.e. the range of the loops over the grid points).
+        range_main =  self.array('int', iteration_range, [r for ran in computation.ranges for r in ran])
 
-        kercall += ['ops_par_loop(%s, \"%s\", %s, %s, %s' % (computation.name,\
-            computation.computation_type,self.block_name, self.ndim, iterrange)]
+        kernel_calls += ['ops_par_loop(%s, \"%s\", %s, %s, %s' % (computation.name, computation.computation_type, self.block_name, self.ndim, iteration_range)]
 
-        # do the inputs first grid based
+        # Do the grid-based inputs first.
         grid_based = [self.ops_argument_call(inp, stencils[inp],self.dtype, self.ops_access['inputs'])\
             for inp in computation.inputs.keys() if inp.is_grid ] + \
                 [self.ops_argument_call(inp, stencils[inp],self.dtype, self.ops_access['outputs'])\
@@ -440,31 +440,40 @@ class OPSC(object):
                     for inp, value in computation.outputs.iteritems() if not inp.is_grid ] + \
                         [self.ops_global_call(inp, value, self.dtype, self.ops_access['inputoutput'])\
                             for inp, value in computation.inputoutput.iteritems() if not inp.is_grid ]
+        
         if computation.has_Idx:
-            nongrid += [self.grid_index_call()]
-        kercall = kercall + grid_based + nongrid
-        call = [k+',' for k in kercall[:-1]]
-        call = [range_main] + call + [kercall[-1] + self.right_parenthesis + self.end_of_statement] + ['\n']
+            nongrid.append(self.grid_index_call())
+            
+        kernel_calls = kernel_calls + grid_based + nongrid
+        call = [k + ',' for k in kernel_calls[:-1]]
+        call = [range_main] + call + [kernel_calls[-1] + self.right_parenthesis + self.end_of_statement] + ['\n']
         return call
 
     def get_stencils(self, computation):
         stencils = {}
-        dicts = [computation.inputs, computation.outputs,computation.inputoutput]
+        dicts = [computation.inputs, computation.outputs, computation.inputoutput]
         for d in dicts:
             for key, value in d.iteritems():
                 if key.is_grid:
-                    sten = self.relative_stencil(value)
-                    stencil = self.list_to_string(sten)
+                    relative_stencil = self.relative_stencil(value)
+                    stencil = self.list_to_string(relative_stencil)
                     if stencil not in self.stencil_dictionary.keys():
                         self.stencil_dictionary[stencil] = self.stencil_name%self.stencil_number
                         self.stencil_number = self.stencil_number +1
-                    # Update the stencils to be returned
+                    # Update the stencils to be returned.
                     stencils[key] = self.stencil_dictionary[stencil]
         return stencils
         
-    def list_to_string(self, inlist):
-        string = ','.join([str(s) for s in inlist])
-        return string
+    def list_to_string(self, l):
+        """ Convert a list to a string, where each list element is separated by a comma.
+        
+        :arg list l: The list to convert into a string.
+        :returns: The list elements converted to a string, where each list element is separated by a comma.
+        :rtype: str
+        """
+    
+        s = ','.join([str(element) for element in l])
+        return s
         
     def relative_stencil(self, value):
         '''
@@ -505,12 +514,17 @@ class OPSC(object):
         return temp
 
     def grid_index_call(self):
+        """ The call to the OPS helper function to get the grid point index.
+        
+        :returns: The call to ops_arg_idx().
+        :rtype: str
+        """
         return 'ops_arg_idx()'
         
     def ops_global_call(self, array, indices, precision, access_type):
         arr = array[tuple(indices[0])]
         template = 'ops_arg_gbl(&%s, %d, \"%s\", %s)'
-        return template%(arr,1, self.dtype, access_type)
+        return template % (arr,1, self.dtype, access_type)
         
     def ops_argument_call(self, array, stencil, precision, access_type):
         template = 'ops_arg_dat(%s, %d, %s, \"%s\", %s)'
@@ -518,7 +532,7 @@ class OPSC(object):
         
     def bc_exchange_call_code(self, instance):
         off = 0; halo = 'halo'
-        #name of the halo exchange
+        # Name of the halo exchange
         name = self.halo_exchange_name%(self.halo_exchange_number)
         self.halo_exchange_number = self.halo_exchange_number +1
         code = ['%s Boundary condition exchange code'%self.line_comment]
@@ -527,21 +541,21 @@ class OPSC(object):
         code += ['int halo_iter[] = {%s}%s' % (', '.join([str(s) for s in instance.transfer_size]), self.end_of_statement)]
         code += ['int from_base[] = {%s}%s' % (', '.join([str(s) for s in instance.transfer_from]), self.end_of_statement)]
         code += ['int to_base[] = {%s}%s' % (', '.join([str(s) for s in instance.transfer_to]), self.end_of_statement)]
-        # dir in OPSC not sure what it is but 1to ndim works
+        # dir in OPSC. FIXME: Not sure what it is, but 1 to ndim works.
         code += ['int dir[] = {%s}%s' % (', '.join([str(ind+1) for ind in range(len(instance.transfer_to))]), self.end_of_statement)]
-        # now process the arrays
+        # Process the arrays
         for arr in instance.transfer_arrays:
             code += ['ops_halo %s%d = ops_decl_halo(%s, %s, halo_iter, from_base, to_base, dir, dir)%s' % (halo, off, arr, arr, self.end_of_statement)]
             off = off+1
         code += ['ops_halo grp[] = {%s}%s' % (','.join([str('%s%s' % (halo, of)) for of in range(off)]),self.end_of_statement )]
         code += ['%s = ops_decl_halo_group(%d,grp)%s' % (name, off, self.end_of_statement)]
         code += [self.right_brace]
-        # finished OPS halo exchange, now get the call
-        call = ['%s Boundary condition exchange calls'%self.line_comment,'ops_halo_transfer(%s)%s' % (name,self.end_of_statement)]
+        # Finished OPS halo exchange, now get the call
+        call = ['%s Boundary condition exchange calls' % self.line_comment,'ops_halo_transfer(%s)%s' % (name, self.end_of_statement)]
         return call, code
 
     def initialise_dat(self):
-        code = ['%s Initialize/ Allocate data files' % (self.line_comment)]
+        code = ['%s Initialise/allocate data files' % (self.line_comment)]
         dtype_int = 'int'
         if not self.multiblock:
             grid = self.grid[0]
@@ -558,69 +572,63 @@ class OPSC(object):
         return code
         
     def declare_stencils(self):
-        '''
-        This declares all the stencils used in the code.
-        We donot differentiate between the stencils for each block.
-        returns the code
-        '''
+        """ Declare all the stencils used in the code. We do not differentiate between the stencils for each block.
+        
+        :returns: The OPSC code declaring the stencil.
+        :rtype: str
+        """
         code = ['%s Declare all the stencils used ' % (self.line_comment)]
         dtype_int = 'int'
         sten_format = 'ops_stencil %%s = ops_decl_stencil(%%d,%%d,%%s,\"%%s\")%s' % (self.end_of_statement)
         for key, value in self.stencil_dictionary.iteritems():
             count = len(key.split(','))/ self.ndim
-            # value is the name in the stencils format
+            # 'value' is the name in the stencil's format
             code += [self.array(dtype_int, value + "_temp", [key])]
             code += [sten_format%(value, self.ndim, count, value + "_temp", key)]
         return code
         
     def HDF5_array_fileIO(self,instance):
         code = []
-        # to do generate file name automatically
+        # TODO: Generate file name automatically.
         block_to_hdf5 = ["ops_fetch_block_hdf5_file(%s, \"state.h5\")%s" % (self.block_name, self.end_of_statement)]
         code += block_to_hdf5
         # Then write out each field.
         for c in instance.save_arrays:
-            variables_to_hdf5 = ["ops_fetch_dat_hdf5_file(%s, \"state.h5\")%s" \
-                % (c, self.end_of_statement)]
+            variables_to_hdf5 = ["ops_fetch_dat_hdf5_file(%s, \"state.h5\")%s" % (c, self.end_of_statement)]
             code += variables_to_hdf5
         return code
 
     def get_block_computations(self):
-        '''
-        This gets all the block computations to be performed.
-        Extra stuff like diagnostic computations or BC computations should be
-        added here.
-        '''
+        """ Get all the block computations to be performed.
+        Extra stuff like diagnostic computations or boundary condition computations should be added here.
+        """
         kernels = [[] for block in range(self.nblocks)]
         for block in range(self.nblocks):
-            # get all the computations to be performed, add computations as needed
-            block_comps = []
+            # Get all the computations to be performed. Add computations as needed.
+            block_computations = []
             if self.spatial_discretisation[block].computations:
-                block_comps += self.spatial_discretisation[block].computations
+                block_computations += self.spatial_discretisation[block].computations
             if self.initial_conditions[block].computations:
-                block_comps += self.initial_conditions[block].computations
+                block_computations += self.initial_conditions[block].computations
             if self.temporal_discretisation[block].computations:
-                block_comps += self.temporal_discretisation[block].computations
+                block_computations += self.temporal_discretisation[block].computations
             if self.temporal_discretisation[block].start_computations:
-                block_comps += self.temporal_discretisation[block].start_computations
+                block_computations += self.temporal_discretisation[block].start_computations
             if self.temporal_discretisation[block].end_computations:
-                block_comps += self.temporal_discretisation[block].end_computations
+                block_computations += self.temporal_discretisation[block].end_computations
 
-            for comp in block_comps:
-                kernels[block] += self.kernel_computation(comp,block)
+            for computation in block_computations:
+                kernels[block] += self.kernel_computation(computation,block)
         return kernels
         
     def kernel_computation(self, computation, block_number):
-        '''
-        This generates the computation kernel for the computation
-        This acts as a helper function for the block computations
-        '''
+        """ Generate the kernel for the computation. This acts as a helper function for the block computations. """
         header = []
         comment_eq = [self.block_comment[0]]
-        # Flops count for grid point
+        # Flops count for the grid point
         count = sum([count_ops(eq.rhs) for eq in computation.equations])
         # Flops count for the entire grid
-        rang = [(ran[1]- ran[0]) for ran in computation.ranges]
+        rang = [(ran[1] - ran[0]) for ran in computation.ranges]
         gridcount = count
         for r in rang:
             gridcount = gridcount*r
