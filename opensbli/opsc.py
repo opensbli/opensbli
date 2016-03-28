@@ -409,7 +409,7 @@ class OPSC(object):
             computation.computation_type,self.block_name, self.ndim, iterrange)]
 
         # do the inputs first grid based
-        gridbased = [self.ops_argument_call(inp, stencils[inp],self.dtype, self.ops_access['inputs'])\
+        grid_based = [self.ops_argument_call(inp, stencils[inp],self.dtype, self.ops_access['inputs'])\
             for inp in computation.inputs.keys() if inp.is_grid ] + \
                 [self.ops_argument_call(inp, stencils[inp],self.dtype, self.ops_access['outputs'])\
                     for inp in computation.outputs.keys() if inp.is_grid ] + \
@@ -424,7 +424,7 @@ class OPSC(object):
                             for inp, value in computation.inputoutput.iteritems() if not inp.is_grid ]
         if computation.has_Idx:
             nongrid += [self.grid_index_call()]
-        kercall = kercall + gridbased + nongrid
+        kercall = kercall + grid_based + nongrid
         call = [k+',' for k in kercall[:-1]]
         call = [range_main] + call + [kercall[-1] + self.right_parenthesis + self.end_of_statement] + ['\n']
         return call
@@ -610,7 +610,7 @@ class OPSC(object):
             computation.name = self.computational_kernel_names[block_number]%self.kernel_name_number[block_number]
 
         # process inputs
-        gridbased = ([self.ops_header['inputs']%(self.dtype,inp) for inp in computation.inputs.keys() if inp.is_grid] + \
+        grid_based = ([self.ops_header['inputs']%(self.dtype,inp) for inp in computation.inputs.keys() if inp.is_grid] + \
             [self.ops_header['outputs']%(self.dtype,inp) for inp in computation.outputs.keys() if inp.is_grid ] + \
                 [self.ops_header['inputoutput']%(self.dtype,inp) for inp in computation.inputoutput.keys() if inp.is_grid])
 
@@ -619,7 +619,7 @@ class OPSC(object):
             [self.ops_header['outputs']%(self.dtype,inp) for inp in computation.outputs.keys() if not inp.is_grid ] + \
                 [self.ops_header['inputoutput']%(self.dtype,inp) for inp in computation.inputoutput.keys() if not inp.is_grid])
 
-        header += gridbased + nongrid
+        header += grid_based + nongrid
 
         if computation.has_Idx:
             header += [self.ops_header['Idx']%('idx') ]
@@ -819,12 +819,12 @@ class OPSC(object):
         :returns: A dictionary of OPS_ACC's. """
         ops_accs = {}
         allidbs = list(computation.inputs.keys()) +  list(computation.outputs.keys()) + list(computation.inputoutput.keys())
-        gridbased = [al for al in allidbs if al.is_grid]
-        # all grid based ops_accs
-        for no,inp in enumerate(gridbased):
+        grid_based = [al for al in allidbs if al.is_grid]
+        # All grid-based OPS_ACCs
+        for no,inp in enumerate(grid_based):
             ops_accs[inp] = 'OPS_ACC%d'%no
-        # non grid based stuff are
-        nongrid = set(allidbs).difference(set(gridbased))
+        # Non grid-based stuff
+        nongrid = set(allidbs).difference(set(grid_based))
         for no,inp in enumerate(nongrid):
             ops_accs[inp] = None
         return ops_accs
@@ -841,6 +841,9 @@ class OPSC(object):
         """
         return '%s %s[] = {%s}%s' % (dtype, name, ', '.join([str(s) for s in values]), self.end_of_statement)
              
-    def AlgorithmError(Exception):
-        return
+class AlgorithmError(Exception):
+
+    """ An Exception that occurs  """
+
+    pass
 
