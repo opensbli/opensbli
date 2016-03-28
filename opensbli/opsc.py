@@ -313,13 +313,14 @@ class OPSC(object):
         code_dictionary['declare_stencils'] = '\n'.join(self.declare_stencils())
 
         # Initialise constants and Declare  constants in OPS format
-        code_dictionary['initialise_constants'] = '\n'.join(self.initialize_constants())
+        code_dictionary['initialise_constants'] = '\n'.join(self.initialise_constants())
         code_dictionary['declare_ops_constants'] = '\n'.join(self.declare_ops_constants())
         # write the main file
         code_template = code_template.safe_substitute(code_dictionary)
         self.write_main_file(code_template)
         return
-    def initialize_constants(self):
+        
+    def initialise_constants(self):
         '''
         '''
         # Get the constants defined every where. i.e. in
@@ -335,21 +336,25 @@ class OPSC(object):
             else:
                 const_init += ["%s = %s%s"%(con, ccode(val), self.end_of_statement)]
         return const_init
+        
     def declare_ops_constants(self):
         ops_const = []
         for con in self.constants:
             if not isinstance(con, IndexedBase):
                 ops_const += ["ops_decl_const(\"%s\" , 1, \"%s\", &%s)%s"%(con, self.dtype, con, self.end_of_statement)]
         return ops_const
+        
     def write_main_file(self, code_template):
         mainfile = open(self.CODE_DIR+'/'+'%s.cpp'%self.simulation_parameters["name"], 'w')
         code_template = self.indent_code(code_template)
         mainfile.write(code_template)
         mainfile.close()
         return
+        
     def indent_code(self, code_lines):
         p = CCodePrinter()
         return p.indent_code(code_lines)
+        
     def update_boundary_conditions(self, code_dictionary):
         bc_call = [[] for block in range(self.nblocks)]
         bc_exchange_code = [[] for block in range(self.nblocks)]
@@ -367,6 +372,7 @@ class OPSC(object):
         code_dictionary['bc_calls'] = '\n'.join(['\n'.join(bc_call[block]) for block in \
             range(self.nblocks)])
         return code_dictionary
+        
     def get_io(self, code_dictionary):
         '''
         As of now only FileIO at the end of the simulation is performed, no intermediate saves are allowed
@@ -385,6 +391,7 @@ class OPSC(object):
         code_dictionary['io_time'] = '\n'.join(['\n'.join(io_time[block]) for block in \
             range(self.nblocks)])
         return code_dictionary
+        
     def get_block_computation_kernels(self, instances):
         '''
 
