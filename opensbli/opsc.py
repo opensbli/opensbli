@@ -31,38 +31,66 @@ BUILD_DIR = os.getcwd()
 
 
 class OPSCCodePrinter(CCodePrinter):
+    
+    """ Prints OPSC code. """
+
     def __init__(self, Indexed_accs, constants):
+        """ Initialise the code printer. """
+    
         settings = {}
         CCodePrinter.__init__(self, settings)
+        
         # Indexed access numbers are required in dictionary
         self.Indexed_accs = Indexed_accs
         self.constants = constants
+        
     def _print_Rational(self, expr):
-        '''
-        '''
+        """ Print a Rational expression as a literal division.
+        
+        :arg expr: The Rational expression.
+        :returns: The rational expression, as OPSC code, represented by a literal division of two integers.
+        :rtype: str
+        """
         p, q = int(expr.p), int(expr.q)
         return '%d.0/%d.0' %(p,q)
+        
     def _print_Indexed(self, expr):
-        # find the symbols in the indices of the expression
-        syms = flatten([list(at.atoms(Symbol)) for at in expr.indices])
+        """ Print out an Indexed object.
+        
+        :arg expr: The Indexed expression.
+        :returns: The indexed expression, as OPSC code.
+        :rtype: str
+        """
+    
+        # Find the symbols in the indices of the expression
+        symbols = flatten([list(index.atoms(Symbol)) for index in expr.indices])
+        
         # Replace the symbols in the indices with `zero'
-        for x in syms:
+        for x in symbols:
             expr = expr.subs({x: 0})
-        if self.Indexed_accs[expr.base] != None:
-            out = "%s[%s(%s)]"%(self._print(expr.base.label) \
-            , self.Indexed_accs[expr.base], ','.join([self._print(ind)  for ind in expr.indices]))
+            
+        if self.Indexed_accs[expr.base]:
+            out = "%s[%s(%s)]" % (self._print(expr.base.label), self.Indexed_accs[expr.base], ','.join([self._print(index) for index in expr.indices]))
         else:
-            out = "%s[%s]"%(self._print(expr.base.label) \
-            , ','.join([self._print(ind)  for ind in expr.indices]))
+            out = "%s[%s]" % (self._print(expr.base.label), ','.join([self._print(index) for index in expr.indices]))
+            
         return out
 
 def ccode(expr, Indexed_accs=None, constants=None):
+    """ Create an OPSC code printer object and write out the expression as an OPSC code string.
+    
+    :arg expr: The expression to translate into OPSC code.
+    :arg Indexed_accs: Indexed OPS_ACC accesses.
+    :arg constants: Constants that should be defined at the top of the OPSC code.
+    :returns: The expression in OPSC code.
+    :rtype: str
+    """
     if isinstance(expr, Eq):
-        return OPSCCodePrinter(Indexed_accs, constants).doprint(expr.lhs) \
-        + ' = ' + OPSCCodePrinter(Indexed_accs, constants).doprint(expr.rhs)
+        return OPSCCodePrinter(Indexed_accs, constants).doprint(expr.lhs) + ' = ' + OPSCCodePrinter(Indexed_accs, constants).doprint(expr.rhs)
     return OPSCCodePrinter(Indexed_accs, constants).doprint(expr)
 
 class OPSC(object):
+
     """ A class describing the OPSC language, and various templates for OPSC code structures (e.g. loops, declarations, etc). """
 
     # OPS Access types, used for kernel call
@@ -79,47 +107,44 @@ class OPSC(object):
     left_brace = "{"; right_brace = "}"
     left_parenthesis = "("; right_parenthesis = ")"
     
-    def __init__(self, grid, spatial_solution, temporal_soln, boundary,\
-        Ics, IO, simulation_parameters, Diagnostics = None):
-        #shape, settings, nblocks=None):
-        self.check_consistency(grid, spatial_solution, temporal_soln, boundary, Ics,IO)
+    def __init__(self, grid, spatial_discretisation, temporal_discretisation, boundary, initial_conditions, IO, simulation_parameters, diagnostics=None):
+        self.check_consistency(grid, spatial_discretisation, temporal_discretisation, boundary, initial_conditions, IO)
         self.simulation_parameters = simulation_parameters
-        # update the simulation parameters from that of the grid
+        # Update the simulation parameters from that of the grid
         for g in self.grid:
             self.simulation_parameters.update(g.grid_data_dictionary)
-        self.initialize_various_ops_parameters()
+        self.initialise_ops_parameters()
         self.template()
         return
-    def initialize_various_ops_parameters(self):
-        '''
-        This initializes various OPS parameters like the name of the computational files,
-        computation kernel name, iteration range , stencil name  generators. Code files directory
-        creation and soon
-        Most of these are specific to OPS
-        '''
+        
+    def initialise_ops_parameters(self):
+        """ This initialises various OPS parameters like the name of the computational files,
+        computation kernel name, iteration range, stencil name, etc. Most of these are specific to OPS.
+        """
 
+        # Multiblock or single block?
         if len(self.grid) == 1:
-            self.MultiBlock = False
+            self.multiblock = False
             self.nblocks = 1
         else:
-            self.MultiBlock = True
+            self.multiblock = True
             self.nblocks = len(self.grid)
-        # dimensions of the blocks
+            
+        # Dimensions of the blocks
         ndim = list(set([len(self.grid[i].shape) for i in range(self.nblocks)]))
-        if len(ndim) !=1:
-            raise ValueError("The grid shape in the blocks mismatch")
+        if len(ndim) != 1:
+            raise ValueError("Mismatch in the grid shape of the blocks.")
         self.ndim = ndim[0]
         name = self.simulation_parameters["name"]
-        # name of the block for OPSC
-        self.block_name = '%s_block'%name
+        
+        # Name of the block for OPSC
+        self.block_name = '%s_block' % name
 
         # File names for computational kernels, each block will have its own computational kernel file
-        self.computational_routines_filename = ['%s_block_%d_kernel.h'%(name,block) \
-            for block in range(self.nblocks)]
+        self.computational_routines_filename = ['%s_block_%d_kernel.h' % (name, block) for block in range(self.nblocks)]
 
-        # kernel names for each block this will be the file name + kernel number a hash key
-        self.computational_kernel_names = ['%s_block%d_%%d_kernel'%(name,block) \
-            for block in range(self.nblocks)]
+        # Kernel names for each block this will be the file name + kernel number a hash key
+        self.computational_kernel_names = ['%s_block%d_%%d_kernel' % (name, block) for block in range(self.nblocks)]
 
         # hash for exchange boundary condition, stencil, iteration range and kernelname
         self.iteration_range_name = 'iter_range%d'
@@ -224,13 +249,13 @@ class OPSC(object):
         #code_dictionary['define_stencils'] = '\n'.join()
 
         # Set the time sub loop if exist
-        if self.temporal_soln[0].nstages >1:
-            ns = self.temporal_soln[0].nstages
-            var = self.temporal_soln[0].scheme.stage
+        if self.temporal_discretisation[0].nstages >1:
+            ns = self.temporal_discretisation[0].nstages
+            var = self.temporal_discretisation[0].scheme.stage
             code_dictionary['innerloop'] = self.loop_open(var,(0,ns))+ '\n'
             code_dictionary['end_inner_loop'] = self.loop_close()
             # update constant values
-            coeffs = self.temporal_soln[0].scheme.get_coefficients()
+            coeffs = self.temporal_discretisation[0].scheme.get_coefficients()
             for key, value in coeffs.iteritems():
                 self.simulation_parameters[str(key)] = value
         else:
@@ -244,27 +269,27 @@ class OPSC(object):
 
         # computation calls
         # First the inner computation calls
-        computations = [self.spatial_solution[block].computations + self.temporal_soln[block].computations\
+        computations = [self.spatial_discretisation[block].computations + self.temporal_discretisation[block].computations\
             for block in range(self.nblocks)]
         calls = self.get_block_computation_kernels(computations)
         code_dictionary['time_calls'] = '\n'.join(['\n'.join(calls[block]) for block in \
             range(self.nblocks)])
         # Computations at the start of the time stepping loop
-        computations = [self.temporal_soln[block].start_computations if self.temporal_soln[block].start_computations\
+        computations = [self.temporal_discretisation[block].start_computations if self.temporal_discretisation[block].start_computations\
             else [] for block in range(self.nblocks)]
         calls = self.get_block_computation_kernels(computations)
         code_dictionary['time_start_calls'] = '\n'.join(['\n'.join(calls[block]) for block in \
             range(self.nblocks)])
 
         # computations at the end of the time stepping loop
-        computations = [self.temporal_soln[block].end_computations if self.temporal_soln[block].end_computations\
+        computations = [self.temporal_discretisation[block].end_computations if self.temporal_discretisation[block].end_computations\
             else [] for block in range(self.nblocks)]
         calls = self.get_block_computation_kernels(computations)
         code_dictionary['time_end_calls'] = '\n'.join(['\n'.join(calls[block]) for block in \
             range(self.nblocks)])
 
         # computations for the initialisation, if there are computations, later this should be included to read from file
-        computations = [self.Ics[block].computations if self.Ics[block].computations\
+        computations = [self.initial_conditions[block].computations if self.initial_conditions[block].computations\
             else [] for block in range(self.nblocks)]
         calls = self.get_block_computation_kernels(computations)
         code_dictionary['initialisation'] = '\n'.join(['\n'.join(calls[block]) for block in \
@@ -493,7 +518,7 @@ class OPSC(object):
     def initialise_dat(self):
         code = ['%s Initialize/ Allocate data files'%(self.line_comment)]
         dtype_int = 'int'
-        if not self.MultiBlock:
+        if not self.multiblock:
             grid = self.grid[0]
             code += [self.helper_array(dtype_int, 'halo_p', [halo[1] for halo in grid.halos])]
             code += [self.helper_array(dtype_int, 'halo_m', [halo[0] for halo in grid.halos])]
@@ -544,16 +569,16 @@ class OPSC(object):
         for block in range(self.nblocks):
             # get all the computations to be performed, add computations as needed
             block_comps = []
-            if self.spatial_solution[block].computations:
-                block_comps += self.spatial_solution[block].computations
-            if self.Ics[block].computations:
-                block_comps += self.Ics[block].computations
-            if self.temporal_soln[block].computations:
-                block_comps += self.temporal_soln[block].computations
-            if self.temporal_soln[block].start_computations:
-                block_comps += self.temporal_soln[block].start_computations
-            if self.temporal_soln[block].end_computations:
-                block_comps += self.temporal_soln[block].end_computations
+            if self.spatial_discretisation[block].computations:
+                block_comps += self.spatial_discretisation[block].computations
+            if self.initial_conditions[block].computations:
+                block_comps += self.initial_conditions[block].computations
+            if self.temporal_discretisation[block].computations:
+                block_comps += self.temporal_discretisation[block].computations
+            if self.temporal_discretisation[block].start_computations:
+                block_comps += self.temporal_discretisation[block].start_computations
+            if self.temporal_discretisation[block].end_computations:
+                block_comps += self.temporal_discretisation[block].end_computations
 
             for comp in block_comps:
                 kernels[block] += self.kernel_computation(comp,block)
@@ -695,7 +720,7 @@ class OPSC(object):
         return code
     def define_block(self):
         code = ['%s Defining block in OPS Format'%(self.line_comment)]
-        if not self.MultiBlock:
+        if not self.multiblock:
             # no dynamic memory allocation required
             code += ['ops_block  %s%s'\
             % (self.block_name, self.end_of_statement)]
@@ -706,7 +731,7 @@ class OPSC(object):
         return code
     def initialise_block(self):
         code = ['%s Initialising block in OPS Format'%(self.line_comment)]
-        if not self.MultiBlock:
+        if not self.multiblock:
             code += ['%s = ops_decl_block(%d, \"%s\")%s'\
                 %(self.block_name,self.ndim, self.block_name,self.end_of_statement)]
         else:
@@ -715,7 +740,7 @@ class OPSC(object):
         return code
     def define_dat(self):
         code = ['%s Define data files'%(self.line_comment)]
-        if not self.MultiBlock:
+        if not self.multiblock:
             def_format = 'ops_dat %%s%s'% self.end_of_statement
             code += [def_format%arr for arr in self.grid_based_arrays]
         else:
@@ -732,28 +757,28 @@ class OPSC(object):
         '''
         code = self.ops_exit()
         return code
-    def check_consistency(self,  grid, spatial_solution, temporal_soln, boundary, Ics, IO):
+    def check_consistency(self,  grid, spatial_discretisation, temporal_discretisation, boundary, initial_conditions, IO):
         '''
         Checks the consistency of the inputs
         '''
         self.grid = self.listvar(grid)
         length = len(self.grid)
 
-        self.spatial_solution = self.listvar(spatial_solution);
-        if len(self.spatial_solution) != length:
+        self.spatial_discretisation = self.listvar(spatial_discretisation);
+        if len(self.spatial_discretisation) != length:
             raise AlgorithmMismatch("The length of spatial solution doesnot match the grid")
 
-        self.temporal_soln = self.listvar(temporal_soln);
-        if len(self.temporal_soln) != length:
+        self.temporal_discretisation = self.listvar(temporal_discretisation);
+        if len(self.temporal_discretisation) != length:
             raise AlgorithmMismatch("The length of temporal solution doesnot match the grid")
 
         self.boundary = self.listvar(boundary);
         if len(self.boundary) != length:
             raise AlgorithmMismatch("The length of boundary doesnot match the grid")
 
-        self.Ics = self.listvar(Ics);
-        if len(self.Ics) != length:
-            raise AlgorithmMismatch("The length of Ics doesnot match the grid")
+        self.initial_conditions = self.listvar(initial_conditions);
+        if len(self.initial_conditions) != length:
+            raise AlgorithmMismatch("The length of initial_conditions doesnot match the grid")
 
         self.IO = self.listvar(IO);
         if len(self.IO) != length:
