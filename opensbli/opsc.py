@@ -86,6 +86,7 @@ def ccode(expr, Indexed_accs=None, constants=None):
     :rtype: str
     """
     if isinstance(expr, Eq):
+        # If the expression is a SymPy Eq object, then write the LHS and the RHS with an equals sign in between.
         return OPSCCodePrinter(Indexed_accs, constants).doprint(expr.lhs) + ' = ' + OPSCCodePrinter(Indexed_accs, constants).doprint(expr.rhs)
     return OPSCCodePrinter(Indexed_accs, constants).doprint(expr)
 
@@ -143,44 +144,45 @@ class OPSC(object):
         # File names for computational kernels, each block will have its own computational kernel file
         self.computational_routines_filename = ['%s_block_%d_kernel.h' % (name, block) for block in range(self.nblocks)]
 
-        # Kernel names for each block this will be the file name + kernel number a hash key
+        # Kernel names for each block. This will be the file name + the kernel number
         self.computational_kernel_names = ['%s_block%d_%%d_kernel' % (name, block) for block in range(self.nblocks)]
 
-        # hash for exchange boundary condition, stencil, iteration range and kernelname
+        # Name for exchange boundary condition, stencil, iteration range and kernel name
         self.iteration_range_name = 'iter_range%d'
-        # Name for the commonly used stencils
+        
+        # Name for the commonly-used stencils
         self.stencil_name = 'stencil%d'
         self.stencil_number = 0
-        self.iteration_range_ind = 0
+        self.iteration_range_index = 0
         self.kernel_name_number = [0 for block in range(self.nblocks)]
 
         # Name for exchange boundary conditions
         self.halo_exchange_number = 0
         self.halo_exchange_name = 'halo_exchange%d'
-        # Implicit from the descritizations
-        # grid based arrays used for declaration and definition in OPSC format
+        # Implicit from the descritisations
+        # Grid based arrays used for declaration and definition in OPSC format
         self.grid_based_arrays = set()
-        # The global constants that are to be declared in c
+        # The global constants that are to be declared.
         self.constants = set()
-        # OPS constants, These are the constants in the above list to be defined into OPS format
+        # OPS constants. These are the constants in the above list to be defined in OPS format.
         self.constant_values = {}
         self.rational_constants = {}
 
-        # Dictionary of stencils key will be a stencil string and value is the name of stencil
+        # Dictionary of stencils. The key will be a stencil, and the value is the name of stencil.
         self.stencil_dictionary = {}
 
         # Data type of arrays
         self.dtype = self.simulation_parameters['precision']
 
-        # create the code directory
-        if not os.path.exists(BUILD_DIR+'/%s_opsc_code'%name):
-            os.makedirs(BUILD_DIR+'/%s_opsc_code'%name)
-        self.CODE_DIR = BUILD_DIR + '/%s_opsc_code'%name
+        # Create the code directory
+        if not os.path.exists(BUILD_DIR+'/%s_opsc_code' % name):
+            os.makedirs(BUILD_DIR+'/%s_opsc_code' % name)
+        self.CODE_DIR = BUILD_DIR + '/%s_opsc_code' % name
         return
+        
     def template(self):
-        '''
-        Defines the pseudo algorithm and gets all the code
-        '''
+        """ Define the algorithm in pseudo-code and get all the code. """
+
         OPS_template \
         ='''$header
         \n$main_start
@@ -396,12 +398,12 @@ class OPSC(object):
         return calls
 
     def kernel_call(self, computation):
-        iterrange = self.iteration_range_name%self.iteration_range_ind
-        self.iteration_range_ind = self.iteration_range_ind +1
+        iterrange = self.iteration_range_name%self.iteration_range_index
+        self.iteration_range_index = self.iteration_range_index +1
         stencils = self.get_stencils(computation)
         kercall = []
         # range of iterations
-        range_main =  self.helper_array('int', iterrange, [r for ran in computation.ranges for r in ran])
+        range_main =  self.array('int', iterrange, [r for ran in computation.ranges for r in ran])
 
         kercall += ['ops_par_loop(%s, \"%s\", %s, %s, %s' % (computation.name,\
             computation.computation_type,self.block_name, self.ndim, iterrange)]
@@ -520,10 +522,10 @@ class OPSC(object):
         dtype_int = 'int'
         if not self.multiblock:
             grid = self.grid[0]
-            code += [self.helper_array(dtype_int, 'halo_p', [halo[1] for halo in grid.halos])]
-            code += [self.helper_array(dtype_int, 'halo_m', [halo[0] for halo in grid.halos])]
-            code += [self.helper_array(dtype_int, 'size', grid.shape)]
-            code += [self.helper_array(dtype_int, 'base', [0 for g in grid.shape])]
+            code += [self.array(dtype_int, 'halo_p', [halo[1] for halo in grid.halos])]
+            code += [self.array(dtype_int, 'halo_m', [halo[0] for halo in grid.halos])]
+            code += [self.array(dtype_int, 'size', grid.shape)]
+            code += [self.array(dtype_int, 'base', [0 for g in grid.shape])]
             code += ['%s* val = NULL;'%(self.dtype)]
             init_format = '%%s = ops_decl_dat(%s, 1, size, base, halo_m, halo_p, val, \"%%s\", \"%%s\")%s'\
             % (self.block_name, self.end_of_statement)
@@ -544,7 +546,7 @@ class OPSC(object):
         for key, value in self.stencil_dictionary.iteritems():
             count = len(key.split(','))/ self.ndim
             # value is the name in the stencils format
-            code += [self.helper_array(dtype_int, value + "_temp", [key])]
+            code += [self.array(dtype_int, value + "_temp", [key])]
             code += [sten_format%(value, self.ndim, count, value + "_temp", key)]
         return code
     def HDF5_array_fileIO(self,instance):
@@ -624,7 +626,7 @@ class OPSC(object):
         header = comment_eq + ['void ' + computation.name + self.left_parenthesis + ' , '.join(header) + self.right_parenthesis ]
         header += [self.left_brace]
         code =  header
-        ops_accs = self.get_OPS_ACCESS_number(computation)
+        ops_accs = self.get_OPS_ACC_number(computation)
         for eq in computation.equations:
             code += [ccode(eq,ops_accs, self.rational_constants)+ self.end_of_statement]
         code += [self.right_brace] + ['\n']
@@ -766,23 +768,23 @@ class OPSC(object):
 
         self.spatial_discretisation = self.listvar(spatial_discretisation);
         if len(self.spatial_discretisation) != length:
-            raise AlgorithmMismatch("The length of spatial solution doesnot match the grid")
+            raise AlgorithmError("The length of spatial solution doesnot match the grid")
 
         self.temporal_discretisation = self.listvar(temporal_discretisation);
         if len(self.temporal_discretisation) != length:
-            raise AlgorithmMismatch("The length of temporal solution doesnot match the grid")
+            raise AlgorithmError("The length of temporal solution doesnot match the grid")
 
         self.boundary = self.listvar(boundary);
         if len(self.boundary) != length:
-            raise AlgorithmMismatch("The length of boundary doesnot match the grid")
+            raise AlgorithmError("The length of boundary doesnot match the grid")
 
         self.initial_conditions = self.listvar(initial_conditions);
         if len(self.initial_conditions) != length:
-            raise AlgorithmMismatch("The length of initial_conditions doesnot match the grid")
+            raise AlgorithmError("The length of initial_conditions doesnot match the grid")
 
         self.IO = self.listvar(IO);
         if len(self.IO) != length:
-            raise AlgorithmMismatch("The length of IO doesnot match the grid")
+            raise AlgorithmError("The length of IO doesnot match the grid")
 
         return
     def listvar(self, var):
@@ -795,9 +797,8 @@ class OPSC(object):
             return [var]
 
     def update_definitions(self, computation):
-        '''
-        Updates the grid based arrays and constants to be declared
-        '''
+        """ Update the grid based arrays and constants to be declared. """
+        
         arrays = set([inp for inp in computation.inputs.keys() if inp.is_grid] + \
             [inp for inp in computation.outputs.keys() if inp.is_grid ] + \
                 [inp for inp in computation.inputoutput.keys() if inp.is_grid])
@@ -805,15 +806,17 @@ class OPSC(object):
             [inp for inp in computation.outputs.keys() if not inp.is_grid ] + \
                 [inp for inp in computation.inputoutput.keys() if not inp.is_grid])
         constants = set(computation.constants)
-        #constants need to think??
+
         self.grid_based_arrays = self.grid_based_arrays.union(arrays)
+        # FIXME: Need to think more about constants.
         self.constants = self.constants.union(constant_arrays).union(constants)
         return
-    def get_OPS_ACCESS_number(self, computation):
-        '''
-        Helper function for writing the OPS computation kernel
-        Returns a dictionary of OPS_ACC's
-        '''
+        
+    def get_OPS_ACC_number(self, computation):
+        """ Helper function for writing OPS kernels, which obtains all the of the OPS_ACCs.
+        
+        :arg computation: The computational kernel to write.
+        :returns: A dictionary of OPS_ACC's. """
         ops_accs = {}
         allidbs = list(computation.inputs.keys()) +  list(computation.outputs.keys()) + list(computation.inputoutput.keys())
         gridbased = [al for al in allidbs if al.is_grid]
@@ -825,15 +828,19 @@ class OPSC(object):
         for no,inp in enumerate(nongrid):
             ops_accs[inp] = None
         return ops_accs
-    def helper_array(self, dtype, name, values):
-        ''' Helper function to declare inline arrays in OPSC/C
-        dtype: data type
-        name: name of the array
-        size: size of the array
-        vals: list of values
-        '''
-        return '%s %s[] = {%s}%s'%(dtype, name, ', '.join([str(s) for s in values]),\
-             self.end_of_statement)
-    def AlgorithmMismatch(Exception):
+        
+    def array(self, dtype, name, values):
+        """ Declare inline arrays in OPSC/C
+        
+        :arg dtype: The data type of the array.
+        :arg name: The name of the array.
+        :arg size: The size of the array.
+        :arg vals: The list of values.
+        :returns: The 
+        :rtype: str
+        """
+        return '%s %s[] = {%s}%s' % (dtype, name, ', '.join([str(s) for s in values]), self.end_of_statement)
+             
+    def AlgorithmError(Exception):
         return
 
