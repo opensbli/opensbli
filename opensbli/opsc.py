@@ -44,7 +44,7 @@ class OPSCCodePrinter(CCodePrinter):
         self.Indexed_accs = Indexed_accs
         self.constants = constants
         
-    def _print_Rational(self, expr, evaluate=False):
+    def _print_Rational(self, expr):
         """ Print a Rational expression as a literal division.
         
         :arg expr: The Rational expression.
@@ -52,10 +52,7 @@ class OPSCCodePrinter(CCodePrinter):
         :rtype: str
         """
         p, q = int(expr.p), int(expr.q)
-        if evaluate:
-            return "%f" % (float(p)/float(q))
-        else:
-            return '%d.0/%d.0' % (p,q)
+        return '%d.0/%d.0' % (p,q)
         
     def _print_Indexed(self, expr):
         """ Print out an Indexed object.
@@ -680,12 +677,13 @@ class OPSC(object):
         if computation.name == None:
             computation.name = self.computational_kernel_names[block_number] % self.kernel_name_number[block_number]
 
-        # Grid-based computations
+        # Indexed objects based on the grid that are inputs/outputs or inouts. This is used to write the pointers to the kernel.
+        # Grid-based objects
         grid_based = ([self.ops_header['inputs'] % (self.dtype,inp) for inp in computation.inputs.keys() if inp.is_grid] + \
             [self.ops_header['outputs'] % (self.dtype,inp) for inp in computation.outputs.keys() if inp.is_grid ] + \
                 [self.ops_header['inputoutput'] % (self.dtype,inp) for inp in computation.inputoutput.keys() if inp.is_grid])
 
-        # Non grid-based computations
+        # Non grid-based objects
         nongrid = ([self.ops_header['inputs'] % (self.dtype,inp) for inp in computation.inputs.keys() if not inp.is_grid] + \
             [self.ops_header['outputs'] % (self.dtype,inp) for inp in computation.outputs.keys() if not inp.is_grid ] + \
                 [self.ops_header['inputoutput'] % (self.dtype,inp) for inp in computation.inputoutput.keys() if not inp.is_grid])
@@ -797,7 +795,7 @@ class OPSC(object):
         return
         
     def ops_partition(self):
-        """ Initialise an OPS partition for the purpose of multi-block partitioning.
+        """ Initialise an OPS partition for the purpose of multi-block and/or MPI partitioning.
         
         :returns: The partitioning code in OPSC format. Each line is a separate list element.
         :rtype: list
