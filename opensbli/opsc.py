@@ -246,8 +246,8 @@ class OPSC(object):
         code_dictionary['print_timings'] = '\n'.join(timer[2])
 
         # Define the main time loop
-        var = 'iteration' # Name for the iteration.
-        code_dictionary['timeloop'] = self.loop_open(var,(0,self.simulation_parameters['niter'])) + '\n'
+        name = 'iteration' # Name for the iteration.
+        code_dictionary['timeloop'] = self.loop_open(name, (0,self.simulation_parameters['niter'])) + '\n'
         code_dictionary['end_time_loop'] = self.loop_close()
 
         # Declare and initialise OPS block
