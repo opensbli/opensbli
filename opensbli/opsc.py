@@ -555,7 +555,13 @@ class OPSC(object):
         return call, code
 
     def initialise_dat(self):
-        code = ['%s Initialise/allocate data files' % (self.line_comment)]
+        """ Initialise OPS dats (i.e. datasets).
+        
+        :returns: The declaration code in OPSC format.
+        :rtype: str
+        """
+    
+        code = ['%s Initialise/allocate OPS dataset.' % (self.line_comment)]
         dtype_int = 'int'
         if not self.multiblock:
             grid = self.grid[0]
@@ -577,6 +583,7 @@ class OPSC(object):
         :returns: The OPSC code declaring the stencil.
         :rtype: str
         """
+        
         code = ['%s Declare all the stencils used ' % (self.line_comment)]
         dtype_int = 'int'
         sten_format = 'ops_stencil %%s = ops_decl_stencil(%%d,%%d,%%s,\"%%s\")%s' % (self.end_of_statement)
@@ -635,27 +642,27 @@ class OPSC(object):
 
         for eq in computation.equations:
             comment_eq += [pretty(eq,use_unicode=False)]
-        comment_eq += ['The count of operations per grid point for the kernel is %d'%count]
-        comment_eq += ['The count of operations on the range of evaluation for the kernel is %d'%gridcount]
+        comment_eq += ['The count of operations per grid point for the kernel is %d' % count]
+        comment_eq += ['The count of operations on the range of evaluation for the kernel is %d' % gridcount]
         comment_eq += [self.block_comment[1]]
 
         if computation.name == None:
             computation.name = self.computational_kernel_names[block_number]%self.kernel_name_number[block_number]
 
-        # process inputs
-        grid_based = ([self.ops_header['inputs']%(self.dtype,inp) for inp in computation.inputs.keys() if inp.is_grid] + \
-            [self.ops_header['outputs']%(self.dtype,inp) for inp in computation.outputs.keys() if inp.is_grid ] + \
-                [self.ops_header['inputoutput']%(self.dtype,inp) for inp in computation.inputoutput.keys() if inp.is_grid])
+        # Grid-based computations
+        grid_based = ([self.ops_header['inputs'] % (self.dtype,inp) for inp in computation.inputs.keys() if inp.is_grid] + \
+            [self.ops_header['outputs'] % (self.dtype,inp) for inp in computation.outputs.keys() if inp.is_grid ] + \
+                [self.ops_header['inputoutput'] % (self.dtype,inp) for inp in computation.inputoutput.keys() if inp.is_grid])
 
-        # nongrid based inputs are
-        nongrid = ([self.ops_header['inputs']%(self.dtype,inp) for inp in computation.inputs.keys() if not inp.is_grid] + \
-            [self.ops_header['outputs']%(self.dtype,inp) for inp in computation.outputs.keys() if not inp.is_grid ] + \
-                [self.ops_header['inputoutput']%(self.dtype,inp) for inp in computation.inputoutput.keys() if not inp.is_grid])
+        # Non grid-based computations
+        nongrid = ([self.ops_header['inputs'] % (self.dtype,inp) for inp in computation.inputs.keys() if not inp.is_grid] + \
+            [self.ops_header['outputs'] % (self.dtype,inp) for inp in computation.outputs.keys() if not inp.is_grid ] + \
+                [self.ops_header['inputoutput'] % (self.dtype,inp) for inp in computation.inputoutput.keys() if not inp.is_grid])
 
         header += grid_based + nongrid
 
         if computation.has_Idx:
-            header += [self.ops_header['Idx']%('idx') ]
+            header += [self.ops_header['Idx'] % ('idx') ]
         header = comment_eq + ['void ' + computation.name + self.left_parenthesis + ' , '.join(header) + self.right_parenthesis ]
         header += [self.left_brace]
         code =  header
@@ -664,33 +671,51 @@ class OPSC(object):
             code += [ccode(eq,ops_accs, self.rational_constants)+ self.end_of_statement]
         code += [self.right_brace] + ['\n']
         self.update_definitions(computation)
-        # update the kernal name index
-        self.kernel_name_number[block_number] = self.kernel_name_number[block_number]+1
+        
+        # Update the kernal name index
+        self.kernel_name_number[block_number] += 1
+        
         return code
 
     def write_computational_routines(self, kernels):
-        '''
-        Writes the computational routines to files.
-        '''
+        """ Write the computational routines to files. """
         for block in range(self.nblocks):
-            code_lines = ["#ifndef block_%d_KERNEL_H"%block + '\n' + "#define block_%d_KERNEL_H"%block + '\n']
+            # Write the code for each block.
+            code_lines = ["#ifndef block_%d_KERNEL_H" % block + '\n' + "#define block_%d_KERNEL_H" % block + '\n']
             code_lines += kernels[block]
             code_lines += ["#endif"]
             #code_lines  = self.indent_code(code_lines)
 
-            kernel_file = open(self.CODE_DIR+'/'+self.computational_routines_filename[block], 'w')
+            kernel_file = open(self.CODE_DIR + '/' + self.computational_routines_filename[block], 'w')
             kernel_file.write('\n'.join(code_lines))
             kernel_file.close()
         return
 
     def loop_open(self, var, range_of_loop):
-        return 'for (int %s=%d; %s<%d; %s++)%s' % (var, range_of_loop[0], var, range_of_loop[1], var,\
-            self.left_brace)
+        """ The head of a for-loop.
+        
+        :arg str var: The name of the iteration variable.
+        :arg range_of_loop: A list or tuple containing the start and end points of the loop over 'var'.
+        :returns: The head of the loop in OPSC format.
+        :rtype: str
+        """
+        return 'for (int %s=%d; %s<%d; %s++)%s' % (var, range_of_loop[0], var, range_of_loop[1], var, self.left_brace)
             
     def loop_close(self):
+        """ Close a for loop.
+        
+        :returns: A closing brace to close a for loop.
+        :rtype: str
+        """
         return self.right_brace
         
     def header(self):
+        """ Header code.
+        
+        :returns: A list of header lines in OPSC format.
+        :rtype: list
+        """
+        
         code = []
         code += ['#include <stdlib.h>']
         code += ['#include <string.h>']
@@ -710,13 +735,18 @@ class OPSC(object):
         return code
         
     def main_start(self):
+        """ The famous 'int main' statement. """
+        
         return ['%s main program start' % self.line_comment, 'int main (int argc, char **argv) ', self.left_brace]
         
     def ops_init(self, diagnostics_level=None):
-        '''
-        the default diagnostics level in 1 which is the best performance
-        refer to ops user manual
-        '''
+        """ The default diagnostics level is 1, which offers no diagnostic information and should be used for production runs.
+        Refer to OPS user manual for more information.
+        
+        :arg int diagnostics_level: The diagnostics level. If None, the diagnostic level defaults to 1.
+        :returns: The call to ops_init.
+        :rtype: list
+        """
         out = ['%s Initializing OPS '%self.line_comment]
         if diagnostics_level:
             self.ops_diagnostics = True
@@ -726,9 +756,7 @@ class OPSC(object):
             return out + ['ops_init(argc,argv,%d)%s' % (1, self.end_of_statement)]
             
     def ops_diagnostics(self):
-        '''
-        untested OPS diagnostics output need to check if it gives the result or not
-        '''
+        # FIXME: Untested OPS diagnostics output. Need to check if this gives the correct result or not.
         if self.ops_diagnostics:
             return ['ops diagnostic output()']
         else:
@@ -736,67 +764,74 @@ class OPSC(object):
         return
         
     def ops_partition(self):
-        return ['%s Init OPS partition'%self.line_comment,'ops_partition(\" \")%s' % self.end_of_statement]
+        """ Initialise an OPS partition for the purpose of multi-block partitioning.
+        
+        :returns: The partitioning code in OPSC format. Each line is a separate list element.
+        :rtype: list
+        """
+    
+        return ['%s Init OPS partition' % self.line_comment, 'ops_partition(\" \")%s' % self.end_of_statement]
     
     def ops_timers(self):
-        """ Timer stuff of OPS. """
-        st = ["cpu_start", "elapsed_start"]
-        en = ["cpu_end", "elapsed_end"]
-        timer_start = ["double %s, %s%s"%(st[0],st[1],self.end_of_statement)]\
-            + ["ops_timers(&%s, &%s)%s"%(st[0], st[1], self.end_of_statement)]
-        timer_end = ["double %s, %s%s"%(en[0],en[1],self.end_of_statement)]\
-            + ["ops_timers(&%s, &%s)%s"%(en[0], en[1], self.end_of_statement)]
-        timing_eval = self.ops_print_timings(st, en)
+        """ OPS timer variable declaration. """
+        start = ["cpu_start", "elapsed_start"]
+        end = ["cpu_end", "elapsed_end"]
+        timer_start = ["double %s, %s%s" % (start[0], start[1],self.end_of_statement)] + ["ops_timers(&%s, &%s)%s" % (start[0], start[1], self.end_of_statement)]
+        timer_end = ["double %s, %s%s" % (end[0], end[1],self.end_of_statement)] + ["ops_timers(&%s, &%s)%s" % (end[0], end[1], self.end_of_statement)]
+        timing_eval = self.ops_print_timings(start, end)
         return timer_start, timer_end, timing_eval
         
-    def ops_print_timings(self, st, en):
+    def ops_print_timings(self, start, end):
+        """ Generate OPSC code to print out run-time information.
+        
+        :returns: A list of code lines for printing out run-time information generated by OPS timers.
+        :rtype: list
+        """
+    
         code = []
-        code += ["ops_printf(\"\\nTimings are:\\n\")%s"%self.end_of_statement]
-        code += ["ops_printf(\"-----------------------------------------\\n\")%s"%self.end_of_statement]
-        code += ["ops_printf(\"Total Wall time %%lf\\n\",%s-%s)%s"%(en[1], st[1],self.end_of_statement)]
+        code += ["ops_printf(\"\\nTimings are:\\n\")%s" % self.end_of_statement]
+        code += ["ops_printf(\"-----------------------------------------\\n\")%s" % self.end_of_statement]
+        code += ["ops_printf(\"Total Wall time %%lf\\n\",%s-%s)%s" % (end[1], start[1], self.end_of_statement)]
         return code
         
     def define_block(self):
+        """ Define an OPS block. """
         code = ['%s Defining block in OPS Format' % (self.line_comment)]
         if not self.multiblock:
-            # no dynamic memory allocation required
-            code += ['ops_block  %s%s'\
-            % (self.block_name, self.end_of_statement)]
+            # No dynamic memory allocation required
+            code += ['ops_block %s%s' % (self.block_name, self.end_of_statement)]
         else:
-            code += ['ops_block *%s = (ops_block *)malloc(%s*sizeof(ops_block*))%s'\
-                % (self.block_name, self.nblocks, self.end_of_statement )]
+            code += ['ops_block *%s = (ops_block *)malloc(%s*sizeof(ops_block*))%s' % (self.block_name, self.nblocks, self.end_of_statement)]
         #print('\n'.join(code))
         return code
         
     def initialise_block(self):
+        """ Initialise an OPS block. """
         code = ['%s Initialising block in OPS Format' % (self.line_comment)]
         if not self.multiblock:
-            code += ['%s = ops_decl_block(%d, \"%s\")%s'\
-                %(self.block_name,self.ndim, self.block_name,self.end_of_statement)]
+            code += ['%s = ops_decl_block(%d, \"%s\")%s' % (self.block_name,self.ndim, self.block_name,self.end_of_statement)]
         else:
-            raise NotImplementedError("Multi block is not implemented")
+            raise NotImplementedError("Multi-block is not implemented")
         #print('\n'.join(code))
         return code
         
     def define_dat(self):
-        code = ['%s Define data files' % (self.line_comment)]
+        """ Define OPS dats (i.e. datasets) for all grid-based arrays. """
+    
+        code = ['%s Define dataset' % (self.line_comment)]
         if not self.multiblock:
-            def_format = 'ops_dat %%s%s'% self.end_of_statement
-            code += [def_format%arr for arr in self.grid_based_arrays]
+            def_format = 'ops_dat %%s%s' % self.end_of_statement
+            code += [def_format % arr for arr in self.grid_based_arrays]
         else:
-            raise NotImplementedError("Multi block is not implemented")
+            raise NotImplementedError("Multi-block is not implemented")
         return code
         
     def ops_exit(self):
-        '''
-        helper function for footer code
-        '''
-        return ['%s Exit OPS '%self.line_comment,'ops_exit()%s' % self.end_of_statement]
+        """ Calls ops_exit. """
+        return ['%s Exit OPS ' % self.line_comment, 'ops_exit()%s' % self.end_of_statement]
         
     def footer(self):
-        '''
-        This writes out the footer code in OPSC this is a call to OPS_exit
-        '''
+        """ Footer code in OPSC format. """
         code = self.ops_exit()
         return code
         
