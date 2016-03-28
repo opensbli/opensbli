@@ -76,6 +76,7 @@ class OPSCCodePrinter(CCodePrinter):
             
         return out
 
+
 def ccode(expr, Indexed_accs=None, constants=None):
     """ Create an OPSC code printer object and write out the expression as an OPSC code string.
     
@@ -89,6 +90,7 @@ def ccode(expr, Indexed_accs=None, constants=None):
         # If the expression is a SymPy Eq object, then write the LHS and the RHS with an equals sign in between.
         return OPSCCodePrinter(Indexed_accs, constants).doprint(expr.lhs) + ' = ' + OPSCCodePrinter(Indexed_accs, constants).doprint(expr.rhs)
     return OPSCCodePrinter(Indexed_accs, constants).doprint(expr)
+
 
 class OPSC(object):
 
@@ -337,7 +339,11 @@ class OPSC(object):
         return constant_initialisation
         
     def declare_ops_constants(self):
-        """ Declare each constant as an OPS constant. """
+        """ Declare each constant as an OPS constant.
+        
+        :returns: A list of OPS constant declarations.
+        :rtype: list
+        """
     
         ops_const = []
         for constant in self.constants:
@@ -370,6 +376,12 @@ class OPSC(object):
         return p.indent_code(code_lines)
         
     def update_boundary_conditions(self, code_dictionary):
+        """ Generate OPSC code to affect a boundary condition update.
+        
+        :arg dict code_dictionary: The dictionary of OPSC code lines, with each key-value pair representing the code (value) for a particular stage (key) of the overall algorithm.
+        :returns: The updated/modified code dictionary.
+        :rtype: dict
+        """
         bc_call = [[] for block in range(self.nblocks)]
         bc_exchange_code = [[] for block in range(self.nblocks)]
         for block in range(self.nblocks):
@@ -387,7 +399,12 @@ class OPSC(object):
         return code_dictionary
         
     def get_io(self, code_dictionary):
-        """ As of now IO is performed only at the end of the simulation. No intermediate dumps are allowed. """
+        """ As of now IO is performed only at the end of the simulation. No intermediate dumps are allowed.
+        
+        :arg dict code_dictionary: The dictionary of OPSC code lines, with each key-value pair representing the code (value) for a particular stage (key) of the overall algorithm.
+        :returns: The updated/modified code dictionary.
+        :rtype: dict
+        """
         
         io_calls = [[] for block in range(self.nblocks)]
         io_time = [[] for block in range(self.nblocks)]
@@ -404,9 +421,11 @@ class OPSC(object):
         return code_dictionary
         
     def get_block_computation_kernels(self, instances):
-        '''
-
-        '''
+        """ Get all computational kernel calls for each block.
+        
+        :returns: A list of lists, with each sublist containing all kernel calls for a particular block.
+        :rtype: list of lists
+        """
         # First process the inner time calls
         calls = [[] for block in range(self.nblocks)]
         for block in range(self.nblocks):
@@ -416,6 +435,10 @@ class OPSC(object):
         return calls
 
     def kernel_call(self, computation):
+        """ Generate an OPS kernel call via the ops_par_loop function.
+        
+        :arg computation: The computation to perform over the grid points.
+        """
         iteration_range = self.iteration_range_name % self.iteration_range_index
         self.iteration_range_index += 1
         stencils = self.get_stencils(computation)
@@ -458,8 +481,8 @@ class OPSC(object):
                     relative_stencil = self.relative_stencil(value)
                     stencil = self.list_to_string(relative_stencil)
                     if stencil not in self.stencil_dictionary.keys():
-                        self.stencil_dictionary[stencil] = self.stencil_name%self.stencil_number
-                        self.stencil_number = self.stencil_number +1
+                        self.stencil_dictionary[stencil] = self.stencil_name % self.stencil_number
+                        self.stencil_number += 1
                     # Update the stencils to be returned.
                     stencils[key] = self.stencil_dictionary[stencil]
         return stencils
@@ -476,18 +499,15 @@ class OPSC(object):
         return s
         
     def relative_stencil(self, value):
-        '''
-        Helper function for get stencils
-        This returns the relative stencil wrt the grid location
-        i.e. grid indices eg(i0,i1,i2) are replaced with (0,0,0)
-        TODO Need to check if OPS also requires the grid location
-
-        '''
+        """ Returns the relative stencil wrt the grid location. i.e. grid indices eg(i0,i1,i2) are replaced with (0,0,0). """
+        
+        # TODO: Need to check if OPS also requires the grid location.
+        
         if isinstance(value,list):
             pass
         else:
             value = [value]
-        retun_val = []
+        return_val = []
         for va in value:
             out = []
             for number, v in enumerate(va):
@@ -495,15 +515,13 @@ class OPSC(object):
                 for a in v.atoms(Symbol):
                     outv = outv.subs(a,0)
                 out.append(outv)
-            retun_val.append(out)
-        retun_val = self.sort_stencil_indices(retun_val)
+            return_val.append(out)
+        return_val = self.sort_stencil_indices(return_val)
 
-        return retun_val
+        return return_val
         
     def sort_stencil_indices(self, indexes):
-        '''
-        helper function for relative_stencil, sorts the relative stencil
-        '''
+        """ Helper function for relative_stencil. Sorts the relative stencil. """
         if len(indexes[0]) > 1:
             for dim in range(len(indexes[0])):
                 indexes = sorted(indexes, key=lambda indexes: indexes[dim])
@@ -732,7 +750,7 @@ class OPSC(object):
         code += ['#include <stdlib.h>']
         code += ['#include <string.h>']
         code += ['#include <math.h>']
-        code += ['%s Global Constants in the equations are' % self.line_comment]
+        code += ['%s Global constants in the equations are' % self.line_comment]
         for constant in self.constants:
             if isinstance(constant, IndexedBase):
                 code += ['%s %s[%d]%s' % (self.dtype, constant, constant.ranges, self.end_of_statement)]
