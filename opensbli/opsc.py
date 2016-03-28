@@ -44,7 +44,7 @@ class OPSCCodePrinter(CCodePrinter):
         self.Indexed_accs = Indexed_accs
         self.constants = constants
         
-    def _print_Rational(self, expr):
+    def _print_Rational(self, expr, evaluate=False):
         """ Print a Rational expression as a literal division.
         
         :arg expr: The Rational expression.
@@ -52,7 +52,10 @@ class OPSCCodePrinter(CCodePrinter):
         :rtype: str
         """
         p, q = int(expr.p), int(expr.q)
-        return '%d.0/%d.0' %(p,q)
+        if evaluate:
+            return "%f" % (float(p)/float(q))
+        else:
+            return '%d.0/%d.0' % (p,q)
         
     def _print_Indexed(self, expr):
         """ Print out an Indexed object.

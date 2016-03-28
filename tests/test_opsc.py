@@ -22,8 +22,8 @@ def test_print_rational():
     x = symbols("x")
     expression = Rational("2.0/3.0")
     expected = "0.666666666667"
-    opsc = OPSCCodePrinter()
-    result = opsc._print_Rational(expression)
+    opsc = OPSCCodePrinter(None, None)
+    result = opsc._print_Rational(expression, evaluate=True)
     assert result == expected
 
 
