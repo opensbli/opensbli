@@ -395,7 +395,7 @@ class OPSC(object):
             # Process FileIO
             save_at = self.IO[block].save_after
             if len(save_at) == 1 and save_at[0] == True:
-                io_calls[block] += self.HDF5_array_fileIO(self.IO[block])
+                io_calls[block] += self.hdf5_io(self.IO[block])
             else:
                 raise NotImplementedError("Implement IO at time steps.")
                 
@@ -594,7 +594,7 @@ class OPSC(object):
             code += [sten_format%(value, self.ndim, count, value + "_temp", key)]
         return code
         
-    def HDF5_array_fileIO(self,instance):
+    def hdf5_io(self, instance):
         code = []
         # TODO: Generate file name automatically.
         block_to_hdf5 = ["ops_fetch_block_hdf5_file(%s, \"state.h5\")%s" % (self.block_name, self.end_of_statement)]
@@ -608,6 +608,9 @@ class OPSC(object):
     def get_block_computations(self):
         """ Get all the block computations to be performed.
         Extra stuff like diagnostic computations or boundary condition computations should be added here.
+        
+        :returns: A list of computations written in OPSC format.
+        :rtype: list
         """
         kernels = [[] for block in range(self.nblocks)]
         for block in range(self.nblocks):
@@ -629,25 +632,32 @@ class OPSC(object):
         return kernels
         
     def kernel_computation(self, computation, block_number):
-        """ Generate the kernel for the computation. This acts as a helper function for the block computations. """
+        """ Generate the kernel for the computation. This acts as a helper function for the block computations.
+        
+        :arg computation: The computation to perform over the grid points in a particular block.
+        :arg block_number: The number of the block over which to perform the computation.
+        :returns: A list of OPSC code lines performing the computation.
+        :rtype: list
+        """
+        
         header = []
-        comment_eq = [self.block_comment[0]]
+        comments = [self.block_comment[0]]
         # Flops count for the grid point
         count = sum([count_ops(eq.rhs) for eq in computation.equations])
         # Flops count for the entire grid
-        rang = [(ran[1] - ran[0]) for ran in computation.ranges]
-        gridcount = count
-        for r in rang:
-            gridcount = gridcount*r
+        computation_ranges = [(r[1] - r[0]) for r in computation.ranges]
+        grid_count = count
+        for r in computation_ranges:
+            grid_count = grid_count*r
 
-        for eq in computation.equations:
-            comment_eq += [pretty(eq,use_unicode=False)]
-        comment_eq += ['The count of operations per grid point for the kernel is %d' % count]
-        comment_eq += ['The count of operations on the range of evaluation for the kernel is %d' % gridcount]
-        comment_eq += [self.block_comment[1]]
+        for equation in computation.equations:
+            comments += [pretty(equation, use_unicode=False)]
+        comments += ['The count of operations per grid point for the kernel is %d' % count]
+        comments += ['The count of operations on the range of evaluation for the kernel is %d' % grid_count]
+        comments += [self.block_comment[1]]
 
         if computation.name == None:
-            computation.name = self.computational_kernel_names[block_number]%self.kernel_name_number[block_number]
+            computation.name = self.computational_kernel_names[block_number] % self.kernel_name_number[block_number]
 
         # Grid-based computations
         grid_based = ([self.ops_header['inputs'] % (self.dtype,inp) for inp in computation.inputs.keys() if inp.is_grid] + \
@@ -663,13 +673,15 @@ class OPSC(object):
 
         if computation.has_Idx:
             header += [self.ops_header['Idx'] % ('idx') ]
-        header = comment_eq + ['void ' + computation.name + self.left_parenthesis + ' , '.join(header) + self.right_parenthesis ]
+            
+        header = comments + ['void ' + computation.name + self.left_parenthesis + ' , '.join(header) + self.right_parenthesis]
         header += [self.left_brace]
-        code =  header
+        code = header
         ops_accs = self.get_OPS_ACC_number(computation)
-        for eq in computation.equations:
-            code += [ccode(eq,ops_accs, self.rational_constants)+ self.end_of_statement]
+        for equation in computation.equations:
+            code += [ccode(equation, ops_accs, self.rational_constants) + self.end_of_statement]
         code += [self.right_brace] + ['\n']
+        
         self.update_definitions(computation)
         
         # Update the kernal name index
