@@ -21,7 +21,7 @@ def test_print_rational():
     """ Check that the OPSC code writer converts all rationals to their final floating point representation. """
     x = symbols("x")
     expression = Rational("2.0/3.0")
-    expected = "0.666666666667"
+    expected = "0.666667"
     opsc = OPSCCodePrinter(None, None)
     result = opsc._print_Rational(expression, evaluate=True)
     assert result == expected
