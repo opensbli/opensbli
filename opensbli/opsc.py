@@ -63,22 +63,22 @@ def ccode(expr, Indexed_accs=None, constants=None):
     return OPSCCodePrinter(Indexed_accs, constants).doprint(expr)
 
 class OPSC(object):
-    '''
-    '''
-    # Some default attributes for the class
+    """ A class describing the OPSC language, and various templates for OPSC code structures (e.g. loops, declarations, etc). """
+
     # OPS Access types, used for kernel call
     ops_access = {'inputs':'OPS_READ', 'outputs':'OPS_WRITE', 'inputoutput':'OPS_RW'}
-    # OPS kenel header
+    # OPS kernel headers
     ops_header = {'inputs':'const %s *%s', 'outputs':'%s *%s', 'inputoutput':'%s *%s', 'Idx':'const int *%s'}
-    # Line comments
+    # Single line comment
     line_comment = "//"
-    # block_comments
+    # Block/multi-line comment
     block_comment = ['/*','*/']
-    # end of line delimiter
+    # End of statement delimiter
     end_of_statement = ";"
     # Commonly used brackets
-    open_brace = "{"; close_brace = "}"
-    open_parentheses = "("; close_parentheses = ")"
+    left_brace = "{"; right_brace = "}"
+    left_parenthesis = "("; right_parenthesis = ")"
+    
     def __init__(self, grid, spatial_solution, temporal_soln, boundary,\
         Ics, IO, simulation_parameters, Diagnostics = None):
         #shape, settings, nblocks=None):
@@ -198,7 +198,7 @@ class OPSC(object):
 
         # get the main start and main end code
         code_dictionary['main_start'] = '\n'.join(self.main_start())
-        code_dictionary['main_end'] = self.close_brace
+        code_dictionary['main_end'] = self.right_brace
 
         # get the ops init, ops_exit (footer) calls
         code_dictionary['ops_init'] = '\n'.join(self.ops_init())
@@ -399,7 +399,7 @@ class OPSC(object):
             nongrid += [self.grid_index_call()]
         kercall = kercall + gridbased + nongrid
         call = [k+',' for k in kercall[:-1]]
-        call = [range_main] + call + [kercall[-1] + self.close_parentheses + self.end_of_statement] + ['\n']
+        call = [range_main] + call + [kercall[-1] + self.right_parenthesis + self.end_of_statement] + ['\n']
         return call
 
     def get_stencils(self, computation):
@@ -472,7 +472,7 @@ class OPSC(object):
         self.halo_exchange_number = self.halo_exchange_number +1
         code = ['%s Boundary condition exchange code'%self.line_comment]
         code += ['ops_halo_group %s %s'%(name, self.end_of_statement)]
-        code += [self.open_brace]
+        code += [self.left_brace]
         code += ['int halo_iter[] = {%s}%s'%(', '.join([str(s) for s in instance.transfer_size]), self.end_of_statement)]
         code += ['int from_base[] = {%s}%s'%(', '.join([str(s) for s in instance.transfer_from]), self.end_of_statement)]
         code += ['int to_base[] = {%s}%s'%(', '.join([str(s) for s in instance.transfer_to]), self.end_of_statement)]
@@ -485,7 +485,7 @@ class OPSC(object):
             off = off+1
         code += ['ops_halo grp[] = {%s}%s'%(','.join([str('%s%s'%(halo, of)) for of in range(off)]),self.end_of_statement )]
         code += ['%s = ops_decl_halo_group(%d,grp)%s'%(name, off, self.end_of_statement)]
-        code += [self.close_brace]
+        code += [self.right_brace]
         # finished OPS halo exchange, now get the call
         call = ['%s Boundary condition exchange calls'%self.line_comment,'ops_halo_transfer(%s)%s'%(name,self.end_of_statement)]
         return call, code
@@ -596,13 +596,13 @@ class OPSC(object):
 
         if computation.has_Idx:
             header += [self.ops_header['Idx']%('idx') ]
-        header = comment_eq + ['void ' + computation.name + self.open_parentheses + ' , '.join(header) + self.close_parentheses ]
-        header += [self.open_brace]
+        header = comment_eq + ['void ' + computation.name + self.left_parenthesis + ' , '.join(header) + self.right_parenthesis ]
+        header += [self.left_brace]
         code =  header
         ops_accs = self.get_OPS_ACCESS_number(computation)
         for eq in computation.equations:
             code += [ccode(eq,ops_accs, self.rational_constants)+ self.end_of_statement]
-        code += [self.close_brace] + ['\n']
+        code += [self.right_brace] + ['\n']
         self.update_definitions(computation)
         # update the kernal name index
         self.kernel_name_number[block_number] = self.kernel_name_number[block_number]+1
@@ -629,9 +629,9 @@ class OPSC(object):
     '''
     def loop_open(self, var, range_of_loop):
         return 'for (int %s=%d; %s<%d; %s++)%s'%(var, range_of_loop[0], var, range_of_loop[1], var,\
-            self.open_brace)
+            self.left_brace)
     def loop_close(self):
-        return self.close_brace
+        return self.right_brace
     def header(self):
         code = []
         code += ['#include <stdlib.h>']
@@ -651,7 +651,7 @@ class OPSC(object):
         code += ['#include "%s"'%name for name in self.computational_routines_filename]
         return code
     def main_start(self):
-        return ['%s main program start' % self.line_comment, 'int main (int argc, char **argv) ', self.open_brace]
+        return ['%s main program start' % self.line_comment, 'int main (int argc, char **argv) ', self.left_brace]
     def ops_init(self, diagnostics_level=None):
         '''
         the default diagnostics level in 1 which is the best performance
