@@ -1,4 +1,4 @@
-""" Reads in the 2D MMS solution data, written by the OPS dat writer, and plots the fields. """
+""" Reads in the 2D MMS solution data and computes the error between the numerical and analytical/manufactured solution. """
 
 import argparse
 import numpy
@@ -6,7 +6,7 @@ from math import pi, exp, cos, sin
 import matplotlib.pyplot as plt
 import h5py
 
-def plot(path):
+def error(path):
     # Number of grid points
     nx = 10
     ny = 10
@@ -18,35 +18,34 @@ def plot(path):
     f = h5py.File(path + "/state.h5", 'r')
     group = f["mms_block"]
     
-    u = group["phi"].value
+    # Get the numerical solution field
+    phi = group["phi"].value
     
     # Ignore the 2 halo nodes at either end of the domain
-    u = u[halo:nx+halo, halo:ny+halo]
-    print u.shape
-    print u
+    phi = phi[halo:nx+halo, halo:ny+halo]
+    print phi.shape
+    print phi
 
     # Grid spacing
-    L = 1.0
-    dx = (2.0*pi*L)/(nx)
-    dy = (2.0*pi*L)/(ny)
+    dx = (2.0*pi)/(nx)
+    dy = (2.0*pi)/(ny)
     
     # Coordinate arrays
     x = numpy.zeros(nx*ny).reshape((nx, ny))
     y = numpy.zeros(nx*ny).reshape((nx, ny))
 
+    phi_analytical = numpy.zeros(nx*ny).reshape((nx, ny))
+    phi_error = numpy.zeros(nx*ny).reshape((nx, ny))
+    
     # Compute the error
-    t = 10.0
     for i in range(0, nx):
         for j in range(0, ny):
             x[i,j] = i*dx
             y[i,j] = j*dy
-
-    plt.imshow(u)
-    plt.xlabel(r"$x$ (m)")
-    plt.ylabel(r"$\phi$")
-    plt.legend()
-    plt.savefig("phi.pdf")
+            phi_analytical[i,j] = sin(x[i,j])
+            phi_error[i,j] = abs(phi[i,j] - phi_analytical[i,j])
     
+    return numpy.linalg.norm(phi_error, order=2)
 
 
 if(__name__ == "__main__"):
@@ -55,4 +54,4 @@ if(__name__ == "__main__"):
     parser.add_argument("path", help="The path to the directory containing the output files.", action="store", type=str)
     args = parser.parse_args()
     
-    plot(args.path)
+    print "The error is %f" % error(args.path)
