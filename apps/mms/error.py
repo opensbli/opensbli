@@ -23,7 +23,8 @@ def error(path, i, number_of_points):
     
     # Ignore the 2 halo nodes at either end of the domain
     phi = phi[halo:nx+halo, halo:ny+halo]
-
+    print phi.shape
+    
     # Grid spacing
     dx = (2.0*pi)/(nx)
     dy = (2.0*pi)/(ny)
@@ -42,7 +43,9 @@ def error(path, i, number_of_points):
             y[i,j] = j*dy
             phi_analytical[i,j] = sin(x[i,j])
             phi_error[i,j] = abs(phi[i,j] - phi_analytical[i,j])
-    print phi_error
+    print phi
+    plt.imshow(phi)
+    plt.show()
     return numpy.linalg.norm(phi_error, ord=2)
 
 def plot(path):
