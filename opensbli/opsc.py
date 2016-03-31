@@ -29,6 +29,14 @@ import logging
 LOG = logging.getLogger(__name__)
 BUILD_DIR = os.getcwd()
 
+import subprocess
+
+try:
+    from ops_translator.c import ops as translator
+    have_ops = True
+except ImportError:
+    logging.warning("Could not import the OPS library. The generated OPSC code will need to be manually put through the translator.")
+    have_ops = False
 
 class OPSCCodePrinter(CCodePrinter):
     
@@ -118,6 +126,8 @@ class OPSC(object):
             self.simulation_parameters.update(g.grid_data_dictionary)
         self.initialise_ops_parameters()
         self.template()
+        if have_ops:
+            self.translate()
         return
         
     def initialise_ops_parameters(self):
@@ -951,6 +961,15 @@ class OPSC(object):
         :rtype: str
         """
         return '%s %s[] = {%s}%s' % (dtype, name, ', '.join([str(s) for s in values]), self.end_of_statement)
+        
+    def translate(self):
+        # Translate the generated code using the OPSC translator.
+        LOG.debug("Translating OPSC code...")
+        exit_code = subprocess.call("cd %s; python -c 'from ops_translator.c import ops as translator; translator.main([\"%s.cpp\"])'" % (self.CODE_DIR, self.simulation_parameters["name"]), shell=True)
+        if(exit_code != 0):
+            # Something went wrong
+            LOG.error("Unable to translate OPSC code. Check that OPS is installed.")
+        return
              
 class AlgorithmError(Exception):
 
