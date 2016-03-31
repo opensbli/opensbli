@@ -14,7 +14,7 @@ from opensbli.io import *
 
 def dt(dx, velocity):
     """ Given a grid spacing dx and the velocity, return the value of dt such that the CFL condition is respected. """
-    courant_number = 0.1
+    courant_number = 0.05
     return (dx*courant_number)/velocity
 
 BUILD_DIR = os.getcwd()
@@ -95,10 +95,10 @@ temporal_discretisation = TemporalDiscretisation(temporal_scheme, grid, const_dt
 bcs = [("periodic", "periodic"), ("periodic", "periodic")]
 boundary = BoundaryConditions(bcs, grid, temporal_discretisation.prognostic_variables)
 
-# Initial conditions to be consistent we use x0, an x1
+# Initial conditions. Note that we can use x0 and x1 as defined below and start off with the manufactured solution as the initial condition, but we'll start off with a zero initial condition instead to make it more rigorous.
 x0 = "(grid.Idx[0]*grid.deltas[0])"
 x1 = "(grid.Idx[1]*grid.deltas[1])"
-initial_conditions = ["Eq(grid.work_array(phi), sin(%s))" % x0]
+initial_conditions = ["Eq(grid.work_array(phi), 0)"]
 initial_conditions = GridBasedInitialisation(grid, initial_conditions)
 
 # I/O save conservative variables at the end of simulation
@@ -106,7 +106,7 @@ io = FileIO(temporal_discretisation.prognostic_variables)
 
 # Grid parameters like number of points, length in each direction, and delta in each direction
 deltat = dt(max(deltas), 1)
-T = 5.0
+T = 100.0 # NOTE: Make sure that the simulation runs long enough to ensure a steady-state solution is reached.
 niter = ceil(T/deltat)
 print "Going to do %d iterations." % niter
 
