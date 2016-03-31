@@ -26,8 +26,6 @@ start_total = time.time()
 ndim = 2
 
 # Define the advection-diffusion equation in Einstein notation.
-
-phi_analytical = "sin(x_j)"
 advection_diffusion = "Eq( Der(phi,t), -Der(phi*u_j,x_j) + k*Der(Der(phi,x_j),x_j) - s )" 
 
 equations = [advection_diffusion]
@@ -72,14 +70,13 @@ temporal_scheme = RungeKutta(3) # Third-order Runge-Kutta time-stepping scheme.
 
 # Create a numerical grid of solution points
 length = [2*pi]*ndim
-np = [10]*ndim
+np = [NUMBER_OF_POINTS]*ndim
 deltas = [length[i]/np[i] for i in range(len(length))]
-
 grid = Grid(ndim,{'delta':deltas, 'number_of_points':np})
 
+# Insert the source term 's'. The analytical solution for phi is sin(x[0]).
 temp = EinsteinTerm('x_j')
 x = temp.get_array(temp.get_indexed(ndim))
-
 source_value = [-cos(x[0]) - 0.75*sin(x[0])]
 source = EinsteinTerm("s")
 x_grid = dict(zip(x, [grid.Idx[0]*grid.deltas[0], grid.Idx[1]*grid.deltas[1]]))
@@ -116,7 +113,7 @@ print "Going to do %d iterations." % niter
 u0 = 1.0
 u1 = 0.0
 k = 0.75
-simulation_parameters = {"niter":niter, "k":k, "u0":u0, "u1":u1, "deltat":deltat, "precision":"double", "name":"mms"}
+simulation_parameters = {"niter":niter, "k":k, "u0":u0, "u1":u1, "deltat":deltat, "precision":"double", "name":SIMULATION_NAME}
 
 # Generate the code.
 opsc = OPSC(grid, spatial_discretisation, temporal_discretisation, boundary, initial_conditions, io, simulation_parameters)
