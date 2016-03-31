@@ -28,7 +28,7 @@ ndim = 2
 # Define the advection-diffusion equation in Einstein notation.
 
 phi_analytical = "sin(x_j)"
-advection_diffusion = "Eq( Der(phi,t), -Der(phi*u_j,x_j) + k*Der(Der(phi,x_j),x_j) + analy )" 
+advection_diffusion = "Eq( Der(phi,t), -Der(phi*u_j,x_j) + k*Der(Der(phi,x_j),x_j) - s )" 
 
 equations = [advection_diffusion]
 
@@ -36,7 +36,7 @@ equations = [advection_diffusion]
 substitutions = []
 
 # Define all the constants in the equations
-constants = ["k", "u_j","analy"]
+constants = ["k", "u_j", "s"]
 
 # Coordinate direction symbol (x) this will be x_i, x_j, x_k
 coordinate_symbol = "x"
@@ -45,7 +45,7 @@ coordinate_symbol = "x"
 metrics = [False, False]
 
 # Formulas for the variables used in the equations
-formulas = ["Eq(analy, Der(l_j,x_j))"]
+formulas = []
 
 # Create the problem and expand the equations.
 problem = Problem(equations, substitutions, ndim, constants, coordinate_symbol, metrics, formulas)
@@ -76,27 +76,17 @@ np = [10]*ndim
 deltas = [length[i]/np[i] for i in range(len(length))]
 
 grid = Grid(ndim,{'delta':deltas, 'number_of_points':np})
-# Modify the expanded equations to be functions of grid 
-# create a temporart term 
+
 temp = EinsteinTerm('x_j')
-x1 = temp.get_array(temp.get_indexed(ndim))
-#make the array sin 
-arr = [sin(x1[j]) for j,val in enumerate(x1)]
-pprint(arr)
-# use this temporart variable in the equation (named as l_j)
-temp = EinsteinTerm('l_j')
-# as these are returnded as a function make temporary coordinate function
-coordinates = tuple([EinsteinTerm('x%d' % dim) for dim in range(ndim)] + [EinsteinTerm('t')])
-l_j = temp.get_array(temp.get_indexed(ndim), coordinates)
-su = dict(zip(l_j, arr))
-# Substitute l_j into equations
-expanded_formulas = [eq.subs(su).doit() for eq in expanded_formulas[0]]
-pprint(expanded_formulas)
-# now do the substitutions for x0, x1 that are grid evaluations
-su = dict(zip(x1, [grid.Idx[0]*grid.deltas[0], grid.Idx[1]*grid.deltas[1]]))
-expanded_formulas = [eq.subs(su).doit() for eq in expanded_formulas]
-pprint(expanded_formulas)
-expanded_equations = [eq.subs(f.lhs, f.rhs) for f in expanded_formulas for eq in expanded_equations[0]] 
+x = temp.get_array(temp.get_indexed(ndim))
+
+source_value = [-cos(x[0]) - 0.75*sin(x[0])]
+source = EinsteinTerm("s")
+x_grid = dict(zip(x, [grid.Idx[0]*grid.deltas[0], grid.Idx[1]*grid.deltas[1]]))
+source_value = [v.subs(x_grid) for v in source_value]
+expanded_equations[0][0] = expanded_equations[0][0].subs(source, source_value[0])
+print expanded_equations[0][0]
+
 # Perform the spatial discretisation
 spatial_discretisation = SpatialDiscretisation(expanded_equations, expanded_formulas, grid, spatial_scheme)
 
@@ -125,7 +115,7 @@ print "Going to do %d iterations." % niter
 
 u0 = 1.0
 u1 = 0.0
-k = 0.5
+k = 0.75
 simulation_parameters = {"niter":niter, "k":k, "u0":u0, "u1":u1, "deltat":deltat, "precision":"double", "name":"mms"}
 
 # Generate the code.

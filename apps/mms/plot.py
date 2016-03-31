@@ -11,8 +11,6 @@ def plot(path):
     nx = 10
     ny = 10
     
-    nu = 1.0
-    
     # Number of halo nodes at each end
     halo = 2
 
@@ -27,7 +25,6 @@ def plot(path):
     print u.shape
     print u
 
-    
     # Grid spacing
     L = 1.0
     dx = (2.0*pi*L)/(nx)
