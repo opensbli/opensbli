@@ -35,7 +35,7 @@ def plot(path):
     for i in range(0, nx):
         x[i] = i*dx
         # Analytical solution
-        phi_analytical[i] = abs(sin(pi*(x[i]+0.5))) # Phi should be a sin wave shifted to the right by x = 0.5 (since the wave speed is 0.5 m/s and we've simulated until T = 1.0 s).
+        phi_analytical[i] = sin(2*pi*(x[i]+0.5)) # Phi should be a sin wave shifted to the right by x = 0.5 (since the wave speed is 0.5 m/s and we've simulated until T = 1.0 s).
         phi_error[i] = abs(phi_analytical[i] - phi[i])
 
     plt.plot(x, phi_error, label=r"Absolute error in $\phi$")
