@@ -127,10 +127,10 @@ endif
 # master to make all versions
 #
 
-TARGETS = advection_diffusion_2d_dev_seq advection_diffusion_2d_dev_mpi advection_diffusion_2d_mpi advection_diffusion_2d_mpi_openmp advection_diffusion_2d_openmp advection_diffusion_2d_seq advection_diffusion_2d_cuda advection_diffusion_2d_mpi_cuda advection_diffusion_2d_opencl advection_diffusion_2d_mpi_opencl
+TARGETS = gaussian_bump_dev_seq gaussian_bump_dev_mpi gaussian_bump_mpi gaussian_bump_mpi_openmp gaussian_bump_openmp gaussian_bump_seq gaussian_bump_cuda gaussian_bump_mpi_cuda gaussian_bump_opencl gaussian_bump_mpi_opencl
 
 ifeq ($(OPS_COMPILER),pgi)
-TARGETS += advection_diffusion_2d_openacc advection_diffusion_2d_mpi_openacc
+TARGETS += gaussian_bump_openacc gaussian_bump_mpi_openacc
 else
 TARGETS += openacc_error
 endif
@@ -139,63 +139,63 @@ endif
 
 all: clean $(TARGETS)
 
-advection_diffusion_2d_dev_seq: Makefile advection_diffusion_2d.cpp advection_diffusion_2d_block_0_kernel.h $(OPS_INSTALL_PATH)/lib/libops_seq.a
-	$(CPP) $(CPPFLAGS) $(OPS_INC) $(OPS_LIB) advection_diffusion_2d.cpp -lops_seq $(HDF5_LIB) -o advection_diffusion_2d_dev_seq
+gaussian_bump_dev_seq: Makefile gaussian_bump.cpp gaussian_bump_block_0_kernel.h $(OPS_INSTALL_PATH)/lib/libops_seq.a
+	$(CPP) $(CPPFLAGS) $(OPS_INC) $(OPS_LIB) gaussian_bump.cpp -lops_seq $(HDF5_LIB) -o gaussian_bump_dev_seq
 
 
-advection_diffusion_2d_dev_mpi: Makefile advection_diffusion_2d.cpp advection_diffusion_2d_block_0_kernel.h $(OPS_INSTALL_PATH)/lib/libops_mpi.a
-	$(MPICPP) $(MPIFLAGS) -DOPS_MPI $(OPS_INC) $(OPS_LIB) advection_diffusion_2d.cpp -lops_mpi $(HDF5_LIB) -o advection_diffusion_2d_dev_mpi
+gaussian_bump_dev_mpi: Makefile gaussian_bump.cpp gaussian_bump_block_0_kernel.h $(OPS_INSTALL_PATH)/lib/libops_mpi.a
+	$(MPICPP) $(MPIFLAGS) -DOPS_MPI $(OPS_INC) $(OPS_LIB) gaussian_bump.cpp -lops_mpi $(HDF5_LIB) -o gaussian_bump_dev_mpi
 
 #
 # mpi version
 #
 
-SEQ_KERNELS = advection_diffusion_2d_seq_kernels.cpp
+SEQ_KERNELS = gaussian_bump_seq_kernels.cpp
 
-advection_diffusion_2d_mpi: Makefile advection_diffusion_2d_ops.cpp advection_diffusion_2d_block_0_kernel.h $(OPS_INSTALL_PATH)/lib/libops_mpi.a
-	$(MPICPP) $(MPIFLAGS) -DOPS_MPI $(OPS_INC) $(OPS_LIB) advection_diffusion_2d_ops.cpp -I. ./MPI/$(SEQ_KERNELS) -lops_mpi $(HDF5_LIB) -o advection_diffusion_2d_mpi
+gaussian_bump_mpi: Makefile gaussian_bump_ops.cpp gaussian_bump_block_0_kernel.h $(OPS_INSTALL_PATH)/lib/libops_mpi.a
+	$(MPICPP) $(MPIFLAGS) -DOPS_MPI $(OPS_INC) $(OPS_LIB) gaussian_bump_ops.cpp -I. ./MPI/$(SEQ_KERNELS) -lops_mpi $(HDF5_LIB) -o gaussian_bump_mpi
 
 #
 # OpenMP version
 #
-OMP_KERNELS = advection_diffusion_2d_omp_kernels.cpp
+OMP_KERNELS = gaussian_bump_omp_kernels.cpp
 
-advection_diffusion_2d_mpi_openmp: Makefile advection_diffusion_2d_ops.cpp advection_diffusion_2d_block_0_kernel.h $(OPS_INSTALL_PATH)/lib/libops_mpi.a
-	$(MPICPP) $(OMPFLAGS) $(MPIFLAGS) -DOPS_MPI $(OPS_INC) $(OPS_LIB) advection_diffusion_2d_ops.cpp -I. ./MPI_OpenMP/$(OMP_KERNELS) -lops_mpi $(HDF5_LIB) -o advection_diffusion_2d_mpi_openmp
+gaussian_bump_mpi_openmp: Makefile gaussian_bump_ops.cpp gaussian_bump_block_0_kernel.h $(OPS_INSTALL_PATH)/lib/libops_mpi.a
+	$(MPICPP) $(OMPFLAGS) $(MPIFLAGS) -DOPS_MPI $(OPS_INC) $(OPS_LIB) gaussian_bump_ops.cpp -I. ./MPI_OpenMP/$(OMP_KERNELS) -lops_mpi $(HDF5_LIB) -o gaussian_bump_mpi_openmp
 
 
-advection_diffusion_2d_openmp: Makefile advection_diffusion_2d_ops.cpp advection_diffusion_2d_block_0_kernel.h $(OPS_INSTALL_PATH)/lib/libops_seq.a
-	$(CPP) $(OMPFLAGS) $(MPIFLAGS) $(OPS_INC) $(OPS_LIB) advection_diffusion_2d_ops.cpp -I. ./MPI_OpenMP/$(OMP_KERNELS) -lops_seq $(HDF5_LIB) -o advection_diffusion_2d_openmp
+gaussian_bump_openmp: Makefile gaussian_bump_ops.cpp gaussian_bump_block_0_kernel.h $(OPS_INSTALL_PATH)/lib/libops_seq.a
+	$(CPP) $(OMPFLAGS) $(MPIFLAGS) $(OPS_INC) $(OPS_LIB) gaussian_bump_ops.cpp -I. ./MPI_OpenMP/$(OMP_KERNELS) -lops_seq $(HDF5_LIB) -o gaussian_bump_openmp
 
 #
 # Sequential version
 #
-advection_diffusion_2d_seq: clean Makefile advection_diffusion_2d_ops.cpp advection_diffusion_2d_block_0_kernel.h $(OPS_INSTALL_PATH)/lib/libops_seq.a
-	$(CPP) $(MPIFLAGS) $(OPS_INC) $(OPS_LIB) advection_diffusion_2d_ops.cpp -I. ./MPI/$(SEQ_KERNELS) -lops_seq $(HDF5_LIB) -o advection_diffusion_2d_seq
+gaussian_bump_seq: clean Makefile gaussian_bump_ops.cpp gaussian_bump_block_0_kernel.h $(OPS_INSTALL_PATH)/lib/libops_seq.a
+	$(CPP) $(MPIFLAGS) $(OPS_INC) $(OPS_LIB) gaussian_bump_ops.cpp -I. ./MPI/$(SEQ_KERNELS) -lops_seq $(HDF5_LIB) -o gaussian_bump_seq
 
 #
 # CUDA version
 #
 
-advection_diffusion_2d_cuda: Makefile ./CUDA/advection_diffusion_2d_kernels_cu.o advection_diffusion_2d_ops.cpp advection_diffusion_2d_block_0_kernel.h $(OPS_INSTALL_PATH)/lib/libops_cuda.a
-	$(CPP) $(OMPFLAGS) $(CPPFLAGS) $(CUDA_INC) $(OPS_INC) $(OPS_LIB) $(CUDA_LIB) advection_diffusion_2d_ops.cpp ./CUDA/advection_diffusion_2d_kernels_cu.o -lcudart -lops_cuda $(HDF5_LIB) -o advection_diffusion_2d_cuda
+gaussian_bump_cuda: Makefile ./CUDA/gaussian_bump_kernels_cu.o gaussian_bump_ops.cpp gaussian_bump_block_0_kernel.h $(OPS_INSTALL_PATH)/lib/libops_cuda.a
+	$(CPP) $(OMPFLAGS) $(CPPFLAGS) $(CUDA_INC) $(OPS_INC) $(OPS_LIB) $(CUDA_LIB) gaussian_bump_ops.cpp ./CUDA/gaussian_bump_kernels_cu.o -lcudart -lops_cuda $(HDF5_LIB) -o gaussian_bump_cuda
 
-advection_diffusion_2d_mpi_cuda: Makefile ./CUDA/advection_diffusion_2d_kernels_mpi_cu.o advection_diffusion_2d_ops.cpp advection_diffusion_2d_block_0_kernel.h $(OPS_INSTALL_PATH)/lib/libops_mpi_cuda.a
-	$(MPICPP) $(OMPFLAGS) $(CPPFLAGS) -DOPS_MPI $(CUDA_INC) $(OPS_INC) $(OPS_LIB) $(CUDA_LIB) advection_diffusion_2d_ops.cpp ./CUDA/advection_diffusion_2d_kernels_mpi_cu.o -lcudart -lops_mpi_cuda $(HDF5_LIB) -o advection_diffusion_2d_mpi_cuda
+gaussian_bump_mpi_cuda: Makefile ./CUDA/gaussian_bump_kernels_mpi_cu.o gaussian_bump_ops.cpp gaussian_bump_block_0_kernel.h $(OPS_INSTALL_PATH)/lib/libops_mpi_cuda.a
+	$(MPICPP) $(OMPFLAGS) $(CPPFLAGS) -DOPS_MPI $(CUDA_INC) $(OPS_INC) $(OPS_LIB) $(CUDA_LIB) gaussian_bump_ops.cpp ./CUDA/gaussian_bump_kernels_mpi_cu.o -lcudart -lops_mpi_cuda $(HDF5_LIB) -o gaussian_bump_mpi_cuda
 
-./CUDA/advection_diffusion_2d_kernels_cu.o: ./CUDA/advection_diffusion_2d_kernels.cu Makefile
-	nvcc $(VAR) $(INC) $(NVCC_FLAGS) $(CODE_GEN_CUDA) $(OPS_INC) -I. -c -o ./CUDA/advection_diffusion_2d_kernels_cu.o ./CUDA/advection_diffusion_2d_kernels.cu
+./CUDA/gaussian_bump_kernels_cu.o: ./CUDA/gaussian_bump_kernels.cu Makefile
+	nvcc $(VAR) $(INC) $(NVCC_FLAGS) $(CODE_GEN_CUDA) $(OPS_INC) -I. -c -o ./CUDA/gaussian_bump_kernels_cu.o ./CUDA/gaussian_bump_kernels.cu
 
-./CUDA/advection_diffusion_2d_kernels_mpi_cu.o: ./CUDA/advection_diffusion_2d_kernels.cu Makefile
+./CUDA/gaussian_bump_kernels_mpi_cu.o: ./CUDA/gaussian_bump_kernels.cu Makefile
 	nvcc $(VAR) $(INC) $(NVCC_FLAGS) -DOPS_MPI $(CODE_GEN_CUDA) $(OPS_INC) -I. -I$(MPI_INSTALL_PATH)/include \
-	-DMPICH_IGNORE_CXX_SEEK -c -o ./CUDA/advection_diffusion_2d_kernels_mpi_cu.o ./CUDA/advection_diffusion_2d_kernels.cu
+	-DMPICH_IGNORE_CXX_SEEK -c -o ./CUDA/gaussian_bump_kernels_mpi_cu.o ./CUDA/gaussian_bump_kernels.cu
 
 openacc_obj_list = $(shell find OpenACC/ -name "*.cpp" | sed s/\\.cpp/\\.o/g | tr "\n" " ")
 openacc_c_obj_list = $(shell find OpenACC/ -name "*_c.c" | sed s/\\.c/\\.o/g | tr "\n" " ")
 
-./OpenACC/advection_diffusion_2d_kernels.o: ./OpenACC/advection_diffusion_2d_kernels.cpp Makefile
+./OpenACC/gaussian_bump_kernels.o: ./OpenACC/gaussian_bump_kernels.cpp Makefile
 	$(MPICPP) -acc -ta=tesla:cc35 -ta=tesla:maxregcount:64 $(MPIFLAGS) $(CUDA_ALIGN_FLAG) $(OPS_INC) $(CUDA_INC) \
-	-I. OpenACC/advection_diffusion_2d_kernels.cpp -c -o OpenACC/advection_diffusion_2d_kernels.o
+	-I. OpenACC/gaussian_bump_kernels.cpp -c -o OpenACC/gaussian_bump_kernels.o
 
 ./OpenACC/%.o: ./OpenACC/%.cpp ./OpenACC/%_c.c Makefile
 	@echo "Compiling kernel" $*
@@ -204,33 +204,33 @@ openacc_c_obj_list = $(shell find OpenACC/ -name "*_c.c" | sed s/\\.c/\\.o/g | t
 	$(MPICPP) -acc -ta=tesla:cc35 -ta=tesla:maxregcount:64 $(MPIFLAGS) $(CUDA_ALIGN_FLAG) $(OPS_INC) $(CUDA_INC) \
         -I. OpenACC/$*.cpp -c -o OpenACC/$*.o
 
-advection_diffusion_2d_openacc: $(openacc_obj_list) advection_diffusion_2d_ops.cpp advection_diffusion_2d_block_0_kernel.h Makefile $(OPS_INSTALL_PATH)/lib/libops_cuda.a
+gaussian_bump_openacc: $(openacc_obj_list) gaussian_bump_ops.cpp gaussian_bump_block_0_kernel.h Makefile $(OPS_INSTALL_PATH)/lib/libops_cuda.a
 	$(MPICPP) -acc -ta=tesla:cc35 $(MPIFLAGS) $(OPS_INC) $(OPS_LIB) $(CUDA_INC) $(CUDA_LIB) \
-    advection_diffusion_2d_ops.cpp -I. $(openacc_obj_list) $(openacc_c_obj_list) -lcudart -lops_cuda $(HDF5_LIB) -o advection_diffusion_2d_openacc
+    gaussian_bump_ops.cpp -I. $(openacc_obj_list) $(openacc_c_obj_list) -lcudart -lops_cuda $(HDF5_LIB) -o gaussian_bump_openacc
 
-advection_diffusion_2d_mpi_openacc: $(openacc_obj_list) advection_diffusion_2d_ops.cpp advection_diffusion_2d_block_0_kernel.h Makefile $(OPS_INSTALL_PATH)/lib/libops_mpi_cuda.a
+gaussian_bump_mpi_openacc: $(openacc_obj_list) gaussian_bump_ops.cpp gaussian_bump_block_0_kernel.h Makefile $(OPS_INSTALL_PATH)/lib/libops_mpi_cuda.a
 	$(MPICPP) -acc -ta=tesla:cc35 $(MPIFLAGS) $(OPS_INC) $(OPS_LIB) $(CUDA_INC) $(CUDA_LIB) -DOPS_MPI \
-    advection_diffusion_2d_ops.cpp -I. $(openacc_obj_list) $(openacc_c_obj_list) -lcudart -lops_mpi_cuda $(HDF5_LIB) -o advection_diffusion_2d_mpi_openacc
+    gaussian_bump_ops.cpp -I. $(openacc_obj_list) $(openacc_c_obj_list) -lcudart -lops_mpi_cuda $(HDF5_LIB) -o gaussian_bump_mpi_openacc
 
-advection_diffusion_2d_opencl: ./OpenCL/advection_diffusion_2d_opencl_kernels.o advection_diffusion_2d_ops.cpp advection_diffusion_2d_block_0_kernel.h Makefile $(OPS_INSTALL_PATH)/lib/libops_opencl.a
-	$(CPP) $(MPIFLAGS) $(OPS_INC) $(OPS_LIB) $(OPENCL_LIB) advection_diffusion_2d_ops.cpp ./OpenCL/advection_diffusion_2d_opencl_kernels.o -I. -lops_opencl  $(HDF5_LIB) -o advection_diffusion_2d_opencl
+gaussian_bump_opencl: ./OpenCL/gaussian_bump_opencl_kernels.o gaussian_bump_ops.cpp gaussian_bump_block_0_kernel.h Makefile $(OPS_INSTALL_PATH)/lib/libops_opencl.a
+	$(CPP) $(MPIFLAGS) $(OPS_INC) $(OPS_LIB) $(OPENCL_LIB) gaussian_bump_ops.cpp ./OpenCL/gaussian_bump_opencl_kernels.o -I. -lops_opencl  $(HDF5_LIB) -o gaussian_bump_opencl
 
-./OpenCL/advection_diffusion_2d_opencl_kernels.o: ./OpenCL/advection_diffusion_2d_opencl_kernels.cpp Makefile
+./OpenCL/gaussian_bump_opencl_kernels.o: ./OpenCL/gaussian_bump_opencl_kernels.cpp Makefile
 	$(CPP) $(CPPFLAGS) $(VAR) $(OPENCL_INC) $(INC) $(OPS_INC) -I. \
-                -c -o ./OpenCL/advection_diffusion_2d_opencl_kernels.o ./OpenCL/advection_diffusion_2d_opencl_kernels.cpp
+                -c -o ./OpenCL/gaussian_bump_opencl_kernels.o ./OpenCL/gaussian_bump_opencl_kernels.cpp
 
-advection_diffusion_2d_mpi_opencl: ./OpenCL/advection_diffusion_2d_mpi_opencl_kernels.o advection_diffusion_2d_ops.cpp advection_diffusion_2d_block_0_kernel.h Makefile $(OPS_INSTALL_PATH)/lib/libops_mpi_opencl.a
-	$(MPICPP) $(MPIFLAGS) $(OPS_INC) $(OPS_LIB) $(OPENCL_LIB) advection_diffusion_2d_ops.cpp ./OpenCL/advection_diffusion_2d_mpi_opencl_kernels.o -I. -lops_mpi_opencl  $(HDF5_LIB) -o advection_diffusion_2d_mpi_opencl
+gaussian_bump_mpi_opencl: ./OpenCL/gaussian_bump_mpi_opencl_kernels.o gaussian_bump_ops.cpp gaussian_bump_block_0_kernel.h Makefile $(OPS_INSTALL_PATH)/lib/libops_mpi_opencl.a
+	$(MPICPP) $(MPIFLAGS) $(OPS_INC) $(OPS_LIB) $(OPENCL_LIB) gaussian_bump_ops.cpp ./OpenCL/gaussian_bump_mpi_opencl_kernels.o -I. -lops_mpi_opencl  $(HDF5_LIB) -o gaussian_bump_mpi_opencl
 
-./OpenCL/advection_diffusion_2d_mpi_opencl_kernels.o: ./OpenCL/advection_diffusion_2d_opencl_kernels.cpp Makefile
+./OpenCL/gaussian_bump_mpi_opencl_kernels.o: ./OpenCL/gaussian_bump_opencl_kernels.cpp Makefile
 	$(MPICPP) $(CPPFLAGS) $(VAR) $(OPENCL_INC) $(INC) $(OPS_INC) -I. \
-                -c -o ./OpenCL/advection_diffusion_2d_mpi_opencl_kernels.o ./OpenCL/advection_diffusion_2d_opencl_kernels.cpp
+                -c -o ./OpenCL/gaussian_bump_mpi_opencl_kernels.o ./OpenCL/gaussian_bump_opencl_kernels.cpp
 
 #
 #error
 #
 openacc_error:
-	@echo "advection_diffusion_2d_mpi_openacc cannot be built with $(OPS_COMPILER) compilers .. requires an OpenACC compiler (e.g. pgi)"
+	@echo "gaussian_bump_mpi_openacc cannot be built with $(OPS_COMPILER) compilers .. requires an OpenACC compiler (e.g. pgi)"
 
 
 #
@@ -238,5 +238,5 @@ openacc_error:
 #
 
 clean:
-	rm -f advection_diffusion_2d_dev_seq advection_diffusion_2d_dev_mpi advection_diffusion_2d_mpi advection_diffusion_2d_seq advection_diffusion_2d_openmp advection_diffusion_2d_mpi_openmp advection_diffusion_2d_cuda advection_diffusion_2d_mpi_cuda advection_diffusion_2d_openacc advection_diffusion_2d_mpi_openacc ./CUDA/*.o ./OpenACC/*.o *.o advection_diffusion_2d_opencl advection_diffusion_2d_mpi_opencl ./OpenCL/*.o *.o
+	rm -f gaussian_bump_dev_seq gaussian_bump_dev_mpi gaussian_bump_mpi gaussian_bump_seq gaussian_bump_openmp gaussian_bump_mpi_openmp gaussian_bump_cuda gaussian_bump_mpi_cuda gaussian_bump_openacc gaussian_bump_mpi_openacc ./CUDA/*.o ./OpenACC/*.o *.o gaussian_bump_opencl gaussian_bump_mpi_opencl ./OpenCL/*.o *.o
 	rm -f *.h5
