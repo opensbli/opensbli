@@ -1,4 +1,17 @@
 #!/usr/bin/env python
+
+""" This simulation uses the Method of Manufactured Solutions to test solution convergence.
+
+An manufactured/'analytical' solution for phi is substituted into the 2D advection-diffusion equation.
+The non-zero residual is then subtracted from the RHS via a source term, such that
+the manufactured solution then becomes the actual solution of the modified equation.
+
+For more information about the procedure, see:
+
+Roache (2002). Code Verification by the Method of Manufactured Solutions. Journal of Fluids Engineering, 124(1), 4-10. doi: 10.1115/1.1436090
+
+"""
+
 import sys
 from math import ceil
 

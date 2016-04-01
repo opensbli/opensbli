@@ -1,29 +1,42 @@
 #!/usr/bin/env python
 import sys
+from math import ceil
 
 # Import local utility functions
 import opensbli
 from opensbli.problem import *
-from opensbli.algorithm import *
 from opensbli.latex import LatexWriter
-from opensbli.system import *
+from opensbli.spatial import *
+from opensbli.bcs import *
+from opensbli.grid import *
+from opensbli.timestepping import *
+from opensbli.io import *
+
+def dt(dx, velocity):
+    """ Given a grid spacing dx and the velocity, return the value of dt such that the CFL condition is respected. """
+    courant_number = 0.05
+    return (dx*courant_number)/velocity
+
+BUILD_DIR = os.getcwd()
 
 opensbli.LOG.info("Generating code for the 2D advection-diffusion simulation...")
+start_total = time.time()
 
 # Problem dimension
 ndim = 2
 
-# Define the equations in Einstein notation.
-equations = ["Eq(Der(c,t),- conser(c,x_j))"]
+# Define the advection-diffusion equation in Einstein notation.
+advection_diffusion = "Eq( Der(phi,t), -Der(phi*u_j,x_j) + k*Der(Der(phi,x_j),x_j) )" 
 
+equations = [advection_diffusion]
 
 # Substitutions
 substitutions = []
 
 # Define all the constants in the equations
-constants = ["Lx0", "Lx1", "niter"]
+constants = ["k", "u_j"]
 
-# Define coordinate direction symbol (x) this will be x_i, x_j,x_k
+# Coordinate direction symbol (x) this will be x_i, x_j, x_k
 coordinate_symbol = "x"
 
 # Metrics
@@ -34,45 +47,71 @@ formulas = []
 
 # Create the problem and expand the equations.
 problem = Problem(equations, substitutions, ndim, constants, coordinate_symbol, metrics, formulas)
-expanded_equations, expanded_formulas = problem.expand()
+expanded_equations, expanded_formulas = problem.get_expanded()
 
-# Prepare the algorithm
-temporal_scheme = "RK" # Runge-Kutta time-stepping scheme
-temporal_order = 3
-constant_timestep = True
-spatial_scheme = "central_diff"
-spatial_order = 4
-evaluation_count = 0
-work_array = "wk"
-bcs = [("periodic", "periodic")]*ndim # Boundary conditions. The tuple represents (left, right) ends, and there is one tuple per dimension.
-language = "OPSC"
-multiblock = False
-explicit_filter = [False]*ndim
-
-algorithm = Algorithm(temporal_scheme, temporal_order, constant_timestep, spatial_scheme, spatial_order, work_array, evaluation_count, bcs, language, multiblock, explicit_filter)
 
 # Output equations in LaTeX format.
 latex = LatexWriter()
 latex.open(path=BUILD_DIR + "/equations.tex")
-metadata = {"title": "Equations", "author": "Christian T. Jacobs", "institution": "University of Southampton"}
+metadata = {"title": "Equations", "author": "", "institution": ""}
 latex.write_header(metadata)
-temp = flatten([e.expandedeq for e in expanded_equations])
-latex.write_equations(temp)
+temp = flatten(expanded_equations)
+latex.write_expression(temp)
+temp = flatten(expanded_formulas)
+latex.write_expression(temp)
 latex.write_footer()
 latex.close()
 
-# Prepare the computational system and generate the code
+# Discretise the equations
 start = time.time()
-system = System()
 
-Lx0 = "2.0"
-Lx1 = "2.0"
-simulation_parameters = {"name":"advection_diffusion_2d", "Lx0":Lx0, "Lx1":Lx1, "nx0p[blk]":"10", "nx1p[blk]":"10", "dt":"0.0001", "niter":"10000", "a1":["2.0/3.0", "5.0/12.0", "3.0/5.0"], "a2":["1.0/4.0", "3.0/20.0", "3.0/5.0"], "dx0":"%s/nx0p[blk]" % Lx0, "dx1":"%s/nx1p[blk]" % Lx1}
+spatial_scheme = Central(4) # Fourth-order central differencing in space.
+temporal_scheme = RungeKutta(3) # Third-order Runge-Kutta time-stepping scheme.
 
-system.prepare(expanded_equations, expanded_formulas, algorithm, simulation_parameters)
+# Create a numerical grid of solution points
+length = [10.0]*ndim
+np = [10]*ndim
+deltas = [length[i]/np[i] for i in range(len(length))]
+print "Grid spacing is: ", deltas
+grid = Grid(ndim,{'delta':deltas, 'number_of_points':np})
+
+# Perform the spatial discretisation
+spatial_discretisation = SpatialDiscretisation(expanded_equations, expanded_formulas, grid, spatial_scheme)
+
+# Perform the temporal discretisation
+const_dt = True
+temporal_discretisation = TemporalDiscretisation(temporal_scheme, grid, const_dt, spatial_discretisation)
+
+# Apply Boundary conditions
+bcs = [("periodic", "periodic"), ("periodic", "periodic")]
+boundary = BoundaryConditions(bcs, grid, temporal_discretisation.prognostic_variables)
+
+# Initial conditions.
+x0 = "(grid.Idx[0]*grid.deltas[0])"
+x1 = "(grid.Idx[1]*grid.deltas[1])"
+initial_conditions = ["Eq(grid.work_array(phi), exp(-( pow({x}-{x0}, 2)/(2*pow({spread_x}, 2)) + pow({y}-{y0}, 2)/(2*pow({spread_y}, 2)) )))".format(x=x0, x0=5, y=x1, y0=5, spread_x=0.075, spread_y=0.075)]
+initial_conditions = GridBasedInitialisation(grid, initial_conditions)
+
+# I/O save conservative variables at the end of simulation
+io = FileIO(temporal_discretisation.prognostic_variables)
+
+# Grid parameters like number of points, length in each direction, and delta in each direction
+deltat = dt(max(deltas), velocity=1.5) # NOTE: We'll use an over-estimate for the velocity here in case of over-shoots.
+T = 50.0
+niter = ceil(T/deltat)
+print "Time-step size is %f" % deltat
+print "Going to do %d iterations." % niter
+
+u0 = 0.1
+u1 = 0.0
+k = 0.1
+simulation_parameters = {"niter":niter, "k":k, "u0":u0, "u1":u1, "deltat":deltat, "precision":"double", "name":"advection_diffusion_2d"}
+
+# Generate the code.
+opsc = OPSC(grid, spatial_discretisation, temporal_discretisation, boundary, initial_conditions, io, simulation_parameters)
+
 end = time.time()
-LOG.debug('The time taken to prepare the system in %d Dimensions is %.2f seconds.' % (problem.ndim, end - start))
+LOG.debug('The time taken to prepare the system in %d dimensions is %.2f seconds.' % (problem.ndim, end - start))
 
-# Translate and compile the generated code
-LOG.info("Compiling generated code...")
-system.compile(algorithm, simulation_parameters)
+end_total = time.time()
+LOG.debug('The time taken for the entire process for %d dimensions is %.2f seconds.' % (problem.ndim, end_total - start_total))
