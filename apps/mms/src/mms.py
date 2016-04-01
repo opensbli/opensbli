@@ -77,7 +77,7 @@ grid = Grid(ndim,{'delta':deltas, 'number_of_points':np})
 # Insert the source term 's'. The analytical solution for phi is sin(x[0]).
 temp = EinsteinTerm('x_j')
 x = temp.get_array(temp.get_indexed(ndim))
-source_value = [-cos(x[0]) - 0.75*sin(x[0])]
+source_value = [-cos(x[0])*cos(x[1]) - 1.5*cos(x[1])*sin(x[0]) - 0.5*sin(x[0])*sin(x[1])]
 source = EinsteinTerm("s")
 x_grid = dict(zip(x, [grid.Idx[0]*grid.deltas[0], grid.Idx[1]*grid.deltas[1]]))
 source_value = [v.subs(x_grid) for v in source_value]
@@ -105,13 +105,13 @@ initial_conditions = GridBasedInitialisation(grid, initial_conditions)
 io = FileIO(temporal_discretisation.prognostic_variables)
 
 # Grid parameters like number of points, length in each direction, and delta in each direction
-deltat = dt(max(deltas), 1)
+deltat = dt(max(deltas), velocity=2.0) # NOTE: We'll use an over-estimate for the velocity here in case of over-shoots.
 T = 100.0 # NOTE: Make sure that the simulation runs long enough to ensure a steady-state solution is reached.
 niter = ceil(T/deltat)
 print "Going to do %d iterations." % niter
 
 u0 = 1.0
-u1 = 0.0
+u1 = -0.5
 k = 0.75
 simulation_parameters = {"niter":niter, "k":k, "u0":u0, "u1":u1, "deltat":deltat, "precision":"double", "name":SIMULATION_NAME}
 

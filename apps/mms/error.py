@@ -25,7 +25,7 @@ def error(i, number_of_points):
     # Ignore the 2 halo nodes at either end of the domain
     phi = phi[halo:nx+halo, halo:ny+halo]
     print phi.shape
-    
+
     # Grid spacing
     dx = (2.0*pi)/(nx)
     dy = (2.0*pi)/(ny)
@@ -43,7 +43,7 @@ def error(i, number_of_points):
             # Work out the x and y coordinates. Note the swapping of the 'j' and 'i' here.
             x[i,j] = j*dx
             y[i,j] = i*dy
-            phi_analytical[i,j] = sin(x[i,j])
+            phi_analytical[i,j] = sin(x[i,j])*cos(y[i,j])
             phi_error[i,j] = abs(phi[i,j] - phi_analytical[i,j])
     return numpy.linalg.norm(phi_error, ord=2)
 
