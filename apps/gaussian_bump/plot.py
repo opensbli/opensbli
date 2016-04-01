@@ -8,13 +8,13 @@ import h5py
 
 def plot(path):
     # Number of grid points in the x and y directions
-    nx = 20
-    ny = 20
+    nx = 10
+    ny = 10
     halo = 2 # Number of halo nodes at each end
 
     # Read in the simulation output
     f = h5py.File(path + "/state.h5", 'r')
-    group = f["advection_diffusion_2d_block"]
+    group = f["gaussian_bump_block"]
     
     phi = group["phi"].value
     
