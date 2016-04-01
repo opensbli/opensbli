@@ -27,7 +27,7 @@ from opensbli.io import *
 
 def dt(dx, velocity):
     """ Given a grid spacing dx and the velocity, return the value of dt such that the CFL condition is respected. """
-    courant_number = 0.05
+    courant_number = 0.01
     return (dx*courant_number)/velocity
 
 BUILD_DIR = os.getcwd()

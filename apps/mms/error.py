@@ -25,6 +25,8 @@ def error(i, number_of_points):
     # Ignore the 2 halo nodes at either end of the domain
     phi = phi[halo:nx+halo, halo:ny+halo]
     print phi.shape
+    #plt.imshow(phi)
+    #plt.show()
 
     # Grid spacing
     dx = (2.0*pi)/(nx)
@@ -57,7 +59,7 @@ def plot():
         dx.append(Lx/number_of_points)
         errors.append(error(i, number_of_points))
     print "Errors in the L2 norm: ", errors
-    plt.loglog(dx, errors, '-k', label=r"$\phi$")
+    plt.loglog(dx, errors, 'o-k', label=r"$\phi$")
     
     # Plot the third-order convergence line for comparison.
     third_order = (numpy.array([1e-1*(1.0/8.0)**i for i in range(len(errors))]))
@@ -65,8 +67,8 @@ def plot():
     
     plt.xlabel(r"Grid spacing $\Delta x$ (m)")
     plt.ylabel(r"Error in the L2 norm")
-    plt.legend(loc='best')
-    plt.show()
+    plt.legend(loc='best', numpoints=1)
+    plt.savefig("mms_convergence_analysis.pdf", bbox_inches='tight')
     
     
 if(__name__ == "__main__"):

@@ -45,7 +45,7 @@ def plot(path):
     plt.xlabel(r"$x$ (m)")
     plt.ylabel(r"Error")
     plt.legend()
-    plt.savefig("phi_error.pdf")
+    plt.savefig("phi_error.pdf", bbox_inches='tight')
 
     plt.clf()
     plt.plot(x, phi_initial, "--k", label=r"$\phi(x,\ t=0)$")
@@ -53,7 +53,7 @@ def plot(path):
     plt.xlabel(r"$x$ (m)")
     plt.ylabel(r"Wave amplitude $\phi$")
     plt.legend()
-    plt.savefig("phi.pdf")
+    plt.savefig("phi.pdf", bbox_inches='tight')
     
 
 
