@@ -33,38 +33,39 @@ from .scheme import *
 
 
 class Central(Scheme):
-    
+
     """ Spatial discretisation scheme using central differences. """
 
     def __init__(self, order):
         """ Set up the scheme.
-        
+
         :arg int order: The order of accuracy of the scheme.
         """
         Scheme.__init__(self, "Central", order)
+        self.points = list(i for i in range(-order/2, order/2+1))
         return
-        
+
 
 class SpatialDerivative(object):
 
     """ The spatial derivatives of an arbitrary function 'F'
     on the numerical grid with the provided spatial scheme.
-    
+
     For a wall boundary condition this will have a dependency on the grid range. """
-    
+
     def __init__(self, spatial_scheme, grid, max_order):
         """ Initialise the spatial derivative, which gives the equations
         of spatial Derivatives for the various combinations of the spatial scheme and order of accuracy.
-        
+
         :arg spatial_scheme: The spatial discretisation scheme to use.
         :arg grid: The numerical grid of solution points.
         :arg int max_order: The maximum order of the derivative in the function.
         :returns: None
         """
-        
+
         # FIXME: The stencil should be formula dependant
         self.stencil = self.create_stencil(spatial_scheme, grid)
-        
+
         self.derivatives = []
         self.derivative_direction = grid.indices
         self.deltas = grid.deltas
@@ -72,21 +73,21 @@ class SpatialDerivative(object):
         base.is_grid = True; base.is_constant = False
         fn = base[grid.indices]
         self.fn = fn
-        
+
         self.create_derivative_formulas(fn, max_order, grid)
         return
 
     def create_stencil(self, spatial_scheme, grid):
         """ Create the computational stencil referenced by the grid indices.
-        
+
         :arg spatial_scheme: The spatial discretisation scheme to use.
         :arg grid: The numerical grid of solution points.
         :returns: A list of solution points indexed on the grid describing the computational stencil.
         :rtype: list
         """
-        
+
         stencil = [[] for dim in grid.shape]
-        
+
         for dim, val in enumerate(grid.shape):
             if isinstance(spatial_scheme, Central):
                 points = list(i for i in range(-spatial_scheme.order/2, spatial_scheme.order/2+1)) # The local indices of each point in the stencil (in dimension 'dim').
@@ -95,31 +96,31 @@ class SpatialDerivative(object):
                 raise NotImplementedError("Only central difference schemes are supported.")
             stencil[dim] = [grid.indices[dim] + i for i in points] # The indices in the grid offset by the local indices of each stencil point (e.g. i-1, i, i+1)
         return stencil
-        
+
     def create_derivative_formulas(self, fn, max_order, grid):
         """ Create the formulas for the derivatives of the given function,
         based on the stencil pattern provided.
-        
+
         :arg fn: The function whose differential needs computing.
         :arg int max_order: The maximum order of the derivative in the function.
         :arg grid: The numerical grid of solution points.
         :returns: None
         """
-    
+
         derivatives = []
         derivatives += [fn] # FIXME: Later change this to interpolation
         derivative_formula = []
         derivative_formula += [fn]
         kernels = []
         kernels += [fn]
-        
+
         # Create derivatives for each order, up to the maximum order of derivative that is present in the equation.
         for order in range(1, max_order+1):
             shape = tuple([len(grid.indices) for ind in range(order)])
             array = MutableDenseNDimArray.zeros(*shape)
             fdarray = MutableDenseNDimArray.zeros(*shape)
             derivative_kernel = MutableDenseNDimArray.zeros(*shape)
-            
+
             for ind in np.ndindex(*array.shape):
                 # Arguments to the derivative in terms of grid indices
                 derivative_args = [grid.indices[i] for i in ind]
@@ -127,7 +128,7 @@ class SpatialDerivative(object):
                 name = [str(arg) for arg in ind]
                 name = "[%d][%s]" % (order, ','.join(name))
                 derivative_kernel[ind] = Symbol(name)
-                
+
                 # Find the finite difference formula
                 array[ind] = fn.diff(*derivative_args)
                 if order == 1 or len(set(derivative_args)) == 1:
@@ -135,24 +136,24 @@ class SpatialDerivative(object):
                 else:
                     new_derivative = array[ind].subs(derivatives[order-1][ind[:-1]], derivative_formula[order-1][ind[:-1]])
                     fdarray[ind] = as_finite_diff(new_derivative, self.stencil[ind[-1]], wrt=grid.indices[ind[-1]])*pow(grid.deltas[ind[-1]],-1)
-                    
+
             derivatives.append(array)
             derivative_formula.append(fdarray)
             kernels.append(derivative_kernel)
-            
+
         self.derivatives = derivatives
         self.derivative_formula = derivative_formula
         self.derivative_kernel = kernels
         return
-        
+
     def get_derivative_formula(self, derivative):
         """ Return the formula for the derivative. For getting a symbolic derivative for a general function, use get_derivative.
         Used for ceval stuff.
-        
+
         :arg derivative: The derivative you want to get the formula for.
         :returns: The derivative's formula.
         """
-        
+
         order = len(derivative.args[1:])
         indices = []
         for arg in derivative.args[1:]:
@@ -163,14 +164,14 @@ class SpatialDerivative(object):
             lower_derivative = Derivative(derivative.args[0], *indices[:-1])
             raise ValueError("First update the derivative of %s before calling %s" % (lower_derivative, derivative))
         return formula
-        
+
     def get_derivative(self, derivative):
         """ Return a tuple to which the derivative formula exists in
         the already-evaluated derivatives.
-        
+
         :arg derivative: The derivative you want to get the formula for.
         """
-        
+
         order = len(derivative.args[1:])
         indices = []
         for arg in derivative.args[1:]:
@@ -207,13 +208,13 @@ class Evaluations(object):
     and what the work arrays are. """
 
     def __init__(self, lhs, rhs, requires, subevals = None, wk=None):
-    
+
         """ Set up the evaluation information. """
-        
+
         if isinstance(lhs, Derivative):
             self.is_derivative = True
             self.is_formula = False
-            
+
             if subevals:
                 self.subevals = subevals
             else:
@@ -222,14 +223,14 @@ class Evaluations(object):
                 self.work = wk
             else:
                 self.work = None
-                
+
             self.formula = rhs
             self.requires = requires
             self.evaluation_range = []
         else:
             self.is_formula = True
             self.is_derivative = False
-            
+
             if subevals:
                 self.subevals = subevals
             else:
@@ -238,11 +239,11 @@ class Evaluations(object):
                 self.work = wk
             else:
                 self.work = None
-                
+
             self.formula = rhs
             self.requires = requires
             self.evaluation_range = []
-            
+
         return
 
 
@@ -252,29 +253,29 @@ class SpatialDiscretisation(object):
 
     def __init__(self, expanded_equations, expanded_formulas, grid, spatial_scheme):
         """ Perform the spatial discretisation.
-        
+
         :arg list expanded_equations: A list of the equations expanded with respect to the Einstein indices.
         :arg list expanded_formulas: A list of the formulas expanded with respect to the Einstein indices.
         :arg grid: The numerical grid of solution points.
         :arg spatial_scheme: The spatial scheme used to perform the spatial discretisation.
         :returns: None
         """
-    
+
         all_equations = flatten(expanded_equations)
         all_formulas = flatten(expanded_formulas)
         max_order = maximum_derivative_order(all_equations)
-        
+
         spatial_derivative = SpatialDerivative(spatial_scheme, grid, max_order)
-        
+
         grid_arrays = {}
         range_used = {}
         grid_variables, variable_count = get_indexed_grid_variables(all_equations + all_formulas)
         for atom in grid_variables:
             grid_arrays[atom] = indexed_by_grid(atom, grid)
-        
+
         # Get the SymPy Derivative objects in all of the equations.
         spatial_derivatives, derivative_count, time_derivatives = self.get_spatial_derivatives(all_equations + all_formulas)
-        
+
         # Define the formulas on the grid. This is substituting the old with new.
         # TODO: a sanity check of the formulas, i.e. remove all the formulas that
         # are not used in the equations.
@@ -285,13 +286,13 @@ class SpatialDiscretisation(object):
                 out = out.subs(atom, grid_arrays[atom])
             evaluated = Evaluations(out.lhs, out.rhs, list(out.rhs.atoms(Indexed)), None, out.lhs)
             evals[out.lhs] = evaluated
-            
+
         # TODO: a way of passing the coordinates
         term = EinsteinTerm('x_i')
         term.is_constant = True
         coord = term.get_array(term.get_indexed(len(grid.shape)))
         coord = coord.tolist()
-        
+
         # Create a work array for each spatial derivative. Work arrays are always named as 'wk'.
         work_array_name = 'wk'
         work_array_index = 0
@@ -307,30 +308,30 @@ class SpatialDiscretisation(object):
             grid_arrays[derivative] = out
             evaluated = Evaluations(out, general_formula, requires, subevals, wk)
             evals[out] = evaluated
-            
+
         # We will assume that all the functions in time derivative are known at the start
         known = [grid_arrays[d.args[0]] for d in time_derivatives]
         for val in known:
             evaluated = Evaluations(val, val, None, None, val)
             evals[val] =  evaluated
-            
+
         # Sort the terms in the order they should be evaluated (with respect to their dependencies).
         # First get the primitive variables that the time derivatives are applied to (e.g. u_i in Der(u_i, t))
         order_of_evaluations = [grid_arrays[d.args[0]] for d in time_derivatives]
         order_of_evaluations = self.sort_evaluations(order_of_evaluations, evals, Indexed)
         # Then sort the derivatives
         order_of_evaluations = self.sort_evaluations(order_of_evaluations, evals, Derivative)
-        
+
         # Update the range of evaluations for each evaluation
         self.set_range_of_evaluations(order_of_evaluations, evals, grid)
-        
+
         # Now define a Kernel for each of the evaluations
         # All the variables (Indexed objects) in the equations, excluding those which have a time derivative, are now stored into a kernel
         forms = [ev for ev in order_of_evaluations if isinstance(ev, Indexed) and ev not in known]
         ranges = [evals[ev].evaluation_range for ev in forms]
         subevals = flatten([evals[ev].subevals for ev in forms])
         subeval_truth = [ev == None for ev in subevals]
-        
+
         # Check if all the ranges of evaluation are the same for the formulas.
         range_truth = [ranges[0][i] == val[i] for val in ranges for i in range(len(ranges[0]))]
         computations = []
@@ -341,8 +342,8 @@ class SpatialDiscretisation(object):
                 computations.append(Kernel(eqs, ranges[0], "Formula Evaluation"))
             else:
                 for number,eq in enumerate(eqs):
-                    computations.append(Kernel(eq, ranges[number]))
-                    
+                    computations.append(Kernel(eq, ranges[number], "Formula Evaluation"))
+
         # Now process the Derivatives
         # TODO: This can be moved out into a seperate function which can be used for diagnostics / generalised coordinate equations evaluations.
         derivatives = [ev for ev in order_of_evaluations if isinstance(ev, Derivative) and ev not in known]
@@ -393,7 +394,7 @@ class SpatialDiscretisation(object):
             for var in spatial_derivatives + grid_variables:
                 new = evals[grid_arrays[var]].work
                 updated_equations[equation_number] = updated_equations[equation_number].subs(var, new)
-                
+
         # The final computations of the residual (change in the RHS terms of the equations).
         # The residual equations are also named as work arrays.
         # The residual arrays are tracked for use in the evaluation of the temporal scheme.
@@ -415,15 +416,15 @@ class SpatialDiscretisation(object):
     def get_spatial_derivatives(self, equations):
         """ Return all the spatial Derivative terms in the equations.
         Any equations involving Derivative objects in terms of the time 't' are handled separately.
-        
+
         :arg equations: A list of equations to search.
         :returns: All of the spatial Derivative objects, the count of the number of times a particular Derivative object is used, and all of the temporal Derivative objects.
         """
-    
+
         derivatives = []
         count = {}
         time_derivatives = []
-        
+
         for eq in equations:
             pot = preorder_traversal(eq)
 
@@ -442,20 +443,20 @@ class SpatialDiscretisation(object):
                         time_derivatives.append(p)
                 else:
                     continue
-                    
+
         return derivatives, count, time_derivatives
-    
+
 
     def set_range_of_evaluations(self, order_of_evaluations, evaluations, grid):
         """ Set the evaluation ranges of each Evaluation object based on the shape of the grid of points.
         First the ranges of derivatives are updated, then other ranges are updated. """
-        
+
         derivatives = []
         for ev in order_of_evaluations:
             if isinstance(ev, Derivative):
                 derivatives.append(ev)
             evaluations[ev].evaluation_range = [tuple([0, s]) for s in grid.shape]
-            
+
         # Update the range for the derivatives
         grouped_derivatives = group_derivatives(derivatives)
         for key, value in grouped_derivatives.iteritems():
@@ -470,7 +471,7 @@ class SpatialDiscretisation(object):
                         erange[0] += halos[0]
                         erange[1] += halos[1]
                     evaluations[req].evaluation_range[direction] = tuple(erange)
-                    
+
         # Update the range for the formulas
         for ev in order_of_evaluations:
             if isinstance(ev, Indexed):
@@ -486,7 +487,7 @@ class SpatialDiscretisation(object):
         """ Sort the evaluations based on the requirements of each term. For example, if we have
         the primitive variables p, u0, u1, and T, then the pressure p may depend on the velocity u0 and u1, and T may depend on p,
         so we need this be evaluate in the following order: u0, u1, p, T.
-        
+
         :arg list order: The list of terms to sort.
         :arg evaluations: The evaluation information, containing dependency information.
         :arg typef: The type of term to sort.
@@ -512,22 +513,22 @@ class GridBasedInitialisation(object):
 
     def __init__(self, grid, ics):
         """ Create the initialisation kernels.
-        
+
         :arg grid: The numerical grid of solution points.
         :arg list ics: A list of initial condition formulas.
         :returns: None
         """
-    
+
         self.computations = []
         initialisation_equation = []
         for ic in ics:
             initialisation_equation.append(parse_expr(ic, local_dict = {'grid':grid}))
         range_of_evaluation = [tuple([0 + grid.halos[i][0], s + grid.halos[i][1]]) for i, s in enumerate(grid.shape)]
-        
+
         self.computations.append(Kernel(initialisation_equation, range_of_evaluation, "Initialisation"))
-        
+
         return
-        
+
 
 def decreasing_order(s1, s2):
     return cmp(len(s2.args), len(s1.args))
@@ -540,14 +541,14 @@ def increasing_order(s1, s2):
 def group_derivatives(derivatives):
     """ For each SymPy Derivative term, get the term that it is operating on and
     formula (function, Derivative(function)) pairs in a dictionary.
-    
+
     :arg list derivatives: A list of all the Derivative terms to consider.
     :returns: A dictionary of the (function, Derivative(function)) pairs.
     :rtype: dict
     """
 
     derivative_dict = {}
-    
+
     for derivative in derivatives:
         if derivative.args[0] in derivative_dict.keys():
             derivative_dict[derivative.args[0]] += [derivative]
@@ -563,13 +564,13 @@ def group_derivatives(derivatives):
 
 def indexed_by_grid(variable, grid):
     """ Convert a variable/function or Indexed object to an Indexed object indexed by the Grid indices.
-    
+
     :arg variable: The variable to convert to a Grid-based Indexed variable
     :arg grid: The numerical Grid of solution points.
     :returns: An Indexed variable, which is the same variable as the one provided, but is indexed by the Grid indices.
     :rtype: sympy.Indexed
     """
-    
+
     if isinstance(variable, Indexed):
         base = IndexedBase('%s' % variable.base)
     elif isinstance(variable, Function):
@@ -582,7 +583,7 @@ def indexed_by_grid(variable, grid):
 
 def get_indexed_grid_variables(equations):
     """ Return all the variables in the equations that are Indexed on the Grid.
-    
+
     :arg list equations: A list of SymPy equations to consider.
     :returns: A list of the variables in the equations that are Indexed on the Grid, and also the count of all the specific terms in the equations (Indexed or not).
     :rtype: (list, int)

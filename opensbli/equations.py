@@ -42,20 +42,26 @@ LOG = logging.getLogger(__name__)
 
 LOCAL_FUNCTIONS = []
 
+class Skew(Function):
+    """ Handler for the Energy conservative formulation for the Navier-Stokes equations
+    generally referred to as Skew symmetric formulation.
+    This is the Blaisdel version of skew symmetric formulation
+    """
 
-class Der(Function):
     
+class Der(Function):
+
     """ Handler for the SymPy Derivative function. """
 
     LOCAL_FUNCTIONS.append('Der')
-    
+
     @property
     def is_commutative(self):
         return False
-        
+
     def get_indexed(self, ndim, indexed, arrays, new_array_name):
         # TODO: Add repeated calling of the derivatives and functions for support of higher orders
-        
+
         derivative_function = self.args[0]
         base = IndexedBase('%s' % derivative_function)
         evaluated, index_structure = evaluate_expression(derivative_function, arrays, indexed)
@@ -86,19 +92,19 @@ class Der(Function):
                 derivative[index] = self.apply_derivative(index_map, arrays, functions, evaluated)
         else:
             derivative = self.apply_derivative((0), arrays, functions, evaluated)
-            
+
         # Apply contraction and expand
         outer_indices = remove_repeated_index(derivative_structure)
         if derivative_structure:
             derivative = apply_contraction(outer_indices, derivative_structure, derivative)
-            
+
         if outer_indices:
             new_outer_indices = [outer for outer in outer_indices if outer != 1]
             if new_outer_indices == outer_indices:
                 indexed_object_name = IndexedBase(new_array_name, shape=tuple([ndim for x in outer_indices]))[tuple(outer_indices)]
             else:
                 raise ValueError("Indices do not match: ", new_outer_indices, outer_indices)
-                
+
             indexed_object_name.is_commutative = False
             indexed[self] = indexed_object_name
             arrays[indexed_object_name] = derivative
@@ -106,12 +112,12 @@ class Der(Function):
             indexed_object_name = EinsteinTerm(new_array_name)
             indexed[self] = indexed_object_name
             arrays[indexed_object_name] = derivative
-            
+
         return arrays, indexed
-        
+
     def apply_derivative(self, index_map, arrays, functions, evaluated):
         """ Replace the Derivative calls using SymPy's diff function. """
-        
+
         if isinstance(functions[0], Indexed):
             function_to_differentiate = evaluated[index_map[functions[0]]]
         else:
@@ -123,14 +129,14 @@ class Der(Function):
                 derivative_direction += [arrays[fn][index_map[fn]]]
             else:
                 derivative_direction += [arrays[fn]]
-                
+
         derivative = function_to_differentiate.diff(*derivative_direction)
         return derivative
-        
+
     def split_index(self, index, arrays):
         """ Split up the components of the array. Return a dictionary where each key is an element
         of the array and is associated with the appropriate element of the index tuple. """
-        
+
         split = {}
         count = 0
         for arr in arrays:
@@ -154,12 +160,12 @@ class Conservative(Function):
 
     def get_indexed(self, ndim, indexed, arrays, new_array_name):
         # TODO: Add repeated calling of the derivatives and functions for support of higher orders
-        
+
         arguments = {}
         derivative_function = self.args[0]
         base = IndexedBase('%s' % derivative_function)
         evaluated, index_structure = evaluate_expression(derivative_function, arrays, indexed)
-        
+
         if index_structure:
             derivative_structure = index_structure
             functions = [base[index_structure]]
@@ -170,7 +176,7 @@ class Conservative(Function):
         for arg in self.args[1:]:
             derivative_structure = derivative_structure + list(indexed[arg].indices)
             functions.append(indexed[arg])
-        
+
         shape = []
         for number, index in enumerate(derivative_structure):
             if isinstance(index, Idx):
@@ -207,10 +213,10 @@ class Conservative(Function):
 
     def apply_derivative(self, index_map, arrays, functions, evaluated):
         """ Replace the Conservative calls with Derivative calls (which in turn use SymPy's diff function).
-        
+
         :returns: The derivative of the function provided, represented as a Derivative object.
         """
-        
+
         if isinstance(functions[0], Indexed):
             function_to_differentiate = evaluated[index_map[functions[0]]]
         else:
@@ -225,11 +231,11 @@ class Conservative(Function):
 
         derivative = Derivative(function_to_differentiate, *derivative_direction)
         return derivative
-        
+
     def split_index(self, index, arrays):
         """ Split up the components of the array. Return a dictionary where each key is an element
         of the array and is associated with the appropriate element of the index tuple. """
-        
+
         split = {}
         count = 0
         for arr in arrays:
@@ -248,24 +254,24 @@ class KD(Function):
     @property
     def is_commutative(self):
         return False
-        
+
     # FIXME: Can combine the two functions below
     def get_indexed(self, ndim):
         name = str(self.func)
-        
+
         if len(self.args) > 2:
             raise ValueError('Kronecker Delta function should have only two indices')
-            
+
         indices = flatten([p.get_indices() for p in self.args if p.get_indices])
         shape = tuple([ndim for x in range(len(indices))])
         indexed_base = IndexedBase('%s' % name, shape=shape)
         indexed = indexed_base[tuple(indices)]
         indexed.is_commutative = False
         return indexed
-        
+
     def get_array(self, indexed):
         """ Return an array of KroneckerDelta objects comprising the appropriate indices given in the user's equations. """
-        
+
         array = MutableDenseNDimArray.zeros(*indexed.shape)
         for index in np.ndindex(*indexed.shape):
             array[index[:]] = KroneckerDelta(*index)
@@ -273,31 +279,31 @@ class KD(Function):
 
 
 class LC(Function):
-    
+
     """ Handler for the built-in SymPy LeviCivita function. """
 
     LOCAL_FUNCTIONS.append('LC')
-    
+
     @property
     def is_commutative(self):
         return False
-        
+
     def get_indexed(self, ndim):
         name = str(self.func)
-        
+
         if len(self.args) != 3 or ndim != 3:
             raise ValueError("LeviCivita function should have only three indices.")
-            
+
         indices = flatten([p.get_indices() for p in self.args if p.get_indices])
         shape = tuple([ndim for x in range(len(indices))])
         indexed_base = IndexedBase('%s' % name, shape=shape)
         indexed = indexed_base[tuple(indices)]
         indexed.is_commutative = False
         return indexed
-        
+
     def get_array(self, indexed):
         """ Return an array of LeviCivita objects comprising the appropriate indices given in the user's equations. """
-        
+
         array = MutableDenseNDimArray.zeros(*indexed.shape)
         for index in np.ndindex(*indexed.shape):
             array[index[:]] = LeviCivita(*index)
@@ -309,15 +315,15 @@ class EinsteinTerm(Symbol):
     """ Represents any symbol in the equation as a SymPy Symbol object which in turn represents an Einstein term.
     This could be e.g. tau_i_j, but can also be e.g. u_i, rho.
     In other words, all symbols in the equation are Einstein terms, but they can have zero or more indices. """
-    
+
     is_commutative = False
-    
+
     def __new__(self, symbol, **assumptions):
-        """ Create a new EinsteinTerm. 
-        
+        """ Create a new EinsteinTerm.
+
         :arg str symbol: The symbol under consideration. This can have zero or more indices.
         """
-    
+
         self._sanitize(assumptions, self) # Remove any 'None's, etc.
         self.name = str(symbol)
 
@@ -332,18 +338,18 @@ class EinsteinTerm(Symbol):
         indices = self.name.split('_')[1:]
         self.indices = [Idx(x) for x in indices]
         return self
-        
+
     def get_indices(self):
         """ Return a list of the Einstein indices.
-        
+
         :returns: A list of the Einstein indices.
         :rtype: list
         """
         return self.indices
-        
+
     def get_base(self):
         """ Return the base name.
-        
+
         :returns: The base name.
         :rtype: str
         """
@@ -352,40 +358,39 @@ class EinsteinTerm(Symbol):
     def get_indexed(self, ndim):
         """ Given the EinsteinTerm's base name (which gets transformed to an IndexedBase here) and its indices (i.e. Idx objects),
         return an Indexed object.
-        
+
         :arg int ndim: The dimension of the problem.
         :returns: The EinsteinTerm represented as a SymPy Indexed object.
         """
-    
+
         name = self.get_base()
         indices = self.get_indices()
         
+        
         if len(indices) > 0:
             shape = tuple([ndim for x in range(len(indices))])
+            indexed_base = IndexedBase('%s' % name, shape=shape)
+            indexed = indexed_base[tuple(indices)]
         else:
-            indices = [1, self.get_indices()]
-            indices = flatten(indices)
-            shape = tuple([1, ndim])
-            
-        indexed_base = IndexedBase('%s' % name, shape=shape)
-        indexed = indexed_base[tuple(indices)]
+            indexed = self
+
         indexed.is_commutative = False
         return indexed
-        
+
     def get_expanded(self, index_map):
         """ Instantiate a new EinsteinTerm object which is the expanded version of self.
-        
+
         :arg list index_map: A list of (from, to) tuples which map from each alphabetical/non-expanded Einstein index to the corresponding numerical/expanded one.
         :returns: An expanded version of self, still of the same type (EinsteinTerm)
         :rtype: EinsteinTerm
         """
-        
+
         expanded = str(self)
-        
+
         # Expand the indices. This involves replacing the alphabetical Einstein indices with actual numerical indices (e.g. replacing "_j" with "0")
         for index in index_map:
             expanded = expanded.replace('_%s' % index[0], str(index[1]))
-            
+
         # If the term is a constant then ensure that the relevant flag is set in the new EinsteinTerm object.
         if self.is_constant:
             expanded = EinsteinTerm(expanded)
@@ -393,16 +398,23 @@ class EinsteinTerm(Symbol):
             return expanded
         else:
             return EinsteinTerm(expanded)
-            
+
     def get_array(self, indexed, args=None):
         """ Return an array of Indexed/EinsteinTerm objects.
-        
+
         :arg sympy.Indexed indexed: A SymPy Indexed term.
         :arg args: A tuple of arguments to be provided to a function (e.g. the LeviCivita function). By default this is None.
         :returns: An array of Indexed/EinsteinTerm objects
-        :rtype: sympy.MutableDenseNDimArray
+        :rtype: sympy.MutableDenseNDimArray, if it has indices else Einstein Term will be returned
         """
-        
+        if len(self.get_indices()) == 0:
+            value = self
+            value.is_commutative = True
+            if args:
+                array = IndexedBase('%s' % value)[args]
+            else:
+                array = value
+            return array
         array = MutableDenseNDimArray.zeros(*indexed.shape)
         from_indices = indexed.indices
         for index in np.ndindex(*indexed.shape):
@@ -414,12 +426,12 @@ class EinsteinTerm(Symbol):
                 array[index] = IndexedBase('%s' % value)[args]
             else:
                 array[index] = value
-                
+
         return array
-        
+
     def map_indices(self, from_indices, to_indices):
         """ Map each SymPy Idx object to a numerical index.
-        
+
         :arg tuple from_indices: The tuple of indices to map from.
         :arg tuple to_indices: The tuple of indices to map to.
         :returns: A list of (from, to) tuples of type (Idx, int), e.g. [(j, 1)].
@@ -432,7 +444,7 @@ class EinsteinTerm(Symbol):
             if isinstance(index, Idx):
                 mapping.append(tuple([index, to_indices[number]]))
         return mapping
-       
+    
 
 class EinsteinExpansion(object):
 
@@ -440,11 +452,11 @@ class EinsteinExpansion(object):
 
     def __init__(self, expression, ndim):
         """ Initialise an Einstein expansion system.
-        
+
         :arg str expression: The expression to expand.
         :arg int ndim: The dimension of the equations.
         """
-    
+
         self.expression = expression
         self.ndim = ndim
         self.expanded = []
@@ -454,7 +466,7 @@ class EinsteinExpansion(object):
         self.indexed_object_name = 'Arr'
         arrays = {}
         have_coordinate = False
-        
+
         # Get the coordinates if the coordinate vector is used in the expression.
         for atom in expression.atoms(EinsteinTerm):
             if atom.is_coordinate:
@@ -498,7 +510,7 @@ class EinsteinExpansion(object):
             if not kd in indexed.keys():
                 indexed[kd] = kd.get_indexed(self.ndim)
                 arrays[indexed[kd]] = kd.get_array(indexed[kd])
-
+                
         # Get the arrays for the Levi-Civita function
         for lc in expression.atoms(LC):
             if not lc in indexed.keys():
@@ -525,11 +537,11 @@ class EinsteinExpansion(object):
         # Now evaluate the RHS of the equation
         evaluated_rhs, rhs_indices = evaluate_expression(expression.rhs, arrays, indexed)
         evaluated_lhs, lhs_indices = evaluate_expression(expression.lhs, arrays, indexed)
-        
+
         # Sanity check: Check that the indices on the LHS and RHS match
         if lhs_indices != rhs_indices:
             raise ValueError("Indices of the LHS do not match those of the RHS in the following expression: ", expression)
-        
+
         # The expanded equations will be of type SymPy Eq.
         array_types = (collections.Iterable, MatrixBase, NDimArray)
         if isinstance(evaluated_lhs, array_types):
@@ -582,7 +594,7 @@ class Equation(object):
         expansion = EinsteinExpansion(self.parsed, ndim)
         self.expanded = expansion.expanded
         LOG.debug("The expanded expression is: %s" % (expansion.expanded))
-        
+
         # TODO: Simplification of the equations
 
         return
@@ -590,7 +602,7 @@ class Equation(object):
 
 def get_index_structure(term):
     """ Get all the Einstein indices of a given term.
-    
+
     :arg term: The term to get the Einstein indices of.
     :returns: The alphabetical/non-expanded Einstein indices of a given object (or None, if no indices are present).
     """
@@ -612,11 +624,11 @@ def get_index_structure(term):
             return get_Add_indices(term)
         elif term.is_Pow or isinstance(term, exp):
             return get_Pow_indices(term)
-    
-    
+
+
 def get_Mul_indices(term):
     """ Get all the Einstein indices in a multiplicative term. """
-    
+
     # For each of the 'arguments' of a term (e.g. a coefficient like 2/3, or a function like KD[i, j])
     # get the index structure of each one. If no indices exist (e.g. for the coefficient 2/3), then this will be None.
     # For e.g. KD[i, j], this will be [i, j].
@@ -629,11 +641,11 @@ def get_Mul_indices(term):
         return indices
     else:
         return None
-        
-        
+
+
 def get_Add_indices(term):
     """ Get all the Einstein indices in an additive term. The indices of the first term is taken as the structure of the additive terms. """
-    
+
     indices = list(map(get_index_structure, term.args))
     if all(index == None for index in indices):
         pass
@@ -643,8 +655,8 @@ def get_Add_indices(term):
         return indices[0]
     else:
         return None
-        
-        
+
+
 def get_Pow_indices(term):
     """ Get all the Einstein indices in a Pow term. """
 
@@ -662,8 +674,8 @@ def get_Pow_indices(term):
             pass
         return base_index_structure
     return
-    
-    
+
+
 def evaluate_Pow_expression(term, arrays, index_structure):
     """ Evaluate an expression containing an exponent. """
 
@@ -672,13 +684,13 @@ def evaluate_Pow_expression(term, arrays, index_structure):
         raise NotImplementedError("Indexed objects in exponents are not supported: ", term)
     else:
         evaluated, indices = evaluate_Indexed_expression(base, arrays, index_structure)
-        
+
         if indices:
             if e == 2:
                 evaluated = evaluated**e
                 tensor_indices = indices
                 evaluated = apply_contraction([], tensor_indices, evaluated)
-                indices = []
+                indices = None
             else:
                 raise NotImplementedError("Only Indexed objects to the power 2 are supported")
         else:
@@ -697,11 +709,11 @@ def evaluate_Add_expression(term, arrays, index_structure):
         arg_indices.append(arg_index)
     add_evaluated, indices = add_args(arg_evaluations, arg_indices)
     return add_evaluated, indices
-    
-    
+
+
 def add_args(arg_evaluated, arg_indices):
     """ Add all arguments together.
-    
+
     :arg arg_evaluated: An array of the evaluated EinsteinTerm and/or Function arguments.
     :arg arg_indices: An array of the relevant indices of each of the evaluated EinsteinTerms and/or Functions.
     :returns: The sum of all the evaluated terms.
@@ -710,12 +722,12 @@ def add_args(arg_evaluated, arg_indices):
     # The base case of only one evaluated argument - just return it.
     if len(arg_evaluated) == 1:
         return arg_evaluated[0], arg_indices[0]
-        
+
     # If all arguments of addition are scalars, then sum them all up and return the result.
     if all([ind == None for ind in arg_indices]):
         evaluated = sum(arg_evaluated)
         return evaluated, arg_indices[0]
-    
+
     for number, index in enumerate(arg_indices):
         if number == 0:
             # Use the first evaluated argument to initialise the 'evaluated' sum.
@@ -743,7 +755,7 @@ def evaluate_Mul_expression(term, arrays, index_structure):
 
     evaluated = 1
     tensor_product_indices = []
-    
+
     for arg in term.args:
         arg_evaluated, arg_index = evaluate_Indexed_expression(arg, arrays, index_structure)
         evaluated = tensorproduct(evaluated, arg_evaluated)
@@ -756,18 +768,18 @@ def evaluate_Mul_expression(term, arrays, index_structure):
         indices = indices
     else:
         indices = None
-        
+
     return evaluated, indices
 
 
 def apply_contraction(outer_indices, tensor_indices, array):
     """ Apply the contraction structure to the array of Indexed objects.
-    
+
     :arg outer_indices: The outer indices (i.e. any indices that are not repeated/summation indices)
     :arg tensor_indices: The indices that need to be summed over.
     :arg array: The Indexed arrays to apply the index contraction structure to.
     """
-    
+
     contracting_indices = set(tensor_indices).difference(set(outer_indices))
     result = array
     if contracting_indices:
@@ -776,12 +788,12 @@ def apply_contraction(outer_indices, tensor_indices, array):
             result = tensorcontraction(result, match)
             tensor_indices = [i for i in tensor_indices if i != index]
     return result
-    
-    
+
+
 def walk_expression_tree(expression):
     """ Perform a pre-order traversal of the expression tree to split up the expression into individual
     EinsteinTerms and functions such as Derivative or Conservative. Any other types (e.g. basic coefficients like 2/3) are skipped.
-    
+
     :arg expression: The expression from which to build and traverse an expression tree.
     :returns: A list of all individual EinsteinTerms and functions in the expression.
     :rtype: list
@@ -809,11 +821,11 @@ def walk_expression_tree(expression):
 def evaluate_expression(expression, arrays, indexed):
     """ Evaluate a given expression, thereby expanding the indices and performing any function calls
     (e.g. actually applying the effect of the Kronecker Delta function).
-    
+
     :arg expression: The expression to evaluate. This will be a SymPy data type.
     :arg dict arrays: A dictionary of (array name, NDimArray) pairs. The NDimArrays contain the expanded variables.
     :arg dict indexed: A dictionary of (non-Indexed, Indexed) pairs. Effectively, each key contains the original
-    (non-expanded) EinsteinTerm, and its corresponding value is its equivalent Indexed version. E.g. (rhou_j, rhou[j]). 
+    (non-expanded) EinsteinTerm, and its corresponding value is its equivalent Indexed version. E.g. (rhou_j, rhou[j]).
     :returns: A tuple containing the evaluated expression and a list of indices (e.g. [i,j]).
     :rtype: tuple
     """
@@ -827,12 +839,12 @@ def evaluate_expression(expression, arrays, indexed):
     evaluated, indices = evaluate_Indexed_expression(expression, arrays, index_structure)
 
     return evaluated, indices
-    
-    
+
+
 def evaluate_Indexed_expression(expression, arrays, index_structure):
     """ Evaluate the Einstein terms in the expression by using their constituent arrays
     and performing the appropriate add/multiply/power operations on them according to the index structure.
-    
+
     :arg expression: The SymPy expression to evaluate. Each term will be Indexed (as appropriate; constants like "-1" will of course not be Indexed).
     :arg arrays: The arrays containing EinsteinTerms/Indexed components of shape NDim for vectors, or NDim x NDim for rank 2 tensors.
     :arg index_structure: The index structure over which to apply the various mathematical operations.
@@ -858,11 +870,11 @@ def evaluate_Indexed_expression(expression, arrays, index_structure):
     else:
         raise ValueError("Unknown expression \"%s\" of type %s" % (expression, type(expression)))
     return
-    
-    
+
+
 def remove_repeated_index(indices):
-    """ Remove duplicate indices in a list of indices. 
-    
+    """ Remove duplicate indices in a list of indices.
+
     :arg list indices: A list of indices to consider.
     :returns: The list of indices with all duplicates removed.
     :rtype: list
@@ -875,10 +887,10 @@ def remove_repeated_index(indices):
             sum_index[i] = 0
     indices = [x for x in indices if not sum_index[x]]
     return indices
-    
+
 def maximum_derivative_order(equations):
     """ Get the maximum order of the derivatives across the list of equations provided.
-    
+
     :arg list equations: The list of equations to consider.
     :returns: The maximum order of the derivatives.
     :rtype: int

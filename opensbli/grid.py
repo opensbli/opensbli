@@ -61,6 +61,10 @@ class Grid(object):
             self.grid_data_dictionary  = dict(zip([str(d) for d in self.deltas], \
                 [grid_data['delta'][i] for i in range(ndim)])) 
             self.shape = tuple([grid_data['number_of_points'][i] for i in range(ndim)])
+        # Also require a mapping between grid indices and the coordinate directions
+        # This is like the indexed array of x_i EinsteinTerm, this removes the dependancy of coordinate 
+        # in the spatial descritisation or Diagnostics or any where else later this should be input to this
+        self.mapedindices = tuple(Symbol('x%d' % ind, integer = True) for ind, val in enumerate(self.shape))
         
         return
         

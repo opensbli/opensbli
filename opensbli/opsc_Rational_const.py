@@ -24,9 +24,7 @@ from sympy.parsing.sympy_parser import parse_expr
 import re
 import os
 from string import Template
-from sympy.printing.precedence import precedence
-from .equations import EinsteinTerm
-from .kernel import ReductionVariable
+
 import logging
 LOG = logging.getLogger(__name__)
 BUILD_DIR = os.getcwd()
@@ -39,22 +37,14 @@ class OPSCCodePrinter(CCodePrinter):
         # Indexed access numbers are required in dictionary
         self.Indexed_accs = Indexed_accs
         self.constants = constants
-    def _print_ReductionVariable(self, expr):
-        return '*%s'%str(expr)
     def _print_Rational(self, expr):
         '''
         '''
-        if self.constants != None:
-            if expr in self.constants.keys():
-                return self.constants[expr]
-            else:
-                con = 'rc%d'%len(self.constants.keys())
-                self.constants[expr] = con
-                return self.constants[expr]
+        if self.constants and expr in self.constants.keys():
+            return self.constants[expr]
         else:
             p, q = int(expr.p), int(expr.q)
             return '%d.0/%d.0' %(p,q)
-
     def _print_Indexed(self, expr):
         # find the symbols in the indices of the expression
         syms = flatten([list(at.atoms(Symbol)) for at in expr.indices])
@@ -63,38 +53,16 @@ class OPSCCodePrinter(CCodePrinter):
             expr = expr.subs({x: 0})
         if self.Indexed_accs[expr.base] != None:
             out = "%s[%s(%s)]"%(self._print(expr.base.label) \
-            , self.Indexed_accs[expr.base], ','.join([self._print(ind)  for ind in expr.indices if ind != EinsteinTerm('t')]))
+            , self.Indexed_accs[expr.base], ','.join([self._print(ind)  for ind in expr.indices]))
         else:
             out = "%s[%s]"%(self._print(expr.base.label) \
             , ','.join([self._print(ind)  for ind in expr.indices]))
         return out
 
-
-def pow_to_constant(expr,constants):
-    '''
-    '''
-    from sympy.core.function import _coeff_isneg
-    # Only negative powers i.e they correspond to division and they are stored into
-    # constant arrays
-    inverse_terms = {}
-    for at in expr.atoms(Pow):
-        if _coeff_isneg(at.exp) and not at.base.atoms(Indexed):
-            if not at in constants.keys():
-                constants[at] = 'rinv%d'%len(constants.keys())
-            inverse_terms[at] = constants[at]
-    expr = expr.subs(inverse_terms)
-    return expr, constants
 def ccode(expr, Indexed_accs=None, constants=None):
     if isinstance(expr, Eq):
-        # TODO First derivative /delta is not showing as Pow why???
-        #if any(str(t) == 'deltai0' for t in expr.rhs.atoms(EinsteinTerm)):
-            #pprint([sympify(expr), repr(sympify(expr))])
-        if constants:
-            expr, constants = pow_to_constant(expr, constants)
-        code_print = OPSCCodePrinter(Indexed_accs, constants)
-        code = code_print.doprint(expr.lhs) \
-            + ' = ' + OPSCCodePrinter(Indexed_accs, constants).doprint(expr.rhs)
-        return code, code_print.constants
+        return OPSCCodePrinter(Indexed_accs, constants).doprint(expr.lhs) \
+        + ' = ' + OPSCCodePrinter(Indexed_accs, constants).doprint(expr.rhs)
     return OPSCCodePrinter(Indexed_accs, constants).doprint(expr)
 
 class OPSC(object):
@@ -102,7 +70,7 @@ class OPSC(object):
     '''
     # Some default attributes for the class
     # OPS Access types, used for kernel call
-    ops_access = {'inputs':'OPS_READ', 'outputs':'OPS_WRITE', 'inputoutput':'OPS_RW', 'reductions': 'OPS_INC'}
+    ops_access = {'inputs':'OPS_READ', 'outputs':'OPS_WRITE', 'inputoutput':'OPS_RW'}
     # OPS kenel header
     ops_header = {'inputs':'const %s *%s', 'outputs':'%s *%s', 'inputoutput':'%s *%s', 'Idx':'const int *%s'}
     # Line comments
@@ -118,10 +86,6 @@ class OPSC(object):
         Ics, IO, simulation_parameters, Diagnostics = None):
         #shape, settings, nblocks=None):
         self.check_consistency(grid, spatial_solution, temporal_soln, boundary, Ics,IO)
-        if Diagnostics:
-            self.diagnostics = self.listvar(Diagnostics)
-        else:
-            self.diagnostics = None
         self.simulation_parameters = simulation_parameters
         # update the simulation parameters from that of the grid
         for g in self.grid:
@@ -178,7 +142,10 @@ class OPSC(object):
         self.constants = set()
         # OPS constants, These are the constants in the above list to be defined into OPS format
         self.constant_values = {}
+        # Rational constants
         self.rational_constants = {}
+        self.rational_constant_name = "rc%d"
+        self.rational_constant_number = 0
 
         # Dictionary of stencils key will be a stencil string and value is the name of stencil
         self.stencil_dictionary = {}
@@ -319,33 +286,25 @@ class OPSC(object):
         code_dictionary['define_dat'] = '\n'.join(self.define_dat())
         code_dictionary['initialise_dat'] = '\n'.join(self.initialise_dat())
 
+        # Update the constants and simulation
         # header
         code_dictionary['header'] = '\n'.join(self.header())
         # Stencils
         code_dictionary['declare_stencils'] = '\n'.join(self.declare_stencils())
-
-
+        
         # Initialise constants and Declare  constants in OPS format
-        code_dictionary['initialise_constants'] = '\n'.join(self.initialize_constants())
+        #code_dictionary['initialise_constants'] = '\n'.join(self.initialize_constants())
         code_dictionary['declare_ops_constants'] = '\n'.join(self.declare_ops_constants())
-
-        # get diagnostics
-
         # write the main file
         code_template = code_template.safe_substitute(code_dictionary)
         self.write_main_file(code_template)
         return
-    #def get_diagnostics(self):
-        #if self.diagnostics:
-            #for block in range(self.nblocks):
-
-
-        #return
     def initialize_constants(self):
         '''
         '''
-        # FIXME these should be sorted if we have evaluations that are dependant on inits
+        # Get the constants defined every where. i.e. in
         const_init = []
+
         for con in self.constants:
             val = self.simulation_parameters[str(con)]
             if isinstance(con, IndexedBase):
@@ -444,10 +403,6 @@ class OPSC(object):
                     for inp, value in computation.outputs.iteritems() if not inp.is_grid ] + \
                         [self.ops_global_call(inp, value, self.dtype, self.ops_access['inputoutput'])\
                             for inp, value in computation.inputoutput.iteritems() if not inp.is_grid ]
-        # Reductions
-        if computation.reductions:
-            nongrid += [self.ops_argument_reduction(inp, self.dtype,self.ops_access['reductions'])\
-                for inp in computation.reductions if isinstance(inp, ReductionVariable)]
         if computation.has_Idx:
             nongrid += [self.grid_index_call()]
         kercall = kercall + gridbased + nongrid
@@ -518,9 +473,6 @@ class OPSC(object):
     def ops_argument_call(self, array, stencil, precision, access_type):
         template = 'ops_arg_dat(%s, %d, %s, \"%s\", %s)'
         return template%(array,1,stencil, self.dtype, access_type)
-    def ops_argument_reduction(name, access_type):
-        template = 'ops_arg_reduce(%s, %d \"%s\", %s)'
-        return template%(name,1, self.dtype, access_type)
     def bc_exchange_call_code(self, instance):
         off = 0; halo = 'halo'
         #name of the halo exchange
@@ -611,7 +563,6 @@ class OPSC(object):
             if self.temporal_soln[block].end_computations:
                 block_comps += self.temporal_soln[block].end_computations
 
-
             for comp in block_comps:
                 kernels[block] += self.kernel_computation(comp,block)
         return kernels
@@ -621,19 +572,21 @@ class OPSC(object):
         This acts as a helper function for the block computations
         '''
         header = []
+        rationals, neweq = self.get_rational_constants(computation)
         comment_eq = [self.block_comment[0]]
-        # Flops count for grid point
+        # Flops count for grid point without rational substitution
         count = sum([count_ops(eq.rhs) for eq in computation.equations])
-        # Flops count for the entire grid
-        rang = [(ran[1]- ran[0]) for ran in computation.ranges]
-        gridcount = count
-        for r in rang:
-            gridcount = gridcount*r
-
+        # Flops count for grid point with rational substitution
+        ratcount = sum([count_ops(eq.rhs) for eq in neweq])
+        for r,val in rationals.iteritems():
+            comment_eq += ['%s:%s'%(r,val)]
         for eq in computation.equations:
             comment_eq += [pretty(eq,use_unicode=False)]
-        comment_eq += ['The count of operations per grid point for the kernel is %d'%count]
-        comment_eq += ['The count of operations on the range of evaluation for the kernel is %d'%gridcount]
+        comment_eq += ['NEW EQUATIONS WITH RATIONAL SUBS IS']
+        for eq in neweq:
+            comment_eq += [pretty(eq,use_unicode=False)]
+        comment_eq += ['Flops count for grid point without rational substitution in the kernel is %d'%count]
+        comment_eq += ['Flops count for grid point with rational substitution the kernel is %d'%ratcount]
         comment_eq += [self.block_comment[1]]
 
         if computation.name == None:
@@ -658,13 +611,46 @@ class OPSC(object):
         code =  header
         ops_accs = self.get_OPS_ACCESS_number(computation)
         for eq in computation.equations:
-            code_kernel, self.rational_constants = ccode(eq,ops_accs, self.rational_constants)
-            code += [code_kernel + self.end_of_statement]
+            code += [ccode(eq,ops_accs, rationals)+ self.end_of_statement]
         code += [self.close_brace] + ['\n']
         self.update_definitions(computation)
-        # update the kernal name index
+        # update the kernel name index
         self.kernel_name_number[block_number] = self.kernel_name_number[block_number]+1
         return code
+    def get_rational_constants(self, computation):
+        '''
+        This returns a dictionary with rational constants.
+        This needs a better logic though
+        
+        '''
+        def rational(eq):
+            skip_types = (Indexed,  type(S.NegativeOne), Integer)
+            pot = preorder_traversal(eq)
+            rationals = set()
+            for p in pot:
+                if isinstance(p, skip_types):
+                    pot.skip()
+                elif isinstance(p,Rational):
+                    rationals.add(p)
+                else:
+                    continue
+            return rationals
+        rational_const = {}
+        for eq in computation.equations:
+            rationals = rational(eq)
+            for rat in rationals:
+                if rat in self.rational_constants.keys():
+                    pass
+                else:
+                    name = self.rational_constant_name% self.rational_constant_number
+                    self.rational_constants[rat] = self.rational_constant_name% self.rational_constant_number
+                    self.rational_constant_number = self.rational_constant_number +1
+                    self.simulation_parameters[name] = rat
+                rational_const[rat] = self.rational_constants[rat]
+        neweq = [eq.subs(rational_const) for eq in computation.equations]
+        # Update the names of the rational constant in the constants to be declared
+        self.constants = self.constants.union(rational_const.values())
+        return rational_const, neweq
     '''
     Writing the code
     '''
@@ -840,10 +826,7 @@ class OPSC(object):
         constants = set(computation.constants)
         #constants need to think??
         self.grid_based_arrays = self.grid_based_arrays.union(arrays)
-        self.constants = self.constants.union(constant_arrays).union(constants).union(self.rational_constants.values())
-        # update the simulation parameters as these are used for writing the constants
-        self.simulation_parameters.update(dict(zip([str(v) for v in self.rational_constants.values()],\
-            list(self.rational_constants.keys()))))
+        self.constants = self.constants.union(constant_arrays).union(constants)
         return
     def get_OPS_ACCESS_number(self, computation):
         '''

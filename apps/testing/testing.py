@@ -10,7 +10,7 @@ from opensbli.bcs import *
 from opensbli.grid import *
 from opensbli.timestepping import *
 from opensbli.io import *
-
+from opensbli.diagnostics import *
 BUILD_DIR = os.getcwd()
 
 opensbli.LOG.info("Generating code for the 2D Taylor-Green Vortex simulation...")
@@ -23,9 +23,10 @@ mass = "Eq(Der(rho,t),- Conservative(rhou_j,x_j))"
 momentum = "Eq(Der(rhou_i,t) ,-Conservative(rhou_i*u_j + p* KD(_i,_j),x_j) + Der(tau_i_j,x_j) )"
 energy = "Eq(Der(rhoE,t),- Conservative((p+rhoE)*u_j,x_j) +Der(q_j,x_j) + Der(u_i*tau_i_j ,x_j) )"
 lev = "Eq(vort_i, (LC(_i,_j,_k)*Der(u_k,x_j)))"
+ke = "Eq(ke, (1/2)*u_j*u_j)"
 test = "Eq(Der(phi,t),- c_j* Der(phi,x_j))"
-
 equations = [mass, momentum, energy]
+diagnostics = [ke]
 #equations = [test]
 
 # Substitutions
@@ -52,7 +53,10 @@ formulas = [velocity, pressure, temperature, viscosity]
 
 # Create the TGV problem and expand the equations.
 problem = Problem(equations, substitutions, ndim, constants, coordinate_symbol, metrics, formulas)
-expanded_equations, expanded_formulas = problem.get_expanded()
+expanded_equations = problem.get_expanded(problem.equations)
+expanded_formulas = problem.get_expanded(problem.formulas)
+expanded_diagnostics = problem.get_expanded(problem.expand(diagnostics))
+
 
 # Output equations in LaTeX format.
 latex = LatexWriter()
@@ -63,6 +67,8 @@ latex.write_header(metadata)
 temp = flatten(expanded_equations)
 latex.write_expression(temp, substitutions=latex_substitutions)
 temp = flatten(expanded_formulas)
+latex.write_expression(temp, substitutions=latex_substitutions)
+temp = flatten(expanded_diagnostics)
 latex.write_expression(temp, substitutions=latex_substitutions)
 latex.write_footer()
 latex.close()
@@ -95,17 +101,21 @@ boundary = BoundaryConditions(bcs, grid, temporal_discretisation.prognostic_vari
 initial_conditions = ["Eq(grid.work_array(phi), sin((grid.Idx[0] - 1)*grid.deltas[0]))"]
 initial_conditions = GridBasedInitialisation(grid, initial_conditions)
 
+# Diagnostics
+reduction_type = ["sum"] #  list of reduction types, same length as expanded diagnostics
+red_eq = Reduction(grid, expanded_diagnostics, expanded_formulas, temporal_discretisation.prognostic_variables, \
+    spatial_scheme, reduction_type)
 # I/O save conservative variables at the end of simulation
 io = FileIO(temporal_discretisation.prognostic_variables)
 
 # Grid parameters like number of points, length in each direction, and delta in each direction
-l1 = ['niter', 'Re', 'Pr', 'gama', 'Minf', 'mu', 'precision', 'name']
-l2 = [1000,100,0.72, 1.4,0.3, 1.0, "double", "testing"]
+l1 = ['niter', 'Re', 'Pr', 'gama', 'Minf', 'mu', 'precision', 'name', 'deltat']
+l2 = [1000,100,0.72, 1.4,0.3, 1.0, "double", "testing", 0.1]
 # Constants in the system
 simulation_parameters = dict(zip(l1,l2))
 
 # Generate the code.
-OPSC(grid, spatial_discretisation, temporal_discretisation, boundary, initial_conditions, io, simulation_parameters)
+OPSC(grid, spatial_discretisation, temporal_discretisation, boundary, initial_conditions, io, simulation_parameters, red_eq)
 
 end = time.time()
 LOG.debug('The time taken to prepare the system in %d dimensions is %.2f seconds.' % (problem.ndim, end - start))

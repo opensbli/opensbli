@@ -21,6 +21,10 @@
 from sympy import *
 
 from .equations import EinsteinTerm
+class ReductionVariable(Symbol):
+    def __new__(self,var):
+        self = Symbol.__xnew__(self, var)
+        return self
 
 class Kernel(object):
 
@@ -28,27 +32,27 @@ class Kernel(object):
 
     def __init__(self, equations, ranges, computation):
         """ Set up the kernel. This object will:
-        
+
         1. Write the kernel's calling function based on the desired language.
             For this we require (for OPSC):
                 a. Name of the kernel to call
                 b. The block on which it should execute, and the dimensions of the block
                 c. The ins, outs, and inouts variables, and their stencil of access and data type
                 d. Indices of the array, if required
-                
+
         2. Write the computational kernel, which requires writing kernel header and the computations
             For this we require (for OPSC):
                 a. The kernel header with ins, outs, inouts and indices, specified along with the data type.
                 b. To write the computations the Indexed objects are to be modified.
                    This modification requires OPS_ACC values which can also be populated and grid indices are replaced with 0's.
-                   
+
         All in all we require:
             1. Name
             2. Block (updated from the call to ops_write)
             3. ins, outs, inouts and so on
             4. Stencils of access
         """
-        
+
         self.computation_type = computation
         self.ranges = ranges # Range of the indices of the points the kernel iterates over.
         self.name = None # None generates automatic kernel name
@@ -60,26 +64,26 @@ class Kernel(object):
         self.inputs = {}
         self.outputs = {}
         self.inputoutput = {}
-        
+
         self.classify_grid_objects()
-        
+
         return
-        
+
     def classify_grid_objects(self):
-    
-        """ Classify the individual terms in the kernel's equation(s) 
+
+        """ Classify the individual terms in the kernel's equation(s)
         as inputs, outputs, or inputoutputs (i.e. both an input and an output). """
-        
+
         ins = []
         outs = []
         inouts = []
         consts = []
-        
+
         for eq in self.equations:
             ins = ins + list(eq.rhs.atoms(Indexed))
             outs = outs + list(eq.lhs.atoms(Indexed))
-            consts = consts + list(eq.atoms(EinsteinTerm))
-            
+            consts = consts + [et for et in list(eq.atoms(EinsteinTerm)) if et.is_constant]
+
         inouts = set(outs).intersection(set(ins))
         ins = set(ins).difference(inouts)
         outs = set(outs).difference(inouts)
@@ -95,13 +99,15 @@ class Kernel(object):
         for v in indexbase_inouts:
             indexes = [vinout.indices for vinout in inouts if vinout.base==v]
             self.inputoutput[v] = indexes
-            
+
         idxs = flatten([list(e.rhs.atoms(Idx)) for e in self.equations])
         if idxs:
             self.has_Idx = True
         else:
             self.has_Idx = False
-            
+
+        self.reductions = flatten([list(e.rhs.atoms(ReductionVariable)) for e in self.equations])
+
         self.constants = set(consts)
-        
+
         return
