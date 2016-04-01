@@ -4,9 +4,40 @@ import argparse
 import numpy
 from math import pi, exp, cos, sin
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 import h5py
+import string
 
-def error(i, number_of_points):
+fig, subax = plt.subplots(2, 3, sharex='col', sharey='row', figsize=(9,5))
+subax = subax.flat
+
+def plot_phi(simulation_index, phi, phi_analytical):
+    """ Plot the field 'phi' in a multi-figure plot, to show the field converging to the analytical solution. """
+    subax[simulation_index].imshow(phi, extent=(0, 10, 0, 10), interpolation='nearest', aspect='auto')
+    
+    if simulation_index != 0 and simulation_index != 1 and simulation_index != 2:
+        subax[simulation_index].set_xlabel(r'$x$')
+    subax[simulation_index].set_ylabel(r'$y$')
+    subax[simulation_index].text(0.5, 1.05, "("+string.ascii_lowercase[simulation_index]+")", transform=subax[simulation_index].transAxes, size=10, weight='bold')
+    if simulation_index == 4: # The last simulation.
+        # Add in the analytical solution as well as a special case.
+        im = subax[5].imshow(phi_analytical, extent=(0, 10, 0, 10), aspect='auto')
+        subax[5].set_xlabel(r'$x$')
+        subax[5].set_ylabel(r'$y$')
+        
+        # Insert colourbar
+        fig.subplots_adjust(right=0.8)
+        cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+        fig.colorbar(im, cax=cbar_ax, label=r"$\phi$")
+        
+        subax[5].text(0.5, 1.05, "("+string.ascii_lowercase[5]+")", transform=subax[5].transAxes, size=10, weight='bold')
+        
+        plt.savefig("phi.pdf", bbox_inches='tight')
+        plt.clf()
+    
+    
+    
+def error(simulation_index, number_of_points):
     # Number of grid points. This is assumed to be the same in the x and y directions.
     nx = number_of_points
     ny = number_of_points  
@@ -15,9 +46,9 @@ def error(i, number_of_points):
     halo = 2
 
     # Read in the simulation output
-    path = "./mms_%d/mms_%d_opsc_code/" % (i, i)
+    path = "./mms_%d/mms_%d_opsc_code/" % (simulation_index, simulation_index)
     f = h5py.File(path + "/state.h5", 'r')
-    group = f["mms_%d_block" % i]
+    group = f["mms_%d_block" % simulation_index]
     
     # Get the numerical solution field
     phi = group["phi"].value
@@ -25,8 +56,7 @@ def error(i, number_of_points):
     # Ignore the 2 halo nodes at either end of the domain
     phi = phi[halo:nx+halo, halo:ny+halo]
     print phi.shape
-    #plt.imshow(phi)
-    #plt.show()
+    
 
     # Grid spacing
     dx = (2.0*pi)/(nx)
@@ -47,6 +77,9 @@ def error(i, number_of_points):
             y[i,j] = i*dy
             phi_analytical[i,j] = sin(x[i,j])*cos(y[i,j])
             phi_error[i,j] = abs(phi[i,j] - phi_analytical[i,j])
+
+    plot_phi(simulation_index, phi, phi_analytical)
+    
     return numpy.linalg.norm(phi_error, ord=2)
 
 def plot():
@@ -54,10 +87,10 @@ def plot():
     Lx = 2*pi
     dx = []
     errors = []
-    for i in range(0, 5):
-        number_of_points = 4*(2**i)
+    for simulation_index in range(0, 5):
+        number_of_points = 4*(2**simulation_index)
         dx.append(Lx/number_of_points)
-        errors.append(error(i, number_of_points))
+        errors.append(error(simulation_index, number_of_points))
     print "Errors in the L2 norm: ", errors
     plt.loglog(dx, errors, 'o-k', label=r"$\phi$")
     
