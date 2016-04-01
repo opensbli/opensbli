@@ -1,3 +1,4 @@
 # Authors
-* Satya P Jammy
+
+* Satya P. Jammy
 * Christian T. Jacobs

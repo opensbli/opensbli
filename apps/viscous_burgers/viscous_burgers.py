@@ -1,3 +1,6 @@
+""" A viscous Burgers equation solver.
+Simulation parameters are based on those used here: http://pauli.uni-muenster.de/tp/fileadmin/lehre/NumMethoden/WS0910/ScriptPDE/Burgers.pdf """
+
 #!/usr/bin/env python
 import sys
 from math import ceil
@@ -12,29 +15,23 @@ from opensbli.grid import *
 from opensbli.timestepping import *
 from opensbli.io import *
 
-def dt(dx, c):
-    """ Given a grid spacing dx and the wave speed c, return the value of dt such that the CFL condition is respected. """
-    courant_number = 0.2
-    return (dx*courant_number)/c
-
 BUILD_DIR = os.getcwd()
 
-opensbli.LOG.info("Generating code for the 1D wave propagation simulation...")
+opensbli.LOG.info("Generating code for the 1D viscous Burgers simulation...")
 start_total = time.time()
 
 # Problem dimension
 ndim = 1
 
-# Define the wave equation in Einstein notation.
-wave = "Eq(Der(phi,t), -c_j*Der(phi,x_j))"
-
-equations = [wave]
+# Define the viscous Burgers equation in Einstein notation. Note that the advection term is written in the so-called "conservation form".
+viscous_burgers = "Eq( Der(phi,t), -c_j*Der(phi*phi,x_j) + d*Der(Der(phi,x_j),x_j) )"
+equations = [viscous_burgers]
 
 # Substitutions
 substitutions = []
 
-# The wave speed
-constants = ["c_j"]
+# Constants
+constants = ["c_j", "d"]
 
 # Coordinate direction symbol (x) this will be x_i, x_j, x_k
 coordinate_symbol = "x"
@@ -68,9 +65,9 @@ spatial_scheme = Central(4) # Fourth-order central differencing in space.
 temporal_scheme = RungeKutta(3) # Third-order Runge-Kutta time-stepping scheme.
 
 # Create a numerical grid of solution points
-length = [1.0]*ndim
-np = [1000]*ndim
-deltas = [length[i]/np[i] for i in range(len(length))]
+length = [10.0]
+np = [200]
+deltas = [length[0]/np[0]]
 
 grid = Grid(ndim,{'delta':deltas, 'number_of_points':np})
 
@@ -86,28 +83,27 @@ bcs = [("periodic", "periodic")]
 boundary = BoundaryConditions(bcs, grid, temporal_discretisation.prognostic_variables)
 
 # Initial conditions
-initial_conditions = ["Eq(grid.work_array(phi), sin(2*M_PI*(grid.Idx[0])*grid.deltas[0]))"]
+x = "(grid.Idx[0]*grid.deltas[0])"
+initial_conditions = ["Eq(grid.work_array(phi), exp(-((%s-3)*(%s-3))))" % (x, x)]
 initial_conditions = GridBasedInitialisation(grid, initial_conditions)
 
 # I/O save conservative variables at the end of simulation
 io = FileIO(temporal_discretisation.prognostic_variables)
 
 # Grid parameters like number of points, length in each direction, and delta in each direction
-c0 = 0.5
-deltat = dt(deltas[0], c0)
-niter = ceil(1.0/deltat)
-l1 = ['niter', 'c0', 'deltat', 'precision', 'name']
-l2 = [niter, c0, deltat, "double", "wave"]
+deltat = 0.05
+T = 1.8
+niter = ceil(T/deltat)
+c0 = 0.5 # 1/2
+d = 0.02 # Diffusion coefficient.
+l1 = ['niter', 'c0', 'd', 'deltat', 'precision', 'name']
+l2 = [niter, c0, d, deltat, "double", "viscous_burgers"]
 
 # Constants in the system
 simulation_parameters = dict(zip(l1,l2))
 
 # Generate the code.
 opsc = OPSC(grid, spatial_discretisation, temporal_discretisation, boundary, initial_conditions, io, simulation_parameters)
-#opsc.set_diagnostics_level(1)
-#opsc.generate()
-#opsc.translate()
-
 
 end = time.time()
 LOG.debug('The time taken to prepare the system in %d dimensions is %.2f seconds.' % (problem.ndim, end - start))

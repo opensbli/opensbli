@@ -22,14 +22,14 @@ from distutils.core import setup
 
 setup(name='OpenSBLI',
       version='0.1-dev',
-      description='An automatic code generator which expands a set of equations written in Einstein notation, and writes out the finite difference code in the OPSC language.',
+      description='An automatic code generator which expands a set of equations written in Einstein notation, and writes out the finite difference code in a supported language.',
       author='Satya P. Jammy, Christian T. Jacobs',
       url='https://bitbucket.org/spjammy/opensbli',
       packages=['opensbli'],
       package_dir={'opensbli': 'opensbli'},
       scripts=["bin/opensbli-clean"],
       classifiers=[
-      'Development Status :: 2 - Pre-Alpha',
+      'Development Status :: 3 - Alpha',
       'Environment :: Console',
       'Intended Audience :: Science/Research',
       'Natural Language :: English',

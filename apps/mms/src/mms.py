@@ -1,4 +1,17 @@
 #!/usr/bin/env python
+
+""" This simulation uses the Method of Manufactured Solutions to test solution convergence.
+
+An manufactured/'analytical' solution for phi is substituted into the 2D advection-diffusion equation.
+The non-zero residual is then subtracted from the RHS via a source term, such that
+the manufactured solution then becomes the actual solution of the modified equation.
+
+For more information about the procedure, see:
+
+Roache (2002). Code Verification by the Method of Manufactured Solutions. Journal of Fluids Engineering, 124(1), 4-10. doi: 10.1115/1.1436090
+
+"""
+
 import sys
 from math import ceil
 
@@ -12,10 +25,10 @@ from opensbli.grid import *
 from opensbli.timestepping import *
 from opensbli.io import *
 
-def dt(dx, c):
-    """ Given a grid spacing dx and the wave speed c, return the value of dt such that the CFL condition is respected. """
-    courant_number = 0.1
-    return (dx*courant_number)/c
+def dt(dx, velocity):
+    """ Given a grid spacing dx and the velocity, return the value of dt such that the CFL condition is respected. """
+    courant_number = 0.01
+    return (dx*courant_number)/velocity
 
 BUILD_DIR = os.getcwd()
 
@@ -26,9 +39,7 @@ start_total = time.time()
 ndim = 2
 
 # Define the advection-diffusion equation in Einstein notation.
-
-phi_analytical = "sin(x_j)"
-advection_diffusion = "Eq( Der(phi,t), -Der(phi*u_j,x_j) + k*Der(Der(phi,x_j),x_j) + analy )" 
+advection_diffusion = "Eq( Der(phi,t), -Der(phi*u_j,x_j) + k*Der(Der(phi,x_j),x_j) - s )" 
 
 equations = [advection_diffusion]
 
@@ -36,7 +47,7 @@ equations = [advection_diffusion]
 substitutions = []
 
 # Define all the constants in the equations
-constants = ["k", "u_j","analy"]
+constants = ["k", "u_j", "s"]
 
 # Coordinate direction symbol (x) this will be x_i, x_j, x_k
 coordinate_symbol = "x"
@@ -45,7 +56,7 @@ coordinate_symbol = "x"
 metrics = [False, False]
 
 # Formulas for the variables used in the equations
-formulas = ["Eq(analy, Der(l_j,x_j))"]
+formulas = []
 
 # Create the problem and expand the equations.
 problem = Problem(equations, substitutions, ndim, constants, coordinate_symbol, metrics, formulas)
@@ -72,31 +83,20 @@ temporal_scheme = RungeKutta(3) # Third-order Runge-Kutta time-stepping scheme.
 
 # Create a numerical grid of solution points
 length = [2*pi]*ndim
-np = [10]*ndim
+np = [NUMBER_OF_POINTS]*ndim
 deltas = [length[i]/np[i] for i in range(len(length))]
-
 grid = Grid(ndim,{'delta':deltas, 'number_of_points':np})
-# Modify the expanded equations to be functions of grid 
-# create a temporart term 
+
+# Insert the source term 's'. The analytical solution for phi is sin(x[0]).
 temp = EinsteinTerm('x_j')
-x1 = temp.get_array(temp.get_indexed(ndim))
-#make the array sin 
-arr = [sin(x1[j]) for j,val in enumerate(x1)]
-pprint(arr)
-# use this temporart variable in the equation (named as l_j)
-temp = EinsteinTerm('l_j')
-# as these are returnded as a function make temporary coordinate function
-coordinates = tuple([EinsteinTerm('x%d' % dim) for dim in range(ndim)] + [EinsteinTerm('t')])
-l_j = temp.get_array(temp.get_indexed(ndim), coordinates)
-su = dict(zip(l_j, arr))
-# Substitute l_j into equations
-expanded_formulas = [eq.subs(su).doit() for eq in expanded_formulas[0]]
-pprint(expanded_formulas)
-# now do the substitutions for x0, x1 that are grid evaluations
-su = dict(zip(x1, [grid.Idx[0]*grid.deltas[0], grid.Idx[1]*grid.deltas[1]]))
-expanded_formulas = [eq.subs(su).doit() for eq in expanded_formulas]
-pprint(expanded_formulas)
-expanded_equations = [eq.subs(f.lhs, f.rhs) for f in expanded_formulas for eq in expanded_equations[0]] 
+x = temp.get_array(temp.get_indexed(ndim))
+source_value = [-cos(x[0])*cos(x[1]) - 1.5*cos(x[1])*sin(x[0]) - 0.5*sin(x[0])*sin(x[1])]
+source = EinsteinTerm("s")
+x_grid = dict(zip(x, [grid.Idx[0]*grid.deltas[0], grid.Idx[1]*grid.deltas[1]]))
+source_value = [v.subs(x_grid) for v in source_value]
+expanded_equations[0][0] = expanded_equations[0][0].subs(source, source_value[0])
+print expanded_equations[0][0]
+
 # Perform the spatial discretisation
 spatial_discretisation = SpatialDiscretisation(expanded_equations, expanded_formulas, grid, spatial_scheme)
 
@@ -108,25 +108,25 @@ temporal_discretisation = TemporalDiscretisation(temporal_scheme, grid, const_dt
 bcs = [("periodic", "periodic"), ("periodic", "periodic")]
 boundary = BoundaryConditions(bcs, grid, temporal_discretisation.prognostic_variables)
 
-# Initial conditions to be consistent we use x0, an x1
+# Initial conditions. Note that we can use x0 and x1 as defined below and start off with the manufactured solution as the initial condition, but we'll start off with a zero initial condition instead to make it more rigorous.
 x0 = "(grid.Idx[0]*grid.deltas[0])"
 x1 = "(grid.Idx[1]*grid.deltas[1])"
-initial_conditions = ["Eq(grid.work_array(phi), sin(%s))" % x0]
+initial_conditions = ["Eq(grid.work_array(phi), 0)"]
 initial_conditions = GridBasedInitialisation(grid, initial_conditions)
 
 # I/O save conservative variables at the end of simulation
 io = FileIO(temporal_discretisation.prognostic_variables)
 
 # Grid parameters like number of points, length in each direction, and delta in each direction
-deltat = dt(max(deltas), 1)
-T = 5.0
+deltat = dt(max(deltas), velocity=2.0) # NOTE: We'll use an over-estimate for the velocity here in case of over-shoots.
+T = 100.0 # NOTE: Make sure that the simulation runs long enough to ensure a steady-state solution is reached.
 niter = ceil(T/deltat)
 print "Going to do %d iterations." % niter
 
 u0 = 1.0
-u1 = 0.0
-k = 0.5
-simulation_parameters = {"niter":niter, "k":k, "u0":u0, "u1":u1, "deltat":deltat, "precision":"double", "name":"mms"}
+u1 = -0.5
+k = 0.75
+simulation_parameters = {"niter":niter, "k":k, "u0":u0, "u1":u1, "deltat":deltat, "precision":"double", "name":SIMULATION_NAME}
 
 # Generate the code.
 opsc = OPSC(grid, spatial_discretisation, temporal_discretisation, boundary, initial_conditions, io, simulation_parameters)

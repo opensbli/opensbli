@@ -28,28 +28,32 @@ def plot(path):
     
     # Coordinate array
     x = numpy.zeros(nx)
+    phi_initial = numpy.zeros(nx)
     phi_analytical = numpy.zeros(nx)
     phi_error = numpy.zeros(nx)
 
     # Compute the error
     for i in range(0, nx):
         x[i] = i*dx
+        # Initial condition
+        phi_initial[i] = sin(2*pi*x[i])
         # Analytical solution
-        phi_analytical[i] = abs(sin(pi*(x[i]+0.5))) # Phi should be a sin wave shifted to the right by x = 0.5 (since the wave speed is 0.5 m/s and we've simulated until T = 1.0 s).
+        phi_analytical[i] = sin(2*pi*(x[i]+0.5)) # Phi should be a sin wave shifted to the right by x = 0.5 (since the wave speed is 0.5 m/s and we've simulated until T = 1.0 s).
         phi_error[i] = abs(phi_analytical[i] - phi[i])
 
-    plt.plot(x, phi_error, label=r"Absolute error in $\phi$")
+    plt.plot(x, phi_error, "-k", label=r"Absolute error in $\phi(x,\ t=1)$")
     plt.xlabel(r"$x$ (m)")
-    plt.ylabel(r"Error in $\phi$")
+    plt.ylabel(r"Error")
     plt.legend()
-    plt.savefig("phi_error.pdf")
+    plt.savefig("phi_error.pdf", bbox_inches='tight')
 
     plt.clf()
-    plt.plot(x, phi, label=r"Solution field $\phi$")
+    plt.plot(x, phi_initial, "--k", label=r"$\phi(x,\ t=0)$")
+    plt.plot(x, phi, "-k", label=r"$\phi(x,\ t=1)$")
     plt.xlabel(r"$x$ (m)")
-    plt.ylabel(r"$\phi$")
+    plt.ylabel(r"Wave amplitude $\phi$")
     plt.legend()
-    plt.savefig("phi.pdf")
+    plt.savefig("phi.pdf", bbox_inches='tight')
     
 
 

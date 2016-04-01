@@ -1,4 +1,5 @@
-""" Reads in the 2D MMS solution data, written by the OPS dat writer, and plots the fields. """
+""" Reads in the 1D viscous Burgers solution data, written by the OPS dat writer,
+and plots the scalar field 'phi'. """
 
 import argparse
 import numpy
@@ -8,43 +9,33 @@ import h5py
 
 def plot(path):
     # Number of grid points
-    nx = 10
-    ny = 10
+    nx = 200
     
-    nu = 1.0
-    
-    # Number of halo nodes at each end
+     # Number of halo nodes at each end
     halo = 2
 
     # Read in the simulation output
     f = h5py.File(path + "/state.h5", 'r')
-    group = f["mms_block"]
+    group = f["viscous_burgers_block"]
     
-    u = group["phi"].value
+    phi = group["phi"].value
     
     # Ignore the 2 halo nodes at either end of the domain
-    u = u[halo:nx+halo, halo:ny+halo]
-    print u.shape
-    print u
-
-    
+    phi = phi[halo:nx+halo]
+    print phi
     # Grid spacing
-    L = 1.0
-    dx = (2.0*pi*L)/(nx)
-    dy = (2.0*pi*L)/(ny)
+    dx = 1.0/(nx);
     
-    # Coordinate arrays
-    x = numpy.zeros(nx*ny).reshape((nx, ny))
-    y = numpy.zeros(nx*ny).reshape((nx, ny))
+    # Coordinate array
+    x = numpy.zeros(nx)
+    phi_analytical = numpy.zeros(nx)
+    phi_error = numpy.zeros(nx)
 
     # Compute the error
-    t = 10.0
     for i in range(0, nx):
-        for j in range(0, ny):
-            x[i,j] = i*dx
-            y[i,j] = j*dy
+        x[i] = i*dx
 
-    plt.imshow(u)
+    plt.plot(x, phi, label=r"Solution field $\phi$")
     plt.xlabel(r"$x$ (m)")
     plt.ylabel(r"$\phi$")
     plt.legend()

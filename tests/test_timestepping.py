@@ -3,7 +3,7 @@
 import os
 import pytest
 
-from sympy import Symbol, Idx
+from sympy import Symbol, Idx, Rational
 
 # OpenSBLI functions
 from opensbli.equations import *
@@ -67,8 +67,8 @@ def test_rk3(rk3):
     new = IndexedBase('rknew')[stage]
     
     coefficients = rk3.get_coefficients()
-    assert coefficients[old] == [-1, 2, -1]
-    assert coefficients[new] == [-1, 4, -6, 4, -1]
+    assert coefficients[old.base] == [Rational(1.0,4.0), Rational(3.0,20), Rational(3.0,5.0)]
+    assert coefficients[new.base] == [Rational(2,3), Rational(5,12), Rational(3,5)]
         
     return
 
