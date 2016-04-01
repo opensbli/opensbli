@@ -105,7 +105,7 @@ print "Going to do %d iterations." % niter
 u0 = 0.1
 u1 = 0.0
 k = 0.1
-simulation_parameters = {"niter":niter, "k":k, "u0":u0, "u1":u1, "deltat":deltat, "precision":"double", "name":"advection_diffusion_2d"}
+simulation_parameters = {"niter":niter, "k":k, "u0":u0, "u1":u1, "deltat":deltat, "precision":"double", "name":"gaussian_bump"}
 
 # Generate the code.
 opsc = OPSC(grid, spatial_discretisation, temporal_discretisation, boundary, initial_conditions, io, simulation_parameters)
