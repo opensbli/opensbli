@@ -64,7 +64,12 @@ class Grid(object):
         # Also require a mapping between grid indices and the coordinate directions
         # This is like the indexed array of x_i EinsteinTerm, this removes the dependancy of coordinate 
         # in the spatial descritisation or Diagnostics or any where else later this should be input to this
-        self.mapedindices = tuple(Symbol('x%d' % ind, integer = True) for ind, val in enumerate(self.shape))
+        
+        di = EinsteinTerm('x_i')
+        di.is_constant = True
+        
+        # Grid point spacing in each dimension.
+        self.mapedindices = di.get_array(di.get_indexed(len(self.shape))).tolist()
         
         return
         

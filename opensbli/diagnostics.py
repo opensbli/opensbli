@@ -60,8 +60,6 @@ class Reduction():
         evaluated_variables should be the ones that are known at the starting of diagnostics
         these will be the prognostic variables
         fname will be automatic??
-
-
         '''
         #self.type = reduction_type
         self.computations = []
@@ -73,7 +71,7 @@ class Reduction():
         spatial_derivative = SymDerivative(spatial_scheme, grid)
         evaluations = create_formula_evaluations(all_formulas, evaluations)
         evaluations = create_derivative_evaluations(spatial_derivatives,evaluations, spatial_derivative)
-        reduction_equations = self.create_reduction_equations(all_equations, rtype)
+        
         order_of_evaluations = []
         known = []
         for val in prognostic_variables:
@@ -82,16 +80,25 @@ class Reduction():
             order_of_evaluations += [val]
             known += [val]
         order_of_evaluations = sort_evaluations(order_of_evaluations, evaluations, Indexed)
+        
         order_of_evaluations = sort_evaluations(order_of_evaluations, evaluations, Derivative)
         set_range_of_evaluations(order_of_evaluations, evaluations, grid)
-        # Creating kernels
-        self.computations += create_formula_kernels(order_of_evaluations,evaluations, known)
-        derivatives = [ev for ev in order_of_evaluations if isinstance(ev, Derivative) and ev not in known]
         work_array_index = 0
         work_array_name = 'wk'
+        # Creating kernels
+        evaluations = update_work_arrays(order_of_evaluations, evaluations, work_array_name, work_array_index, grid)
+        self.computations += create_formula_kernels(order_of_evaluations,evaluations, known)
+        derivatives = [ev for ev in order_of_evaluations if isinstance(ev, Derivative) and ev not in known]
         self.computations += create_derivative_kernels(derivatives,evaluations,\
             spatial_derivative, work_array_name, work_array_index, grid)
-
+        reduction_equations = self.create_reduction_equations(all_equations, rtype)
+        update_equations = update_original_equations(order_of_evaluations,evaluations,reduction_equations )
+        
+        # create computations for the update equations
+        evaluation_range = [tuple([0, s]) for s in grid.shape]
+        self.computations.append(Kernel(update_equations, evaluation_range, "Reduction equations"))
+        for com in self.computations:
+            pprint([com.computation_type, com.ranges, com.equations, com.inputs, com.outputs, com.reductions])
         return
     def create_reduction_variables(self, equations):
         reduction_variables = []
@@ -119,27 +126,28 @@ class Reduction():
         ind = [EinsteinTerm('x0'), EinsteinTerm('x1'), EinsteinTerm('t')]
         var = IndexedBase('%s'%var.base)
         return var[ind]
-
-class Workarray(object):
-    def __init__(self):
-        self.work_array_name = "wk%d"
-        self.work_array_index = 0
-        return
-    def get_work_array(self):
-        pass
-        return
+def update_original_equations(ordered_evaluations,evaluations, equations):
+    updated_equations = [eq for eq in equations]
+    for equation_number, equation in enumerate(updated_equations):
+        spatial_derivatives = [ev for ev in ordered_evaluations if isinstance(ev, Derivative)]
+        formulas = [ev for ev in ordered_evaluations if isinstance(ev, Indexed)]
+        spatial_derivatives = (sorted(spatial_derivatives, cmp = decreasing_order))
+        for var in spatial_derivatives + formulas:
+            new = evaluations[var].work
+            updated_equations[equation_number] = updated_equations[equation_number].subs(var, new)
+    return updated_equations
 def update_work_arrays(ordered_evaluations, evaluations, work_array_name, work_array_index, grid):
     # update the work arrays for the formulas these are the indexed objects only
     forms = [ev for ev in ordered_evaluations if isinstance(ev, Indexed)]
     for ev in forms:
-        evaluations[form].work = ev
+        evaluations[ev].work = ev
     # update the work arrays for the derivatives
     derivatives = [ev for ev in ordered_evaluations if isinstance(ev, Derivative)]
     for der in derivatives:
         wk = grid.work_array('%s%d' % (work_array_name, work_array_index))
         work_array_index += 1
         evaluations[der].work = wk
-    return
+    return evaluations
 def create_formula_kernels(ordered_evaluations, evaluations, known):
     computation_kernels = []
     forms = [ev for ev in ordered_evaluations if isinstance(ev, Indexed) and ev not in known]
@@ -235,17 +243,20 @@ class SymDerivative(object):
         This returns the formula for the derivative function
         """
         order = len(derivative.args[1:])
-        indices = [self.derivative_direction.index(arg) for arg in derivative.args[1:]]
+        indices = list(derivative.args[1:])
         if order == 1 or len(set(indices)) == 1:
             wrt = indices[0]
             gridpoints = [wrt + i for i in self.points]
             formula = apply_finite_diff(order, gridpoints, [derivative.expr.subs({wrt: x}) for x in gridpoints], wrt)
+            d1 = self.derivative_direction.index(derivative.args[1])
+            delta = self.deltas[d1]
+            formula = formula*pow(delta, -order)
         elif order == 2:
             # Do the derivative of derivative
             raise NotImplementedError("Derivatives of order == 2  Mixed is not implemented")
         else:
             raise NotImplementedError("Derivatives of order > 2 are not implemented")
-        return
+        return formula
     def get_derivative(self, derivative):
         """ Return a tuple to which the derivative formula exists in
         the already-evaluated derivatives.
@@ -255,7 +266,6 @@ class SymDerivative(object):
         order = len(derivative.args[1:])
         indices = []
         for arg in derivative.args[1:]:
-            pprint(arg)
             indices = indices + [self.derivative_direction.index(arg)]
         general_formula = []
         subevals = []
@@ -267,7 +277,7 @@ class SymDerivative(object):
                 requires += list(derivative.args[0].atoms(Indexed))
             else:
                 subevals += [None]
-                requires += [derivative.args[0].atoms(Indexed)]
+                requires += list(derivative.args[0].atoms(Indexed))
         else:
             if len(derivative.args[0].atoms(Indexed)) > 1:
                 subevals += [derivative.args[0]]
@@ -277,7 +287,7 @@ class SymDerivative(object):
                 requires += [derivative.args[0]]
             general_formula += [order-1, tuple([indices[-1]])]
             requires += [Derivative(derivative.args[0],derivative.args[1:-1])]
-
+        
         return general_formula, subevals, requires
 
 '''
