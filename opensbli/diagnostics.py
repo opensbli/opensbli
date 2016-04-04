@@ -42,17 +42,13 @@ type of Diagnostics time diagnostics, time average, reduction after n time steps
 
 from sympy.tensor import IndexedBase, Indexed
 from .spatial import *
-from .opsc import *
 from .kernel import ReductionVariable
+
 
 class Reduction():
 
-    def __init__(self, grid, equations, formulas, prognostic_variables, spatial_scheme, rtype):
+    def __init__(self, grid, equations, formulas, prognostic_variables, spatial_scheme, rtype, compute_every):
         '''
-        First try out the reduction code for finding Kinetic energy
-        eq will be 0.5*(u_j**2). as of now only the equations
-        evaluated_variables should be the ones that are known at the starting of diagnostics
-        these will be the prognostic variables
         fname will be automatic??
         '''
         #self.type = reduction_type
@@ -65,7 +61,6 @@ class Reduction():
         spatial_derivative = SymDerivative(spatial_scheme, grid)
         evaluations = create_formula_evaluations(all_formulas, evaluations)
         evaluations = create_derivative_evaluations(spatial_derivatives,evaluations, spatial_derivative)
-        
         order_of_evaluations = []
         known = []
         for val in prognostic_variables:
@@ -74,7 +69,7 @@ class Reduction():
             order_of_evaluations += [val]
             known += [val]
         order_of_evaluations = sort_evaluations(order_of_evaluations, evaluations, Indexed)
-        
+
         order_of_evaluations = sort_evaluations(order_of_evaluations, evaluations, Derivative)
         set_range_of_evaluations(order_of_evaluations, evaluations, grid)
         work_array_index = 0
@@ -85,19 +80,20 @@ class Reduction():
         derivatives = [ev for ev in order_of_evaluations if isinstance(ev, Derivative) and ev not in known]
         self.computations += create_derivative_kernels(derivatives,evaluations,\
             spatial_derivative, work_array_name, work_array_index, grid)
-        reduction_equations = self.create_reduction_equations(all_equations, rtype)
-        update_equations = update_original_equations(order_of_evaluations,evaluations,reduction_equations )
-        
+        reduction_equations = self.create_reduction_equations(all_equations, rtype, grid)
+        update_equations = substitute_work_arrays(order_of_evaluations,evaluations,reduction_equations )
+
         # create computations for the update equations
         evaluation_range = [tuple([0, s]) for s in grid.shape]
         self.computations.append(Kernel(update_equations, evaluation_range, "Reduction equations"))
+        self.compute_every = compute_every
         return
     def create_reduction_variables(self, equations):
         reduction_variables = []
         for eq in equations:
             reduction_variables.append(ReductionVariable(str(eq.lhs.base)))
         return reduction_variables
-    def create_reduction_equations(self, equations, rtype):
+    def create_reduction_equations(self, equations, rtype, grid):
         """
         The LHS of the equations are Indexed Objects, this converts the LHS into reduction variable and
         applies the reduction operation
@@ -107,7 +103,7 @@ class Reduction():
         for number, eq in enumerate(equations):
             if rtype[number] == "sum":
                 reduction_equation[number] = Eq(reduction_variable[number], \
-                    eq.rhs + reduction_variable[number])
+                    (eq.rhs + reduction_variable[number])/(grid.total_points))
             else:
                 raise NotImplementedError("Only summation reductions are supported")
         return reduction_equation
@@ -118,8 +114,8 @@ class Reduction():
         ind = [EinsteinTerm('x0'), EinsteinTerm('x1'), EinsteinTerm('t')]
         var = IndexedBase('%s'%var.base)
         return var[ind]
-    
-def update_original_equations(ordered_evaluations,evaluations, equations):
+
+def substitute_work_arrays(ordered_evaluations,evaluations, equations):
     updated_equations = [eq for eq in equations]
     for equation_number, equation in enumerate(updated_equations):
         spatial_derivatives = [ev for ev in ordered_evaluations if isinstance(ev, Derivative)]
@@ -280,7 +276,7 @@ class SymDerivative(object):
                 requires += [derivative.args[0]]
             general_formula += [order-1, tuple([indices[-1]])]
             requires += [Derivative(derivative.args[0],derivative.args[1:-1])]
-        
+
         return general_formula, subevals, requires
 
 

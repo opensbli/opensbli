@@ -27,6 +27,7 @@ from string import Template
 from sympy.printing.precedence import precedence
 from .equations import EinsteinTerm
 from .kernel import ReductionVariable
+#from .diagnostics import Reduction as R
 import logging
 LOG = logging.getLogger(__name__)
 BUILD_DIR = os.getcwd()
@@ -69,6 +70,11 @@ class OPSCCodePrinter(CCodePrinter):
         else:
             p, q = int(expr.p), int(expr.q)
             return '%d.0/%d.0' %(p,q)
+    def _print_Mod(self, expr):
+        args = map(ccode, expr.args)
+        args = ['('+x+')' for x in args]
+        result = '%'.join(args)
+        return result
 
     def _print_Indexed(self, expr):
         """ Print out an Indexed object.
@@ -216,7 +222,7 @@ class OPSC(object):
         # OPS constants. These are the constants in the above list to be defined in OPS format.
         self.constant_values = {}
         self.rational_constants = {}
-        
+
         # Reduction variables
         self.reduction_variables = set()
 
@@ -246,6 +252,7 @@ class OPSC(object):
             \n$define_dat
             \n$initialise_dat
             \n$declare_stencils
+            \n$declare_reductions
             \n$bc_exchange
             \n$ops_partition
             \n$initialisation
@@ -302,9 +309,6 @@ class OPSC(object):
         code_dictionary['define_block'] = '\n'.join(self.define_block())
         code_dictionary['initialise_block'] = '\n'.join(self.initialise_block())
 
-        # Commonly used Stencils
-        #code_dictionary['define_stencils'] = '\n'.join()
-
         # Set up the time-stepping sub loop, if required.
         if self.temporal_discretisation[0].nstages > 1:
             number_of_stages = self.temporal_discretisation[0].nstages
@@ -319,7 +323,7 @@ class OPSC(object):
             code_dictionary['innerloop'] = ""
             code_dictionary['end_inner_loop'] = ""
 
-        # Get the computational routines 
+        # Get the computational routines
         computational_routines = self.get_block_computations()
         # Write the computational routines to block computation files
         self.write_computational_routines(computational_routines)
@@ -361,17 +365,62 @@ class OPSC(object):
         # Stencils
         code_dictionary['declare_stencils'] = '\n'.join(self.declare_stencils())
 
-
         # Initialise constants and Declare  constants in OPS format
         code_dictionary['initialise_constants'] = '\n'.join(self.initialise_constants())
         code_dictionary['declare_ops_constants'] = '\n'.join(self.declare_ops_constants())
 
-        # get diagnostics
+        # Reduction declarations
+        code_dictionary['declare_reductions'] = '\n'.join(self.declare_reduction_variables())
+
+        # get diagnostics kernel calls
+        if self.diagnostics:
+            code_dictionary = self.get_diagnostic_kernels(code_dictionary)
 
         # write the main file
         code_template = code_template.safe_substitute(code_dictionary)
         self.write_main_file(code_template)
         return
+    def get_diagnostic_kernels(self, code_dictionary):
+        '''
+        Loop over blocks, loop over each diagnostics object (can be reduction etc..)
+        get the kernel call, if reduction get the reduction result.
+        Write the output to the file
+        '''
+        from .diagnostics import Reduction as R
+        #calls = [[] for block in range(self.nblocks)]
+        for block in range(self.nblocks):
+            for diagnostic in self.diagnostics[block]:
+                if isinstance(diagnostic, R):
+                    calls = []
+                    for computation in diagnostic.computations:
+                        calls +=self.kernel_call(computation)
+                        if computation.reductions:
+                            calls += self.get_reduction_results(computation.reductions)
+                            calls += self.print_reduction_results(computation.reductions)
+                    if diagnostic.compute_every:
+                        l = ccode(Mod('iteration', diagnostic.compute_every))
+                        calls = ['if(%s == 0)'%l] + [self.left_brace] + calls
+                        calls += [self.right_brace]
+                        code_dictionary['io_time'] += '\n'.join(calls)
+                    else:
+                        code_dictionary['io_calls'] += '\n'.join(calls)
+
+        return code_dictionary
+
+    def print_reduction_results(self, reductions):
+        template = "ops_printf(\"Iteration is %%d and %s is %%g\\n\",%s,%s_reduction)%s"
+        return [template%(red, "iteration", red,  self.end_of_statement) for red in reductions]
+
+    def get_reduction_results(self, reductions):
+        '''
+        Modify this if we want the reduction result to an array
+        '''
+        template = "%s %s_reduction = 0.0%s \n ops_reduction_result(%s, &%s_reduction)%s"
+        return [template%(self.dtype, red, self.end_of_statement, red, red, self.end_of_statement) \
+            for red in reductions]
+    def declare_reduction_variables(self):
+        template = "ops_reduction %s = ops_decl_reduction_handle(sizeof(%s), \"%s\", \"reduction_%s\")%s"
+        return [template %(red, self.dtype, self.dtype, red, self.end_of_statement) for red in self.reduction_variables]
 
     def initialise_constants(self):
         """ Initialise all constant values. """
@@ -516,7 +565,7 @@ class OPSC(object):
                             for inp, value in computation.inputoutput.iteritems() if not inp.is_grid ]
         # Reductions
         if computation.reductions:
-            nongrid += [self.ops_argument_reduction(inp, self.dtype,self.ops_access['reduction'])\
+            nongrid += [self.ops_argument_reduction(inp,self.ops_access['reduction'])\
                 for inp in computation.reductions if isinstance(inp, ReductionVariable)]
 
         if computation.has_Idx:
@@ -525,6 +574,7 @@ class OPSC(object):
         kernel_calls = kernel_calls + grid_based + nongrid
         call = [k + ',' for k in kernel_calls[:-1]]
         call = [range_main] + call + [kernel_calls[-1] + self.right_parenthesis + self.end_of_statement] + ['\n']
+
         return call
 
     def get_stencils(self, computation):
@@ -603,7 +653,7 @@ class OPSC(object):
         template = 'ops_arg_dat(%s, %d, %s, \"%s\", %s)'
         return template%(array,1,stencil, self.dtype, access_type)
 
-    def ops_argument_reduction(name, access_type):
+    def ops_argument_reduction(self, name, access_type):
         template = 'ops_arg_reduce(%s, %d \"%s\", %s)'
         return template%(name,1, self.dtype, access_type)
 
@@ -704,8 +754,9 @@ class OPSC(object):
             if self.temporal_discretisation[block].end_computations:
                 block_computations += self.temporal_discretisation[block].end_computations
             if self.diagnostics:
-                block_computations += self.diagnostics[block].computations
-                
+                for inst in self.diagnostics[block]:
+                    block_computations += inst.computations
+
             for computation in block_computations:
                 kernels[block] += self.kernel_computation(computation,block)
         return kernels
@@ -737,20 +788,20 @@ class OPSC(object):
 
         if computation.name == None:
             computation.name = self.computational_kernel_names[block_number] % self.kernel_name_number[block_number]
-            
+
         # Indexed objects based on the grid that are inputs/outputs or inouts. This is used to write the pointers to the kernel.
         # Grid-based objects
         grid_based = ([self.ops_header['inputs'] % (self.dtype,inp) for inp in computation.inputs.keys() if inp.is_grid] + \
             [self.ops_header['outputs'] % (self.dtype,inp) for inp in computation.outputs.keys() if inp.is_grid ] + \
                 [self.ops_header['inputoutput'] % (self.dtype,inp) for inp in computation.inputoutput.keys() if inp.is_grid])
-        
+
         # Non grid-based objects
         nongrid = ([self.ops_header['inputs'] % (self.dtype,inp) for inp in computation.inputs.keys() if not inp.is_grid] + \
             [self.ops_header['outputs'] % (self.dtype,inp) for inp in computation.outputs.keys() if not inp.is_grid ] + \
                 [self.ops_header['inputoutput'] % (self.dtype,inp) for inp in computation.inputoutput.keys() if not inp.is_grid])
 
         header += grid_based + nongrid
-        
+
         if computation.reductions:
             header += [self.ops_header['reduction'] %(self.dtype,inp) for inp in computation.reductions]
         if computation.has_Idx:
@@ -763,7 +814,7 @@ class OPSC(object):
         for equation in computation.equations:
             code_kernel, self.rational_constants = ccode(equation,ops_accs, self.rational_constants)
             code += [code_kernel + self.end_of_statement]
-            #code += [ccode(equation, ops_accs, self.rational_constants) + self.end_of_statement]
+
         code += [self.right_brace] + ['\n']
 
         self.update_definitions(computation)
@@ -988,7 +1039,7 @@ class OPSC(object):
         # update the simulation parameters as these are used for writing the constants
         self.simulation_parameters.update(dict(zip([str(v) for v in self.rational_constants.values()],\
             list(self.rational_constants.keys()))))
-        
+
         # Update reduction variables
         self.reduction_variables = self.reduction_variables.union(set(computation.reductions))
         return
