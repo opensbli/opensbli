@@ -136,9 +136,10 @@ class OPSC(object):
     """ A class describing the OPSC language, and various templates for OPSC code structures (e.g. loops, declarations, etc). """
 
     # OPS Access types, used for kernel call
-    ops_access = {'inputs':'OPS_READ', 'outputs':'OPS_WRITE', 'inputoutput':'OPS_RW', 'reductions': 'OPS_INC'}
+    ops_access = {'inputs':'OPS_READ', 'outputs':'OPS_WRITE', 'inputoutput':'OPS_RW', 'reduction': 'OPS_INC'}
     # OPS kernel headers
-    ops_header = {'inputs':'const %s *%s', 'outputs':'%s *%s', 'inputoutput':'%s *%s', 'Idx':'const int *%s'}
+    ops_header = {'inputs':'const %s *%s', 'outputs':'%s *%s', 'inputoutput':'%s *%s', 'Idx':'const int *%s',\
+        'reduction': '%s *%s'}
     # Single line comment
     line_comment = "//"
     # Block/multi-line comment
@@ -232,8 +233,8 @@ class OPSC(object):
     def template(self):
         """ Define the algorithm in pseudo-code and get all the code. """
 
-        OPS_template = \
-        """$header
+        OPS_template = """\
+        $header
         \n$main_start
             \n$initialise_constants
             \n$ops_init
@@ -316,7 +317,7 @@ class OPSC(object):
             code_dictionary['innerloop'] = ""
             code_dictionary['end_inner_loop'] = ""
 
-        # Get the computational routines
+        # Get the computational routines 
         computational_routines = self.get_block_computations()
         # Write the computational routines to block computation files
         self.write_computational_routines(computational_routines)
@@ -513,7 +514,7 @@ class OPSC(object):
                             for inp, value in computation.inputoutput.iteritems() if not inp.is_grid ]
         # Reductions
         if computation.reductions:
-            nongrid += [self.ops_argument_reduction(inp, self.dtype,self.ops_access['reductions'])\
+            nongrid += [self.ops_argument_reduction(inp, self.dtype,self.ops_access['reduction'])\
                 for inp in computation.reductions if isinstance(inp, ReductionVariable)]
 
         if computation.has_Idx:
@@ -700,7 +701,9 @@ class OPSC(object):
                 block_computations += self.temporal_discretisation[block].start_computations
             if self.temporal_discretisation[block].end_computations:
                 block_computations += self.temporal_discretisation[block].end_computations
-
+            if self.diagnostics:
+                block_computations += self.diagnostics[block].computations
+                
             for computation in block_computations:
                 kernels[block] += self.kernel_computation(computation,block)
         return kernels
@@ -732,20 +735,22 @@ class OPSC(object):
 
         if computation.name == None:
             computation.name = self.computational_kernel_names[block_number] % self.kernel_name_number[block_number]
-
+            
         # Indexed objects based on the grid that are inputs/outputs or inouts. This is used to write the pointers to the kernel.
         # Grid-based objects
         grid_based = ([self.ops_header['inputs'] % (self.dtype,inp) for inp in computation.inputs.keys() if inp.is_grid] + \
             [self.ops_header['outputs'] % (self.dtype,inp) for inp in computation.outputs.keys() if inp.is_grid ] + \
                 [self.ops_header['inputoutput'] % (self.dtype,inp) for inp in computation.inputoutput.keys() if inp.is_grid])
-
+        
         # Non grid-based objects
         nongrid = ([self.ops_header['inputs'] % (self.dtype,inp) for inp in computation.inputs.keys() if not inp.is_grid] + \
             [self.ops_header['outputs'] % (self.dtype,inp) for inp in computation.outputs.keys() if not inp.is_grid ] + \
                 [self.ops_header['inputoutput'] % (self.dtype,inp) for inp in computation.inputoutput.keys() if not inp.is_grid])
 
         header += grid_based + nongrid
-
+        
+        if computation.reductions:
+            header += [self.ops_header['reduction'] %(self.dtype,inp) for inp in computation.reductions]
         if computation.has_Idx:
             header += [self.ops_header['Idx'] % ('idx') ]
 
@@ -754,7 +759,7 @@ class OPSC(object):
         code = header
         ops_accs = self.get_OPS_ACC_number(computation)
         for equation in computation.equations:
-            code_kernel, self.rational_constants = ccode(eq,ops_accs, self.rational_constants)
+            code_kernel, self.rational_constants = ccode(equation,ops_accs, self.rational_constants)
             code += [code_kernel + self.end_of_statement]
             #code += [ccode(equation, ops_accs, self.rational_constants) + self.end_of_statement]
         code += [self.right_brace] + ['\n']

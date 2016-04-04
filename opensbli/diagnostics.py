@@ -44,12 +44,6 @@ from sympy.tensor import IndexedBase, Indexed
 from .spatial import *
 from .opsc import *
 from .kernel import ReductionVariable
-class Diagnostics(object):
-    computations = None
-    after_time_computations = None
-    reduction_type = None
-    save_after = 0
-    file_name = ''
 
 class Reduction():
 
@@ -87,7 +81,7 @@ class Reduction():
         work_array_name = 'wk'
         # Creating kernels
         evaluations = update_work_arrays(order_of_evaluations, evaluations, work_array_name, work_array_index, grid)
-        self.computations += create_formula_kernels(order_of_evaluations,evaluations, known)
+        self.computations += create_formula_kernels(order_of_evaluations,evaluations, known, grid)
         derivatives = [ev for ev in order_of_evaluations if isinstance(ev, Derivative) and ev not in known]
         self.computations += create_derivative_kernels(derivatives,evaluations,\
             spatial_derivative, work_array_name, work_array_index, grid)
@@ -97,8 +91,6 @@ class Reduction():
         # create computations for the update equations
         evaluation_range = [tuple([0, s]) for s in grid.shape]
         self.computations.append(Kernel(update_equations, evaluation_range, "Reduction equations"))
-        for com in self.computations:
-            pprint([com.computation_type, com.ranges, com.equations, com.inputs, com.outputs, com.reductions])
         return
     def create_reduction_variables(self, equations):
         reduction_variables = []
@@ -126,6 +118,7 @@ class Reduction():
         ind = [EinsteinTerm('x0'), EinsteinTerm('x1'), EinsteinTerm('t')]
         var = IndexedBase('%s'%var.base)
         return var[ind]
+    
 def update_original_equations(ordered_evaluations,evaluations, equations):
     updated_equations = [eq for eq in equations]
     for equation_number, equation in enumerate(updated_equations):
@@ -136,8 +129,8 @@ def update_original_equations(ordered_evaluations,evaluations, equations):
             new = evaluations[var].work
             updated_equations[equation_number] = updated_equations[equation_number].subs(var, new)
     return updated_equations
+
 def update_work_arrays(ordered_evaluations, evaluations, work_array_name, work_array_index, grid):
-    # update the work arrays for the formulas these are the indexed objects only
     forms = [ev for ev in ordered_evaluations if isinstance(ev, Indexed)]
     for ev in forms:
         evaluations[ev].work = ev
@@ -148,13 +141,13 @@ def update_work_arrays(ordered_evaluations, evaluations, work_array_name, work_a
         work_array_index += 1
         evaluations[der].work = wk
     return evaluations
-def create_formula_kernels(ordered_evaluations, evaluations, known):
+def create_formula_kernels(ordered_evaluations, evaluations, known, grid):
     computation_kernels = []
     forms = [ev for ev in ordered_evaluations if isinstance(ev, Indexed) and ev not in known]
     grouped,non_group,range_dictionary = group_formulas(forms, evaluations, known)
-    computation_kernels += [Kernel(grouped, range_dictionary[grouped[0]], " Grouped Formula Evaluation")]
+    computation_kernels += [Kernel(grouped, range_dictionary[grouped[0]], " Grouped Formula Evaluation", grid)]
     for eq in non_group:
-        computation_kernels += [Kernel(eq, range_dictionary[eq], "Non Grouped Formula Evaluation")]
+        computation_kernels += [Kernel(eq, range_dictionary[eq], "Non Grouped Formula Evaluation", grid)]
     return computation_kernels
 def group_formulas(formulas, evals, known):
     '''
@@ -190,7 +183,7 @@ def create_derivative_kernels(derivatives,evals, spatial_derivative, work_array_
             if all(subev == None for subev in subevals[number]):
                 rhs = spatial_derivative.get_derivative_formula(derivative)
                 eq = Eq(evals[derivative].work,rhs)
-                computations.append(Kernel(eq, ranges[number], "Derivative Evaluation"))
+                computations.append(Kernel(eq, ranges[number], "Derivative Evaluation", grid))
             else:
                 # Store into temporary array the sub evaluation
                 eqs = []
@@ -202,22 +195,22 @@ def create_derivative_kernels(derivatives,evals, spatial_derivative, work_array_
                         local_range = evals[req].evaluation_range
                         subev = subev.subs(req, evals[req].work)
                     eqs.append(Eq(wk, subev))
-                computations.append(Kernel(eqs, local_range, "Temporary formula Evaluation"))
+                computations.append(Kernel(eqs, local_range, "Temporary formula Evaluation", grid))
                 for eq in eqs:
                     new_derivative = derivative.subs(eq.rhs, eq.lhs)
                 rhs = spatial_derivative.get_derivative_formula(new_derivative)
                 eq = Eq(evals[derivative].work, rhs)
-                computations.append(Kernel(eq, ranges[number], "Derivative Evaluation"))
+                computations.append(Kernel(eq, ranges[number], "Derivative Evaluation", grid))
         else:
             new_derivative = derivative
             if all(subev == None for subev in subevals[number]):
                 for req in require[number]:
                     new_derivative = new_derivative.subs(req,evals[req].work)
             else:
-                raise NotImplementedError("Sub evaluations in a mixed derivative")
+                raise NotImplementedError("Sub evaluations in a mixed derivative", grid)
             rhs = spatial_derivative.get_derivative_formula(new_derivative)
             eq = Eq(evals[derivative].work, rhs)
-            computations.append(Kernel(eq, ranges[number], "Nested Derivative evaluation"))
+            computations.append(Kernel(eq, ranges[number], "Nested Derivative evaluation", grid))
     return computations
 
 class SymDerivative(object):
@@ -290,32 +283,6 @@ class SymDerivative(object):
         
         return general_formula, subevals, requires
 
-'''
-Here I rewrite the stuff in spatial.py, esentially dividing the big spatial.py into smaller stuff
-If working fine these should be used back in spatial.py
-
-All the definitions here will be moved to a seperate file that can be used both in
-spatial and other places
-
-the essense would be to
-1. Get all the formulas used in the equations
-2. Get the derivatives used in the equations
-'''
-def convert_equations_to_grid(equations, grid):
-    """
-    Converts the indexed objects in the equations to indexed objects on the grid
-    # NOW THIS IS NOT REQUIRED
-    """
-    grid_equations = []
-
-    for eq in equations:
-        substitutions = {}
-        variables, count = get_indexed_grid_variables([eq])
-        for var in variables:
-            substitutions[var] = indexed_by_grid(var, grid)
-        grid_equations.append(eq.subs(substitutions))
-    pprint(grid_equations)
-    return grid_equations
 
 def get_used_formulas(formulas, equations):
     '''
@@ -349,27 +316,6 @@ def create_formula_evaluations(all_formulas, evals):
         evals[formula.lhs] = evaluated
     return evals
 
-'''
-Simlar to the classes create stuff
-'''
-
-#def indexed_by_grid(variable, grid):
-    #""" Convert a variable/function or Indexed object to an Indexed object indexed by the Grid indices.
-
-    #:arg variable: The variable to convert to a Grid-based Indexed variable
-    #:arg grid: The numerical Grid of solution points.
-    #:returns: An Indexed variable, which is the same variable as the one provided, but is indexed by the Grid indices.
-    #:rtype: sympy.Indexed
-    #"""
-
-    #if isinstance(variable, Indexed):
-        #base = IndexedBase('%s' % variable.base)
-    #elif isinstance(variable, Function):
-        #base = IndexedBase('%s' % variable.func)
-    #else:
-        #raise ValueError("Only functions or Indexed Objects are supported", variable)
-    #base.is_grid = True; base.is_constant = False
-    #return base[grid.indices]
 
 def sort_evaluations(order, evaluations, typef):
     """ Sort the evaluations based on the requirements of each term. For example, if we have
@@ -457,28 +403,3 @@ def get_derivatives(equations):
                 continue
 
     return derivatives, time_derivatives
-
-#def get_indexed_grid_variables(equations):
-    #""" Return all the variables in the equations that are Indexed on the Grid.
-
-    #:arg list equations: A list of SymPy equations to consider.
-    #:returns: A list of the variables in the equations that are Indexed on the Grid, and also the count of all the specific terms in the equations (Indexed or not).
-    #:rtype: (list, int)
-    #"""
-
-    #variables = []
-    #count = {}
-    #for eq in equations:
-        #pot = preorder_traversal(eq)
-        #for p in pot:
-            #if p in variables:
-                #pot.skip()
-                #count[p] = count[p]+1
-                #continue
-            #elif isinstance(p, Indexed):
-                #pot.skip()
-                #variables.append(p)
-                #count[p] = 1
-            #else:
-                #continue
-    #return variables, count

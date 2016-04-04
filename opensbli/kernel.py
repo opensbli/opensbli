@@ -30,7 +30,7 @@ class Kernel(object):
 
     """ A computational kernel which will be executed over all the grid points. """
 
-    def __init__(self, equations, ranges, computation):
+    def __init__(self, equations, ranges, computation, grid=None):
         """ Set up the kernel. This object will:
 
         1. Write the kernel's calling function based on the desired language.
@@ -65,11 +65,11 @@ class Kernel(object):
         self.outputs = {}
         self.inputoutput = {}
 
-        self.classify_grid_objects()
+        self.classify_grid_objects(grid)
 
         return
 
-    def classify_grid_objects(self):
+    def classify_grid_objects(self, grid):
 
         """ Classify the individual terms in the kernel's equation(s)
         as inputs, outputs, or inputoutputs (i.e. both an input and an output). """
@@ -92,12 +92,18 @@ class Kernel(object):
         indexbase_inouts = set([v.base for v in inouts])
         for v in indexbase_ins:
             indexes = [vin.indices for vin in ins if vin.base==v]
+            if grid:
+                v = self.set_grid_arrays(v, grid, indexes)
             self.inputs[v] = indexes
         for v in indexbase_outs:
             indexes = [vout.indices for vout in outs if vout.base==v]
+            if grid:
+                v = self.set_grid_arrays(v, grid, indexes)
             self.outputs[v] = indexes
         for v in indexbase_inouts:
             indexes = [vinout.indices for vinout in inouts if vinout.base==v]
+            if grid:
+                v = self.set_grid_arrays(v, grid, indexes)
             self.inputoutput[v] = indexes
 
         idxs = flatten([list(e.rhs.atoms(Idx)) for e in self.equations])
@@ -107,7 +113,22 @@ class Kernel(object):
             self.has_Idx = False
 
         self.reductions = flatten([list(e.rhs.atoms(ReductionVariable)) for e in self.equations])
-
-        self.constants = set(consts)
+        if grid:
+            self.constants = set(consts).difference(grid.mapped_indices.keys())
+        else:
+            self.constants = set(consts)
 
         return
+    
+    def set_grid_arrays(self, array ,grid, indexes):
+        """
+        Sets the Indexed object attribute is_grid to True if all the indices of an indexed object 
+        are in mapped arrays of the grid
+        """
+        if all(index in grid.mapped_indices.keys() for index  in indexes):
+            pprint(array)
+            array.is_grid = True
+        else:
+            array.is_grid = False
+        array.is_grid = True
+        return array

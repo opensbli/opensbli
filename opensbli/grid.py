@@ -70,7 +70,9 @@ class Grid(object):
         
         # Grid point spacing in each dimension.
         self.mapedindices = di.get_array(di.get_indexed(len(self.shape))).tolist()
-        
+        self.mapped_indices = dict(zip(self.mapedindices, self.indices))
+        self.mapped_indices[EinsteinTerm('t')] = ''
+        # indices that are mapped on to the grid should be populated Implicitly 
         return
         
     def work_array(self, name):
