@@ -427,7 +427,14 @@ class OPSC(object):
 
         # Get the constants defined every where. i.e. in
         constant_initialisation = []
-        for constant in self.constants:
+
+        constant_dictionary = {}
+        values = [self.simulation_parameters[str(constant)] for constant in self.constants]
+        constant_dictionary = dict(zip(self.constants, values))
+        sorted_constants = []
+        sorted_constants = self.sort_constants(constant_dictionary,sorted_constants)
+        pprint(sorted_constants)
+        for constant in sorted_constants:
             val = self.simulation_parameters[str(constant)]
             if isinstance(constant, IndexedBase):
                 if constant.ranges != len(val):
@@ -437,6 +444,30 @@ class OPSC(object):
             else:
                 constant_initialisation += ["%s = %s%s" % (constant, ccode(val), self.end_of_statement)]
         return constant_initialisation
+    def sort_constants(self, constant_dictionary, sorted_constants):
+        pprint(constant_dictionary)
+        types_known = (float, int, Rational)
+        for key, val in constant_dictionary.iteritems():
+            if isinstance(val, list):
+                if all([isinstance(v, types_known) for v in val]) or all([v in sorted_constants for v in val]):
+                    sorted_constants += [key]
+                else:
+                    raise NotImplementedError("Sorting indexed constants")
+            else:
+                if isinstance(val, types_known) and key not in sorted_constants:
+                    sorted_constants += [key]
+                elif key in sorted_constants:
+                    pass
+                elif all([at in sorted_constants for at in val.atoms(Symbol)]):
+                    sorted_constants += [key]
+                else:
+                    for at in val.atoms(Symbol):
+                        if at not in sorted_constants:
+                            sorted_constants += [at]
+                        else:
+                            raise ValueError("Failed to sort the constants in code generation", at, sorted_constants)
+                    #sorted_constants += [key]
+        return sorted_constants
 
     def declare_ops_constants(self):
         """ Declare each constant as an OPS constant.
@@ -1088,4 +1119,5 @@ class AlgorithmError(Exception):
     """ An Exception that occurs  """
 
     pass
+
 
