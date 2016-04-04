@@ -78,17 +78,16 @@ class OPSCCodePrinter(CCodePrinter):
         :rtype: str
         """
 
-        # Find the symbols in the indices of the expression
-        symbols = flatten([list(index.atoms(Symbol)) for index in expr.indices])
-
-        # Replace the symbols in the indices with `zero'
-        for x in symbols:
-            expr = expr.subs({x: 0})
+        # Replace the symbols in the indices that are not time with `zero'
+        indices = [ind for ind in expr.indices if ind !=EinsteinTerm('t')]
+        for number, index in enumerate(indices):
+            for sym in index.atoms(Symbol):
+                indices[number] = indices[number].subs({sym: 0})
 
         if self.Indexed_accs[expr.base]:
-            out = "%s[%s(%s)]" % (self._print(expr.base.label), self.Indexed_accs[expr.base], ','.join([self._print(index) for index in expr.indices]))
+            out = "%s[%s(%s)]" % (self._print(expr.base.label), self.Indexed_accs[expr.base], ','.join([self._print(index) for index in indices]))
         else:
-            out = "%s[%s]" % (self._print(expr.base.label), ','.join([self._print(index) for index in expr.indices]))
+            out = "%s[%s]" % (self._print(expr.base.label), ','.join([self._print(index) for index in indices]))
 
         return out
 
@@ -217,6 +216,9 @@ class OPSC(object):
         # OPS constants. These are the constants in the above list to be defined in OPS format.
         self.constant_values = {}
         self.rational_constants = {}
+        
+        # Reduction variables
+        self.reduction_variables = set()
 
         # Dictionary of stencils. The key will be a stencil, and the value is the name of stencil.
         self.stencil_dictionary = {}
@@ -986,6 +988,9 @@ class OPSC(object):
         # update the simulation parameters as these are used for writing the constants
         self.simulation_parameters.update(dict(zip([str(v) for v in self.rational_constants.values()],\
             list(self.rational_constants.keys()))))
+        
+        # Update reduction variables
+        self.reduction_variables = self.reduction_variables.union(set(computation.reductions))
         return
 
     def get_OPS_ACC_number(self, computation):

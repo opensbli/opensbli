@@ -24,9 +24,10 @@ momentum = "Eq(Der(rhou_i,t) ,-Conservative(rhou_i*u_j + p* KD(_i,_j),x_j) + Der
 energy = "Eq(Der(rhoE,t),- Conservative((p+rhoE)*u_j,x_j) +Der(q_j,x_j) + Der(u_i*tau_i_j ,x_j) )"
 lev = "Eq(vort_i, (LC(_i,_j,_k)*Der(u_k,x_j)))"
 ke = "Eq(ke, (1/2)*u_j*u_j)"
+velgrad = "Eq(u_i_j, Der(u_i,x_j))"
 test = "Eq(Der(phi,t),- c_j* Der(phi,x_j))"
 equations = [mass, momentum, energy]
-diagnostics = [ke]
+diagnostics = [ velgrad]
 #equations = [test]
 
 # Substitutions
@@ -102,7 +103,7 @@ initial_conditions = ["Eq(grid.work_array(phi), sin((grid.Idx[0] - 1)*grid.delta
 initial_conditions = GridBasedInitialisation(grid, initial_conditions)
 
 # Diagnostics
-reduction_type = ["sum"] #  list of reduction types, same length as expanded diagnostics
+reduction_type = ["sum", "sum", "sum", "sum", "sum"] #  list of reduction types, same length as expanded diagnostics
 red_eq = Reduction(grid, expanded_diagnostics, expanded_formulas, temporal_discretisation.prognostic_variables, \
     spatial_scheme, reduction_type)
 # I/O save conservative variables at the end of simulation

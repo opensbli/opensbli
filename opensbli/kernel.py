@@ -125,10 +125,11 @@ class Kernel(object):
         Sets the Indexed object attribute is_grid to True if all the indices of an indexed object 
         are in mapped arrays of the grid
         """
-        if all(index in grid.mapped_indices.keys() for index  in indexes):
-            pprint(array)
+        ets = [list(ind) for ind in indexes]
+        ets = [list(et.atoms(EinsteinTerm)) for et in flatten(ets)]
+        ets = (set(flatten(ets)))
+        if all(index in grid.mapped_indices.keys() for index  in ets):
             array.is_grid = True
         else:
             array.is_grid = False
-        array.is_grid = True
         return array
