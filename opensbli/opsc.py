@@ -89,9 +89,11 @@ class OPSCCodePrinter(CCodePrinter):
         for number, index in enumerate(indices):
             for sym in index.atoms(Symbol):
                 indices[number] = indices[number].subs({sym: 0})
-
-        if self.Indexed_accs[expr.base]:
-            out = "%s[%s(%s)]" % (self._print(expr.base.label), self.Indexed_accs[expr.base], ','.join([self._print(index) for index in indices]))
+        if self.Indexed_accs:
+            if self.Indexed_accs[expr.base]:
+                out = "%s[%s(%s)]" % (self._print(expr.base.label), self.Indexed_accs[expr.base], ','.join([self._print(index) for index in indices]))
+            else:
+                out = "%s[%s]" % (self._print(expr.base.label), ','.join([self._print(index) for index in indices]))
         else:
             out = "%s[%s]" % (self._print(expr.base.label), ','.join([self._print(index) for index in indices]))
 
@@ -433,7 +435,6 @@ class OPSC(object):
         constant_dictionary = dict(zip(self.constants, values))
         sorted_constants = []
         sorted_constants = self.sort_constants(constant_dictionary,sorted_constants)
-        pprint(sorted_constants)
         for constant in sorted_constants:
             val = self.simulation_parameters[str(constant)]
             if isinstance(constant, IndexedBase):
@@ -445,28 +446,32 @@ class OPSC(object):
                 constant_initialisation += ["%s = %s%s" % (constant, ccode(val), self.end_of_statement)]
         return constant_initialisation
     def sort_constants(self, constant_dictionary, sorted_constants):
-        pprint(constant_dictionary)
         types_known = (float, int, Rational)
-        for key, val in constant_dictionary.iteritems():
-            if isinstance(val, list):
-                if all([isinstance(v, types_known) for v in val]) or all([v in sorted_constants for v in val]):
-                    sorted_constants += [key]
-                else:
-                    raise NotImplementedError("Sorting indexed constants")
-            else:
-                if isinstance(val, types_known) and key not in sorted_constants:
-                    sorted_constants += [key]
-                elif key in sorted_constants:
-                    pass
-                elif all([at in sorted_constants for at in val.atoms(Symbol)]):
-                    sorted_constants += [key]
-                else:
-                    for at in val.atoms(Symbol):
-                        if at not in sorted_constants:
-                            sorted_constants += [at]
-                        else:
-                            raise ValueError("Failed to sort the constants in code generation", at, sorted_constants)
-                    #sorted_constants += [key]
+        # Get the Float, rational and integer constants
+        sorted_constants = [key for key, value in constant_dictionary.iteritems() \
+            if isinstance(value, types_known) and key not in sorted_constants]
+        # Known types constants for the Indexed Constants
+        sorted_constants += [key for key, value in constant_dictionary.iteritems() \
+            if isinstance(key, IndexedBase) and all(isinstance(v, types_known) for v in value)\
+                and key not in sorted_constants]
+        # get the other constants that are symbol/ Einstein Term dependant
+        key_list = [key for key in constant_dictionary.keys() if key not in sorted_constants]
+
+        requires_list = [constant_dictionary[key].atoms(Symbol) for key in key_list]
+        zipped = zip(key_list,requires_list)
+        iter_count = 0
+        while key_list:
+            iter_count = iter_count+1
+            sorted_constants += [x for (x,y) in zipped if all(req in sorted_constants for req in y)]
+            key_list = [key for key in constant_dictionary.keys() if key not in sorted_constants]
+            requires_list = [constant_dictionary[key].atoms(Symbol) for key in key_list]
+            zipped = zip(key_list,requires_list)
+            if iter_count >1000:
+                pprint("Constant sorting recursion reached")
+                pprint([req for req in requires_list[0]])
+                pprint(key_list)
+                pprint([(req in sorted_constants, req) for req in requires_list[0]])
+                raise ValueError("Exiting sort evaluations ")
         return sorted_constants
 
     def declare_ops_constants(self):
@@ -643,8 +648,13 @@ class OPSC(object):
             pass
         else:
             value = [value]
+        #pprint(value)
+        indices = []
+        for val in value:
+            indices.append(tuple([ind for ind in val if ind !=EinsteinTerm('t')]))
+        #pprint(indices)
         return_val = []
-        for va in value:
+        for va in indices:
             out = []
             for number, v in enumerate(va):
                 outv = v
@@ -652,6 +662,7 @@ class OPSC(object):
                     outv = outv.subs(a,0)
                 out.append(outv)
             return_val.append(out)
+
         return_val = self.sort_stencil_indices(return_val)
 
         return return_val
@@ -663,6 +674,7 @@ class OPSC(object):
                 indexes = sorted(indexes, key=lambda indexes: indexes[dim])
             temp = flatten(list(list(t) for t in indexes))
         else:
+            #print(indexes)
             indexes = [sorted(indexes)]
             temp = flatten(list(t) for t in indexes)
         return temp
@@ -685,7 +697,7 @@ class OPSC(object):
         return template%(array,1,stencil, self.dtype, access_type)
 
     def ops_argument_reduction(self, name, access_type):
-        template = 'ops_arg_reduce(%s, %d \"%s\", %s)'
+        template = 'ops_arg_reduce(%s, %d, \"%s\", %s)'
         return template%(name,1, self.dtype, access_type)
 
     def bc_exchange_call_code(self, instance):
@@ -703,7 +715,8 @@ class OPSC(object):
         code += ['int dir[] = {%s}%s' % (', '.join([str(ind+1) for ind in range(len(instance.transfer_to))]), self.end_of_statement)]
         # Process the arrays
         for arr in instance.transfer_arrays:
-            code += ['ops_halo %s%d = ops_decl_halo(%s, %s, halo_iter, from_base, to_base, dir, dir)%s' % (halo, off, arr, arr, self.end_of_statement)]
+            code += ['ops_halo %s%d = ops_decl_halo(%s, %s, halo_iter, from_base, to_base, dir, dir)%s'\
+                % (halo, off, arr.base,  arr.base, self.end_of_statement)]
             off = off+1
         code += ['ops_halo grp[] = {%s}%s' % (','.join([str('%s%s' % (halo, of)) for of in range(off)]),self.end_of_statement )]
         code += ['%s = ops_decl_halo_group(%d,grp)%s' % (name, off, self.end_of_statement)]
@@ -776,14 +789,14 @@ class OPSC(object):
             block_computations = []
             if self.spatial_discretisation[block].computations:
                 block_computations += self.spatial_discretisation[block].computations
-            if self.initial_conditions[block].computations:
-                block_computations += self.initial_conditions[block].computations
             if self.temporal_discretisation[block].computations:
                 block_computations += self.temporal_discretisation[block].computations
             if self.temporal_discretisation[block].start_computations:
                 block_computations += self.temporal_discretisation[block].start_computations
             if self.temporal_discretisation[block].end_computations:
                 block_computations += self.temporal_discretisation[block].end_computations
+            if self.initial_conditions[block].computations:
+                block_computations += self.initial_conditions[block].computations
             if self.diagnostics:
                 for inst in self.diagnostics[block]:
                     block_computations += inst.computations
@@ -810,9 +823,9 @@ class OPSC(object):
         grid_count = count
         for r in computation_ranges:
             grid_count = grid_count*r
-
-        for equation in computation.equations:
-            comments += [pretty(equation, use_unicode=False)]
+        # Donot write out the equation
+        #for equation in computation.equations:
+            #comments += [pretty(equation, use_unicode=False)]
         comments += ['The count of operations per grid point for the kernel is %d' % count]
         comments += ['The count of operations on the range of evaluation for the kernel is %d' % grid_count]
         comments += [self.block_comment[1]]
@@ -842,9 +855,14 @@ class OPSC(object):
         header += [self.left_brace]
         code = header
         ops_accs = self.get_OPS_ACC_number(computation)
+        from .grid import GridVariable
         for equation in computation.equations:
             code_kernel, self.rational_constants = ccode(equation,ops_accs, self.rational_constants)
-            code += [code_kernel + self.end_of_statement]
+            if isinstance(equation.lhs, GridVariable):
+
+                code += [self.dtype + ' ' + code_kernel + self.end_of_statement]
+            else:
+                code += [code_kernel + self.end_of_statement]
 
         code += [self.right_brace] + ['\n']
 

@@ -48,7 +48,7 @@ class Skew(Function):
     This is the Blaisdel version of skew symmetric formulation
     """
 
-    
+
 class Der(Function):
 
     """ Handler for the SymPy Derivative function. """
@@ -365,8 +365,8 @@ class EinsteinTerm(Symbol):
 
         name = self.get_base()
         indices = self.get_indices()
-        
-        
+
+
         if len(indices) > 0:
             shape = tuple([ndim for x in range(len(indices))])
             indexed_base = IndexedBase('%s' % name, shape=shape)
@@ -444,7 +444,7 @@ class EinsteinTerm(Symbol):
             if isinstance(index, Idx):
                 mapping.append(tuple([index, to_indices[number]]))
         return mapping
-    
+
 
 class EinsteinExpansion(object):
 
@@ -510,7 +510,7 @@ class EinsteinExpansion(object):
             if not kd in indexed.keys():
                 indexed[kd] = kd.get_indexed(self.ndim)
                 arrays[indexed[kd]] = kd.get_array(indexed[kd])
-                
+
         # Get the arrays for the Levi-Civita function
         for lc in expression.atoms(LC):
             if not lc in indexed.keys():
@@ -595,7 +595,6 @@ class Equation(object):
         self.expanded = expansion.expanded
         LOG.debug("The expanded expression is: %s" % (expansion.expanded))
 
-        # TODO: Simplification of the equations
 
         return
 

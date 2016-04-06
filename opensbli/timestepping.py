@@ -83,16 +83,16 @@ class TemporalDiscretisation(object):
             # The 'save' equations.
             start = [o[-1] for o in out]
             range_of_evaluation = [tuple([0 + grid.halos[i][0], s + grid.halos[i][1]]) for i, s in enumerate(grid.shape)]
-            self.start_computations.append(Kernel(start, range_of_evaluation, "Save equations"))
+            self.start_computations.append(Kernel(start, range_of_evaluation, "Save equations", grid))
 
             # The 'update' equations of the variables at time 't + k', where k is the Runge-Kutta loop iteration.
             equations = [o[0] for o in out]
-            self.computations.append(Kernel(equations, range_of_evaluation, "RK new (subloop) update"))
+            self.computations.append(Kernel(equations, range_of_evaluation, "RK new (subloop) update", grid))
             equations = [o[1] for o in out]
-            self.computations.append(Kernel(equations, range_of_evaluation, "RK old update"))
+            self.computations.append(Kernel(equations, range_of_evaluation, "RK old update", grid))
         else:
             self.start_computations = None
-            self.computations.append(Kernel(out, range_of_evaluation, "Euler update"))
+            self.computations.append(Kernel(out, range_of_evaluation, "Euler update", grid))
 
         return
 

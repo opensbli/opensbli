@@ -21,6 +21,7 @@
 from sympy import *
 
 from .equations import EinsteinTerm
+from .grid import GridVariable
 class ReductionVariable(Symbol):
     def __new__(self,var):
         self = Symbol.__xnew__(self, var)
@@ -113,20 +114,21 @@ class Kernel(object):
             self.has_Idx = False
 
         self.reductions = flatten([list(e.rhs.atoms(ReductionVariable)) for e in self.equations])
+        self.gridvariable = flatten([list(e.lhs.atoms(GridVariable)) for e in self.equations])
         if grid:
             self.constants = set(consts).difference(grid.mapped_indices.keys())
         else:
             self.constants = set(consts)
 
         return
-    
+
     def set_grid_arrays(self, array ,grid, indexes):
         """
-        Sets the Indexed object attribute is_grid to True if all the indices of an indexed object 
+        Sets the Indexed object attribute is_grid to True if all the indices of an indexed object
         are in mapped arrays of the grid
         """
         ets = [list(ind) for ind in indexes]
-        ets = [list(et.atoms(EinsteinTerm)) for et in flatten(ets)]
+        ets = [list(et.atoms(Symbol)) for et in flatten(ets)]
         ets = (set(flatten(ets)))
         if all(index in grid.mapped_indices.keys() for index  in ets):
             array.is_grid = True

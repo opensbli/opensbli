@@ -144,3 +144,11 @@ class LatexWriter(LatexPrinter):
         self.f.write(output)
         return
         
+def optimise_kernels(sd):
+    from sympy.simplify.cse_main import opt_cse, tree_cse
+    
+    kernels = sd.computations
+    for kernel in kernels:
+        equations = kernel.equations
+        pprint(cse(equations, list(symbols('temp0:1000'))))
+    return
