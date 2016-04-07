@@ -30,9 +30,10 @@ mass = "Eq(Der(rho,t), - Conservative(rhou_j,x_j))"
 momentum = "Eq(Der(rhou_i,t) , -Skew(rhou_i*u_j,x_j) - Der(p,x_i) + Der(tau_i_j,x_j) )"
 energy = "Eq(Der(rhoE,t), - Conservative((p+rhoE)*u_j,x_j) + Der(q_j,x_j) + Der(u_i*tau_i_j ,x_j) )"
 ke = "Eq(ke, rho*(1/2)*u_j*u_j)"
+enstrophy = "Eq(vort, (1/2)*rho*(LC(_i,_j,_k)*Der(u_k,x_j))*
 rhomean = "Eq(rhomean, rho)"
 equations = [mass, momentum, energy]
-diagnostics = [ke, rhomean]
+diagnostics = [ke, enstrophy, rhomean]
 
 # Substitutions
 stress_tensor = "Eq(tau_i_j, (1.0/Re)*(Der(u_i,x_j)+ Conservative(u_j,x_i)- (2/3)* KD(_i,_j)* Der(u_k,x_k)))"
@@ -69,7 +70,7 @@ temporal_scheme = RungeKutta(3) # Third-order Runge-Kutta time-stepping scheme.
 
 # Create a numerical grid of solution points
 length = [2.0*pi*1.0]*ndim
-np = [192]*ndim
+np = [256]*ndim
 deltas = [length[i]/np[i] for i in range(len(length)) ] # how to define them
 print(deltas)
 print(np)
