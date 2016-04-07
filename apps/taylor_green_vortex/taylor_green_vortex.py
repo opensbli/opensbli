@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import sys
+from math import ceil
 
 # Import local utility functions
 import opensbli
@@ -70,7 +71,7 @@ temporal_scheme = RungeKutta(3) # Third-order Runge-Kutta time-stepping scheme.
 
 # Create a numerical grid of solution points
 length = [2.0*pi*1.0]*ndim
-np = [32]*ndim
+np = [64]*ndim
 deltas = [length[i]/np[i] for i in range(len(length)) ] # how to define them
 print(deltas)
 print(np)
@@ -123,7 +124,10 @@ io = FileIO(temporal_discretisation.prognostic_variables)
 start = time.time()
 # Grid parameters like number of points, length in each direction, and delta in each direction
 l1 = ['niter', 'Re', 'Pr', 'gama', 'Minf', 'mu', 'precision', 'name', 'deltat']
-l2 = [20000, 1600, 0.71, 1.4, 0.1, 1.0, "double", "taylor_green_vortex", 0.001]
+deltat = 3.385e-3
+niter = ceil(20.0/deltat)
+print "Going to do %d iterations." % niter
+l2 = [niter, 1600, 0.71, 1.4, 0.1, 1.0, "double", "taylor_green_vortex", deltat]
 # Constants in the system
 simulation_parameters = dict(zip(l1,l2))
 
