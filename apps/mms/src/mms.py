@@ -24,6 +24,7 @@ from opensbli.bcs import *
 from opensbli.grid import *
 from opensbli.timestepping import *
 from opensbli.io import *
+from opensbli.opsc import *
 
 def dt(dx, velocity):
     """ Given a grid spacing dx and the velocity, return the value of dt such that the CFL condition is respected. """
@@ -60,8 +61,8 @@ formulas = []
 
 # Create the problem and expand the equations.
 problem = Problem(equations, substitutions, ndim, constants, coordinate_symbol, metrics, formulas)
-expanded_equations, expanded_formulas = problem.get_expanded()
-
+expanded_equations = problem.get_expanded(problem.equations)
+expanded_formulas = problem.get_expanded(problem.formulas)
 
 # Output equations in LaTeX format.
 latex = LatexWriter()
