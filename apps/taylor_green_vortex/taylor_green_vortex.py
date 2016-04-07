@@ -122,7 +122,7 @@ io = FileIO(temporal_discretisation.prognostic_variables)
 start = time.time()
 # Grid parameters like number of points, length in each direction, and delta in each direction
 l1 = ['niter', 'Re', 'Pr', 'gama', 'Minf', 'mu', 'precision', 'name', 'deltat']
-l2 = [20000, 1600, 0.71, 1.4, 0.1, 1.0, "double", "tgv", 0.001]
+l2 = [20000, 1600, 0.71, 1.4, 0.1, 1.0, "double", "taylor_green_vortex", 0.001]
 # Constants in the system
 simulation_parameters = dict(zip(l1,l2))
 
