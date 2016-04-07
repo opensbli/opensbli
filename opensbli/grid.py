@@ -58,13 +58,16 @@ class Grid(object):
         # Use user-define grid data, if available and store in a dictionary to use it later.
         self.grid_data_dictionary = {}
         if grid_data:
-            self.grid_data_dictionary  = dict(zip([str(d) for d in self.deltas], \
-                [grid_data['delta'][i] for i in range(ndim)]))
-            self.shape = tuple([grid_data['number_of_points'][i] for i in range(ndim)])
+            variables = [str(d) for d in self.deltas] + [str(s) for s in self.shape]
+            values = [grid_data['delta'][i] for i in range(ndim)] + [grid_data['number_of_points'][i] for i in range(ndim)]
+            self.grid_data_dictionary  = dict(zip(variables, values))
+            self.total_points = 1.0
+            for r in range(ndim):
+                self.total_points = self.total_points*grid_data['number_of_points'][r]
+
+            #self.shape = tuple([grid_data['number_of_points'][i] for i in range(ndim)])
         # Used for reductions
-        self.total_points = 1.0
-        for r in self.shape:
-            self.total_points = self.total_points*r
+
         # Also require a mapping between grid indices and the coordinate directions
         # This is like the indexed array of x_i EinsteinTerm, this removes the dependancy of coordinate
         # in the spatial descritisation or Diagnostics or any where else later this should be input to this

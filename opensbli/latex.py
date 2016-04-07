@@ -91,16 +91,16 @@ class LatexWriter(LatexPrinter):
 
     def latexify_expression(self, expression):
         """ Format a SymPy expression as LaTeX.
-        
+
         :arg expression: The SymPy expression to format.
         :returns: The LaTeX string representation of the expression.
         :rtype: str
         """
-        
+
         self._settings['mode'] = "dmath"
         self._settings['long_frac_ratio'] = 3
         self._settings['mul_symbol'] = "cdot"
-    
+
         tex = Printer.doprint(self, expression)
 
         if self._settings['mode'] == 'plain':
@@ -115,16 +115,16 @@ class LatexWriter(LatexPrinter):
         return output
 
     def _print_Indexed(self, expr):
-        tex = '{%s}' % self._print(expr.base)+'_{%s}' % ','.join( map(self._print, expr.indices)) 
+        tex = '{%s}' % self._print(expr.base)+'_{%s}' % ','.join( map(self._print, expr.indices))
         return tex
-        
+
     def write_expression(self, expression, substitutions = {}):
         """ Convert a single expression or list of expressions to LaTeX format and then write it/them to file.
-        
+
         :arg expression: a single SymPy expression of list of SymPy expressions to format and write.
         :returns: None
         """
-        
+
         output = []
 
         if isinstance(expression, list):
@@ -143,12 +143,7 @@ class LatexWriter(LatexPrinter):
 
         self.f.write(output)
         return
-        
-def optimise_kernels(sd):
-    from sympy.simplify.cse_main import opt_cse, tree_cse
+
+def write_descritization():
     
-    kernels = sd.computations
-    for kernel in kernels:
-        equations = kernel.equations
-        pprint(cse(equations, list(symbols('temp0:1000'))))
     return

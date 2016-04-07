@@ -412,7 +412,7 @@ def str_print(expr):
     iind = expr.atoms(Indexed)
     iind_rep = [str(v.base) for v in iind]
     replacements = dict(zip([str(v) for v in iind], iind_rep))
-    replacements['Derivative'] = 'D'
+    replacements['Derivative'] = 'D';replacements[','] = ''
     for key, value in replacements.iteritems():
         val = val.replace(key, value)
     return val

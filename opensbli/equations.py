@@ -47,6 +47,29 @@ class Skew(Function):
     generally referred to as Skew symmetric formulation.
     This is the Blaisdel version of skew symmetric formulation
     """
+    def __init__(self, *args):
+        return self
+    @classmethod
+    def eval(cls, *args):
+        var = args[0]
+        directions = args[1:]
+        nvar = len(var.args)
+        #self.expression =
+        if nvar == 1:
+            return Der(var, *directions)
+        elif nvar == 2:
+            explicitvars = var.args
+            out = 0.5*(Conservative(var, *directions) + explicitvars[1]*Der(explicitvars[0], *directions) +\
+                explicitvars[0]*Der(explicitvars[1], *directions))
+            return out
+        else:
+            raise ValueError("More than two terms for skew formulation")
+        return
+
+
+    @property
+    def is_commutative(self):
+        return False
 
 
 class Der(Function):
@@ -567,7 +590,8 @@ class Equation(object):
         :returns: None
         """
 
-        local_dict = {'Symbol': EinsteinTerm, 'symbols': EinsteinTerm, 'Der': Der, 'Conservative': Conservative, 'KD': KD, 'LC': LC}
+        local_dict = {'Symbol': EinsteinTerm, 'symbols': EinsteinTerm, 'Der': Der, 'Conservative': Conservative, 'KD': KD, 'LC': LC\
+            ,'Skew':Skew}
 
         self.original = expression
 
@@ -593,7 +617,7 @@ class Equation(object):
         # Expand Einstein terms/indices
         expansion = EinsteinExpansion(self.parsed, ndim)
         self.expanded = expansion.expanded
-        LOG.debug("The expanded expression is: %s" % (expansion.expanded))
+        #LOG.debug("The expanded expression is: %s" % (expansion.expanded))
 
 
         return

@@ -106,7 +106,7 @@ class Reduction():
         for number, eq in enumerate(equations):
             if rtype[number] == "sum":
                 reduction_equation[number] = Eq(reduction_variable[number], \
-                    (eq.rhs + reduction_variable[number])/(grid.total_points))
+                    (eq.rhs + reduction_variable[number]))
             else:
                 raise NotImplementedError("Only summation reductions are supported")
         return reduction_equation

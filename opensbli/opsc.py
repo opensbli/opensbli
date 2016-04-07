@@ -411,7 +411,10 @@ class OPSC(object):
 
     def print_reduction_results(self, reductions):
         template = "ops_printf(\"Iteration is %%d and %s is %%g\\n\",%s,%s_reduction)%s"
-        return [template%(red, "iteration", red,  self.end_of_statement) for red in reductions]
+        template = "ops_printf(\"%s\\n\", %s)%s"
+        allreductions = '%d, ' + ', '.join([str('%g') for red in reductions])
+        all_reduction_results = 'iteration + 1, ' + ', '.join([str('%s_reduction')%red for red in reductions])
+        return [template%( allreductions, all_reduction_results, self.end_of_statement)]
 
     def get_reduction_results(self, reductions):
         '''
@@ -429,7 +432,6 @@ class OPSC(object):
 
         # Get the constants defined every where. i.e. in
         constant_initialisation = []
-
         constant_dictionary = {}
         values = [self.simulation_parameters[str(constant)] for constant in self.constants]
         constant_dictionary = dict(zip(self.constants, values))
@@ -482,8 +484,13 @@ class OPSC(object):
         """
 
         ops_const = []
+        # TODO determine the type of constant
         for constant in self.constants:
-            if not isinstance(constant, IndexedBase):
+            if not isinstance(constant, IndexedBase) and isinstance(constant, str):
+                ops_const += ["ops_decl_const(\"%s\" , 1, \"%s\", &%s)%s" % (constant, self.dtype, constant, self.end_of_statement)]
+            elif constant.is_integer:
+                ops_const += ["ops_decl_const(\"%s\" , 1, \"int\", &%s)%s" % (constant, constant, self.end_of_statement)]
+            elif not isinstance(constant, IndexedBase):
                 ops_const += ["ops_decl_const(\"%s\" , 1, \"%s\", &%s)%s" % (constant, self.dtype, constant, self.end_of_statement)]
         return ops_const
 
@@ -819,15 +826,15 @@ class OPSC(object):
         # Flops count for the grid point
         count = sum([count_ops(eq.rhs) for eq in computation.equations])
         # Flops count for the entire grid
-        computation_ranges = [(r[1] - r[0]) for r in computation.ranges]
-        grid_count = count
-        for r in computation_ranges:
-            grid_count = grid_count*r
+        #computation_ranges = [(r[1] - r[0]) for r in computation.ranges]
+        #grid_count = count
+        #for r in computation_ranges:
+            #grid_count = grid_count*r
         # Donot write out the equation
         #for equation in computation.equations:
             #comments += [pretty(equation, use_unicode=False)]
         comments += ['The count of operations per grid point for the kernel is %d' % count]
-        comments += ['The count of operations on the range of evaluation for the kernel is %d' % grid_count]
+        #comments += ['The count of operations on the range of evaluation for the kernel is %d' % grid_count]
         comments += [self.block_comment[1]]
 
         if computation.name == None:
@@ -920,8 +927,13 @@ class OPSC(object):
         for constant in self.constants:
             if isinstance(constant, IndexedBase):
                 code += ['%s %s[%d]%s' % (self.dtype, constant, constant.ranges, self.end_of_statement)]
+            elif isinstance(constant, str):
+                code += ['%s %s%s' % (self.dtype, constant, self.end_of_statement)]
+            elif constant.is_integer:
+                code += ['int %s%s' % ( constant, self.end_of_statement)]
             else:
                 code += ['%s %s%s' % (self.dtype, constant, self.end_of_statement)]
+
         # Include constant declaration
         code += ['// OPS header file']
         code += ['#define OPS_%sD' % self.ndim]
@@ -1082,9 +1094,15 @@ class OPSC(object):
                 [inp for inp in computation.inputoutput.keys() if not inp.is_grid])
         constants = set(computation.constants)
 
+        # add the symbols in the range of evaluation to constants
+        const = set(flatten([list(r.atoms(Symbol)) for ro in computation.ranges for r in ro \
+            if not isinstance(r, int)]))
+
+
         self.grid_based_arrays = self.grid_based_arrays.union(arrays)
 
-        self.constants = self.constants.union(constant_arrays).union(constants).union(self.rational_constants.values())
+        self.constants = self.constants.union(constant_arrays).union(constants).union(self.rational_constants.values())\
+            .union(const)
         # update the simulation parameters as these are used for writing the constants
         self.simulation_parameters.update(dict(zip([str(v) for v in self.rational_constants.values()],\
             list(self.rational_constants.keys()))))

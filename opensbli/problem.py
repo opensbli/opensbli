@@ -38,7 +38,7 @@ class Problem(object):
         self.constants = constants
         self.coordinate_symbol = coordinate_symbol
         self.metrics = metrics
-        
+
         LOG.info("Expanding equations...")
         start = time.time()
         # expand the equations
@@ -54,16 +54,16 @@ class Problem(object):
 
         expanded = []
         for e in equations:
-            expanded.append(Equation(e, self.ndim, self.coordinate_symbol, self.substitutions, self.constants))    
-        
+            expanded.append(Equation(e, self.ndim, self.coordinate_symbol, self.substitutions, self.constants))
+
         return expanded
-        
-    def get_expanded(self, equations):  
+
+    def get_expanded(self, equations):
         """ Return the lists of expanded equations and formulas. """
-        
+
         expanded_equations = []
         for e in equations:
             expanded_equations.append(e.expanded)
-        
+
         return expanded_equations
-    
+
