@@ -40,7 +40,7 @@ class FileIO(object):
             # save after every n iterations and at the end of the simulation
             self.save_after += [niter, True]
         if isinstance(arrays, list):
-            self.save_arrays += arrays
+            self.save_arrays += [arr.base for arr in arrays]
         else:
             self.save_arrays.append(arrays)
         return
