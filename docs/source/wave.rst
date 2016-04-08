@@ -39,4 +39,18 @@ The state of the solution field at the finish time will be written to an HDF5 fi
 
     python plot.py wave_opsc_code
     
-which will generate two figures; one showing the propagation of the initial sine wave (see ``phi.pdf``), and one showing the error between the analytical solution (i.e. the initial wave translated to the right by :math:`x = ct`) and the numerical solution (``phi_error.pdf``).
+which will generate two figures; one showing the propagation of the initial sine wave (see ``phi.pdf`` and Figure phi_), and one showing the error between the analytical solution (i.e. the initial wave translated to the right by :math:`x = ct`) and the numerical solution (``phi_error.pdf`` and Figure phi_error_).
+
+.. _phi:
+.. figure::  images/phi.png
+   :scale: 100 %
+   :align:   center
+
+   The solution field :math:`\phi` at time :math:`t` = 0 s and :math:`t` = 1 s
+   
+.. _phi_error:
+.. figure::  images/phi_error.png
+   :scale: 100 %
+   :align:   center
+
+   The error between the analytical solution and the numerical solution at time :math:`t` = 1 s.
