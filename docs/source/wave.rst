@@ -17,7 +17,7 @@ A domain of length :math:`0 \leq x \leq 1` m is considered, with grid spacing :m
 
 The initial condition is defined by
 
-.. math:: u(x, t=0) = \sin(2\pi x),
+.. math:: \phi(x, t=0) = \sin(2\pi x),
 
 The simulation was run with a timestep of :math:`dt = 4 \times 10^{-5}` s until time :math:`t` = 1 s.
 
