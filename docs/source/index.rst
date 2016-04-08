@@ -15,8 +15,6 @@ Contents:
    getting_started
    problem
    wave
-   advection_diffusion
-   tgv
 
 Indices and tables
 ==================
