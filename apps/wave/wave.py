@@ -96,7 +96,7 @@ io = FileIO(temporal_discretisation.prognostic_variables)
 
 # Grid parameters like number of points, length in each direction, and delta in each direction
 c0 = 0.5
-deltat = 0.0004
+deltat = dt(deltas[0], c0)
 niter = ceil(1.0/deltat)
 print "Iterations: %d" % niter
 l1 = ['niter', 'c0', 'deltat', 'precision', 'name']
