@@ -7,7 +7,7 @@ base_name = "mms"
 
 N = 5 # Total number of simulations to perform
 
-for degree in range(2, 7, 2):
+for degree in range(2, 13, 2):
     for i in range(0, N):
         # Form the directory name (and create the directory itself) where all files related to simulation 'i' will be kept.
         directory_name = base_name + "_%d_%d" % (degree, i)

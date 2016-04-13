@@ -97,7 +97,7 @@ def compute_error(degree, simulation_index, number_of_points):
     interpolated_analytical = griddata(grid_points, grid_analytical, (target_grid_x, target_grid_y), method='nearest')
 
     # Only plot phi for the 6th order simulations.
-    if degree == 6:
+    if degree == 12:
         plot_phi(simulation_index, phi, phi_analytical)
     
     return numpy.linalg.norm(abs(interpolated_numerical - interpolated_analytical), ord=2)
@@ -106,7 +106,7 @@ def plot():
     # Plot the error against the grid spacing dx.
     Lx = 2*pi
     
-    degrees = range(2, 7, 2)
+    degrees = range(2, 13, 2)
     errors = []
     dxs = []
     for d in range(len(degrees)):
@@ -122,15 +122,15 @@ def plot():
     print "Errors in the L2 norm: ", errors
     plt.clf()
     
-    colours_expected = ["--r", "--g", "--b"]
-    colours = ["o-r", "o-g", "o-b"]
+    colours_expected = ["--r", "--g", "--b", "--y", "--c", "--k"]
+    colours = ["o-r", "o-g", "o-b", "o-y", "o-c", "o-k"]
     for d in range(0, len(degrees)):
         # Plot the errors.
-        plt.loglog(dxs[d], errors[d], colours[d], label=r"Central difference (order %d)" % degrees[d])
+        plt.loglog(dxs[d], errors[d], colours[d], label=r"Order = %d" % degrees[d])
         
         # Plot the expected convergence line for comparison.
         expected_convergence = (numpy.array([0.8*max(errors[d])*(1.0/2**degrees[d])**i for i in range(len(errors[d]))]))
-        plt.loglog(dxs[d], expected_convergence, colours_expected[d], label=r"$O(\Delta x^%d)$" % degrees[d])
+        plt.loglog(dxs[d], expected_convergence, colours_expected[d], label=r"")
         
     plt.xlabel(r"Grid spacing $\Delta x$ (m)")
     plt.ylabel(r"Solution error in the L2 norm")
