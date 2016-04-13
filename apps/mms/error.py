@@ -122,8 +122,8 @@ def plot():
     print "Errors in the L2 norm: ", errors
     plt.clf()
     
-    colours_expected = ["--r", "--g", "--b", "--y", "--c", "--k"]
-    colours = ["o-r", "o-g", "o-b", "o-y", "o-c", "o-k"]
+    colours_expected = ["-r", "-g", "-b", "-y", "-c", "-k"]
+    colours = ["o--r", "o--g", "o--b", "o--y", "o--c", "o--k"]
     for d in range(0, len(degrees)):
         # Plot the errors.
         plt.loglog(dxs[d], errors[d], colours[d], label=r"Order = %d" % degrees[d])
