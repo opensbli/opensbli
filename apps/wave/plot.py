@@ -7,22 +7,22 @@ from math import pi, exp, cos, sin
 import matplotlib.pyplot as plt
 import h5py
 
-def plot(path):
+def plot(path, simulation_index):
     # Number of grid points
-    nx = 1000
+    nx = 10*(2**simulation_index)
     
      # Number of halo nodes at each end
-    halo = 2
+    halo = 4
 
     # Read in the simulation output
     f = h5py.File(path + "/state.h5", 'r')
-    group = f["wave_block"]
+    group = f["wave_%d_block" % simulation_index]
     
     phi = group["phi"].value
     
     # Ignore the 2 halo nodes at either end of the domain
     phi = phi[halo:nx+halo]
-    print phi
+    #print phi
     # Grid spacing
     dx = 1.0/(nx);
     
@@ -33,6 +33,8 @@ def plot(path):
     phi_error = numpy.zeros(nx)
 
     # Compute the error
+    from scipy.interpolate import griddata
+    grid_x = numpy.mgrid[0:1:10000j]
     for i in range(0, nx):
         x[i] = i*dx
         # Initial condition
@@ -40,6 +42,21 @@ def plot(path):
         # Analytical solution
         phi_analytical[i] = sin(2*pi*(x[i]+0.5)) # Phi should be a sin wave shifted to the right by x = 0.5 (since the wave speed is 0.5 m/s and we've simulated until T = 1.0 s).
         phi_error[i] = abs(phi_analytical[i] - phi[i])
+    
+    #print "LOL", numpy.linalg.norm(phi_error, ord=2)
+    #phi_analytical = numpy.zeros(nx)
+    #dx2 = 1.0/(nx)
+    #x2 = numpy.zeros(len(grid_x))
+    #for i in range(0, len(phi_analytical)):
+    #    x2[i] = i*dx2
+    #    phi_analytical[i] = sin(2*pi*(x2[i]+0.5))    
+
+    data1 = griddata(x, phi, grid_x, method='nearest')
+    data2 = griddata(x, phi_analytical, grid_x, method='nearest')
+    #print data
+    print numpy.linalg.norm(abs(data1-data2), ord=2)
+    
+    plt.clf()
 
     plt.plot(x, phi_error, "-k", label=r"Absolute error in $\phi(x,\ t=1)$")
     plt.xlabel(r"$x$ (m)")
@@ -55,6 +72,7 @@ def plot(path):
     plt.legend()
     plt.savefig("phi.pdf", bbox_inches='tight')
     
+    plt.clf()    
 
 
 if(__name__ == "__main__"):
@@ -63,4 +81,5 @@ if(__name__ == "__main__"):
     parser.add_argument("path", help="The path to the directory containing the output files.", action="store", type=str)
     args = parser.parse_args()
     
-    plot(args.path)
+    for simulation_index in range(0, 5):
+        plot("wave_%d/wave_%d_opsc_code" % (simulation_index, simulation_index), simulation_index)
