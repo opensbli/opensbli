@@ -22,7 +22,7 @@ def plot(path, simulation_index):
     
     # Ignore the 2 halo nodes at either end of the domain
     phi = phi[halo:nx+halo]
-    #print phi
+
     # Grid spacing
     dx = 1.0/(nx);
     
@@ -43,14 +43,6 @@ def plot(path, simulation_index):
         phi_analytical[i] = sin(2*pi*(x[i]+0.5)) # Phi should be a sin wave shifted to the right by x = 0.5 (since the wave speed is 0.5 m/s and we've simulated until T = 1.0 s).
         phi_error[i] = abs(phi_analytical[i] - phi[i])
     
-    #print "LOL", numpy.linalg.norm(phi_error, ord=2)
-    #phi_analytical = numpy.zeros(nx)
-    #dx2 = 1.0/(nx)
-    #x2 = numpy.zeros(len(grid_x))
-    #for i in range(0, len(phi_analytical)):
-    #    x2[i] = i*dx2
-    #    phi_analytical[i] = sin(2*pi*(x2[i]+0.5))    
-
     data1 = griddata(x, phi, grid_x, method='nearest')
     data2 = griddata(x, phi_analytical, grid_x, method='nearest')
     #print data
