@@ -68,4 +68,4 @@ def plot(path):
 
 
 if(__name__ == "__main__"):
-    plot("./wave/wave_opsc_code")
+    plot("./wave_opsc_code")

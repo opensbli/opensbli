@@ -66,7 +66,7 @@ latex.close()
 # Discretise the equations
 start = time.time()
 
-spatial_scheme = Central(8) # Fourth-order central differencing in space.
+spatial_scheme = Central(8) # Eighth-order central differencing in space.
 temporal_scheme = RungeKutta(3) # Third-order Runge-Kutta time-stepping scheme.
 
 # Create a numerical grid of solution points
@@ -96,11 +96,11 @@ io = FileIO(temporal_discretisation.prognostic_variables)
 
 # Grid parameters like number of points, length in each direction, and delta in each direction
 c0 = 0.5
-deltat = 0.004
+deltat = 0.0004
 niter = ceil(1.0/deltat)
 print "Iterations: %d" % niter
 l1 = ['niter', 'c0', 'deltat', 'precision', 'name']
-l2 = [niter, c0, deltat, "double", SIMULATION_NAME]
+l2 = [niter, c0, deltat, "double", "wave"]
 
 # Constants in the system
 simulation_parameters = dict(zip(l1,l2))
