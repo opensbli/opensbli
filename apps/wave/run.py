@@ -17,7 +17,7 @@ for i in range(0, N):
     shutil.copy("src/wave.py", directory_name + "/wave.py")
     
     # The number of points will double each time.
-    number_of_points = 10*(2**i)
+    number_of_points = 100*(2**i)
     
     # Replace the number of points and the simulation name in the setup file.
     with open(directory_name + "/wave.py.new", "w") as new:
