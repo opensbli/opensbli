@@ -61,27 +61,27 @@ def compute_error(degree, simulation_index, number_of_points):
     # Get the numerical solution field
     phi = group["phi"].value
     
-    # Ignore the 2 halo nodes at either end of the domain
-    phi = phi[halo:nx+halo, halo:ny+halo]
+    # Ignore the 2 halo nodes at the left (and bottom) end of the domain. Include one strip of halo points at the right (and top) of the domain to enforce periodicity in the solution field plot.
+    phi = phi[halo:nx+halo+1, halo:ny+halo+1]
     print phi.shape
     
     # Grid spacing. Note: The length of the domain is divided by nx (or ny) and not nx-1 (or ny-1) because of the periodicity. In total we have nx+1 points, but we only solve nx points; the (nx+1)-th point is set to the same value as the 0-th point to give a full period, to save computational effort.
     dx = (2.0*pi)/(nx)
     dy = (2.0*pi)/(ny)
     
-    # Coordinate arrays
-    x = numpy.zeros(nx*ny).reshape((nx, ny))
-    y = numpy.zeros(nx*ny).reshape((nx, ny))
+    # Coordinate arrays. 
+    x = numpy.zeros((nx+1)*(ny+1)).reshape((nx+1, ny+1))
+    y = numpy.zeros((nx+1)*(ny+1)).reshape((nx+1, ny+1))
 
-    phi_analytical = numpy.zeros(nx*ny).reshape((nx, ny))
+    phi_analytical = numpy.zeros((nx+1)*(ny+1)).reshape((nx+1, ny+1))
 
     # Compute the error by first interpolating the numerical and analytical results onto a much finer grid of points and computing the L2 norm of the absolute difference.
     grid_points = []
     grid_numerical = []
     grid_analytical = []
     target_grid_x, target_grid_y = numpy.mgrid[0:2*pi:32j, 0:2*pi:32j]
-    for i in range(0, nx):
-        for j in range(0, ny):
+    for i in range(0, nx+1):
+        for j in range(0, ny+1):
             # Work out the x and y coordinates. Note the swapping of the 'j' and 'i' here.
             x[i,j] = j*dx
             y[i,j] = i*dy
