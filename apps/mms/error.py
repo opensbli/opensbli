@@ -7,13 +7,21 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import h5py
 import string
+from scipy.interpolate import griddata
+
+# Matplotlib settings for publication-ready figures
+try:
+    f = open('/home/ctj1r15/opensbli-paper/images/rcparams.py', 'r')
+    exec(f.read())
+except:
+    pass
 
 fig, subax = plt.subplots(2, 3, sharex='col', sharey='row', figsize=(9,5))
 subax = subax.flat
-
+    
 def plot_phi(simulation_index, phi, phi_analytical):
     """ Plot the field 'phi' in a multi-figure plot, to show the field converging to the analytical solution. """
-    subax[simulation_index].imshow(phi, extent=(0, 10, 0, 10), interpolation='nearest', aspect='auto')
+    subax[simulation_index].imshow(phi, extent=(0, 2*pi, 0, 2*pi), interpolation='nearest', aspect='auto')
     
     if simulation_index != 0 and simulation_index != 1 and simulation_index != 2:
         subax[simulation_index].set_xlabel(r'$x$')
@@ -21,7 +29,7 @@ def plot_phi(simulation_index, phi, phi_analytical):
     subax[simulation_index].text(0.5, 1.05, "("+string.ascii_lowercase[simulation_index]+")", transform=subax[simulation_index].transAxes, size=10, weight='bold')
     if simulation_index == 4: # The last simulation.
         # Add in the analytical solution as well as a special case.
-        im = subax[5].imshow(phi_analytical, extent=(0, 10, 0, 10), aspect='auto')
+        im = subax[5].imshow(phi_analytical, extent=(0, 2*pi, 0, 2*pi), aspect='auto')
         subax[5].set_xlabel(r'$x$')
         subax[5].set_ylabel(r'$y$')
         
@@ -37,18 +45,18 @@ def plot_phi(simulation_index, phi, phi_analytical):
     
     
     
-def error(simulation_index, number_of_points):
+def compute_error(degree, simulation_index, number_of_points):
     # Number of grid points. This is assumed to be the same in the x and y directions.
     nx = number_of_points
     ny = number_of_points  
     
     # Number of halo nodes at each end
-    halo = 2
+    halo = degree/2
 
     # Read in the simulation output
-    path = "./mms_%d/mms_%d_opsc_code/" % (simulation_index, simulation_index)
+    path = "./mms_%d_%d/mms_%d_%d_opsc_code/" % (degree, simulation_index, degree, simulation_index)
     f = h5py.File(path + "/state.h5", 'r')
-    group = f["mms_%d_block" % simulation_index]
+    group = f["mms_%d_%d_block" % (degree, simulation_index)]
     
     # Get the numerical solution field
     phi = group["phi"].value
@@ -57,8 +65,7 @@ def error(simulation_index, number_of_points):
     phi = phi[halo:nx+halo, halo:ny+halo]
     print phi.shape
     
-
-    # Grid spacing
+    # Grid spacing. Note: The length of the domain is divided by nx (or ny) and not nx-1 (or ny-1) because of the periodicity. In total we have nx+1 points, but we only solve nx points; the (nx+1)-th point is set to the same value as the 0-th point to give a full period, to save computational effort.
     dx = (2.0*pi)/(nx)
     dy = (2.0*pi)/(ny)
     
@@ -67,39 +74,66 @@ def error(simulation_index, number_of_points):
     y = numpy.zeros(nx*ny).reshape((nx, ny))
 
     phi_analytical = numpy.zeros(nx*ny).reshape((nx, ny))
-    phi_error = numpy.zeros(nx*ny).reshape((nx, ny))
-    
-    # Compute the error
+
+    # Compute the error by first interpolating the numerical and analytical results onto a much finer grid of points and computing the L2 norm of the absolute difference.
+    grid_points = []
+    grid_numerical = []
+    grid_analytical = []
+    target_grid_x, target_grid_y = numpy.mgrid[0:2*pi:32j, 0:2*pi:32j]
     for i in range(0, nx):
         for j in range(0, ny):
             # Work out the x and y coordinates. Note the swapping of the 'j' and 'i' here.
             x[i,j] = j*dx
             y[i,j] = i*dy
+            grid_points.append([x[i,j], y[i,j]])
+            grid_numerical.append(phi[i,j])
             phi_analytical[i,j] = sin(x[i,j])*cos(y[i,j])
-            phi_error[i,j] = abs(phi[i,j] - phi_analytical[i,j])
+            grid_analytical.append(phi_analytical[i,j])
 
-    plot_phi(simulation_index, phi, phi_analytical)
+    grid_points = numpy.array(grid_points)
+    grid_numerical = numpy.array(grid_numerical)
+    grid_analytical = numpy.array(grid_analytical)
+    interpolated_numerical = griddata(grid_points, grid_numerical, (target_grid_x, target_grid_y), method='nearest')
+    interpolated_analytical = griddata(grid_points, grid_analytical, (target_grid_x, target_grid_y), method='nearest')
+
+    # Only plot phi for the 6th order simulations.
+    if degree == 6:
+        plot_phi(simulation_index, phi, phi_analytical)
     
-    return numpy.linalg.norm(phi_error, ord=2)
+    return numpy.linalg.norm(abs(interpolated_numerical - interpolated_analytical), ord=2)
 
 def plot():
     # Plot the error against the grid spacing dx.
     Lx = 2*pi
-    dx = []
+    
+    degrees = range(2, 7, 2)
     errors = []
-    for simulation_index in range(0, 5):
-        number_of_points = 4*(2**simulation_index)
-        dx.append(Lx/number_of_points)
-        errors.append(error(simulation_index, number_of_points))
+    dxs = []
+    for d in range(len(degrees)):
+        dx = []
+        error = []
+        for simulation_index in range(0, 5):
+            number_of_points = 4*(2**simulation_index)
+            dx.append(Lx/number_of_points)            
+            error.append(compute_error(degrees[d], simulation_index, number_of_points))
+        errors.append(error)
+        dxs.append(dx)
+    
     print "Errors in the L2 norm: ", errors
-    plt.loglog(dx, errors, 'o-k', label=r"$\phi$")
+    plt.clf()
     
-    # Plot the third-order convergence line for comparison.
-    third_order = (numpy.array([1e-1*(1.0/8.0)**i for i in range(len(errors))]))
-    plt.loglog(dx, third_order, '--k', label=r"Third-order convergence")
-    
+    colours_expected = ["--r", "--g", "--b"]
+    colours = ["o-r", "o-g", "o-b"]
+    for d in range(0, len(degrees)):
+        # Plot the errors.
+        plt.loglog(dxs[d], errors[d], colours[d], label=r"Central difference (order %d)" % degrees[d])
+        
+        # Plot the expected convergence line for comparison.
+        expected_convergence = (numpy.array([0.8*max(errors[d])*(1.0/2**degrees[d])**i for i in range(len(errors[d]))]))
+        plt.loglog(dxs[d], expected_convergence, colours_expected[d], label=r"$O(\Delta x^%d)$" % degrees[d])
+        
     plt.xlabel(r"Grid spacing $\Delta x$ (m)")
-    plt.ylabel(r"Error in the L2 norm")
+    plt.ylabel(r"Solution error in the L2 norm")
     plt.legend(loc='best', numpoints=1)
     plt.savefig("mms_convergence_analysis.pdf", bbox_inches='tight')
     

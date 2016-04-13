@@ -28,7 +28,7 @@ from opensbli.opsc import *
 
 def dt(dx, velocity):
     """ Given a grid spacing dx and the velocity, return the value of dt such that the CFL condition is respected. """
-    courant_number = 0.01
+    courant_number = 0.05
     return (dx*courant_number)/velocity
 
 BUILD_DIR = os.getcwd()
@@ -79,7 +79,7 @@ latex.close()
 # Discretise the equations
 start = time.time()
 
-spatial_scheme = Central(4) # Fourth-order central differencing in space.
+spatial_scheme = Central(DEGREE) # Fourth-order central differencing in space.
 temporal_scheme = RungeKutta(3) # Third-order Runge-Kutta time-stepping scheme.
 
 # Create a numerical grid of solution points
