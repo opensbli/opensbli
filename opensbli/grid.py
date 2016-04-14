@@ -65,25 +65,22 @@ class Grid(object):
             for r in range(ndim):
                 self.total_points = self.total_points*grid_data['number_of_points'][r]
 
-            #self.shape = tuple([grid_data['number_of_points'][i] for i in range(ndim)])
-        # Used for reductions
-
-        # Also require a mapping between grid indices and the coordinate directions
-        # This is like the indexed array of x_i EinsteinTerm, this removes the dependancy of coordinate
-        # in the spatial descritisation or Diagnostics or any where else later this should be input to this
-
-        di = EinsteinTerm('x_i')
-        di.is_constant = True
-
-        # Grid point spacing in each dimension.
-        self.mapedindices = di.get_array(di.get_indexed(len(self.shape))).tolist()
-        self.mapped_indices = dict(zip(tuple(self.mapedindices)+self.indices, self.indices+self.indices))
-        self.mapped_indices[EinsteinTerm('t')] = ''
-        # indices that are mapped on to the grid should be populated Implicitly
+        # Coordinate indices in space (e.g. x0, x1, x2)
+        coordinates = EinsteinTerm('x_i')
+        coordinates.is_constant = True
+        # This is essentially the indexed array of the "x_i" EinsteinTerm. 
+        self.coordinates = coordinates.get_array(coordinates.get_indexed(len(self.shape))).tolist()
+        
+        # Generate a mapping between the grid indices (e.g. i0, i1, i2) and the coordinate indices (e.g. x0, x1, x2).
+        # This removes the dependancy of the coordinates in the spatial discretisation or Diagnostics or anywhere else.
+        self.mapped_indices = dict(zip(tuple(self.coordinates)+self.indices, self.indices+self.indices))
+        self.mapped_indices[EinsteinTerm('t')] = '' # Also handle the time 't' as a special case.
+        # NOTE: Indices that are mapped onto the grid should be populated implicitly.
+        
         return
 
     def work_array(self, name):
-        """ Sets up a work array indexed by the Grid.
+        """ Sets up a work array indexed by the Grid directions.
         No shape information will be provided, since the shape of the arrays might change based on the computations (including halos or excluding halos).
 
         :arg str name: The desired name of the work array.
@@ -94,38 +91,36 @@ class Grid(object):
         base = IndexedBase('%s' % name)
         base.is_grid = True
         base.is_constant = False
-        return base[self.mapedindices]
+        return base[self.coordinates]
     
-    def make_array_grid(self, arr):
-        """
-        Create a new Indexed Base and sets the attribute is_grid to true
-        for the indexed array and returns the new array with same name and same indices
-        The reason for the work around is as suggested in Sympy Indexed objects, it is always
-        better to create an Indexed Base object and add attribute's to it.
+    def get_array_on_grid(self, array):
+        """ Create a new IndexedBase object and set the attribute is_grid to True.
+        Returns the new array with same name and same indices as the input array.
+        The reason for the work-around is as suggested in Sympy Indexed objects, it is always
+        better to create an IndexedBase object and add attributes to it.
         
-        :arg sympy.Indexed arr: The array to be converted onto the grid
+        :arg sympy.Indexed arr: The array to be converted onto the Grid.
         :returns: The Indexed object representing the array defined on the Grid.
         :rtype: sympy.Indexed
         """
-        base = arr.base
+        base = array.base
         base.is_grid = True
         base.is_constant = False
-        return base[arr.indices]
+        return base[array.indices]
     
-    def grid_var(self, name):
-        """
-        Defines a variable on the grid, this is not an Indexed variable but varies with grid, can be
-        used as local variables to be defined in a kernel
+    def grid_variable(self, name):
+        """ Define a variable on the grid. This is not an Indexed variable but varies with the grid.
+        Can be used as a local variable to be defined in a kernel.
         
         :arg str name: The name of the variable
-        :returns: variable 
+        :returns: The grid variable.
         :rtype: opensbli.GridVariable
         """
-        var = GridVariable(str(name))
-        return var
+        variable = GridVariable(str(name))
+        return variable
     
 class GridVariable(Symbol):
     """ """
-    def __new__(self, var):
-        self = Symbol.__xnew__(self, var)
+    def __new__(self, variable):
+        self = Symbol.__xnew__(self, variable)
         return self

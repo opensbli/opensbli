@@ -30,6 +30,7 @@ class ExchangeSelf(object):
         self.transfer_to = [grid.halos[i][0] for i, s in enumerate(grid.shape)]
         self.transfer_arrays = []
         return
+        
 class BoundaryClass(object):
     """
     Base class for boundary conditions, we store the name of the boundary condition and 
@@ -44,8 +45,8 @@ class BoundaryClass(object):
         return
 
 
-class periodicboundary():
-    """ class for applying periodic boundary condition, this updates the BoundaryClass specified"""
+class periodicboundary(object):
+    """ Periodic boundary condition. this updates the BoundaryClass specified"""
     def apply_boundary(self,boundaryclass, grid, arrays, boundary_direction, matching_face = None):
         if matching_face:
             raise NotImplementedError("Periodic boundary condition for different blocks")
@@ -163,11 +164,11 @@ class symmetry():
                 direction_index = newind[direction]
                 areq = []
                 for tup in tuples:
-                    lhs_arrays = [grid.make_array_grid(a.subs({direction_index:direction_index + tup[0]})) for\
+                    lhs_arrays = [grid.get_array_on_grid(a.subs({direction_index:direction_index + tup[0]})) for\
                         number,a in enumerate(newarray)]
-                    rhs_arrays = [grid.make_array_grid(a.subs({direction_index:direction_index + tup[1]})) \
+                    rhs_arrays = [grid.get_array_on_grid(a.subs({direction_index:direction_index + tup[1]})) \
                         if (number != direction) else \
-                        -grid.make_array_grid(a.subs({direction_index:direction_index+tup[1]})) \
+                        -grid.get_array_on_grid(a.subs({direction_index:direction_index+tup[1]})) \
                             for number,a in enumerate(newarray)]
                     areq += [Eq(lh,rh, evaluate=False) for lh,rh in  zip(lhs_arrays,rhs_arrays)]
                 symmetryeq += areq
@@ -178,8 +179,8 @@ class symmetry():
                 direction_index = newarray.indices[direction]
                 
                 for tup in tuples:
-                    lhs_arrays = [grid.make_array_grid(newarray.subs({direction_index:direction_index+tup[0]})) ]
-                    rhs_arrays = [grid.make_array_grid(newarray.subs({direction_index:direction_index+tup[1]}))]
+                    lhs_arrays = [grid.get_array_on_grid(newarray.subs({direction_index:direction_index+tup[0]})) ]
+                    rhs_arrays = [grid.get_array_on_grid(newarray.subs({direction_index:direction_index+tup[1]}))]
                     areq += [Eq(lh,rh, evaluate=False) for lh,rh in  zip(lhs_arrays,rhs_arrays)]
                 
                 symmetryeq += areq
