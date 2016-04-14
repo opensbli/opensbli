@@ -8,6 +8,7 @@ from opensbli.problem import *
 from opensbli.latex import *
 from opensbli.spatial import *
 from opensbli.bcs import *
+from opensbli.ics import *
 from opensbli.grid import *
 from opensbli.timestepping import *
 from opensbli.io import *
@@ -80,11 +81,12 @@ spatial_discretisation = SpatialDiscretisation(expanded_equations, expanded_form
 constant_dt = True
 temporal_discretisation = TemporalDiscretisation(temporal_scheme, grid, constant_dt, spatial_discretisation)
 
-boundary = BoundaryClass(grid)
+boundary_conditions = BoundaryConditionSet(grid)
 for dim in range(ndim):
-    p = periodicboundary()
+    p = PeriodicBoundaryCondition()
     boundary = p.apply_boundary(boundary, grid, temporal_discretisation.prognostic_variables, dim)
-
+    boundary_conditions.add(p)
+    
 # Initial conditions
 x = "Eq(grid.grid_variable(x), grid.Idx[0]*grid.deltas[0])"
 y = "Eq(grid.grid_variable(y), grid.Idx[1]*grid.deltas[1])"
@@ -132,7 +134,7 @@ l2 = [niter, 1600, 0.71, 1.4, 0.1, 1.0, "double", "taylor_green_vortex", deltat]
 simulation_parameters = dict(zip(l1,l2))
 
 # Generate the code.
-OPSC(grid, spatial_discretisation, temporal_discretisation, boundary, initial_conditions, io, simulation_parameters, red_eq)
+OPSC(grid, spatial_discretisation, temporal_discretisation, boundary_conditions, initial_conditions, io, simulation_parameters, red_eq)
 
 end = time.time()
 LOG.debug('The time taken to generate the code in  %d dimensions is %.2f seconds.' % (problem.ndim, end - start))

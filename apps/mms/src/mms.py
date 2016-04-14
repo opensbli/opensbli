@@ -21,6 +21,7 @@ from opensbli.problem import *
 from opensbli.latex import LatexWriter
 from opensbli.spatial import *
 from opensbli.bcs import *
+from opensbli.ics import *
 from opensbli.grid import *
 from opensbli.timestepping import *
 from opensbli.io import *

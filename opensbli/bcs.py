@@ -23,9 +23,10 @@ from sympy import *
 
 class ExchangeSelf(object):
 
-    """ Class that defines data exchange on the same block. """
+    """ Defines data exchange on the same block. """
 
     def __init__(self, grid):
+        # Range of evaluation (i.e. the grid points, including the halo points, over which the computation should be performed).
         range_of_evaluation = [tuple([0 + grid.halos[i][0], s + grid.halos[i][1]]) for i, s in enumerate(grid.shape)]
         # Size of transfers
         self.transfer_size = [r[1] - r[0] for r in range_of_evaluation]
@@ -35,13 +36,13 @@ class ExchangeSelf(object):
         return
 
 
-class BoundaryClass(object):
+class BoundaryConditionSet(object):
 
     """
     Base class for boundary conditions, we store the name of the boundary condition and
     type of the boundary for debugging purposes only.
     All the boundary conditions application requires this base class on the grid
-    Computations can be computational Kernels or exchange type classes
+    Computations can be computational Kernels or Exchange type objects.
     """
 
     def __init__(self, grid):
@@ -51,16 +52,16 @@ class BoundaryClass(object):
         return
 
 
-class periodicboundary(object):
+class PeriodicBoundaryCondition(object):
 
-    """ Periodic boundary condition. this updates the BoundaryClass specified"""
+    """ Periodic boundary condition. This updates the BoundaryClass specified"""
 
-    def apply_boundary(self, boundaryclass, grid, arrays, boundary_direction, matching_face=None):
+    def apply(self, boundaryclass, grid, arrays, boundary_direction, matching_face=None):
         if matching_face:
-            raise NotImplementedError("Periodic boundary condition for different blocks")
+            raise NotImplementedError("Periodic boundary condition for different blocks.")
         else:
             self.update_boundary_class(boundaryclass, boundary_direction, ['exchange_self', 'exchange_self'])
-            left, right = self.periodic_bc(boundary_direction, grid, arrays)
+            left, right = self.get_transfers(boundary_direction, grid, arrays)
             boundaryclass.computations[boundary_direction*2 + 0] = left
             boundaryclass.computations[boundary_direction*2 + 1] = right
         return boundaryclass
@@ -72,8 +73,8 @@ class periodicboundary(object):
 
         return
 
-    def periodic_bc(self, direction, grid, arrays, matching_face=None):
-        """ Periodic boundary condition. """
+    def get_exchange(self, direction, grid, arrays, matching_face=None):
+        """ Create the exchange computations which copy the grid point values to/from the periodic domain boundaries. """
 
         # Generic transfer for the grid
         if matching_face:
@@ -98,19 +99,19 @@ class periodicboundary(object):
         return transfers_left, transfers_right
 
 
-class symmetry():
+class SymmetryBoundaryCondition(object):
 
     """Applying symmetry boundary condition."""
     types = {0: 'Left', 1: 'Right'}
 
-    def apply_boundary(self, boundaryclass, grid, arrays, boundary_direction, side):
+    def apply(self, boundaryclass, grid, arrays, boundary_direction, side):
         """
         input arrays should be a list of lists, vectors should be in the inner lists
         boundary_direction: the direction on the grid Symmetry Boundary condition should be applied
         side corresponds to the left or right face of boundary_direction
         """
         self.update_boundary_class(boundaryclass, boundary_direction, ['Computation', 'Computation'])
-        boundaryclass.computations[boundary_direction*2 + side] = self.symmetry_bc(boundary_direction, side, grid, arrays)
+        boundaryclass.computations[boundary_direction*2 + side] = self.get_kernel(boundary_direction, side, grid, arrays)
         return boundaryclass
 
     def update_boundary_class(self, boundaryclass, boundary_direction, btypes):

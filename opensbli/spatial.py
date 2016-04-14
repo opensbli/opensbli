@@ -286,26 +286,3 @@ class SpatialDiscretisation(object):
                 self.lhs_vectors += list(eq[0].lhs.atoms(Indexed))
 
         return
-
-
-class GridBasedInitialisation(object):
-
-    """ Initialise the equations on the grid of solution points.  """
-
-    def __init__(self, grid, ics):
-        """ Create the initialisation kernels.
-
-        :arg grid: The numerical grid of solution points.
-        :arg list ics: A list of initial condition formulas.
-        :returns: None
-        """
-
-        self.computations = []
-        initialisation_equation = []
-        for ic in ics:
-            initialisation_equation.append(parse_expr(ic, local_dict={'grid': grid, 'Symbol': EinsteinTerm}))
-        range_of_evaluation = [tuple([0 + grid.halos[i][0], s + grid.halos[i][1]]) for i, s in enumerate(grid.shape)]
-
-        self.computations.append(Kernel(initialisation_equation, range_of_evaluation, "Initialisation", grid))
-
-        return
