@@ -1,0 +1,6 @@
+sympy>=1.0
+-e git+https://github.com/gihanmudalige/OPS.git#egg=OPS
+h5py
+pytest
+flake8
+Sphinx

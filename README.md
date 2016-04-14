@@ -15,6 +15,8 @@ First ensure that the following dependencies are satisfied:
 * python-flake8 (for linting the code base)
 * Sphinx (to build the documentation)
 
+If you have pip installed, you can easily do this using `sudo pip install -r requirements.txt`.
+
 ### Installation
 
 #### System-wide
