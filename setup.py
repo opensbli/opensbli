@@ -27,7 +27,7 @@ setup(name='OpenSBLI',
       url='https://bitbucket.org/spjammy/opensbli',
       packages=['opensbli'],
       package_dir={'opensbli': 'opensbli'},
-      scripts=["bin/opensbli-clean"],
+      scripts=[],
       classifiers=[
       'Development Status :: 3 - Alpha',
       'Environment :: Console',
