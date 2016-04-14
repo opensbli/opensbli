@@ -66,9 +66,8 @@ class TemporalDiscretisation(object):
         # The prognostic variables (e.g. rho, rhou0, rhou1, rhoE in the Navier-Stokes equations) that should be updated.
         self.prognostic_variables = []
 
-
-        # End computations: As of now, no end computations.
-        # TODO: This will be updated in the diagnostics.
+        # End computations: As of now, no end computations, any end computations like, diagnostics should be updated
+        # to this attribute for code generation
         self.end_computations = None
 
         # The residual arrays that contain the change in the RHS of each equation.
@@ -93,6 +92,9 @@ class TemporalDiscretisation(object):
         else:
             self.start_computations = None
             self.computations.append(Kernel(out, range_of_evaluation, "Euler update", grid))
+
+        # Copy the LHS vectors and scalars in spatial discretisation to prognostic_classified
+        self.prognostic_classified = spatial_discretisation.lhs_vectors
 
         return
 

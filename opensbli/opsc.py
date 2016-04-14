@@ -57,9 +57,8 @@ class OPSCCodePrinter(CCodePrinter):
 
     def _print_ReductionVariable(self, expr):
         return '*%s'%str(expr)
+
     def _print_Rational(self, expr):
-        '''
-        '''
         if self.constants != None:
             if expr in self.constants.keys():
                 return self.constants[expr]
@@ -70,6 +69,7 @@ class OPSCCodePrinter(CCodePrinter):
         else:
             p, q = int(expr.p), int(expr.q)
             return '%d.0/%d.0' %(p,q)
+
     def _print_Mod(self, expr):
         args = map(ccode, expr.args)
         args = ['('+x+')' for x in args]
@@ -96,13 +96,10 @@ class OPSCCodePrinter(CCodePrinter):
                 out = "%s[%s]" % (self._print(expr.base.label), ','.join([self._print(index) for index in indices]))
         else:
             out = "%s[%s]" % (self._print(expr.base.label), ','.join([self._print(index) for index in indices]))
-
         return out
 
 
 def pow_to_constant(expr,constants):
-    '''
-    '''
     from sympy.core.function import _coeff_isneg
     # Only negative powers i.e they correspond to division and they are stored into
     # constant arrays
@@ -125,10 +122,6 @@ def ccode(expr, Indexed_accs=None, constants=None):
     :rtype: str
     """
     if isinstance(expr, Eq):
-
-        # TODO First derivative /delta is not showing as Pow why???
-        #if any(str(t) == 'deltai0' for t in expr.rhs.atoms(EinsteinTerm)):
-            #pprint([sympify(expr), repr(sympify(expr))])
         if constants:
             expr, constants = pow_to_constant(expr, constants)
         code_print = OPSCCodePrinter(Indexed_accs, constants)
@@ -382,14 +375,15 @@ class OPSC(object):
         code_template = code_template.safe_substitute(code_dictionary)
         self.write_main_file(code_template)
         return
+
     def get_diagnostic_kernels(self, code_dictionary):
         '''
         Loop over blocks, loop over each diagnostics object (can be reduction etc..)
         get the kernel call, if reduction get the reduction result.
         Write the output to the file
         '''
+
         from .diagnostics import Reduction as R
-        #calls = [[] for block in range(self.nblocks)]
         for block in range(self.nblocks):
             for diagnostic in self.diagnostics[block]:
                 if isinstance(diagnostic, R):
@@ -410,19 +404,21 @@ class OPSC(object):
         return code_dictionary
 
     def print_reduction_results(self, reductions):
-        template = "ops_printf(\"Iteration is %%d and %s is %%g\\n\",%s,%s_reduction)%s"
+        """ Prints the reduction results, as these are called at the end of the simulation
+        prints time + all reduction results in a single line"""
+
         template = "ops_printf(\"%s\\n\", %s)%s"
-        allreductions = '%d, ' + ', '.join([str('%g') for red in reductions])
-        all_reduction_results = 'iteration + 1, ' + ', '.join([str('%s_reduction')%red for red in reductions])
-        return [template%( allreductions, all_reduction_results, self.end_of_statement)]
+        all_reductions = '%g, ' + ', '.join([str('%g') for red in reductions])
+        all_reduction_results = '(iteration + 1)*deltat, ' + ', '.join([str('%s_reduction')%red for red in reductions])
+        return [template%( all_reductions, all_reduction_results, self.end_of_statement)]
 
     def get_reduction_results(self, reductions):
-        '''
-        Modify this if we want the reduction result to an array
-        '''
+        """ Returns the code for OPS reduction result"""
+
         template = "%s %s_reduction = 0.0%s \n ops_reduction_result(%s, &%s_reduction)%s"
         return [template%(self.dtype, red, self.end_of_statement, red, red, self.end_of_statement) \
             for red in reductions]
+
     def declare_reduction_variables(self):
         template = "ops_reduction %s = ops_decl_reduction_handle(sizeof(%s), \"%s\", \"reduction_%s\")%s"
         return [template %(red, self.dtype, self.dtype, red, self.end_of_statement) for red in self.reduction_variables]
@@ -430,13 +426,14 @@ class OPSC(object):
     def initialise_constants(self):
         """ Initialise all constant values. """
 
-        # Get the constants defined every where. i.e. in
         constant_initialisation = []
         constant_dictionary = {}
         values = [self.simulation_parameters[str(constant)] for constant in self.constants]
         constant_dictionary = dict(zip(self.constants, values))
+        # Sort constants
         sorted_constants = []
         sorted_constants = self.sort_constants(constant_dictionary,sorted_constants)
+
         for constant in sorted_constants:
             val = self.simulation_parameters[str(constant)]
             if isinstance(constant, IndexedBase):
@@ -447,20 +444,28 @@ class OPSC(object):
             else:
                 constant_initialisation += ["%s = %s%s" % (constant, ccode(val), self.end_of_statement)]
         return constant_initialisation
+
     def sort_constants(self, constant_dictionary, sorted_constants):
+        """ Sorts the constants. The function breaks , if unable to sort in 1000 iterations.
+        Prints out various stuff"""
         types_known = (float, int, Rational)
-        # Get the Float, rational and integer constants
+
+        # Sort the Float, rational and integer constants
         sorted_constants = [key for key, value in constant_dictionary.iteritems() \
             if isinstance(value, types_known) and key not in sorted_constants]
+
         # Known types constants for the Indexed Constants
         sorted_constants += [key for key, value in constant_dictionary.iteritems() \
             if isinstance(key, IndexedBase) and all(isinstance(v, types_known) for v in value)\
                 and key not in sorted_constants]
-        # get the other constants that are symbol/ Einstein Term dependant
+
+        # get the other constants that are symbol/ Einstein Term
         key_list = [key for key in constant_dictionary.keys() if key not in sorted_constants]
 
         requires_list = [constant_dictionary[key].atoms(Symbol) for key in key_list]
         zipped = zip(key_list,requires_list)
+
+
         iter_count = 0
         while key_list:
             iter_count = iter_count+1
@@ -484,7 +489,6 @@ class OPSC(object):
         """
 
         ops_const = []
-        # TODO determine the type of constant
         for constant in self.constants:
             if not isinstance(constant, IndexedBase) and isinstance(constant, str):
                 ops_const += ["ops_decl_const(\"%s\" , 1, \"%s\", &%s)%s" % (constant, self.dtype, constant, self.end_of_statement)]
@@ -525,18 +529,25 @@ class OPSC(object):
         :returns: The updated/modified code dictionary.
         :rtype: dict
         """
+        from .bcs import Exchange, ExchangeSelf
+        from .kernel import Kernel
+
         bc_call = [[] for block in range(self.nblocks)]
         bc_exchange_code = [[] for block in range(self.nblocks)]
+        bc_kernls = [[] for block in range(self.nblocks)]
+
         for block in range(self.nblocks):
-            boundary_instance = self.boundary[block]
-            for instance in range(len(self.boundary[block].type)):
-                if boundary_instance.type[instance] == 'exchange_self':
-                    call, code = self.bc_exchange_call_code(boundary_instance.transfers[instance])
+            for computation in self.boundary[block].computations:
+                if isinstance(computation, Kernel):
+                    bc_call[block] += self.kernel_call(computation)
+                elif isinstance(computation, ExchangeSelf):
+                    call, code = self.bc_exchange_call_code(computation)
                     bc_call[block] += call
                     bc_exchange_code[block] += code
                 else:
-                    raise NotImplementedError("Only boundary conditions of type exchange are supported")
+                    raise ValueError("Boundary condition of type %s cannot be classified"%(type(computation)))
 
+        # Update the code dictionary
         code_dictionary['bc_exchange'] = '\n'.join(['\n'.join(bc_exchange_code[block]) for block in range(self.nblocks)])
         code_dictionary['bc_calls'] = '\n'.join(['\n'.join(bc_call[block]) for block in range(self.nblocks)])
         return code_dictionary
@@ -555,9 +566,21 @@ class OPSC(object):
             # Process FileIO
             save_at = self.IO[block].save_after
             if len(save_at) == 1 and save_at[0] == True:
-                io_calls[block] += self.hdf5_io(self.IO[block])
+                name = self.simulation_parameters["name"] + '_' + str(int(self.simulation_parameters["niter"])) +'.h5'
+                name  = '\"' + name + '\"'
+                io_calls[block] += self.hdf5_io(self.IO[block], name)
             else:
-                raise NotImplementedError("Implement IO at time steps.")
+                name = self.simulation_parameters["name"] + '_' + str(int(self.simulation_parameters["niter"]))+ '.h5'
+                name  = '\"' + name + '\"'
+                io_calls[block] += self.hdf5_io(self.IO[block], name)
+                # Time IO save at
+                l = ccode(Mod('iteration+1', save_at[0]))
+                calls = ['if(%s == 0)'%l] + [self.left_brace]
+                # Character buffer array and name of the output
+                calls += ['char buf[100];'] + ['sprintf(buf,\"%s_%%d.h5\",iteration);'%self.simulation_parameters["name"]]
+                name = 'buf'
+                calls += self.hdf5_io(self.IO[block], name) +  [self.right_brace]
+                io_time[block] += calls
 
         code_dictionary['io_calls'] = '\n'.join(['\n'.join(io_calls[block]) for block in range(self.nblocks)])
         code_dictionary['io_time'] = '\n'.join(['\n'.join(io_time[block]) for block in range(self.nblocks)])
@@ -649,17 +672,15 @@ class OPSC(object):
     def relative_stencil(self, value):
         """ Returns the relative stencil wrt the grid location. i.e. grid indices eg(i0,i1,i2) are replaced with (0,0,0). """
 
-        # TODO: Need to check if OPS also requires the grid location.
-
         if isinstance(value,list):
             pass
         else:
             value = [value]
-        #pprint(value)
+
         indices = []
         for val in value:
             indices.append(tuple([ind for ind in val if ind !=EinsteinTerm('t')]))
-        #pprint(indices)
+
         return_val = []
         for va in indices:
             out = []
@@ -774,12 +795,11 @@ class OPSC(object):
 
     def hdf5_io(self, instance):
         code = []
-        # TODO: Generate file name automatically.
-        block_to_hdf5 = ["ops_fetch_block_hdf5_file(%s, \"state.h5\")%s" % (self.block_name, self.end_of_statement)]
+        block_to_hdf5 = ["ops_fetch_block_hdf5_file(%s, %s)%s" % (self.block_name, name, self.end_of_statement)]
         code += block_to_hdf5
         # Then write out each field.
         for c in instance.save_arrays:
-            variables_to_hdf5 = ["ops_fetch_dat_hdf5_file(%s, \"state.h5\")%s" % (c, self.end_of_statement)]
+            variables_to_hdf5 = ["ops_fetch_dat_hdf5_file(%s, %s)%s" % (c, name, self.end_of_statement)]
             code += variables_to_hdf5
         return code
 
@@ -790,6 +810,8 @@ class OPSC(object):
         :returns: A list of computations written in OPSC format.
         :rtype: list
         """
+        from .kernel import Kernel
+
         kernels = [[] for block in range(self.nblocks)]
         for block in range(self.nblocks):
             # Get all the computations to be performed. Add computations as needed.
@@ -807,6 +829,8 @@ class OPSC(object):
             if self.diagnostics:
                 for inst in self.diagnostics[block]:
                     block_computations += inst.computations
+            if self.boundary[block].computations:
+                block_computations += [t for t in self.boundary[block].computations if isinstance(t, Kernel)]
 
             for computation in block_computations:
                 kernels[block] += self.kernel_computation(computation,block)
@@ -820,22 +844,9 @@ class OPSC(object):
         :returns: A list of OPSC code lines performing the computation.
         :rtype: list
         """
+        from .grid import GridVariable
 
         header = []
-        comments = [self.block_comment[0]]
-        # Flops count for the grid point
-        count = sum([count_ops(eq.rhs) for eq in computation.equations])
-        # Flops count for the entire grid
-        #computation_ranges = [(r[1] - r[0]) for r in computation.ranges]
-        #grid_count = count
-        #for r in computation_ranges:
-            #grid_count = grid_count*r
-        # Donot write out the equation
-        #for equation in computation.equations:
-            #comments += [pretty(equation, use_unicode=False)]
-        comments += ['The count of operations per grid point for the kernel is %d' % count]
-        #comments += ['The count of operations on the range of evaluation for the kernel is %d' % grid_count]
-        comments += [self.block_comment[1]]
 
         if computation.name == None:
             computation.name = self.computational_kernel_names[block_number] % self.kernel_name_number[block_number]
@@ -862,7 +873,7 @@ class OPSC(object):
         header += [self.left_brace]
         code = header
         ops_accs = self.get_OPS_ACC_number(computation)
-        from .grid import GridVariable
+
         for equation in computation.equations:
             code_kernel, self.rational_constants = ccode(equation,ops_accs, self.rational_constants)
             if isinstance(equation.lhs, GridVariable):
@@ -875,7 +886,7 @@ class OPSC(object):
 
         self.update_definitions(computation)
 
-        # Update the kernal name index
+        # Update the kernel name index
         self.kernel_name_number[block_number] += 1
 
         return code
@@ -887,8 +898,6 @@ class OPSC(object):
             code_lines = ["#ifndef block_%d_KERNEL_H" % block + '\n' + "#define block_%d_KERNEL_H" % block + '\n']
             code_lines += kernels[block]
             code_lines += ["#endif"]
-            #code_lines  = self.indent_code(code_lines)
-
             kernel_file = open(self.CODE_DIR + '/' + self.computational_routines_filename[block], 'w')
             kernel_file.write('\n'.join(code_lines))
             kernel_file.close()
@@ -964,7 +973,7 @@ class OPSC(object):
             return out + ['ops_init(argc,argv,%d)%s' % (1, self.end_of_statement)]
 
     def ops_diagnostics(self):
-        # FIXME: Untested OPS diagnostics output. Need to check if this gives the correct result or not.
+        # WARNING: Untested OPS diagnostics output. Need to check if this gives the correct result or not.
         if self.ops_diagnostics:
             return ['ops diagnostic output()']
         else:
@@ -978,7 +987,7 @@ class OPSC(object):
         :rtype: list
         """
 
-        return ['%s Init OPS partition' % self.line_comment, 'ops_partition(\" \")%s' % self.end_of_statement]
+        return ['%s Init OPS partition' % self.line_comment, 'ops_partition(\"\")%s' % self.end_of_statement]
 
     def ops_timers(self):
         """ OPS timer variable declaration. """
