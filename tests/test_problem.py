@@ -18,19 +18,21 @@ def test_expand():
     formulas = ["Eq(u_i, rhou_i/rho)"]
 
     problem = Problem(equations, substitutions, ndim, constants, coordinate_symbol, metrics, formulas)
-    
-    expanded_equations = problem.get_expanded(problem.equations)
-    expanded_formulas = problem.get_expanded(problem.formulas)
-    
+
+    expanded_equations = flatten(problem.get_expanded(problem.equations))
+    expanded_formulas = flatten(problem.get_expanded(problem.formulas))
+
     assert len(expanded_equations) == 1
-    assert str(expanded_equations[0]) == "[Derivative(rho[x0, t], t) == -c*Derivative(rhou0[x0, t], x0)]"
+    assert str(expanded_equations[0].lhs) == "Derivative(rho[x0, t], t)"
+    assert str(expanded_equations[0].rhs) == "-c*Derivative(rhou0[x0, t], x0)"
 
     assert len(expanded_formulas) == 1
-    assert str(expanded_formulas[0]) == "[u0[x0, t] == rhou0[x0, t]/rho[x0, t]]"
-    
-    # Test the other way of expanding equations # SPJ 
-    assert expanded_equations == problem.get_expanded(problem.expand(equations))
-    
+    assert str(expanded_formulas[0].lhs) == "u0[x0, t]"
+    assert str(expanded_formulas[0].rhs) == "rhou0[x0, t]/rho[x0, t]"
+
+    # Test the other way of expanding equations # SPJ
+    assert expanded_equations == flatten(problem.get_expanded(problem.expand(equations)))
+
     return
 
 if __name__ == '__main__':
