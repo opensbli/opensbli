@@ -44,7 +44,7 @@ def test_work_array(grid):
 def test_grid_variable(grid, grid_variable):
     """ Ensure that a variable on a grid returns of type GridVariable. """
     
-    assert grid.grid_var('test') == grid_variable
+    assert grid.grid_variable('test') == grid_variable
     
     return
 if __name__ == '__main__':

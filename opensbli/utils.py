@@ -139,7 +139,7 @@ def create_formula_kernels(ordered_evaluations, evaluations, known, grid):
 
 
 def group_formulas(formulas, evals, known):
-    """ This groups the formulas """
+    """ This groups the formulas. """
     ranges = [evals[ev].evaluation_range for ev in formulas]
     subevals = flatten([evals[ev].subevals for ev in formulas])
     subeval_truth = [ev is None for ev in subevals]
@@ -205,9 +205,9 @@ def create_derivative_kernels(derivatives, evals, spatial_derivative, work_array
     return computations
 
 
-class SymDerivative(object):
+class SymbolicDerivative(object):
 
-    """ The spatial derivatives of an arbitrary function 'F'
+    """ The symbolic spatial derivatives of an arbitrary function 'F'
     on the numerical grid with the provided spatial scheme.
 
     For a wall boundary condition this will have a dependency on the grid range. """
@@ -227,9 +227,7 @@ class SymDerivative(object):
         return
 
     def get_derivative_formula(self, derivative):
-        """
-        This returns the formula for the derivative function
-        """
+        """ Return the formula for the derivative function. """
         order = len(derivative.args[1:])
         indices = list(derivative.args[1:])
         if order == 1 or len(set(indices)) == 1:
@@ -241,9 +239,9 @@ class SymDerivative(object):
             formula = formula*pow(delta, -order)
         elif order == 2:
             # Do the derivative of derivative
-            raise NotImplementedError("Derivatives of order == 2  Mixed is not implemented")
+            raise NotImplementedError("Derivatives of order == 2 are not implemented.")
         else:
-            raise NotImplementedError("Derivatives of order > 2 are not implemented")
+            raise NotImplementedError("Derivatives of order > 2 are not implemented.")
         return formula
 
     def get_derivative(self, derivative):
@@ -281,9 +279,7 @@ class SymDerivative(object):
 
 
 def get_used_formulas(formulas, equations):
-    '''
-    This returns the formulas used in the equations.
-    '''
+    """ Return the formulas used in the equations. """
     variables, count = get_indexed_grid_variables(equations)
 
     formulas = dict(zip([form.lhs for form in formulas], [form.rhs for form in formulas]))

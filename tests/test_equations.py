@@ -92,6 +92,7 @@ def test_equation(mass, momentum, energy):
     """ Check that the Navier-Stokes equations are expanded correctly. """
 
     # Conservation of mass
+    print str(mass.parsed)
     assert str(mass.parsed) == "Der(rho, t) == -Conservative(rhou_j, x_j)"
     assert isinstance(mass.expanded, list)
     assert len(mass.expanded) == 1
