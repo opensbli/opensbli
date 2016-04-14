@@ -30,7 +30,7 @@ def test_expand():
     assert str(expanded_formulas[0].lhs) == "u0[x0, t]"
     assert str(expanded_formulas[0].rhs) == "rhou0[x0, t]/rho[x0, t]"
 
-    # Test the other way of expanding equations # SPJ
+    # Test the other way of expanding equations
     assert expanded_equations == flatten(problem.get_expanded(problem.expand(equations)))
 
     return

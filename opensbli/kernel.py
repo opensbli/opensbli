@@ -105,11 +105,8 @@ class Kernel(object):
         return
 
     def set_grid_arrays(self, array, grid, indexes):
-        """
-        Sets the Indexed object attribute is_grid to True if all the indices of an indexed object
-        are in mapped_indices dictionary of the grid
-
-        """
+        """ Sets the Indexed object attribute is_grid to True if all the indices of an Indexed object
+        are in the 'mapped_indices' dictionary of the Grid. """
         ets = [list(ind) for ind in indexes]
         ets = [list(et.atoms(Symbol)) for et in flatten(ets)]
         ets = (set(flatten(ets)))
