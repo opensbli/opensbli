@@ -9,6 +9,7 @@ import h5py
 import string
 from scipy.interpolate import griddata
 import glob
+import sys
 
 # Matplotlib settings for publication-ready figures
 try:

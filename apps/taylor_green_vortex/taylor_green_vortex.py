@@ -16,8 +16,9 @@ from opensbli.opsc import OPSC
 
 BUILD_DIR = os.getcwd()
 
-opensbli.LOG.info("Generating code for the 2D Taylor-Green Vortex simulation...")
+opensbli.LOG.info("Generating code for the 3D Taylor-Green Vortex simulation...")
 start_total = time.time()
+
 # Problem dimension
 ndim = 3
 
@@ -37,7 +38,7 @@ heat_flux = "Eq(q_j, (1.0/((gama-1)*Minf*Minf*Pr*Re))*Der(T,x_j))"
 substitutions = [stress_tensor, heat_flux]
 
 # Define all the constants in the equations
-constants = ["Re", "Pr","gama", "Minf", "C23", "c_j"]
+constants = ["Re", "Pr","gama", "Minf", "c_j"]
 
 # Define coordinate direction symbol (x) this will be x_i, x_j, x_k
 coordinate_symbol = "x"
@@ -67,10 +68,10 @@ temporal_scheme = RungeKutta(3) # Third-order Runge-Kutta time-stepping scheme.
 # Create a numerical grid of solution points
 length = [2.0*pi*1.0]*ndim
 np = [64]*ndim
-deltas = [length[i]/np[i] for i in range(len(length)) ] # how to define them
+deltas = [length[i]/np[i] for i in range(len(length)) ]
 print(deltas)
 print(np)
-grid = Grid(ndim,{'delta':deltas, 'number_of_points':np}) # FIXME: A HDF5 file or a user input
+grid = Grid(ndim,{'delta':deltas, 'number_of_points':np})
 
 # Perform the spatial discretisation
 spatial_discretisation = SpatialDiscretisation(expanded_equations, expanded_formulas, grid, spatial_scheme)
@@ -106,11 +107,9 @@ LOG.debug('The time taken to prepare the system in %d dimensions is %.2f seconds
 
 # Diagnostics
 start = time.time()
-reduction_type = ["sum", "sum", "sum", "sum", "sum"] #  list of reduction types, same length as expanded diagnostics
+reduction_type = ["sum", "sum", "sum", "sum", "sum"] # List of reduction types. This should be the same length as expanded_diagnostics.
 red_eq = []
-red_eq.append([Reduction(grid, expanded_diagnostics, expanded_formulas, temporal_discretisation.prognostic_variables, \
-    spatial_scheme, reduction_type, 100)])
-
+red_eq.append([Reduction(grid, expanded_diagnostics, expanded_formulas, temporal_discretisation.prognostic_variables, spatial_scheme, reduction_type, 100)])
 
 end = time.time()
 LOG.debug('The time taken to prepare the reductions in %d dimensions is %.2f seconds.' % (problem.ndim, end - start))

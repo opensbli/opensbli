@@ -6,6 +6,7 @@ from math import pi, exp, cos, sin
 import matplotlib.pyplot as plt
 import h5py
 import glob
+import sys
 
 def plot(path):
     # Number of grid points

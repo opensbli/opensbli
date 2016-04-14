@@ -5,6 +5,8 @@ import numpy
 from math import pi, exp, cos, sin
 import matplotlib.pyplot as plt
 import h5py
+import glob
+import sys
 
 def plot(path):
     # Number of grid points in the x and y directions
@@ -13,7 +15,11 @@ def plot(path):
     halo = 2 # Number of halo nodes at each end
 
     # Read in the simulation output
-    f = h5py.File(path + "/state.h5", 'r')
+    dump = glob.glob(path + "/gaussian_bump_*.h5")
+    if not dump or len(dump) > 1:
+        print "Error: No dump file found, or more than one dump file found."
+        sys.exit(1)
+    f = h5py.File(dump[-1], 'r')
     group = f["gaussian_bump_block"]
     
     phi = group["phi"].value
@@ -35,9 +41,4 @@ def plot(path):
 
 
 if(__name__ == "__main__"):
-    # Parse the command line arguments provided by the user
-    parser = argparse.ArgumentParser(prog="plot")
-    parser.add_argument("path", help="The path to the directory containing the output files.", action="store", type=str)
-    args = parser.parse_args()
-    
-    plot(args.path)
+    plot("./gaussian_bump_opsc_code")
