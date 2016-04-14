@@ -86,14 +86,14 @@ for dim in range(ndim):
     boundary = p.apply_boundary(boundary, grid, temporal_discretisation.prognostic_variables, dim)
 
 # Initial conditions
-x = "Eq(grid.grid_var(x), grid.Idx[0]*grid.deltas[0])"
-y = "Eq(grid.grid_var(y), grid.Idx[1]*grid.deltas[1])"
-z = "Eq(grid.grid_var(z), grid.Idx[2]*grid.deltas[2])"
-u = "Eq(grid.grid_var(u),sin(x)*cos(y)*cos(z))"
-v = "Eq(grid.grid_var(v),-cos(x)*sin(y)*cos(z))"
-w = "Eq(grid.grid_var(w), 0.0)"
-p = "Eq(grid.grid_var(p), 1.0/(gama*Minf*Minf)+ (1.0/16.0) * (cos(2.0*x)+cos(2.0*y))*(2.0 + cos(2.0*z)))"
-r = "Eq(grid.grid_var(r), gama*Minf*Minf*p)"
+x = "Eq(grid.grid_variable(x), grid.Idx[0]*grid.deltas[0])"
+y = "Eq(grid.grid_variable(y), grid.Idx[1]*grid.deltas[1])"
+z = "Eq(grid.grid_variable(z), grid.Idx[2]*grid.deltas[2])"
+u = "Eq(grid.grid_variable(u),sin(x)*cos(y)*cos(z))"
+v = "Eq(grid.grid_variable(v),-cos(x)*sin(y)*cos(z))"
+w = "Eq(grid.grid_variable(w), 0.0)"
+p = "Eq(grid.grid_variable(p), 1.0/(gama*Minf*Minf)+ (1.0/16.0) * (cos(2.0*x)+cos(2.0*y))*(2.0 + cos(2.0*z)))"
+r = "Eq(grid.grid_variable(r), gama*Minf*Minf*p)"
 initial_conditions = [x,y,z,u,v,w,p,r,
                       "Eq(grid.work_array(rho), r)",
                       "Eq(grid.work_array(rhou0), r*u)" ,
