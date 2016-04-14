@@ -36,14 +36,12 @@ LOCAL_FUNCTIONS = []
 class Skew(Function):
 
     """ Handler for the energy-conservative formulation of the Navier-Stokes equations, generally referred to as the skew-symmetric formulation.
-    This is the Blaisdell version of the skew-symmetric formulation. For more information, see:
+    This is the Blaisdell version of the skew-symmetric formulation. For more information, see
 
     [1] G.A. Blaisdell, N.N. Mansour, W.C. Reynolds, Numerical simulations of homogeneous compressible turbulence, Report TF-50, Thermoscience Divison, Department of Mechanical Engineering, Stanford University, Stanford, 1991.
     [2] G.A. Blaisdell, E.T. Spyropoulos, J.H. Qin, The effect of the formulation of nonlinear terms on aliasing errors in spectral methods, Appl. Numer. Math. 1996 207-209
 
-    To get the Blaisdell version of skew symmetric form for the energy and continuity equations, use
-        rhou = rho*u
-    and split Conservative((p+rhoE)*u_j,x_j) as Conservative(p*u_j,x_j) + Skew(rhoE*u_j,x_j)
+    To get the Blaisdell version of skew symmetric form for the energy and continuity equations, use rhou = rho*u and split Conservative((p+rhoE)*u_j,x_j) as Conservative(p*u_j,x_j) + Skew(rhoE*u_j,x_j)
     """
 
     @property
@@ -833,8 +831,7 @@ def evaluate_expression(expression, arrays, indexed):
 
     :arg expression: The expression to evaluate. This will be a SymPy data type.
     :arg dict arrays: A dictionary of (array name, NDimArray) pairs. The NDimArrays contain the expanded variables.
-    :arg dict indexed: A dictionary of (non-Indexed, Indexed) pairs. Effectively, each key contains the original
-    (non-expanded) EinsteinTerm, and its corresponding value is its equivalent Indexed version. E.g. (rhou_j, rhou[j]).
+    :arg dict indexed: A dictionary of (non-Indexed, Indexed) pairs. Effectively, each key contains the original (non-expanded) EinsteinTerm, and its corresponding value is its equivalent Indexed version. E.g. (rhou_j, rhou[j]).
     :returns: A tuple containing the evaluated expression and a list of indices (e.g. [i,j]).
     :rtype: tuple
     """
