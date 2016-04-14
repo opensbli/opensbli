@@ -8,10 +8,11 @@ import matplotlib.pyplot as plt
 import h5py
 import glob
 import sys
+import os.path
 
 # Matplotlib settings for publication-ready figures
 try:
-    f = open('/home/ctj1r15/opensbli-paper/images/rcparams.py', 'r')
+    f = open(os.path.expanduser('~/opensbli-paper/images/rcparams.py'), 'r')
     exec(f.read())
 except:
     pass
