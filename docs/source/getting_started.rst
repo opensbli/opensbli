@@ -4,7 +4,13 @@ Getting Started
 Dependencies
 ------------
 
-You should first ensure that all the core dependencies listed in the ``README.md`` file are satisfied. Many of these packages can be installed either via a package manager such as ``apt`` or via the `Python package manager (pip) <https://pypi.python.org/pypi/pip>`_.
+You should first ensure that all the core dependencies listed in the ``README.md`` file are satisfied. Many of these packages can be installed either via a package manager such as ``apt``, or via the `Python package manager (pip) <https://pypi.python.org/pypi/pip>`_ using
+
+.. code-block:: bash
+
+    sudo pip install -r requirements.txt
+    
+from the OpenSBLI base/root directory.
 
 Obtaining OPS
 -------------
