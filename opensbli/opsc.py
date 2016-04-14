@@ -23,8 +23,7 @@ from sympy.printing.ccode import CCodePrinter
 import os
 from string import Template
 from .equations import EinsteinTerm
-from .kernel import ReductionVariable
-# from .diagnostics import Reduction as R
+from .diagnostics import ReductionVariable
 import logging
 LOG = logging.getLogger(__name__)
 BUILD_DIR = os.getcwd()
@@ -100,8 +99,7 @@ class OPSCCodePrinter(CCodePrinter):
 
 def pow_to_constant(expr, constants):
     from sympy.core.function import _coeff_isneg
-    # Only negative powers i.e they correspond to division and they are stored into
-    # constant arrays
+    # Only negative powers i.e they correspond to division and they are stored into constant arrays
     inverse_terms = {}
     for at in expr.atoms(Pow):
         if _coeff_isneg(at.exp) and not at.base.atoms(Indexed):
@@ -379,11 +377,8 @@ class OPSC(object):
         return
 
     def get_diagnostic_kernels(self, code_dictionary):
-        '''
-        Loop over blocks, loop over each diagnostics object (can be reduction etc..)
-        get the kernel call, if reduction get the reduction result.
-        Write the output to the file
-        '''
+        """ Loop over blocks, loop over each diagnostics object (can be reduction etc.), and get the kernel call.
+        If it is a Reduction, get the reduction result and write the output to a file. """
 
         from .diagnostics import Reduction as R
         for block in range(self.nblocks):

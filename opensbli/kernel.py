@@ -22,13 +22,7 @@ from sympy import *
 
 from .equations import EinsteinTerm
 from .grid import GridVariable
-
-
-class ReductionVariable(Symbol):
-
-    def __new__(self, var):
-        self = Symbol.__xnew__(self, var)
-        return self
+from .diagnostics import ReductionVariable
 
 
 class Kernel(object):

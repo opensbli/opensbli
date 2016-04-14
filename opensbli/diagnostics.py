@@ -21,7 +21,13 @@
 
 from sympy.tensor import Indexed
 from .utils import *
-from .kernel import ReductionVariable
+
+
+class ReductionVariable(Symbol):
+
+    def __new__(self, var):
+        self = Symbol.__xnew__(self, var)
+        return self
 
 
 class Reduction():
