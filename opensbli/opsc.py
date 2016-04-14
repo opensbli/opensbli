@@ -27,7 +27,7 @@ from string import Template
 from sympy.printing.precedence import precedence
 from .equations import EinsteinTerm
 from .kernel import ReductionVariable
-#from .diagnostics import Reduction as R
+# from .diagnostics import Reduction as R
 import logging
 LOG = logging.getLogger(__name__)
 BUILD_DIR = os.getcwd()
@@ -40,6 +40,7 @@ try:
 except ImportError:
     logging.warning("Could not import the OPS library. The generated OPSC code will need to be manually put through the translator.")
     have_ops = False
+
 
 class OPSCCodePrinter(CCodePrinter):
 
@@ -56,25 +57,25 @@ class OPSCCodePrinter(CCodePrinter):
         self.constants = constants
 
     def _print_ReductionVariable(self, expr):
-        return '*%s'%str(expr)
+        return '*%s' % str(expr)
 
     def _print_Rational(self, expr):
         if self.constants != None:
             if expr in self.constants.keys():
                 return self.constants[expr]
             else:
-                con = 'rc%d'%len(self.constants.keys())
+                con = 'rc%d' % len(self.constants.keys())
                 self.constants[expr] = con
                 return self.constants[expr]
         else:
             p, q = int(expr.p), int(expr.q)
-            return '%d.0/%d.0' %(p,q)
+            return '%d.0/%d.0' % (p, q)
 
     def _print_Mod(self, expr):
         args = map(ccode, expr.args)
         args = [x for x in args]
         result = ','.join(args)
-        result = 'fmod(%s)'%result
+        result = 'fmod(%s)' % result
         return result
 
     def _print_Indexed(self, expr):
@@ -86,7 +87,7 @@ class OPSCCodePrinter(CCodePrinter):
         """
 
         # Replace the symbols in the indices that are not time with `zero'
-        indices = [ind for ind in expr.indices if ind !=EinsteinTerm('t')]
+        indices = [ind for ind in expr.indices if ind != EinsteinTerm('t')]
         for number, index in enumerate(indices):
             for sym in index.atoms(Symbol):
                 indices[number] = indices[number].subs({sym: 0})
@@ -100,7 +101,7 @@ class OPSCCodePrinter(CCodePrinter):
         return out
 
 
-def pow_to_constant(expr,constants):
+def pow_to_constant(expr, constants):
     from sympy.core.function import _coeff_isneg
     # Only negative powers i.e they correspond to division and they are stored into
     # constant arrays
@@ -108,10 +109,11 @@ def pow_to_constant(expr,constants):
     for at in expr.atoms(Pow):
         if _coeff_isneg(at.exp) and not at.base.atoms(Indexed):
             if not at in constants.keys():
-                constants[at] = 'rinv%d'%len(constants.keys())
+                constants[at] = 'rinv%d' % len(constants.keys())
             inverse_terms[at] = constants[at]
     expr = expr.subs(inverse_terms)
     return expr, constants
+
 
 def ccode(expr, Indexed_accs=None, constants=None):
     """ Create an OPSC code printer object and write out the expression as an OPSC code string.
@@ -137,19 +139,21 @@ class OPSC(object):
     """ A class describing the OPSC language, and various templates for OPSC code structures (e.g. loops, declarations, etc). """
 
     # OPS Access types, used for kernel call
-    ops_access = {'inputs':'OPS_READ', 'outputs':'OPS_WRITE', 'inputoutput':'OPS_RW', 'reduction': 'OPS_INC'}
+    ops_access = {'inputs': 'OPS_READ', 'outputs': 'OPS_WRITE', 'inputoutput': 'OPS_RW', 'reduction': 'OPS_INC'}
     # OPS kernel headers
-    ops_header = {'inputs':'const %s *%s', 'outputs':'%s *%s', 'inputoutput':'%s *%s', 'Idx':'const int *%s',\
-        'reduction': '%s *%s'}
+    ops_header = {'inputs': 'const %s *%s', 'outputs': '%s *%s', 'inputoutput': '%s *%s', 'Idx': 'const int *%s',
+                  'reduction': '%s *%s'}
     # Single line comment
     line_comment = "//"
     # Block/multi-line comment
-    block_comment = ['/*','*/']
+    block_comment = ['/*', '*/']
     # End of statement delimiter
     end_of_statement = ";"
     # Commonly used brackets
-    left_brace = "{"; right_brace = "}"
-    left_parenthesis = "("; right_parenthesis = ")"
+    left_brace = "{"
+    right_brace = "}"
+    left_parenthesis = "("
+    right_parenthesis = ")"
 
     def __init__(self, grid, spatial_discretisation, temporal_discretisation, boundary, initial_conditions, IO, simulation_parameters, diagnostics=None):
         self.check_consistency(grid, spatial_discretisation, temporal_discretisation, boundary, initial_conditions, IO)
@@ -271,7 +275,7 @@ class OPSC(object):
         """
 
         # OPS template is written in multiple lines for clarity. Now, remove all white spaces for nicety of file printing.
-        OPS_template = OPS_template.replace(" ","")
+        OPS_template = OPS_template.replace(" ", "")
 
         # Dictionary to store evaluated things in the code_template
         code_dictionary = {}
@@ -297,8 +301,8 @@ class OPSC(object):
         code_dictionary['print_timings'] = '\n'.join(timer[2])
 
         # Define the main time loop
-        name = 'iteration' # Name for the iteration.
-        code_dictionary['timeloop'] = self.loop_open(name, (0,self.simulation_parameters['niter'])) + '\n'
+        name = 'iteration'  # Name for the iteration.
+        code_dictionary['timeloop'] = self.loop_open(name, (0, self.simulation_parameters['niter'])) + '\n'
         code_dictionary['end_time_loop'] = self.loop_close()
 
         # Declare and initialise OPS block
@@ -390,13 +394,13 @@ class OPSC(object):
                 if isinstance(diagnostic, R):
                     calls = []
                     for computation in diagnostic.computations:
-                        calls +=self.kernel_call(computation)
+                        calls += self.kernel_call(computation)
                         if computation.reductions:
                             calls += self.get_reduction_results(computation.reductions)
                             calls += self.print_reduction_results(computation.reductions)
                     if diagnostic.compute_every:
                         l = ccode(Mod('iteration', diagnostic.compute_every))
-                        calls = ['if(%s == 0)'%l] + [self.left_brace] + calls
+                        calls = ['if(%s == 0)' % l] + [self.left_brace] + calls
                         calls += [self.right_brace]
                         code_dictionary['io_time'] += '\n'.join(calls)
                     else:
@@ -410,19 +414,19 @@ class OPSC(object):
 
         template = "ops_printf(\"%s\\n\", %s)%s"
         all_reductions = '%g, ' + ', '.join([str('%g') for red in reductions])
-        all_reduction_results = '(iteration + 1)*deltat, ' + ', '.join([str('%s_reduction')%red for red in reductions])
-        return [template%( all_reductions, all_reduction_results, self.end_of_statement)]
+        all_reduction_results = '(iteration + 1)*deltat, ' + ', '.join([str('%s_reduction') % red for red in reductions])
+        return [template % (all_reductions, all_reduction_results, self.end_of_statement)]
 
     def get_reduction_results(self, reductions):
         """ Returns the code for OPS reduction result"""
 
         template = "%s %s_reduction = 0.0%s \n ops_reduction_result(%s, &%s_reduction)%s"
-        return [template%(self.dtype, red, self.end_of_statement, red, red, self.end_of_statement) \
-            for red in reductions]
+        return [template % (self.dtype, red, self.end_of_statement, red, red, self.end_of_statement)
+                for red in reductions]
 
     def declare_reduction_variables(self):
         template = "ops_reduction %s = ops_decl_reduction_handle(sizeof(%s), \"%s\", \"reduction_%s\")%s"
-        return [template %(red, self.dtype, self.dtype, red, self.end_of_statement) for red in self.reduction_variables]
+        return [template % (red, self.dtype, self.dtype, red, self.end_of_statement) for red in self.reduction_variables]
 
     def initialise_constants(self):
         """ Initialise all constant values. """
@@ -433,7 +437,7 @@ class OPSC(object):
         constant_dictionary = dict(zip(self.constants, values))
         # Sort constants
         sorted_constants = []
-        sorted_constants = self.sort_constants(constant_dictionary,sorted_constants)
+        sorted_constants = self.sort_constants(constant_dictionary, sorted_constants)
 
         for constant in sorted_constants:
             val = self.simulation_parameters[str(constant)]
@@ -452,29 +456,28 @@ class OPSC(object):
         types_known = (float, int, Rational)
 
         # Sort the Float, rational and integer constants
-        sorted_constants = [key for key, value in constant_dictionary.iteritems() \
-            if isinstance(value, types_known) and key not in sorted_constants]
+        sorted_constants = [key for key, value in constant_dictionary.iteritems()
+                            if isinstance(value, types_known) and key not in sorted_constants]
 
         # Known types constants for the Indexed Constants
-        sorted_constants += [key for key, value in constant_dictionary.iteritems() \
-            if isinstance(key, IndexedBase) and all(isinstance(v, types_known) for v in value)\
-                and key not in sorted_constants]
+        sorted_constants += [key for key, value in constant_dictionary.iteritems()
+                             if isinstance(key, IndexedBase) and all(isinstance(v, types_known) for v in value)
+                             and key not in sorted_constants]
 
         # get the other constants that are symbol/ Einstein Term
         key_list = [key for key in constant_dictionary.keys() if key not in sorted_constants]
 
         requires_list = [constant_dictionary[key].atoms(Symbol) for key in key_list]
-        zipped = zip(key_list,requires_list)
-
+        zipped = zip(key_list, requires_list)
 
         iter_count = 0
         while key_list:
             iter_count = iter_count+1
-            sorted_constants += [x for (x,y) in zipped if all(req in sorted_constants for req in y)]
+            sorted_constants += [x for (x, y) in zipped if all(req in sorted_constants for req in y)]
             key_list = [key for key in constant_dictionary.keys() if key not in sorted_constants]
             requires_list = [constant_dictionary[key].atoms(Symbol) for key in key_list]
-            zipped = zip(key_list,requires_list)
-            if iter_count >1000:
+            zipped = zip(key_list, requires_list)
+            if iter_count > 1000:
                 pprint("Constant sorting recursion reached")
                 pprint([req for req in requires_list[0]])
                 pprint(key_list)
@@ -546,7 +549,7 @@ class OPSC(object):
                     bc_call[block] += call
                     bc_exchange_code[block] += code
                 else:
-                    raise ValueError("Boundary condition of type %s cannot be classified"%(type(computation)))
+                    raise ValueError("Boundary condition of type %s cannot be classified" % (type(computation)))
 
         # Update the code dictionary
         code_dictionary['bc_exchange'] = '\n'.join(['\n'.join(bc_exchange_code[block]) for block in range(self.nblocks)])
@@ -567,20 +570,20 @@ class OPSC(object):
             # Process FileIO
             save_at = self.IO[block].save_after
             if len(save_at) == 1 and save_at[0] == True:
-                name = self.simulation_parameters["name"] + '_' + str(int(self.simulation_parameters["niter"])) +'.h5'
-                name  = '\"' + name + '\"'
+                name = self.simulation_parameters["name"] + '_' + str(int(self.simulation_parameters["niter"])) + '.h5'
+                name = '\"' + name + '\"'
                 io_calls[block] += self.hdf5_io(self.IO[block], name)
             else:
-                name = self.simulation_parameters["name"] + '_' + str(int(self.simulation_parameters["niter"]))+ '.h5'
-                name  = '\"' + name + '\"'
+                name = self.simulation_parameters["name"] + '_' + str(int(self.simulation_parameters["niter"])) + '.h5'
+                name = '\"' + name + '\"'
                 io_calls[block] += self.hdf5_io(self.IO[block], name)
                 # Time IO save at
                 l = ccode(Mod('iteration+1', save_at[0]))
-                calls = ['if(%s == 0)'%l] + [self.left_brace]
+                calls = ['if(%s == 0)' % l] + [self.left_brace]
                 # Character buffer array and name of the output
-                calls += ['char buf[100];'] + ['sprintf(buf,\"%s_%%d.h5\",iteration);'%self.simulation_parameters["name"]]
+                calls += ['char buf[100];'] + ['sprintf(buf,\"%s_%%d.h5\",iteration);' % self.simulation_parameters["name"]]
                 name = 'buf'
-                calls += self.hdf5_io(self.IO[block], name) +  [self.right_brace]
+                calls += self.hdf5_io(self.IO[block], name) + [self.right_brace]
                 io_time[block] += calls
 
         code_dictionary['io_calls'] = '\n'.join(['\n'.join(io_calls[block]) for block in range(self.nblocks)])
@@ -612,28 +615,28 @@ class OPSC(object):
         kernel_calls = []
 
         # Iteration range (i.e. the range of the loops over the grid points).
-        range_main =  self.array('int', iteration_range, [r for ran in computation.ranges for r in ran])
+        range_main = self.array('int', iteration_range, [r for ran in computation.ranges for r in ran])
 
         kernel_calls += ['ops_par_loop(%s, \"%s\", %s, %s, %s' % (computation.name, computation.computation_type, self.block_name, self.ndim, iteration_range)]
 
         # Do the grid-based inputs first.
-        grid_based = [self.ops_argument_call(inp, stencils[inp],self.dtype, self.ops_access['inputs'])\
-            for inp in computation.inputs.keys() if inp.is_grid ] + \
-                [self.ops_argument_call(inp, stencils[inp],self.dtype, self.ops_access['outputs'])\
-                    for inp in computation.outputs.keys() if inp.is_grid ] + \
-                        [self.ops_argument_call(inp, stencils[inp],self.dtype, self.ops_access['inputoutput'])\
-                            for inp in computation.inputoutput.keys() if inp.is_grid ]
+        grid_based = [self.ops_argument_call(inp, stencils[inp], self.dtype, self.ops_access['inputs'])
+                      for inp in computation.inputs.keys() if inp.is_grid ] + \
+                     [self.ops_argument_call(inp, stencils[inp], self.dtype, self.ops_access['outputs'])
+                      for inp in computation.outputs.keys() if inp.is_grid ] + \
+                     [self.ops_argument_call(inp, stencils[inp], self.dtype, self.ops_access['inputoutput'])
+                      for inp in computation.inputoutput.keys() if inp.is_grid]
         # Globals
-        nongrid = [self.ops_global_call(inp, value, self.dtype, self.ops_access['inputs'])\
-            for inp,value in computation.inputs.iteritems() if not inp.is_grid ] + \
-                [self.ops_global_call(inp, value, self.dtype, self.ops_access['outputs'])\
-                    for inp, value in computation.outputs.iteritems() if not inp.is_grid ] + \
-                        [self.ops_global_call(inp, value, self.dtype, self.ops_access['inputoutput'])\
-                            for inp, value in computation.inputoutput.iteritems() if not inp.is_grid ]
+        nongrid = [self.ops_global_call(inp, value, self.dtype, self.ops_access['inputs'])
+                   for inp, value in computation.inputs.iteritems() if not inp.is_grid ] + \
+                  [self.ops_global_call(inp, value, self.dtype, self.ops_access['outputs'])
+                   for inp, value in computation.outputs.iteritems() if not inp.is_grid ] + \
+                  [self.ops_global_call(inp, value, self.dtype, self.ops_access['inputoutput'])
+                   for inp, value in computation.inputoutput.iteritems() if not inp.is_grid]
         # Reductions
         if computation.reductions:
-            nongrid += [self.ops_argument_reduction(inp,self.ops_access['reduction'])\
-                for inp in computation.reductions if isinstance(inp, ReductionVariable)]
+            nongrid += [self.ops_argument_reduction(inp, self.ops_access['reduction'])
+                        for inp in computation.reductions if isinstance(inp, ReductionVariable)]
 
         if computation.has_Idx:
             nongrid.append(self.grid_index_call())
@@ -673,14 +676,14 @@ class OPSC(object):
     def relative_stencil(self, value):
         """ Returns the relative stencil wrt the grid location. i.e. grid indices eg(i0,i1,i2) are replaced with (0,0,0). """
 
-        if isinstance(value,list):
+        if isinstance(value, list):
             pass
         else:
             value = [value]
 
         indices = []
         for val in value:
-            indices.append(tuple([ind for ind in val if ind !=EinsteinTerm('t')]))
+            indices.append(tuple([ind for ind in val if ind != EinsteinTerm('t')]))
 
         return_val = []
         for va in indices:
@@ -688,7 +691,7 @@ class OPSC(object):
             for number, v in enumerate(va):
                 outv = v
                 for a in v.atoms(Symbol):
-                    outv = outv.subs(a,0)
+                    outv = outv.subs(a, 0)
                 out.append(outv)
             return_val.append(out)
 
@@ -703,7 +706,7 @@ class OPSC(object):
                 indexes = sorted(indexes, key=lambda indexes: indexes[dim])
             temp = flatten(list(list(t) for t in indexes))
         else:
-            #print(indexes)
+            # print(indexes)
             indexes = [sorted(indexes)]
             temp = flatten(list(t) for t in indexes)
         return temp
@@ -719,22 +722,23 @@ class OPSC(object):
     def ops_global_call(self, array, indices, precision, access_type):
         arr = array[tuple(indices[0])]
         template = 'ops_arg_gbl(&%s, %d, \"%s\", %s)'
-        return template % (arr,1, self.dtype, access_type)
+        return template % (arr, 1, self.dtype, access_type)
 
     def ops_argument_call(self, array, stencil, precision, access_type):
         template = 'ops_arg_dat(%s, %d, %s, \"%s\", %s)'
-        return template%(array,1,stencil, self.dtype, access_type)
+        return template % (array, 1, stencil, self.dtype, access_type)
 
     def ops_argument_reduction(self, name, access_type):
         template = 'ops_arg_reduce(%s, %d, \"%s\", %s)'
-        return template%(name,1, self.dtype, access_type)
+        return template % (name, 1, self.dtype, access_type)
 
     def bc_exchange_call_code(self, instance):
-        off = 0; halo = 'halo'
+        off = 0
+        halo = 'halo'
         # Name of the halo exchange
-        name = self.halo_exchange_name%(self.halo_exchange_number)
-        self.halo_exchange_number = self.halo_exchange_number +1
-        code = ['%s Boundary condition exchange code'%self.line_comment]
+        name = self.halo_exchange_name % (self.halo_exchange_number)
+        self.halo_exchange_number = self.halo_exchange_number + 1
+        code = ['%s Boundary condition exchange code' % self.line_comment]
         code += ['ops_halo_group %s %s' % (name, self.end_of_statement)]
         code += [self.left_brace]
         code += ['int halo_iter[] = {%s}%s' % (', '.join([str(s) for s in instance.transfer_size]), self.end_of_statement)]
@@ -744,14 +748,14 @@ class OPSC(object):
         code += ['int dir[] = {%s}%s' % (', '.join([str(ind+1) for ind in range(len(instance.transfer_to))]), self.end_of_statement)]
         # Process the arrays
         for arr in instance.transfer_arrays:
-            code += ['ops_halo %s%d = ops_decl_halo(%s, %s, halo_iter, from_base, to_base, dir, dir)%s'\
-                % (halo, off, arr.base,  arr.base, self.end_of_statement)]
+            code += ['ops_halo %s%d = ops_decl_halo(%s, %s, halo_iter, from_base, to_base, dir, dir)%s'
+                     % (halo, off, arr.base, arr.base, self.end_of_statement)]
             off = off+1
-        code += ['ops_halo grp[] = {%s}%s' % (','.join([str('%s%s' % (halo, of)) for of in range(off)]),self.end_of_statement )]
+        code += ['ops_halo grp[] = {%s}%s' % (','.join([str('%s%s' % (halo, of)) for of in range(off)]), self.end_of_statement)]
         code += ['%s = ops_decl_halo_group(%d,grp)%s' % (name, off, self.end_of_statement)]
         code += [self.right_brace]
         # Finished OPS halo exchange, now get the call
-        call = ['%s Boundary condition exchange calls' % self.line_comment,'ops_halo_transfer(%s)%s' % (name, self.end_of_statement)]
+        call = ['%s Boundary condition exchange calls' % self.line_comment, 'ops_halo_transfer(%s)%s' % (name, self.end_of_statement)]
         return call, code
 
     def initialise_dat(self):
@@ -771,7 +775,7 @@ class OPSC(object):
             code += [self.array(dtype_int, 'base', [0 for g in grid.shape])]
             code += ['%s* val = NULL;' % (self.dtype)]
             init_format = '%%s = ops_decl_dat(%s, 1, size, base, halo_m, halo_p, val, \"%%s\", \"%%s\")%s' % (self.block_name, self.end_of_statement)
-            inits = [init_format%(arr, self.dtype, arr) for arr in self.grid_based_arrays]
+            inits = [init_format % (arr, self.dtype, arr) for arr in self.grid_based_arrays]
             code = code + inits
         else:
             raise NotImplementedError("Multi-block is not implemented")
@@ -788,10 +792,10 @@ class OPSC(object):
         dtype_int = 'int'
         sten_format = 'ops_stencil %%s = ops_decl_stencil(%%d,%%d,%%s,\"%%s\")%s' % (self.end_of_statement)
         for key, value in self.stencil_dictionary.iteritems():
-            count = len(key.split(','))/ self.ndim
+            count = len(key.split(',')) / self.ndim
             # 'value' is the name in the stencil's format
             code += [self.array(dtype_int, value + "_temp", [key])]
-            code += [sten_format%(value, self.ndim, count, value + "_temp", key)]
+            code += [sten_format % (value, self.ndim, count, value + "_temp", key)]
         return code
 
     def hdf5_io(self, instance, name):
@@ -834,7 +838,7 @@ class OPSC(object):
                 block_computations += [t for t in self.boundary[block].computations if isinstance(t, Kernel)]
 
             for computation in block_computations:
-                kernels[block] += self.kernel_computation(computation,block)
+                kernels[block] += self.kernel_computation(computation, block)
         return kernels
 
     def kernel_computation(self, computation, block_number):
@@ -854,21 +858,21 @@ class OPSC(object):
 
         # Indexed objects based on the grid that are inputs/outputs or inouts. This is used to write the pointers to the kernel.
         # Grid-based objects
-        grid_based = ([self.ops_header['inputs'] % (self.dtype,inp) for inp in computation.inputs.keys() if inp.is_grid] + \
-            [self.ops_header['outputs'] % (self.dtype,inp) for inp in computation.outputs.keys() if inp.is_grid ] + \
-                [self.ops_header['inputoutput'] % (self.dtype,inp) for inp in computation.inputoutput.keys() if inp.is_grid])
+        grid_based = ([self.ops_header['inputs'] % (self.dtype, inp) for inp in computation.inputs.keys() if inp.is_grid] +
+                      [self.ops_header['outputs'] % (self.dtype, inp) for inp in computation.outputs.keys() if inp.is_grid] +
+                      [self.ops_header['inputoutput'] % (self.dtype, inp) for inp in computation.inputoutput.keys() if inp.is_grid])
 
         # Non grid-based objects
-        nongrid = ([self.ops_header['inputs'] % (self.dtype,inp) for inp in computation.inputs.keys() if not inp.is_grid] + \
-            [self.ops_header['outputs'] % (self.dtype,inp) for inp in computation.outputs.keys() if not inp.is_grid ] + \
-                [self.ops_header['inputoutput'] % (self.dtype,inp) for inp in computation.inputoutput.keys() if not inp.is_grid])
+        nongrid = ([self.ops_header['inputs'] % (self.dtype, inp) for inp in computation.inputs.keys() if not inp.is_grid] +
+                   [self.ops_header['outputs'] % (self.dtype, inp) for inp in computation.outputs.keys() if not inp.is_grid] +
+                   [self.ops_header['inputoutput'] % (self.dtype, inp) for inp in computation.inputoutput.keys() if not inp.is_grid])
 
         header += grid_based + nongrid
 
         if computation.reductions:
-            header += [self.ops_header['reduction'] %(self.dtype,inp) for inp in computation.reductions]
+            header += [self.ops_header['reduction'] % (self.dtype, inp) for inp in computation.reductions]
         if computation.has_Idx:
-            header += [self.ops_header['Idx'] % ('idx') ]
+            header += [self.ops_header['Idx'] % ('idx')]
 
         header = ['void ' + computation.name + self.left_parenthesis + ' , '.join(header) + self.right_parenthesis]
         header += [self.left_brace]
@@ -876,7 +880,7 @@ class OPSC(object):
         ops_accs = self.get_OPS_ACC_number(computation)
 
         for equation in computation.equations:
-            code_kernel, self.rational_constants = ccode(equation,ops_accs, self.rational_constants)
+            code_kernel, self.rational_constants = ccode(equation, ops_accs, self.rational_constants)
             if isinstance(equation.lhs, GridVariable):
 
                 code += [self.dtype + ' ' + code_kernel + self.end_of_statement]
@@ -940,7 +944,7 @@ class OPSC(object):
             elif isinstance(constant, str):
                 code += ['%s %s%s' % (self.dtype, constant, self.end_of_statement)]
             elif constant.is_integer:
-                code += ['int %s%s' % ( constant, self.end_of_statement)]
+                code += ['int %s%s' % (constant, self.end_of_statement)]
             else:
                 code += ['%s %s%s' % (self.dtype, constant, self.end_of_statement)]
 
@@ -949,7 +953,7 @@ class OPSC(object):
         code += ['#define OPS_%sD' % self.ndim]
         code += ['#include "ops_seq.h"']
         # Include the kernel file names
-        code += ['#include "%s"'%name for name in self.computational_routines_filename]
+        code += ['#include "%s"' % name for name in self.computational_routines_filename]
         return code
 
     def main_start(self):
@@ -965,7 +969,7 @@ class OPSC(object):
         :returns: The call to ops_init.
         :rtype: list
         """
-        out = ['%s Initializing OPS '%self.line_comment]
+        out = ['%s Initializing OPS ' % self.line_comment]
         if diagnostics_level:
             self.ops_diagnostics = True
             return out + ['ops_init(argc,argv,%d)%s' % (diagnostics_level, self.end_of_statement)]
@@ -994,8 +998,8 @@ class OPSC(object):
         """ OPS timer variable declaration. """
         start = ["cpu_start", "elapsed_start"]
         end = ["cpu_end", "elapsed_end"]
-        timer_start = ["double %s, %s%s" % (start[0], start[1],self.end_of_statement)] + ["ops_timers(&%s, &%s)%s" % (start[0], start[1], self.end_of_statement)]
-        timer_end = ["double %s, %s%s" % (end[0], end[1],self.end_of_statement)] + ["ops_timers(&%s, &%s)%s" % (end[0], end[1], self.end_of_statement)]
+        timer_start = ["double %s, %s%s" % (start[0], start[1], self.end_of_statement)] + ["ops_timers(&%s, &%s)%s" % (start[0], start[1], self.end_of_statement)]
+        timer_end = ["double %s, %s%s" % (end[0], end[1], self.end_of_statement)] + ["ops_timers(&%s, &%s)%s" % (end[0], end[1], self.end_of_statement)]
         timing_eval = self.ops_print_timings(start, end)
         return timer_start, timer_end, timing_eval
 
@@ -1020,17 +1024,17 @@ class OPSC(object):
             code += ['ops_block %s%s' % (self.block_name, self.end_of_statement)]
         else:
             code += ['ops_block *%s = (ops_block *)malloc(%s*sizeof(ops_block*))%s' % (self.block_name, self.nblocks, self.end_of_statement)]
-        #print('\n'.join(code))
+        # print('\n'.join(code))
         return code
 
     def initialise_block(self):
         """ Initialise an OPS block. """
         code = ['%s Initialising block in OPS Format' % (self.line_comment)]
         if not self.multiblock:
-            code += ['%s = ops_decl_block(%d, \"%s\")%s' % (self.block_name,self.ndim, self.block_name,self.end_of_statement)]
+            code += ['%s = ops_decl_block(%d, \"%s\")%s' % (self.block_name, self.ndim, self.block_name, self.end_of_statement)]
         else:
             raise NotImplementedError("Multi-block is not implemented")
-        #print('\n'.join(code))
+        # print('\n'.join(code))
         return code
 
     def define_dat(self):
@@ -1053,29 +1057,29 @@ class OPSC(object):
         code = self.ops_exit()
         return code
 
-    def check_consistency(self,  grid, spatial_discretisation, temporal_discretisation, boundary, initial_conditions, IO):
+    def check_consistency(self, grid, spatial_discretisation, temporal_discretisation, boundary, initial_conditions, IO):
         """ Check the consistency of the inputs. """
 
         self.grid = self.to_list(grid)
         length = len(self.grid)
 
-        self.spatial_discretisation = self.to_list(spatial_discretisation);
+        self.spatial_discretisation = self.to_list(spatial_discretisation)
         if len(self.spatial_discretisation) != length:
             raise AlgorithmError("The length of spatial solution doesnot match the grid")
 
-        self.temporal_discretisation = self.to_list(temporal_discretisation);
+        self.temporal_discretisation = self.to_list(temporal_discretisation)
         if len(self.temporal_discretisation) != length:
             raise AlgorithmError("The length of temporal solution doesnot match the grid")
 
-        self.boundary = self.to_list(boundary);
+        self.boundary = self.to_list(boundary)
         if len(self.boundary) != length:
             raise AlgorithmError("The length of boundary doesnot match the grid")
 
-        self.initial_conditions = self.to_list(initial_conditions);
+        self.initial_conditions = self.to_list(initial_conditions)
         if len(self.initial_conditions) != length:
             raise AlgorithmError("The length of initial_conditions doesnot match the grid")
 
-        self.IO = self.to_list(IO);
+        self.IO = self.to_list(IO)
         if len(self.IO) != length:
             raise AlgorithmError("The length of IO doesnot match the grid")
 
@@ -1096,26 +1100,25 @@ class OPSC(object):
     def update_definitions(self, computation):
         """ Update the grid based arrays and constants to be declared. """
 
-        arrays = set([inp for inp in computation.inputs.keys() if inp.is_grid] + \
-            [inp for inp in computation.outputs.keys() if inp.is_grid ] + \
-                [inp for inp in computation.inputoutput.keys() if inp.is_grid])
-        constant_arrays = set([inp for inp in computation.inputs.keys() if not inp.is_grid] + \
-            [inp for inp in computation.outputs.keys() if not inp.is_grid ] + \
-                [inp for inp in computation.inputoutput.keys() if not inp.is_grid])
+        arrays = set([inp for inp in computation.inputs.keys() if inp.is_grid] +
+                     [inp for inp in computation.outputs.keys() if inp.is_grid] +
+                     [inp for inp in computation.inputoutput.keys() if inp.is_grid])
+        constant_arrays = set([inp for inp in computation.inputs.keys() if not inp.is_grid] +
+                              [inp for inp in computation.outputs.keys() if not inp.is_grid] +
+                              [inp for inp in computation.inputoutput.keys() if not inp.is_grid])
         constants = set(computation.constants)
 
         # add the symbols in the range of evaluation to constants
-        const = set(flatten([list(r.atoms(Symbol)) for ro in computation.ranges for r in ro \
-            if not isinstance(r, int)]))
-
+        const = set(flatten([list(r.atoms(Symbol)) for ro in computation.ranges for r in ro
+                             if not isinstance(r, int)]))
 
         self.grid_based_arrays = self.grid_based_arrays.union(arrays)
 
         self.constants = self.constants.union(constant_arrays).union(constants).union(self.rational_constants.values())\
             .union(const)
         # update the simulation parameters as these are used for writing the constants
-        self.simulation_parameters.update(dict(zip([str(v) for v in self.rational_constants.values()],\
-            list(self.rational_constants.keys()))))
+        self.simulation_parameters.update(dict(zip([str(v) for v in self.rational_constants.values()],
+                                                   list(self.rational_constants.keys()))))
 
         # Update reduction variables
         self.reduction_variables = self.reduction_variables.union(set(computation.reductions))
@@ -1128,14 +1131,14 @@ class OPSC(object):
         :returns: A dictionary of OPS_ACC's. """
 
         ops_accs = {}
-        allidbs = list(computation.inputs.keys()) +  list(computation.outputs.keys()) + list(computation.inputoutput.keys())
+        allidbs = list(computation.inputs.keys()) + list(computation.outputs.keys()) + list(computation.inputoutput.keys())
         grid_based = [al for al in allidbs if al.is_grid]
         # All grid-based OPS_ACCs
-        for no,inp in enumerate(grid_based):
-            ops_accs[inp] = 'OPS_ACC%d'%no
+        for no, inp in enumerate(grid_based):
+            ops_accs[inp] = 'OPS_ACC%d' % no
         # Non grid-based stuff
         nongrid = set(allidbs).difference(set(grid_based))
-        for no,inp in enumerate(nongrid):
+        for no, inp in enumerate(nongrid):
             ops_accs[inp] = None
         return ops_accs
 
@@ -1160,10 +1163,9 @@ class OPSC(object):
             LOG.error("Unable to translate OPSC code. Check that OPS is installed.")
         return
 
+
 class AlgorithmError(Exception):
 
     """ An Exception that occurs  """
 
     pass
-
-

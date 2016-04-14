@@ -66,4 +66,3 @@ class Problem(object):
             expanded_equations.append(e.expanded)
 
         return expanded_equations
-

@@ -22,14 +22,14 @@ import os
 import subprocess
 from sympy import *
 
+
 class Evaluations(object):
 
     """ The evaluation of a LHS and RHS, containing information about what the LHS and RHS requires, whether there are any
     subevaluations that need doing (e.g. for second derivatives, e.g. d(du/dx)dy, du/dx should be evaluated first),
     and what the work arrays are. """
 
-    def __init__(self, lhs, rhs, requires, subevals = None, wk=None):
-
+    def __init__(self, lhs, rhs, requires, subevals=None, wk=None):
         """ Set up the evaluation information. """
 
         if isinstance(lhs, Derivative):

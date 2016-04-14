@@ -42,7 +42,9 @@ LOG = logging.getLogger(__name__)
 
 LOCAL_FUNCTIONS = []
 
+
 class Skew(Function):
+
     """ Handler for the Energy conservative formulation for the Navier-Stokes equations
     generally referred to as Skew symmetric formulation.
     This is the Blaisdell version of skew symmetric formulation
@@ -61,6 +63,7 @@ class Skew(Function):
 
     def __init__(self, *args):
         return self
+
     @classmethod
     def eval(cls, *args):
         var = args[0]
@@ -70,8 +73,8 @@ class Skew(Function):
             return Der(var, *directions)
         elif nvar == 2:
             explicitvars = var.args
-            out = 0.5*(Conservative(var, *directions) + explicitvars[1]*Der(explicitvars[0], *directions) +\
-                explicitvars[0]*Der(explicitvars[1], *directions))
+            out = 0.5*(Conservative(var, *directions) + explicitvars[1]*Der(explicitvars[0], *directions) +
+                       explicitvars[0]*Der(explicitvars[1], *directions))
             return out
         else:
             raise ValueError("More than two terms for skew formulation")
@@ -210,7 +213,7 @@ class Conservative(Function):
         # Fill an array of the same shape as the derivative structure with the actual SymPy Derivative objects.
         derivative = MutableDenseNDimArray.zeros(*shape)
         for index in np.ndindex(*shape):
-            index_map = self.split_index(index,functions)
+            index_map = self.split_index(index, functions)
             derivative[index] = self.apply_derivative(index_map, arrays, functions, evaluated)
 
         # Apply the contraction structure
@@ -344,7 +347,7 @@ class EinsteinTerm(Symbol):
         :arg str symbol: The symbol under consideration. This can have zero or more indices.
         """
 
-        self._sanitize(assumptions, self) # Remove any 'None's, etc.
+        self._sanitize(assumptions, self)  # Remove any 'None's, etc.
         self.name = str(symbol)
 
         # Make this into a new SymPy Symbol object.
@@ -385,7 +388,6 @@ class EinsteinTerm(Symbol):
 
         name = self.get_base()
         indices = self.get_indices()
-
 
         if len(indices) > 0:
             shape = tuple([ndim for x in range(len(indices))])
@@ -579,7 +581,7 @@ class Equation(object):
 
     """ Describes an equation that is to be solved. """
 
-    def __init__(self, expression, ndim, coordinate_symbol, substitutions = [], constants = []):
+    def __init__(self, expression, ndim, coordinate_symbol, substitutions=[], constants=[]):
         """ Set up an equation, written in Einstein notation, and expand the indices.
 
         :arg str equation: An equation, written in Einstein notation, and specified in string form.
@@ -590,13 +592,12 @@ class Equation(object):
         :returns: None
         """
 
-        local_dict = {'Symbol': EinsteinTerm, 'symbols': EinsteinTerm, 'Der': Der, 'Conservative': Conservative, 'KD': KD, 'LC': LC\
-            ,'Skew':Skew}
+        local_dict = {'Symbol': EinsteinTerm, 'symbols': EinsteinTerm, 'Der': Der, 'Conservative': Conservative, 'KD': KD, 'LC': LC, 'Skew': Skew}
 
         self.original = expression
 
         # Parse the equation.
-        self.parsed = parse_expr(self.original, local_dict, evaluate = False)
+        self.parsed = parse_expr(self.original, local_dict, evaluate=False)
 
         # Perform substitutions, if any.
         if substitutions:
@@ -609,7 +610,7 @@ class Equation(object):
             if any(constant == str(term) for constant in constants):
                 term.is_constant = True
                 term.is_commutative = True
-            elif term.get_base() == coordinate_symbol or term.get_base() == "t": # Spatial and temporal variables are assumed as constant terms here.
+            elif term.get_base() == coordinate_symbol or term.get_base() == "t":  # Spatial and temporal variables are assumed as constant terms here.
                 term.is_constant = True
                 term.is_coordinate = True
                 term.is_commutative = True
@@ -617,7 +618,7 @@ class Equation(object):
         # Expand Einstein terms/indices
         expansion = EinsteinExpansion(self.parsed, ndim)
         self.expanded = expansion.expanded
-        #LOG.debug("The expanded expression is: %s" % (expansion.expanded))
+        # LOG.debug("The expanded expression is: %s" % (expansion.expanded))
         return
 
 
@@ -763,7 +764,7 @@ def add_args(arg_evaluated, arg_indices):
                 if leading_index == index and len(index) == 2:
                     array = arg_evaluated[number]
                     for index in np.ndindex(*array.shape):
-                        transpose = tuple([index[1], index[0]]) # Swap the indices around and apply them to the array to get the transpose.
+                        transpose = tuple([index[1], index[0]])  # Swap the indices around and apply them to the array to get the transpose.
                         evaluated[index] += array[transpose]
                 else:
                     raise NotImplementedError("Taking the array transpose is only supported for 2D arrays. ", leading_index, index)
@@ -854,7 +855,7 @@ def evaluate_expression(expression, arrays, indexed):
     # Get all the EinsteinTerms and functions (e.g. LeviCivita) and replace them by their Indexed versions.
     terms = walk_expression_tree(expression)
     for term in terms:
-        expression = expression.xreplace({term : indexed[term]})
+        expression = expression.xreplace({term: indexed[term]})
     # Find the index structure.
     index_structure = get_index_structure(expression)
     evaluated, indices = evaluate_Indexed_expression(expression, arrays, index_structure)
@@ -881,7 +882,7 @@ def evaluate_Indexed_expression(expression, arrays, index_structure):
         evaluated = apply_contraction(index_structure, indices, arrays[expression])
         return evaluated, index_structure
     elif isinstance(expression, EinsteinTerm):
-        return arrays[expression],  None
+        return arrays[expression], None
     elif isinstance(expression, Pow):
         return evaluate_Pow_expression(expression, arrays, index_structure)
     elif isinstance(expression, Integer):
@@ -908,6 +909,7 @@ def remove_repeated_index(indices):
             sum_index[i] = 0
     indices = [x for x in indices if not sum_index[x]]
     return indices
+
 
 def maximum_derivative_order(equations):
     """ Get the maximum order of the derivatives across the list of equations provided.

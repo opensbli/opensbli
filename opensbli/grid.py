@@ -22,6 +22,7 @@ from sympy import *
 
 from .equations import EinsteinTerm
 
+
 class Grid(object):
 
     """ The numerical grid of solution points on which to discretise the equations. """
@@ -38,7 +39,7 @@ class Grid(object):
         self.shape = tuple(symbols('nx0:%d' % ndim, integer=True))
 
         # Indices of the grid solution points in each dimension.
-        self.indices = tuple(Symbol('i%d' % ind, integer = True) for ind, val in enumerate(self.shape))
+        self.indices = tuple(Symbol('i%d' % ind, integer=True) for ind, val in enumerate(self.shape))
 
         self.uniform = [True for ind, val in enumerate(self.shape)]
 
@@ -60,7 +61,7 @@ class Grid(object):
         if grid_data:
             variables = [str(d) for d in self.deltas] + [str(s) for s in self.shape]
             values = [grid_data['delta'][i] for i in range(ndim)] + [grid_data['number_of_points'][i] for i in range(ndim)]
-            self.grid_data_dictionary  = dict(zip(variables, values))
+            self.grid_data_dictionary = dict(zip(variables, values))
             self.total_points = 1.0
             for r in range(ndim):
                 self.total_points = self.total_points*grid_data['number_of_points'][r]
@@ -68,15 +69,15 @@ class Grid(object):
         # Coordinate indices in space (e.g. x0, x1, x2)
         coordinates = EinsteinTerm('x_i')
         coordinates.is_constant = True
-        # This is essentially the indexed array of the "x_i" EinsteinTerm. 
+        # This is essentially the indexed array of the "x_i" EinsteinTerm.
         self.coordinates = coordinates.get_array(coordinates.get_indexed(len(self.shape))).tolist()
-        
+
         # Generate a mapping between the grid indices (e.g. i0, i1, i2) and the coordinate indices (e.g. x0, x1, x2).
         # This removes the dependancy of the coordinates in the spatial discretisation or Diagnostics or anywhere else.
         self.mapped_indices = dict(zip(tuple(self.coordinates)+self.indices, self.indices+self.indices))
-        self.mapped_indices[EinsteinTerm('t')] = '' # Also handle the time 't' as a special case.
+        self.mapped_indices[EinsteinTerm('t')] = ''  # Also handle the time 't' as a special case.
         # NOTE: Indices that are mapped onto the grid should be populated implicitly.
-        
+
         return
 
     def work_array(self, name):
@@ -92,12 +93,12 @@ class Grid(object):
         base.is_grid = True
         base.is_constant = False
         return base[self.coordinates]
-    
+
     def get_array_on_grid(self, array):
         """ Create a new IndexedBase object and set the attribute is_grid to True.
         Returns the new array with same name and same indices as the input array.
         The reason for the work-around is it is better to create an IndexedBase object and add attributes to it.
-        
+
         :arg sympy.Indexed array: The array to be converted onto the Grid.
         :returns: The Indexed object representing the array defined on the Grid.
         :rtype: sympy.Indexed
@@ -106,20 +107,23 @@ class Grid(object):
         base.is_grid = True
         base.is_constant = False
         return base[array.indices]
-    
+
     def grid_variable(self, name):
         """ Define a variable on the grid. This is not an Indexed variable but varies with the grid.
         Can be used as a local variable to be defined in a kernel.
-        
+
         :arg str name: The name of the variable
         :returns: The grid variable.
         :rtype: opensbli.GridVariable
         """
         variable = GridVariable(str(name))
         return variable
-    
+
+
 class GridVariable(Symbol):
+
     """ A symbolic variable defined on the Grid. """
+
     def __new__(self, variable):
         self = Symbol.__xnew__(self, variable)
         return self

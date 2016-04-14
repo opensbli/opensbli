@@ -23,10 +23,13 @@ from sympy import *
 from .equations import EinsteinTerm
 from .grid import GridVariable
 
+
 class ReductionVariable(Symbol):
-    def __new__(self,var):
+
+    def __new__(self, var):
         self = Symbol.__xnew__(self, var)
         return self
+
 
 class Kernel(object):
 
@@ -36,8 +39,8 @@ class Kernel(object):
         """ Set up the computational kernel"""
 
         self.computation_type = computation
-        self.ranges = ranges # Range of the indices of the points the kernel iterates over.
-        self.name = None # None generates automatic kernel name
+        self.ranges = ranges  # Range of the indices of the points the kernel iterates over.
+        self.name = None  # None generates automatic kernel name
         if isinstance(equations, list):
             self.equations = equations
         else:
@@ -52,7 +55,6 @@ class Kernel(object):
         return
 
     def classify_grid_objects(self, grid):
-
         """ Classify the individual terms in the kernel's equation(s)
         as inputs, outputs, or inputoutputs (i.e. both an input and an output). """
 
@@ -73,17 +75,17 @@ class Kernel(object):
         indexbase_outs = set(outs).difference(indexbase_inouts)
 
         for v in indexbase_ins:
-            indexes = [vin.indices for vin in allindexed if vin.base==v]
+            indexes = [vin.indices for vin in allindexed if vin.base == v]
             if grid:
                 v = self.set_grid_arrays(v, grid, indexes)
             self.inputs[v] = indexes
         for v in indexbase_outs:
-            indexes = [vout.indices for vout in allindexed if vout.base==v]
+            indexes = [vout.indices for vout in allindexed if vout.base == v]
             if grid:
                 v = self.set_grid_arrays(v, grid, indexes)
             self.outputs[v] = indexes
         for v in indexbase_inouts:
-            indexes = [vinout.indices for vinout in allindexed if vinout.base==v]
+            indexes = [vinout.indices for vinout in allindexed if vinout.base == v]
             if grid:
                 v = self.set_grid_arrays(v, grid, indexes)
             self.inputoutput[v] = indexes
@@ -103,16 +105,16 @@ class Kernel(object):
 
         return
 
-    def set_grid_arrays(self, array ,grid, indexes):
+    def set_grid_arrays(self, array, grid, indexes):
         """
         Sets the Indexed object attribute is_grid to True if all the indices of an indexed object
         are in mapped_indices dictionary of the grid
-        
+
         """
         ets = [list(ind) for ind in indexes]
         ets = [list(et.atoms(Symbol)) for et in flatten(ets)]
         ets = (set(flatten(ets)))
-        if all(index in grid.mapped_indices.keys() for index  in ets):
+        if all(index in grid.mapped_indices.keys() for index in ets):
             array.is_grid = True
         else:
             array.is_grid = False

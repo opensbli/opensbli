@@ -77,7 +77,7 @@ class TemporalDiscretisation(object):
             self.prognostic_variables.append(residual.keys()[0].args[0])
 
         # Formulate each step of the time-stepping scheme here as a computational Kernel.
-        range_of_evaluation = [tuple([0, s]) for i, s in enumerate(grid.shape)] # Grid point index 0 to nx (or ny or nz)
+        range_of_evaluation = [tuple([0, s]) for i, s in enumerate(grid.shape)]  # Grid point index 0 to nx (or ny or nz)
         if self.nstages != 1:
             # The 'save' equations.
             start = [o[-1] for o in out]
@@ -155,8 +155,8 @@ class RungeKutta(Scheme):
 
         if self.order == 3:
             coeffs = {}
-            coeffs[self.old.base] = [Rational(1.0,4.0), Rational(3.0,20), Rational(3.0,5.0)]
-            coeffs[self.new.base] = [Rational(2,3), Rational(5,12), Rational(3,5)]
+            coeffs[self.old.base] = [Rational(1.0, 4.0), Rational(3.0, 20), Rational(3.0, 5.0)]
+            coeffs[self.new.base] = [Rational(2, 3), Rational(5, 12), Rational(3, 5)]
         return coeffs
 
 

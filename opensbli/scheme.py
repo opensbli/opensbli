@@ -18,17 +18,18 @@
 #    You should have received a copy of the GNU General Public License
 #    along with OpenSBLI.  If not, see <http://www.gnu.org/licenses/>
 
+
 class Scheme(object):
 
     """ A numerical discretisation scheme. """
 
     def __init__(self, name, order):
         """ Initialise the scheme.
-        
+
         :arg str name: The name of the scheme.
         :arg int order: The order of the scheme.
         """
-        
+
         self.name = name
         self.order = order
         return

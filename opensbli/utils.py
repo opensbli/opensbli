@@ -27,7 +27,6 @@ from .evaluations import *
 from .kernel import *
 
 
-
 def decreasing_order(s1, s2):
     return cmp(len(s2.args), len(s1.args))
 
@@ -53,7 +52,7 @@ def group_derivatives(derivatives):
         else:
             derivative_dict[derivative.args[0]] = [derivative]
 
-    for key,value in derivative_dict.iteritems():
+    for key, value in derivative_dict.iteritems():
         if len(value) > 1:
             derivative_dict[key] = (sorted(value, cmp=increasing_order))
 
@@ -75,7 +74,8 @@ def indexed_by_grid(variable, grid):
         base = IndexedBase('%s' % variable.func)
     else:
         raise ValueError("Only functions or Indexed Objects are supported", variable)
-    base.is_grid = True; base.is_constant = False
+    base.is_grid = True
+    base.is_constant = False
     return base[grid.indices]
 
 
@@ -110,11 +110,12 @@ def substitute_work_arrays(ordered_evaluations, evaluations, equations):
     for equation_number, equation in enumerate(updated_equations):
         spatial_derivatives = [ev for ev in ordered_evaluations if isinstance(ev, Derivative)]
         formulas = [ev for ev in ordered_evaluations if isinstance(ev, Indexed)]
-        spatial_derivatives = (sorted(spatial_derivatives, cmp = decreasing_order))
+        spatial_derivatives = (sorted(spatial_derivatives, cmp=decreasing_order))
         for var in spatial_derivatives + formulas:
             new = evaluations[var].work
             updated_equations[equation_number] = updated_equations[equation_number].subs(var, new)
     return updated_equations
+
 
 def update_work_arrays(ordered_evaluations, evaluations, work_array_name, work_array_index, grid):
     forms = [ev for ev in ordered_evaluations if isinstance(ev, Indexed)]
@@ -127,7 +128,8 @@ def update_work_arrays(ordered_evaluations, evaluations, work_array_name, work_a
         work_array_index += 1
         evaluations[der].work = wk
     return evaluations, work_array_index
-    
+
+
 def create_formula_kernels(ordered_evaluations, evaluations, known, grid):
     computation_kernels = []
     forms = [ev for ev in ordered_evaluations if isinstance(ev, Indexed) and ev not in known]
@@ -137,7 +139,8 @@ def create_formula_kernels(ordered_evaluations, evaluations, known, grid):
     for eq in non_group:
         computation_kernels += [Kernel(eq, range_dictionary[eq], "Non-Grouped Formula Evaluation", grid)]
     return computation_kernels
-    
+
+
 def group_formulas(formulas, evals, known):
     """ This groups the formulas """
     ranges = [evals[ev].evaluation_range for ev in formulas]
@@ -159,7 +162,8 @@ def group_formulas(formulas, evals, known):
             non_group += [eqs[number]]
     return grouped_eq, non_group, range_dictionary
 
-def create_derivative_kernels(derivatives,evals, spatial_derivative, work_array_name, work_array_index, grid):
+
+def create_derivative_kernels(derivatives, evals, spatial_derivative, work_array_name, work_array_index, grid):
     computations = []
     ranges = [evals[ev].evaluation_range for ev in derivatives]
     subevals = [evals[ev].subevals for ev in derivatives]
@@ -168,9 +172,9 @@ def create_derivative_kernels(derivatives,evals, spatial_derivative, work_array_
         if not any(isinstance(req, Derivative) for req in require[number]):
             if all(subev == None for subev in subevals[number]):
                 rhs = spatial_derivative.get_derivative_formula(derivative)
-                eq = Eq(evals[derivative].work,rhs)
+                eq = Eq(evals[derivative].work, rhs)
                 name = str_print(derivative)
-                computations.append(Kernel(eq, ranges[number], name , grid))
+                computations.append(Kernel(eq, ranges[number], name, grid))
             else:
                 # Store into temporary array the sub evaluation
                 eqs = []
@@ -194,16 +198,18 @@ def create_derivative_kernels(derivatives,evals, spatial_derivative, work_array_
             new_derivative = derivative
             if all(subev == None for subev in subevals[number]):
                 for req in require[number]:
-                    new_derivative = new_derivative.subs(req,evals[req].work)
+                    new_derivative = new_derivative.subs(req, evals[req].work)
             else:
                 raise NotImplementedError("Sub-evaluations in a mixed derivative", grid)
             rhs = spatial_derivative.get_derivative_formula(new_derivative)
             eq = Eq(evals[derivative].work, rhs)
             name = str_print(derivative)
-            computations.append(Kernel(eq, ranges[number], name , grid))
+            computations.append(Kernel(eq, ranges[number], name, grid))
     return computations
 
+
 class SymDerivative(object):
+
     """ The spatial derivatives of an arbitrary function 'F'
     on the numerical grid with the provided spatial scheme.
 
@@ -222,7 +228,7 @@ class SymDerivative(object):
         self.deltas = grid.deltas
         self.points = spatial_scheme.points
         return
-        
+
     def get_derivative_formula(self, derivative):
         """
         This returns the formula for the derivative function
@@ -242,7 +248,7 @@ class SymDerivative(object):
         else:
             raise NotImplementedError("Derivatives of order > 2 are not implemented")
         return formula
-        
+
     def get_derivative(self, derivative):
         """ Return a tuple to which the derivative formula exists in
         the already-evaluated derivatives.
@@ -257,7 +263,7 @@ class SymDerivative(object):
         subevals = []
         requires = []
         if order == 1 or len(set(indices)) == 1:
-            general_formula += [order,tuple(indices)]
+            general_formula += [order, tuple(indices)]
             if len(derivative.args[0].atoms(Indexed)) > 1:
                 subevals += [derivative.args[0]]
                 requires += list(derivative.args[0].atoms(Indexed))
@@ -272,7 +278,7 @@ class SymDerivative(object):
                 subevals += [None]
                 requires += [derivative.args[0]]
             general_formula += [order-1, tuple([indices[-1]])]
-            requires += [Derivative(derivative.args[0],*derivative.args[1:-1])]
+            requires += [Derivative(derivative.args[0], *derivative.args[1:-1])]
 
         return general_formula, subevals, requires
 
@@ -285,10 +291,11 @@ def get_used_formulas(formulas, equations):
 
     formulas = dict(zip([form.lhs for form in formulas], [form.rhs for form in formulas]))
 
-    used_formulas = [Eq(var,formulas[var]) for var in variables if var in formulas.keys()]
+    used_formulas = [Eq(var, formulas[var]) for var in variables if var in formulas.keys()]
 
     return used_formulas
-    
+
+
 def create_derivative_evaluations(spatial_derivatives, evals, symderivative):
     """
     Derivative computations are evaluated seperately as they sometimes require evaluation of
@@ -300,6 +307,7 @@ def create_derivative_evaluations(spatial_derivatives, evals, symderivative):
         evals[out] = evaluated
 
     return evals
+
 
 def create_formula_evaluations(all_formulas, evals):
     """
@@ -326,22 +334,24 @@ def sort_evaluations(order, evaluations, typef):
     """
     key_list = [key for key in evaluations.keys() if isinstance(key, typef) and key not in order]
     requires_list = [evaluations[key].requires for key in key_list]
-    zipped = zip(key_list,requires_list)
+    zipped = zip(key_list, requires_list)
     # Breaks after 1000 iterations
     iter_count = 0
     while key_list:
         iter_count = iter_count+1
-        order += [x for (x,y) in zipped if all(req in order for req in y)]
+        order += [x for (x, y) in zipped if all(req in order for req in y)]
         key_list = [key for key in evaluations.keys() if isinstance(key, typef) and key not in order]
         requires_list = [evaluations[key].requires for key in key_list]
-        zipped = zip(key_list,requires_list)
-        if iter_count >1000:
+        zipped = zip(key_list, requires_list)
+        if iter_count > 1000:
             pprint([req for req in requires_list[0]])
             pprint(order)
             pprint([req in order for req in requires_list[0]])
             raise ValueError("Exiting sort evaluations ")
 
     return order
+
+
 def set_range_of_evaluations(order_of_evaluations, evaluations, grid):
     """ Set the evaluation ranges of each Evaluation object based on the shape of the grid of points.
     First the ranges of derivatives are updated, then other ranges are updated. """
@@ -357,7 +367,7 @@ def set_range_of_evaluations(order_of_evaluations, evaluations, grid):
     for key, value in grouped_derivatives.iteritems():
         for val in value:
             require = evaluations[val].requires
-            formula  = evaluations[val].formula
+            formula = evaluations[val].formula
             direction = formula[1][0]
             halos = grid.halos[direction]
             for req in require:
@@ -376,6 +386,7 @@ def set_range_of_evaluations(order_of_evaluations, evaluations, grid):
                     evaluations[req].evaluation_range = evaluations[ev].evaluation_range
 
     return
+
 
 def get_derivatives(equations):
     """ Return all the spatial Derivative terms in the equations.
@@ -407,14 +418,16 @@ def get_derivatives(equations):
 
     return derivatives, time_derivatives
 
+
 def str_print(expr):
     val = str(expr)
-    #replace various stuff
+    # replace various stuff
 
     iind = expr.atoms(Indexed)
     iind_rep = [str(v.base) for v in iind]
     replacements = dict(zip([str(v) for v in iind], iind_rep))
-    replacements['Derivative'] = 'D';replacements[','] = ''
+    replacements['Derivative'] = 'D'
+    replacements[','] = ''
     for key, value in replacements.iteritems():
         val = val.replace(key, value)
     return val

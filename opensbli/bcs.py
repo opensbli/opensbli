@@ -180,14 +180,14 @@ class symmetry():
                     lhs_arrays = []
                     for number, a in enumerate(new_array):
                         lhs_arrays.append(grid.get_array_on_grid(a.subs({direction_index: direction_index + tup[0]})))
-                
+
                     rhs_arrays = []
                     for number, a in enumerate(new_array):
                         if (number != direction):
                             rhs_arrays.append(grid.get_array_on_grid(a.subs({direction_index: direction_index + tup[1]})))
                         else:
                             rhs_arrays.append(-grid.get_array_on_grid(a.subs({direction_index: direction_index+tup[1]})))
-                            
+
                     array_equation += [Eq(lhs, rhs, evaluate=False) for lhs, rhs in zip(lhs_arrays, rhs_arrays)]
                 symmetry_equation += array_equation
             else:

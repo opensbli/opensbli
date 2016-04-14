@@ -62,7 +62,7 @@ class SpatialDerivative(object):
         :arg int max_order: The maximum order of the derivative in the function.
         :returns: None
         """
-        
+
         self.stencil = self.create_stencil(spatial_scheme, grid)
         self.points = spatial_scheme.points
 
@@ -70,8 +70,9 @@ class SpatialDerivative(object):
         self.derivative_direction = grid.indices
         self.index_mapping = grid.mapped_indices
         self.deltas = grid.deltas
-        base = IndexedBase('f',shape = grid.shape)
-        base.is_grid = True; base.is_constant = False
+        base = IndexedBase('f', shape=grid.shape)
+        base.is_grid = True
+        base.is_constant = False
         fn = base[grid.indices]
         self.fn = fn
 
@@ -91,11 +92,11 @@ class SpatialDerivative(object):
 
         for dim, val in enumerate(grid.shape):
             if isinstance(spatial_scheme, Central):
-                points = list(i for i in range(-spatial_scheme.order/2, spatial_scheme.order/2+1)) # The local indices of each point in the stencil (in dimension 'dim').
-                grid.halos.append((-spatial_scheme.order/2, spatial_scheme.order/2)) # The range of the indices of the stencil at the boundary which includes the halo points.
+                points = list(i for i in range(-spatial_scheme.order/2, spatial_scheme.order/2+1))  # The local indices of each point in the stencil (in dimension 'dim').
+                grid.halos.append((-spatial_scheme.order/2, spatial_scheme.order/2))  # The range of the indices of the stencil at the boundary which includes the halo points.
             else:
                 raise NotImplementedError("Only central difference schemes are supported.")
-            stencil[dim] = [grid.indices[dim] + i for i in points] # The indices in the grid offset by the local indices of each stencil point (e.g. i-1, i, i+1)
+            stencil[dim] = [grid.indices[dim] + i for i in points]  # The indices in the grid offset by the local indices of each stencil point (e.g. i-1, i, i+1)
         return stencil
 
     def create_derivative_formulas(self, fn, max_order, grid):
@@ -109,7 +110,7 @@ class SpatialDerivative(object):
         """
 
         derivatives = []
-        derivatives += [fn] # FIXME: Later change this to interpolation
+        derivatives += [fn]  # FIXME: Later change this to interpolation
         derivative_formula = []
         derivative_formula += [fn]
         kernels = []
@@ -133,10 +134,10 @@ class SpatialDerivative(object):
                 # Find the finite difference formula
                 array[ind] = fn.diff(*derivative_args)
                 if order == 1 or len(set(derivative_args)) == 1:
-                    fdarray[ind] = as_finite_diff(array[ind], self.stencil[ind[0]])*pow(grid.deltas[ind[0]],-order)
+                    fdarray[ind] = as_finite_diff(array[ind], self.stencil[ind[0]])*pow(grid.deltas[ind[0]], -order)
                 else:
                     new_derivative = array[ind].subs(derivatives[order-1][ind[:-1]], derivative_formula[order-1][ind[:-1]])
-                    fdarray[ind] = as_finite_diff(new_derivative, self.stencil[ind[-1]], wrt=grid.indices[ind[-1]])*pow(grid.deltas[ind[-1]],-1)
+                    fdarray[ind] = as_finite_diff(new_derivative, self.stencil[ind[-1]], wrt=grid.indices[ind[-1]])*pow(grid.deltas[ind[-1]], -1)
 
             derivatives.append(array)
             derivative_formula.append(fdarray)
@@ -166,6 +167,7 @@ class SpatialDerivative(object):
         else:
             raise NotImplementedError("Derivatives of order > 2 are not implemented")
         return formula
+
     def get_derivative(self, derivative):
         """ Return a tuple to which the derivative formula exists in
         the already-evaluated derivatives.
@@ -180,7 +182,7 @@ class SpatialDerivative(object):
         subevals = []
         requires = []
         if order == 1 or len(set(indices)) == 1:
-            general_formula += [order,tuple(indices)]
+            general_formula += [order, tuple(indices)]
             if len(derivative.args[0].atoms(Indexed)) > 1:
                 subevals += [derivative.args[0]]
                 requires += list(derivative.args[0].atoms(Indexed))
@@ -195,7 +197,7 @@ class SpatialDerivative(object):
                 subevals += [None]
                 requires += [derivative.args[0]]
             general_formula += [order-1, tuple([indices[-1]])]
-            requires += [Derivative(derivative.args[0],*derivative.args[1:-1])]
+            requires += [Derivative(derivative.args[0], *derivative.args[1:-1])]
 
         return general_formula, subevals, requires
 
@@ -225,14 +227,14 @@ class SpatialDiscretisation(object):
 
         evaluations = {}
         evaluations = create_formula_evaluations(all_formulas, evaluations)
-        evaluations = create_derivative_evaluations(spatial_derivatives,evaluations, spatial_derivative)
+        evaluations = create_derivative_evaluations(spatial_derivatives, evaluations, spatial_derivative)
 
         # We will assume that all the functions in time derivative are known at the start
         order_of_evaluations = []
         known = [d.args[0] for d in time_derivatives]
         for val in known:
             evaluated = Evaluations(val, val, None, None, val)
-            evaluations[val] =  evaluated
+            evaluations[val] = evaluated
             order_of_evaluations += [val]
 
         # Sort the terms in the order they should be evaluated (with respect to their dependencies).
@@ -250,14 +252,14 @@ class SpatialDiscretisation(object):
         evaluations, work_array_index = update_work_arrays(order_of_evaluations, evaluations, work_array_name, work_array_index, grid)
 
         self.computations = []
-        self.computations += create_formula_kernels(order_of_evaluations,evaluations, known, grid)
+        self.computations += create_formula_kernels(order_of_evaluations, evaluations, known, grid)
         derivatives = [ev for ev in order_of_evaluations if isinstance(ev, Derivative) and ev not in known]
-        self.computations += create_derivative_kernels(derivatives,evaluations,\
-            spatial_derivative, work_array_name, work_array_index, grid)
+        self.computations += create_derivative_kernels(derivatives, evaluations,
+                                                       spatial_derivative, work_array_name, work_array_index, grid)
 
         # All the spatial computations are evaluated by this point. Now get the updated equations.
-        updated_equations = substitute_work_arrays(order_of_evaluations,evaluations,all_equations )
-        
+        updated_equations = substitute_work_arrays(order_of_evaluations, evaluations, all_equations)
+
         # The final computations of the residual (change in the RHS terms of the equations).
         # The residual equations are also named as work arrays.
         # The residual arrays are tracked for use in the evaluation of the temporal scheme.
@@ -266,25 +268,26 @@ class SpatialDiscretisation(object):
         for e in updated_equations:
             work_array = grid.work_array('%s%d' % (work_array_name, work_array_index))
             work_array_index += 1
-            residual_arrays.append({e.lhs : work_array})
+            residual_arrays.append({e.lhs: work_array})
             residual_equations.append(Eq(work_array, e.rhs))
         evaluation_range = [tuple([0, s]) for s in grid.shape]
         self.computations.append(Kernel(residual_equations, evaluation_range, "Residual of equation", grid))
-        
+
         # Update the residual arrays
         self.residual_arrays = residual_arrays
-        
-        # Vectors in the LHS of the equations, which are used in Symmetry Bc, these will be stored as
-        # prognostic_classified in Temporal discretisation, use them 
+
+        # Vectors in the LHS of the equations, which are used for symmetry boundary conditions. These will be stored as
+        # prognostic_classified in the temporal discretisation.
         self.lhs_vectors = []
         for eq in expanded_equations:
-            if len(eq) >1:
+            if len(eq) > 1:
                 temp = [list(e.lhs.atoms(Indexed)) for e in eq if len(list(e.lhs.atoms(Indexed))) == 1]
                 self.lhs_vectors += [flatten(temp)]
             else:
                 self.lhs_vectors += list(eq[0].lhs.atoms(Indexed))
-                
+
         return
+
 
 class GridBasedInitialisation(object):
 
@@ -301,11 +304,9 @@ class GridBasedInitialisation(object):
         self.computations = []
         initialisation_equation = []
         for ic in ics:
-            initialisation_equation.append(parse_expr(ic, local_dict = {'grid':grid, 'Symbol': EinsteinTerm}))
+            initialisation_equation.append(parse_expr(ic, local_dict={'grid': grid, 'Symbol': EinsteinTerm}))
         range_of_evaluation = [tuple([0 + grid.halos[i][0], s + grid.halos[i][1]]) for i, s in enumerate(grid.shape)]
 
         self.computations.append(Kernel(initialisation_equation, range_of_evaluation, "Initialisation", grid))
 
         return
-
-

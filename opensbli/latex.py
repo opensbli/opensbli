@@ -115,10 +115,10 @@ class LatexWriter(LatexPrinter):
         return output
 
     def _print_Indexed(self, expr):
-        tex = '{%s}' % self._print(expr.base)+'_{%s}' % ','.join( map(self._print, expr.indices))
+        tex = '{%s}' % self._print(expr.base)+'_{%s}' % ','.join(map(self._print, expr.indices))
         return tex
 
-    def write_expression(self, expression, substitutions = {}):
+    def write_expression(self, expression, substitutions={}):
         """ Convert a single expression or list of expressions to LaTeX format and then write it/them to file.
 
         :arg expression: a single SymPy expression of list of SymPy expressions to format and write.
@@ -144,6 +144,7 @@ class LatexWriter(LatexPrinter):
         self.f.write(output)
         return
 
+
 def write_descritization():
-    
+
     return
