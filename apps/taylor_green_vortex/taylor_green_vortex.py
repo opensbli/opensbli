@@ -81,11 +81,11 @@ spatial_discretisation = SpatialDiscretisation(expanded_equations, expanded_form
 constant_dt = True
 temporal_discretisation = TemporalDiscretisation(temporal_scheme, grid, constant_dt, spatial_discretisation)
 
-boundary_conditions = BoundaryConditionSet(grid)
+# Boundary condition
+boundary_condition = PeriodicBoundaryCondition(grid)
 for dim in range(ndim):
-    p = PeriodicBoundaryCondition()
-    boundary = p.apply_boundary(boundary, grid, temporal_discretisation.prognostic_variables, dim)
-    boundary_conditions.add(p)
+    # Apply the boundary condition in all directions.
+    boundary_condition.apply(arrays=temporal_discretisation.prognostic_variables, boundary_direction=dim)
     
 # Initial conditions
 x = "Eq(grid.grid_variable(x), grid.Idx[0]*grid.deltas[0])"
@@ -134,7 +134,7 @@ l2 = [niter, 1600, 0.71, 1.4, 0.1, 1.0, "double", "taylor_green_vortex", deltat]
 simulation_parameters = dict(zip(l1,l2))
 
 # Generate the code.
-OPSC(grid, spatial_discretisation, temporal_discretisation, boundary_conditions, initial_conditions, io, simulation_parameters, red_eq)
+OPSC(grid, spatial_discretisation, temporal_discretisation, boundary_condition, initial_conditions, io, simulation_parameters, red_eq)
 
 end = time.time()
 LOG.debug('The time taken to generate the code in  %d dimensions is %.2f seconds.' % (problem.ndim, end - start))

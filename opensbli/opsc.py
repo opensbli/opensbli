@@ -150,8 +150,8 @@ class OPSC(object):
     left_parenthesis = "("
     right_parenthesis = ")"
 
-    def __init__(self, grid, spatial_discretisation, temporal_discretisation, boundary, initial_conditions, IO, simulation_parameters, diagnostics=None):
-        self.check_consistency(grid, spatial_discretisation, temporal_discretisation, boundary, initial_conditions, IO)
+    def __init__(self, grid, spatial_discretisation, temporal_discretisation, boundary_condition, initial_conditions, IO, simulation_parameters, diagnostics=None):
+        self.check_consistency(grid, spatial_discretisation, temporal_discretisation, boundary_condition, initial_conditions, IO)
         if diagnostics:
             self.diagnostics = self.to_list(diagnostics)
         else:
@@ -532,7 +532,7 @@ class OPSC(object):
         bc_exchange_code = [[] for block in range(self.nblocks)]
 
         for block in range(self.nblocks):
-            for computation in self.boundary[block].computations:
+            for computation in self.boundary_condition[block].computations:
                 if isinstance(computation, Kernel):
                     bc_call[block] += self.kernel_call(computation)
                 elif isinstance(computation, ExchangeSelf):
@@ -825,8 +825,8 @@ class OPSC(object):
             if self.diagnostics:
                 for inst in self.diagnostics[block]:
                     block_computations += inst.computations
-            if self.boundary[block].computations:
-                block_computations += [t for t in self.boundary[block].computations if isinstance(t, Kernel)]
+            if self.boundary_condition[block].computations:
+                block_computations += [t for t in self.boundary_condition[block].computations if isinstance(t, Kernel)]
 
             for computation in block_computations:
                 kernels[block] += self.kernel_computation(computation, block)
@@ -1048,7 +1048,7 @@ class OPSC(object):
         code = self.ops_exit()
         return code
 
-    def check_consistency(self, grid, spatial_discretisation, temporal_discretisation, boundary, initial_conditions, IO):
+    def check_consistency(self, grid, spatial_discretisation, temporal_discretisation, boundary_condition, initial_conditions, IO):
         """ Check the consistency of the inputs. """
 
         self.grid = self.to_list(grid)
@@ -1056,23 +1056,23 @@ class OPSC(object):
 
         self.spatial_discretisation = self.to_list(spatial_discretisation)
         if len(self.spatial_discretisation) != length:
-            raise AlgorithmError("The length of spatial solution doesnot match the grid")
+            raise AlgorithmError("The length of spatial solution does not match the grid.")
 
         self.temporal_discretisation = self.to_list(temporal_discretisation)
         if len(self.temporal_discretisation) != length:
-            raise AlgorithmError("The length of temporal solution doesnot match the grid")
+            raise AlgorithmError("The length of temporal solution does not match the grid.")
 
-        self.boundary = self.to_list(boundary)
-        if len(self.boundary) != length:
-            raise AlgorithmError("The length of boundary doesnot match the grid")
+        self.boundary_condition = self.to_list(boundary_condition)
+        if len(self.boundary_condition) != length:
+            raise AlgorithmError("The length of boundary does not match the grid.")
 
         self.initial_conditions = self.to_list(initial_conditions)
         if len(self.initial_conditions) != length:
-            raise AlgorithmError("The length of initial_conditions doesnot match the grid")
+            raise AlgorithmError("The length of initial_conditions does not match the grid.")
 
         self.IO = self.to_list(IO)
         if len(self.IO) != length:
-            raise AlgorithmError("The length of IO doesnot match the grid")
+            raise AlgorithmError("The length of IO does not match the grid.")
 
         return
 

@@ -36,60 +36,56 @@ class ExchangeSelf(object):
         return
 
 
-class BoundaryConditionSet(object):
+class BoundaryConditionBase(object):
 
-    """
-    Base class for boundary conditions, we store the name of the boundary condition and
-    type of the boundary for debugging purposes only.
-    All the boundary conditions application requires this base class on the grid
+    """ Base class for boundary conditions. We store the name of the boundary condition and type of the boundary for debugging purposes only.
+    The application of the boundary conditions requires this base class on the grid.
     Computations can be computational Kernels or Exchange type objects.
     """
 
     def __init__(self, grid):
-        self.boundaries = [None for sh in range(2) for sh in grid.shape]
+        self.grid = grid
         self.boundary_types = [None for sh in range(2) for sh in grid.shape]
         self.computations = [None for sh in range(2) for sh in grid.shape]
         return
 
-
-class PeriodicBoundaryCondition(object):
+class PeriodicBoundaryCondition(BoundaryConditionBase):
 
     """ Periodic boundary condition. This updates the BoundaryClass specified"""
 
-    def apply(self, boundaryclass, grid, arrays, boundary_direction, matching_face=None):
+    def apply(self, arrays, boundary_direction, matching_face=None):
         if matching_face:
             raise NotImplementedError("Periodic boundary condition for different blocks.")
         else:
-            self.update_boundary_class(boundaryclass, boundary_direction, ['exchange_self', 'exchange_self'])
-            left, right = self.get_transfers(boundary_direction, grid, arrays)
-            boundaryclass.computations[boundary_direction*2 + 0] = left
-            boundaryclass.computations[boundary_direction*2 + 1] = right
-        return boundaryclass
-
-    def update_boundary_class(self, boundaryclass, boundary_direction, btypes):
-        # We do not really require the boundary type; this is mainly for debugging.
-        boundaryclass.boundary_types[boundary_direction*2 + 0] = btypes[0]
-        boundaryclass.boundary_types[boundary_direction*2 + 1] = btypes[1]
-
+            # Set boundary type. We do not really require the boundary type; this is mainly for debugging.
+            self.boundary_types[boundary_direction*2 + 0] = 'exchange_self'
+            self.boundary_types[boundary_direction*2 + 1] = 'exchange_self'
+            
+            # Get the exchanges which form the computations.
+            left, right = self.get_exchange(boundary_direction, arrays)
+            self.computations[boundary_direction*2 + 0] = left
+            self.computations[boundary_direction*2 + 1] = right
         return
 
-    def get_exchange(self, direction, grid, arrays, matching_face=None):
+    def get_exchange(self, direction, arrays, matching_face=None):
         """ Create the exchange computations which copy the grid point values to/from the periodic domain boundaries. """
 
         # Generic transfer for the grid
         if matching_face:
             pass
         else:
-            transfers_left = ExchangeSelf(grid)
-            transfers_right = ExchangeSelf(grid)
+            transfers_left = ExchangeSelf(self.grid)
+            transfers_right = ExchangeSelf(self.grid)
+
         # Left transfers are from the start of grid to the end of grid (nx)
-        transfers_left.transfer_size[direction] = abs(grid.halos[direction][0])
+        transfers_left.transfer_size[direction] = abs(self.grid.halos[direction][0])
         transfers_left.transfer_from[direction] = 0
-        transfers_left.transfer_to[direction] = grid.shape[direction]
+        transfers_left.transfer_to[direction] = self.grid.shape[direction]
+
         # Right transfers are from end of grid halo points to the start of the halo points
-        transfers_right.transfer_size[direction] = abs(grid.halos[direction][0])
-        transfers_right.transfer_from[direction] = grid.shape[direction] + grid.halos[direction][0]
-        transfers_right.transfer_to[direction] = grid.halos[direction][0]
+        transfers_right.transfer_size[direction] = abs(self.grid.halos[direction][0])
+        transfers_right.transfer_from[direction] = self.grid.shape[direction] + self.grid.halos[direction][0]
+        transfers_right.transfer_to[direction] = self.grid.halos[direction][0]
         if matching_face:
             pass
         else:
@@ -99,108 +95,106 @@ class PeriodicBoundaryCondition(object):
         return transfers_left, transfers_right
 
 
-class SymmetryBoundaryCondition(object):
+class SymmetryBoundaryCondition(BoundaryConditionBase):
 
-    """Applying symmetry boundary condition."""
+    """ Symmetry boundary condition. """
     types = {0: 'Left', 1: 'Right'}
 
-    def apply(self, boundaryclass, grid, arrays, boundary_direction, side):
+    def apply(self, arrays, boundary_direction, side):
+        """ Apply the symmetry boundary condition.
+        
+        :arg grid: The grid on which the boundary condition is applied.
+        :arg arrays: A list of lists. vectors should be in the inner lists.
+        :arg boundary_direction: The direction on the grid symmetry boundary condition should be applied.
+        :arg side: Corresponds to the left or right face of boundary_direction.
         """
-        input arrays should be a list of lists, vectors should be in the inner lists
-        boundary_direction: the direction on the grid Symmetry Boundary condition should be applied
-        side corresponds to the left or right face of boundary_direction
-        """
-        self.update_boundary_class(boundaryclass, boundary_direction, ['Computation', 'Computation'])
-        boundaryclass.computations[boundary_direction*2 + side] = self.get_kernel(boundary_direction, side, grid, arrays)
+        # Set boundary type. We do not really require the boundary type; this is mainly for debugging.
+        self.boundary_types[boundary_direction*2 + 0] = 'Computation'
+        self.boundary_types[boundary_direction*2 + 1] = 'Computation'
+        
+        # Create the kernel.
+        self.computations[boundary_direction*2 + side] = self.get_kernel(boundary_direction, side, arrays)
         return boundaryclass
 
-    def update_boundary_class(self, boundaryclass, boundary_direction, btypes):
-        # We donot require boundary type this is mainly for debugging
-        boundaryclass.boundary_types[boundary_direction*2 + 0] = btypes[0]
-        boundaryclass.boundary_types[boundary_direction*2 + 1] = btypes[1]
-        return
-
-    def symmetry_bc(self, direction, side, grid, arrays):
-        """ Writing symmetry bc as a kernel"""
+    def get_kernel(self, direction, side, arrays):
+        """ Write the application of the symmetry boundary condition as a Kernel. """
         from .kernel import *
         if side == 0:
             base = 0  # Left side starting index
 
-            tuples = [tuple([-t, t]) for t in range(1, abs(grid.halos[direction][side]) + 1)]  # Indices to be updated relative to base
+            tuples = [tuple([-t, t]) for t in range(1, abs(self.grid.halos[direction][side]) + 1)]  # Indices to be updated relative to base
 
             # range of evaluation of the Kernel, Take the entire grid range and modify according to direction
-            range_of_evaluation = [tuple([0 + grid.halos[direction][0], s + grid.halos[direction][1]]) for s in grid.shape]
+            range_of_evaluation = [tuple([0 + self.grid.halos[direction][0], s + self.grid.halos[direction][1]]) for s in self.grid.shape]
             range_of_evaluation[direction] = tuple([base, base+1])
 
             # Get the equations for symmetry Bc
-            symmetry_equation = self.get_symmetry_equations(tuples, arrays, direction, grid)
+            symmetry_equations = self.get_symmetry_equations(tuples, arrays, direction)
 
             # Kernel for the computations
-            kernel = Kernel(symmetry_equation, range_of_evaluation, "Symmetry bc %d %s" % (direction, self.types[side]), grid)
+            kernel = Kernel(symmetry_equations, range_of_evaluation, "Symmetry bc %d %s" % (direction, self.types[side]), self.grid)
 
             return kernel
 
         elif side == 1:
 
-            base = grid.shape[direction]  # The end point of the domain in the direction of boundary
+            base = self.grid.shape[direction]  # The end point of the domain in the direction of the boundary
 
-            tuples = [tuple([t, -t]) for t in range(1, abs(grid.halos[direction][side]) + 1)]  # Indices to be updated relative to base
+            tuples = [tuple([t, -t]) for t in range(1, abs(self.grid.halos[direction][side]) + 1)]  # Indices to be updated relative to base
 
             # range of evaluation of the Kernel, First the entire grid range
-            range_of_evaluation = [tuple([0 + grid.halos[direction][0], s + grid.halos[direction][1]]) for s in grid.shape]
+            range_of_evaluation = [tuple([0 + self.grid.halos[direction][0], s + self.grid.halos[direction][1]]) for s in self.grid.shape]
             range_of_evaluation[direction] = tuple([base-1, base])
 
             # Get equations for the symmetry BC
-            symmetry_equation = self.get_symmetry_equations(tuples, arrays, direction, grid)
+            symmetry_equations = self.get_symmetry_equations(tuples, arrays, direction, self.grid)
 
             # Kernel for the computations
-            kern = Kernel(symmetry_equation, range_of_evaluation, "Symmetry bc %d %s" % (direction, self.types[side]), grid)
+            kernel = Kernel(symmetry_equations, range_of_evaluation, "Symmetry bc %d %s" % (direction, self.types[side]), self.grid)
 
-            return kern
+            return kernel
+            
         else:
-            raise ValueError("The last input for symmetry boundary can be either\
-                0 or 1 Corresponding to left or right boundary in the given direction")
+            raise ValueError("The 'side' of the symmetry boundary should be either 0 or 1, corresponding to left or right boundary in the given direction.")
 
-        return
 
-    def get_symmetry_equations(self, tuples, arrays, direction, grid):
-        """ This returns the symmetry boundary condition equations depending on the direction and the
-        type of the variable
-        Vector components in the 'direction' specified are reversed and the rest are kept the same
-        Scalar is equated to the same value"""
-        symmetry_equation = []
+    def get_symmetry_equations(self, tuples, arrays, direction):
+        """ Return the symmetry boundary condition equations depending on the direction and the type of the variable.
+        Vector components in the 'direction' specified are reversed and the rest are kept the same.
+        Scalar is equated to the same value. """
+        symmetry_equations = []
         for array in arrays:
             if isinstance(array, list):
                 # Vector symmetry
-                new_array = [grid.work_array(a.base) for a in array]
+                new_array = [self.grid.work_array(a.base) for a in array]
                 new_indices = array[0].indices
                 direction_index = new_indices[direction]
                 array_equation = []
-                for tup in tuples:
+                for t in tuples:
                     lhs_arrays = []
                     for number, a in enumerate(new_array):
-                        lhs_arrays.append(grid.get_array_on_grid(a.subs({direction_index: direction_index + tup[0]})))
+                        lhs_arrays.append(self.grid.get_array_on_grid(a.subs({direction_index: direction_index + t[0]})))
 
                     rhs_arrays = []
                     for number, a in enumerate(new_array):
                         if (number != direction):
-                            rhs_arrays.append(grid.get_array_on_grid(a.subs({direction_index: direction_index + tup[1]})))
+                            rhs_arrays.append(self.grid.get_array_on_grid(a.subs({direction_index: direction_index + t[1]})))
                         else:
-                            rhs_arrays.append(-grid.get_array_on_grid(a.subs({direction_index: direction_index+tup[1]})))
+                            rhs_arrays.append(-self.grid.get_array_on_grid(a.subs({direction_index: direction_index + t[1]})))
 
                     array_equation += [Eq(lhs, rhs, evaluate=False) for lhs, rhs in zip(lhs_arrays, rhs_arrays)]
-                symmetry_equation += array_equation
+                symmetry_equations += array_equation
             else:
                 # Scalar symmetry
                 array_equation = []
-                new_array = grid.work_array(ar.base)
+                new_array = self.grid.work_array(ar.base)
                 direction_index = new_array.indices[direction]
 
                 for t in tuples:
-                    lhs_arrays = [grid.get_array_on_grid(new_array.subs({direction_index: direction_index+t[0]}))]
-                    rhs_arrays = [grid.get_array_on_grid(new_array.subs({direction_index: direction_index+t[1]}))]
+                    lhs_arrays = [self.grid.get_array_on_grid(new_array.subs({direction_index: direction_index + t[0]}))]
+                    rhs_arrays = [self.grid.get_array_on_grid(new_array.subs({direction_index: direction_index + t[1]}))]
                     array_equation += [Eq(lhs, rhs, evaluate=False) for lhs, rhs in zip(lhs_arrays, rhs_arrays)]
 
-                symmetry_equation += array_equation
+                symmetry_equations += array_equation
 
-        return symmetry_equation
+        return symmetry_equations

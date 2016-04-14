@@ -106,13 +106,11 @@ spatial_discretisation = SpatialDiscretisation(expanded_equations, expanded_form
 constant_dt = True
 temporal_discretisation = TemporalDiscretisation(temporal_scheme, grid, constant_dt, spatial_discretisation)
 
-# Create Boundary class to store the boundary conditions on the grid
-boundary = BoundaryClass(grid)
-
-# Update periodic boundary conditions in all direction
+# Boundary condition
+boundary_condition = PeriodicBoundaryCondition(grid)
 for dim in range(ndim):
-    p = periodicboundary()
-    boundary = p.apply_boundary(boundary, grid, temporal_discretisation.prognostic_variables, dim)
+    # Apply the boundary condition in all directions.
+    boundary_condition.apply(arrays=temporal_discretisation.prognostic_variables, boundary_direction=dim)
 
 # Initial conditions. Note that we can use x0 and x1 as defined below and start off with the manufactured solution as the initial condition, but we'll start off with a zero initial condition instead to make it more rigorous.
 x0 = "(grid.Idx[0]*grid.deltas[0])"
@@ -135,7 +133,7 @@ k = 0.75
 simulation_parameters = {"niter":niter, "k":k, "u0":u0, "u1":u1, "deltat":deltat, "precision":"double", "name":SIMULATION_NAME}
 
 # Generate the code.
-opsc = OPSC(grid, spatial_discretisation, temporal_discretisation, boundary, initial_conditions, io, simulation_parameters)
+opsc = OPSC(grid, spatial_discretisation, temporal_discretisation, boundary_condition, initial_conditions, io, simulation_parameters)
 
 end = time.time()
 LOG.debug('The time taken to prepare the system in %d dimensions is %.2f seconds.' % (problem.ndim, end - start))

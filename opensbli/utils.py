@@ -212,34 +212,34 @@ def get_used_formulas(formulas, equations):
 
 
 def get_derivatives(equations):
-    """ Return all the spatial Derivative terms in the equations.
-    Any equations involving Derivative objects in terms of the time 't' are handled separately.
+    """ Return all the spatial and temporal Derivative terms in the equations.
+    Any equations involving Derivative objects in terms of the time 't' are assumed to be temporal Derivatives.
 
     :arg equations: A list of equations to search.
     :returns: All of the spatial Derivative objects and all of the temporal Derivative objects.
     """
 
-    derivatives = []
+    spatial_derivatives = []
     time_derivatives = []
 
     for eq in equations:
         pot = preorder_traversal(eq)
 
         for p in pot:
-            if p in derivatives:
+            if p in spatial_derivatives:
                 pot.skip()
                 continue
             elif isinstance(p, Derivative):
                 if all(arg != EinsteinTerm('t') for arg in p.args):
                     pot.skip()
-                    derivatives.append(p)
+                    spatial_derivatives.append(p)
                 else:
                     pot.skip()
                     time_derivatives.append(p)
             else:
                 continue
 
-    return derivatives, time_derivatives
+    return spatial_derivatives, time_derivatives
 
 
 def str_print(expr):

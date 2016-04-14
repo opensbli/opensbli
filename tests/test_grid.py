@@ -19,6 +19,7 @@ def grid_with_data():
 def grid_variable():
     return GridVariable('test')
 
+
 def test_grid(grid, grid_with_data):
     """ Ensure that a numerical grid of solution points is set up correctly. """
 
@@ -40,9 +41,24 @@ def test_work_array(grid):
     assert grid.work_array("test") == IndexedBase("test")[indices]
     return
 
+
 def test_grid_variable(grid, grid_variable):
     """ Ensure that a variable on a grid returns an object of type GridVariable. """
     assert grid.grid_variable('test') == grid_variable
     return
+
+
+def test_indexed_by_grid(grid):
+    """ Ensure that an Indexed object gets correctly indexed by the Grid indices. """
+
+    idx = Idx(Symbol("i", integer=True))
+    base = IndexedBase("test")
+    i = base[idx]
+    
+    assert grid.indexed_by_grid(i) == base[grid.indices]
+
+    return 
+
+
 if __name__ == '__main__':
     pytest.main(os.path.abspath(__file__))
