@@ -105,7 +105,7 @@ def get_indexed_grid_variables(equations):
     return variables, count
 
 
-def substitute_work_arrays(ordered_evaluations,evaluations, equations):
+def substitute_work_arrays(ordered_evaluations, evaluations, equations):
     updated_equations = [eq for eq in equations]
     for equation_number, equation in enumerate(updated_equations):
         spatial_derivatives = [ev for ev in ordered_evaluations if isinstance(ev, Derivative)]
@@ -120,27 +120,26 @@ def update_work_arrays(ordered_evaluations, evaluations, work_array_name, work_a
     forms = [ev for ev in ordered_evaluations if isinstance(ev, Indexed)]
     for ev in forms:
         evaluations[ev].work = ev
-    # update the work arrays for the derivatives
+    # Update the work arrays for the derivatives
     derivatives = [ev for ev in ordered_evaluations if isinstance(ev, Derivative)]
     for der in derivatives:
         wk = grid.work_array('%s%d' % (work_array_name, work_array_index))
         work_array_index += 1
         evaluations[der].work = wk
     return evaluations, work_array_index
+    
 def create_formula_kernels(ordered_evaluations, evaluations, known, grid):
     computation_kernels = []
     forms = [ev for ev in ordered_evaluations if isinstance(ev, Indexed) and ev not in known]
     grouped, non_group, range_dictionary = group_formulas(forms, evaluations, known)
     if grouped:
-        computation_kernels += [Kernel(grouped, range_dictionary[grouped[0]], " Grouped Formula Evaluation", grid)]
+        computation_kernels += [Kernel(grouped, range_dictionary[grouped[0]], "Grouped Formula Evaluation", grid)]
     for eq in non_group:
-        computation_kernels += [Kernel(eq, range_dictionary[eq], "Non Grouped Formula Evaluation", grid)]
+        computation_kernels += [Kernel(eq, range_dictionary[eq], "Non-Grouped Formula Evaluation", grid)]
     return computation_kernels
+    
 def group_formulas(formulas, evals, known):
-    '''
-    This groups the formulas
-    '''
-    grouped_forms = []
+    """ This groups the formulas """
     ranges = [evals[ev].evaluation_range for ev in formulas]
     subevals = flatten([evals[ev].subevals for ev in formulas])
     subeval_truth = [ev == None for ev in subevals]
@@ -197,7 +196,7 @@ def create_derivative_kernels(derivatives,evals, spatial_derivative, work_array_
                 for req in require[number]:
                     new_derivative = new_derivative.subs(req,evals[req].work)
             else:
-                raise NotImplementedError("Sub evaluations in a mixed derivative", grid)
+                raise NotImplementedError("Sub-evaluations in a mixed derivative", grid)
             rhs = spatial_derivative.get_derivative_formula(new_derivative)
             eq = Eq(evals[derivative].work, rhs)
             name = str_print(derivative)
@@ -223,6 +222,7 @@ class SymDerivative(object):
         self.deltas = grid.deltas
         self.points = spatial_scheme.points
         return
+        
     def get_derivative_formula(self, derivative):
         """
         This returns the formula for the derivative function
@@ -242,6 +242,7 @@ class SymDerivative(object):
         else:
             raise NotImplementedError("Derivatives of order > 2 are not implemented")
         return formula
+        
     def get_derivative(self, derivative):
         """ Return a tuple to which the derivative formula exists in
         the already-evaluated derivatives.
@@ -287,6 +288,7 @@ def get_used_formulas(formulas, equations):
     used_formulas = [Eq(var,formulas[var]) for var in variables if var in formulas.keys()]
 
     return used_formulas
+    
 def create_derivative_evaluations(spatial_derivatives, evals, symderivative):
     """
     Derivative computations are evaluated seperately as they sometimes require evaluation of
