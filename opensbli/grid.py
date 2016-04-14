@@ -96,8 +96,7 @@ class Grid(object):
     def get_array_on_grid(self, array):
         """ Create a new IndexedBase object and set the attribute is_grid to True.
         Returns the new array with same name and same indices as the input array.
-        The reason for the work-around is as suggested in Sympy Indexed objects, it is always
-        better to create an IndexedBase object and add attributes to it.
+        The reason for the work-around is it is better to create an IndexedBase object and add attributes to it.
         
         :arg sympy.Indexed arr: The array to be converted onto the Grid.
         :returns: The Indexed object representing the array defined on the Grid.
