@@ -95,12 +95,37 @@ class Grid(object):
         base.is_grid = True
         base.is_constant = False
         return base[self.mapedindices]
-
+    
+    def make_array_grid(self, arr):
+        """
+        Create a new Indexed Base and sets the attribute is_grid to true
+        for the indexed array and returns the new array with same name and same indices
+        The reason for the work around is as suggested in Sympy Indexed objects, it is always
+        better to create an Indexed Base object and add attribute's to it.
+        
+        :arg sympy.Indexed arr: The array to be converted onto the grid
+        :returns: The Indexed object representing the array defined on the Grid.
+        :rtype: sympy.Indexed
+        """
+        base = arr.base
+        base.is_grid = True
+        base.is_constant = False
+        return base[arr.indices]
+    
     def grid_var(self, name):
+        """
+        Defines a variable on the grid, this is not an Indexed variable but varies with grid, can be
+        used as local variables to be defined in a kernel
+        
+        :arg str name: The name of the variable
+        :returns: variable 
+        :rtype: opensbli.GridVariable
+        """
         var = GridVariable(str(name))
         return var
+    
 class GridVariable(Symbol):
-
+    """ """
     def __new__(self, var):
         self = Symbol.__xnew__(self, var)
         return self

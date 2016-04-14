@@ -62,8 +62,7 @@ class SpatialDerivative(object):
         :arg int max_order: The maximum order of the derivative in the function.
         :returns: None
         """
-
-        # FIXME: The stencil should be formula dependant
+        
         self.stencil = self.create_stencil(spatial_scheme, grid)
         self.points = spatial_scheme.points
 
@@ -258,6 +257,7 @@ class SpatialDiscretisation(object):
 
         # All the spatial computations are evaluated by this point. Now get the updated equations.
         updated_equations = substitute_work_arrays(order_of_evaluations,evaluations,all_equations )
+        
         # The final computations of the residual (change in the RHS terms of the equations).
         # The residual equations are also named as work arrays.
         # The residual arrays are tracked for use in the evaluation of the temporal scheme.
@@ -270,10 +270,20 @@ class SpatialDiscretisation(object):
             residual_equations.append(Eq(work_array, e.rhs))
         evaluation_range = [tuple([0, s]) for s in grid.shape]
         self.computations.append(Kernel(residual_equations, evaluation_range, "Residual of equation", grid))
-
-        # Update the required computations and residual arrays
-        #self.computations = computations
+        
+        # Update the residual arrays
         self.residual_arrays = residual_arrays
+        
+        # Vectors in the LHS of the equations, which are used in Symmetry Bc, these will be stored as
+        # prognostic_classified in Temporal discretisation, use them 
+        self.lhs_vectors = []
+        for eq in expanded_equations:
+            if len(eq) >1:
+                temp = [list(e.lhs.atoms(Indexed)) for e in eq if len(list(e.lhs.atoms(Indexed))) == 1]
+                self.lhs_vectors += [flatten(temp)]
+            else:
+                self.lhs_vectors += list(eq[0].lhs.atoms(Indexed))
+                
         return
 
 class GridBasedInitialisation(object):

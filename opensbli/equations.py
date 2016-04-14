@@ -45,8 +45,20 @@ LOCAL_FUNCTIONS = []
 class Skew(Function):
     """ Handler for the Energy conservative formulation for the Navier-Stokes equations
     generally referred to as Skew symmetric formulation.
-    This is the Blaisdel version of skew symmetric formulation
+    This is the Blaisdell version of skew symmetric formulation
+    references are
+    [1] G.A. Blaisdell, N.N. Mansour, W.C. Reynolds, Numerical simulations of homogeneous compressible turbulence, Report TF-50, Thermoscience Divison, Department of Mechanical Engineering, Stanford University, Stanford, 1991.
+    [2] G.A. Blaisdell, E.T. Spyropoulos, J.H. Qin, The effect of the formulation of nonlinear terms on aliasing errors in spectral methods, Appl. Numer. Math. 21 (3) (1996) 207–219
+    
+    To get the Blaisdell version of skew symmetric form for the energy and continuity equations, use
+    rhou = rho*u and 
+    split Conservative((p+rhoE)*u_j,x_j) as Conservative(p*u_j,x_j) + Skew(rhoE*u_j,x_j)
     """
+
+    @property
+    def is_commutative(self):
+        return False
+
     def __init__(self, *args):
         return self
     @classmethod
@@ -54,7 +66,6 @@ class Skew(Function):
         var = args[0]
         directions = args[1:]
         nvar = len(var.args)
-        #self.expression =
         if nvar == 1:
             return Der(var, *directions)
         elif nvar == 2:
@@ -65,25 +76,17 @@ class Skew(Function):
         else:
             raise ValueError("More than two terms for skew formulation")
         return
-
-
-    @property
-    def is_commutative(self):
-        return False
-
+    
 
 class Der(Function):
 
     """ Handler for the SymPy Derivative function. """
-
-    LOCAL_FUNCTIONS.append('Der')
 
     @property
     def is_commutative(self):
         return False
 
     def get_indexed(self, ndim, indexed, arrays, new_array_name):
-        # TODO: Add repeated calling of the derivatives and functions for support of higher orders
 
         derivative_function = self.args[0]
         base = IndexedBase('%s' % derivative_function)
@@ -175,14 +178,11 @@ class Conservative(Function):
 
     """ Handler for the Conservative function (which uses SymPy's Derivative function). """
 
-    LOCAL_FUNCTIONS.append('Conservative')
-
     @property
     def is_commutative(self):
         return False
 
     def get_indexed(self, ndim, indexed, arrays, new_array_name):
-        # TODO: Add repeated calling of the derivatives and functions for support of higher orders
 
         arguments = {}
         derivative_function = self.args[0]
@@ -278,7 +278,6 @@ class KD(Function):
     def is_commutative(self):
         return False
 
-    # FIXME: Can combine the two functions below
     def get_indexed(self, ndim):
         name = str(self.func)
 
@@ -304,8 +303,6 @@ class KD(Function):
 class LC(Function):
 
     """ Handler for the built-in SymPy LeviCivita function. """
-
-    LOCAL_FUNCTIONS.append('LC')
 
     @property
     def is_commutative(self):
@@ -357,7 +354,7 @@ class EinsteinTerm(Symbol):
         self.is_constant = False
         self.is_coordinate = False
 
-        # Extract the indices, which are always preceeded by an underscore.
+        # Extract the indices, which are always preceded by an underscore.
         indices = self.name.split('_')[1:]
         self.indices = [Idx(x) for x in indices]
         return self
@@ -418,9 +415,14 @@ class EinsteinTerm(Symbol):
         if self.is_constant:
             expanded = EinsteinTerm(expanded)
             expanded.is_constant = True
+            # The expanded terms are commutative
+            expanded.is_commutative = True
             return expanded
         else:
-            return EinsteinTerm(expanded)
+            expanded = EinsteinTerm(expanded)
+            # The expanded terms are commutative
+            expanded.is_commutative = True
+            return expanded
 
     def get_array(self, indexed, args=None):
         """ Return an array of Indexed/EinsteinTerm objects.
@@ -507,8 +509,7 @@ class EinsteinExpansion(object):
             coordinates = tuple([EinsteinTerm('x%d' % dim) for dim in range(self.ndim)] + [EinsteinTerm('t')])
 
         # Get the arrays for the EinsteinTerms in the equations (u_i,u_j,x_j,x_i) and so on.
-        # All the Einstein Terms that are not constants are converted into coordinate functions.
-        # TODO: Maybe change them later into coordinate indexed objects
+        # All the Einstein Terms that are not constants are converted into coordinate Indexed Objects.
         for atom in expression.atoms(EinsteinTerm):
             # Constant term
             if atom.is_constant:
@@ -525,7 +526,6 @@ class EinsteinExpansion(object):
                         arrays[indexed[atom]] = atom.get_array(indexed[atom], coordinates)
                 else:
                     indexed[atom] = atom
-                    # Change here for Function or IndexedBase
                     arrays[indexed[atom]] = IndexedBase('%s' % atom)[coordinates]
 
         # Get the arrays for the Kronecker Delta function
@@ -618,8 +618,6 @@ class Equation(object):
         expansion = EinsteinExpansion(self.parsed, ndim)
         self.expanded = expansion.expanded
         #LOG.debug("The expanded expression is: %s" % (expansion.expanded))
-
-
         return
 
 
