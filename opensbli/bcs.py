@@ -75,7 +75,6 @@ class periodicboundary(object):
     def periodic_bc(self, direction, grid, arrays, matching_face=None):
         """ Periodic boundary condition. """
 
-        transfers = []
         # Generic transfer for the grid
         if matching_face:
             pass

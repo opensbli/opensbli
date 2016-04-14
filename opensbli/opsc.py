@@ -20,11 +20,8 @@
 
 from sympy import *
 from sympy.printing.ccode import CCodePrinter
-from sympy.parsing.sympy_parser import parse_expr
-import re
 import os
 from string import Template
-from sympy.printing.precedence import precedence
 from .equations import EinsteinTerm
 from .kernel import ReductionVariable
 # from .diagnostics import Reduction as R
@@ -60,7 +57,7 @@ class OPSCCodePrinter(CCodePrinter):
         return '*%s' % str(expr)
 
     def _print_Rational(self, expr):
-        if self.constants != None:
+        if self.constants is not None:
             if expr in self.constants.keys():
                 return self.constants[expr]
             else:
@@ -538,7 +535,6 @@ class OPSC(object):
 
         bc_call = [[] for block in range(self.nblocks)]
         bc_exchange_code = [[] for block in range(self.nblocks)]
-        bc_kernls = [[] for block in range(self.nblocks)]
 
         for block in range(self.nblocks):
             for computation in self.boundary[block].computations:
@@ -569,7 +565,7 @@ class OPSC(object):
         for block in range(self.nblocks):
             # Process FileIO
             save_at = self.IO[block].save_after
-            if len(save_at) == 1 and save_at[0] == True:
+            if len(save_at) == 1 and save_at[0] is True:
                 name = self.simulation_parameters["name"] + '_' + str(int(self.simulation_parameters["niter"])) + '.h5'
                 name = '\"' + name + '\"'
                 io_calls[block] += self.hdf5_io(self.IO[block], name)
@@ -621,16 +617,16 @@ class OPSC(object):
 
         # Do the grid-based inputs first.
         grid_based = [self.ops_argument_call(inp, stencils[inp], self.dtype, self.ops_access['inputs'])
-                      for inp in computation.inputs.keys() if inp.is_grid ] + \
+                      for inp in computation.inputs.keys() if inp.is_grid] + \
                      [self.ops_argument_call(inp, stencils[inp], self.dtype, self.ops_access['outputs'])
-                      for inp in computation.outputs.keys() if inp.is_grid ] + \
+                      for inp in computation.outputs.keys() if inp.is_grid] + \
                      [self.ops_argument_call(inp, stencils[inp], self.dtype, self.ops_access['inputoutput'])
                       for inp in computation.inputoutput.keys() if inp.is_grid]
         # Globals
         nongrid = [self.ops_global_call(inp, value, self.dtype, self.ops_access['inputs'])
-                   for inp, value in computation.inputs.iteritems() if not inp.is_grid ] + \
+                   for inp, value in computation.inputs.iteritems() if not inp.is_grid] + \
                   [self.ops_global_call(inp, value, self.dtype, self.ops_access['outputs'])
-                   for inp, value in computation.outputs.iteritems() if not inp.is_grid ] + \
+                   for inp, value in computation.outputs.iteritems() if not inp.is_grid] + \
                   [self.ops_global_call(inp, value, self.dtype, self.ops_access['inputoutput'])
                    for inp, value in computation.inputoutput.iteritems() if not inp.is_grid]
         # Reductions
@@ -853,7 +849,7 @@ class OPSC(object):
 
         header = []
 
-        if computation.name == None:
+        if computation.name is None:
             computation.name = self.computational_kernel_names[block_number] % self.kernel_name_number[block_number]
 
         # Indexed objects based on the grid that are inputs/outputs or inouts. This is used to write the pointers to the kernel.

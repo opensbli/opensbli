@@ -18,9 +18,6 @@
 #    You should have received a copy of the GNU General Public License
 #    along with OpenSBLI.  If not, see <http://www.gnu.org/licenses/>.
 
-import os
-import subprocess
-import sys
 from sympy import *
 from .equations import EinsteinTerm
 from .evaluations import *
@@ -145,7 +142,7 @@ def group_formulas(formulas, evals, known):
     """ This groups the formulas """
     ranges = [evals[ev].evaluation_range for ev in formulas]
     subevals = flatten([evals[ev].subevals for ev in formulas])
-    subeval_truth = [ev == None for ev in subevals]
+    subeval_truth = [ev is None for ev in subevals]
     range_truth = [ranges[0][i] == val[i] for val in ranges for i in range(len(ranges[0]))]
     eqs = [Eq(ev, evals[ev].formula) for ev in formulas]
     range_dictionary = dict(zip(eqs, ranges))
@@ -170,7 +167,7 @@ def create_derivative_kernels(derivatives, evals, spatial_derivative, work_array
     require = [evals[ev].requires for ev in derivatives]
     for number, derivative in enumerate(derivatives):
         if not any(isinstance(req, Derivative) for req in require[number]):
-            if all(subev == None for subev in subevals[number]):
+            if all(subev is None for subev in subevals[number]):
                 rhs = spatial_derivative.get_derivative_formula(derivative)
                 eq = Eq(evals[derivative].work, rhs)
                 name = str_print(derivative)
@@ -196,7 +193,7 @@ def create_derivative_kernels(derivatives, evals, spatial_derivative, work_array
                 computations.append(Kernel(eq, ranges[number], name, grid))
         else:
             new_derivative = derivative
-            if all(subev == None for subev in subevals[number]):
+            if all(subev is None for subev in subevals[number]):
                 for req in require[number]:
                     new_derivative = new_derivative.subs(req, evals[req].work)
             else:

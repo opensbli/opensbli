@@ -35,7 +35,7 @@ class FileIO(object):
 
         self.save_after = []
         self.save_arrays = []
-        if niter == None:
+        if niter is None:
             self.save_after += [True]
         else:
             # save after every n iterations and at the end of the simulation

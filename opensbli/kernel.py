@@ -60,7 +60,6 @@ class Kernel(object):
 
         ins = []
         outs = []
-        inouts = []
         consts = []
         allindexed = []
 

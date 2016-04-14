@@ -19,7 +19,7 @@
 #    along with OpenSBLI.  If not, see <http://www.gnu.org/licenses/>.
 
 
-from sympy.tensor import IndexedBase, Indexed
+from sympy.tensor import Indexed
 from .utils import *
 from .kernel import ReductionVariable
 

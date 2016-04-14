@@ -22,7 +22,6 @@ from sympy import *
 from sympy.printing.latex import *
 from sympy.parsing.sympy_parser import *
 init_printing(use_latex=True)
-import re
 import textwrap
 
 import logging

@@ -18,24 +18,15 @@
 #    You should have received a copy of the GNU General Public License
 #    along with OpenSBLI.  If not, see <http://www.gnu.org/licenses/>.
 
-import re
-import sys
-import inspect
 import logging
 import collections
 
 import numpy as np
 
 from sympy import *
-from sympy.core.assumptions import ManagedProperties
 from sympy.parsing.sympy_parser import parse_expr
-import sympy.functions.special.tensor_functions as tf
-from sympy.tensor.index_methods import _get_indices_Mul, _remove_repeated
-from sympy.functions.special.tensor_functions import eval_levicivita
-import sympy.core as core
-from sympy import factorial
 
-from .array import MutableDenseNDimArray, derive_by_array, tensorcontraction, tensorproduct, ImmutableDenseNDimArray
+from .array import MutableDenseNDimArray, tensorcontraction, tensorproduct
 from .array import NDimArray
 
 LOG = logging.getLogger(__name__)
@@ -187,7 +178,6 @@ class Conservative(Function):
 
     def get_indexed(self, ndim, indexed, arrays, new_array_name):
 
-        arguments = {}
         derivative_function = self.args[0]
         base = IndexedBase('%s' % derivative_function)
         evaluated, index_structure = evaluate_expression(derivative_function, arrays, indexed)
@@ -656,7 +646,7 @@ def get_Mul_indices(term):
     # For e.g. KD[i, j], this will be [i, j].
     indices = list(map(get_index_structure, term.args))
     # Remove the None's.
-    indices = [i for i in indices if i != None]
+    indices = [i for i in indices if i is not None]
     # Remove duplicate indices.
     indices = remove_repeated_index(flatten(indices))
     if indices:
@@ -669,7 +659,7 @@ def get_Add_indices(term):
     """ Get all the Einstein indices in an additive term. The indices of the first term is taken as the structure of the additive terms. """
 
     indices = list(map(get_index_structure, term.args))
-    if all(index == None for index in indices):
+    if all(index is None for index in indices):
         pass
     elif not all([set(x) == set(indices[0]) for x in indices[1:]]):
         raise ValueError("NOT ALL INDICES MATCH in ADD terms of ", term)
@@ -746,7 +736,7 @@ def add_args(arg_evaluated, arg_indices):
         return arg_evaluated[0], arg_indices[0]
 
     # If all arguments of addition are scalars, then sum them all up and return the result.
-    if all([ind == None for ind in arg_indices]):
+    if all([ind is None for ind in arg_indices]):
         evaluated = sum(arg_evaluated)
         return evaluated, arg_indices[0]
 
