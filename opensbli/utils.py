@@ -289,13 +289,13 @@ def get_used_formulas(formulas, equations):
     return used_formulas
 
 
-def create_derivative_evaluations(spatial_derivatives, evals, symderivative):
+def create_derivative_evaluations(spatial_derivatives, evals, symbolic_derivative):
     """
     Derivative computations are evaluated seperately as they sometimes require evaluation of
     temporary work arrays
     """
     for out in spatial_derivatives:
-        general_formula, subevals, requires = symderivative.get_derivative(out)
+        general_formula, subevals, requires = symbolic_derivative.get_derivative(out)
         evaluated = Evaluations(out, general_formula, requires, subevals, None)
         evals[out] = evaluated
 

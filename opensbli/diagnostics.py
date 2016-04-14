@@ -87,7 +87,7 @@ class Reduction():
         # Update the equations with the work arrays used
         update_equations = substitute_work_arrays(order_of_evaluations, evaluations, reduction_equations)
 
-        # create computations for the update equations
+        # Create computations for the update equations
         evaluation_range = [tuple([0, s]) for s in grid.shape]
         self.computations.append(Kernel(update_equations, evaluation_range, "Reduction equations", grid))
 
@@ -97,9 +97,11 @@ class Reduction():
         return
 
     def create_reduction_variables(self, equations):
-        """
-        Creates the reduction variables for the diagnostic equations
-        Returns list with variables of type ReductionVariable
+        """ Create the reduction variables for the diagnostic equations.
+       
+        :arg equations: The diagnostic equations.
+        :returns: A list with variables of type ReductionVariable.
+        :rtype: list
         """
         reduction_variables = []
         for eq in equations:
@@ -107,11 +109,13 @@ class Reduction():
         return reduction_variables
 
     def create_reduction_equations(self, equations, rtype, grid):
-        """
-        This creates the reduction equations, The Indexed terms in the LHS of the diagnostic equations
+        """ Create the reduction equations. The Indexed terms in the LHS of the diagnostic equations
         are changed to the type ReductionVariable and the type of reduction is applied
         Eg. summation reduction of the equation "Eq(umean[x0, x1, x2], u0[x0, x1, x2]" is written as
-        umean = umean + f[x0, x1, x2]; where umean is a ReductionVariable class
+        umean = umean + f[x0, x1, x2]; where umean is a ReductionVariable object.
+        
+        :returns: A list of reduction equations
+        :rtype: list
         """
 
         reduction_variable = self.create_reduction_variables(equations)
