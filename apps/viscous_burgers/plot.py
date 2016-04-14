@@ -1,11 +1,11 @@
-""" Reads in the 1D viscous Burgers solution data, written by the OPS dat writer,
-and plots the scalar field 'phi'. """
+""" Reads in the 1D viscous Burgers solution data and plots the scalar field 'phi'. """
 
 import argparse
 import numpy
 from math import pi, exp, cos, sin
 import matplotlib.pyplot as plt
 import h5py
+import glob
 
 def plot(path):
     # Number of grid points
@@ -15,7 +15,11 @@ def plot(path):
     halo = 2
 
     # Read in the simulation output
-    f = h5py.File(path + "/state.h5", 'r')
+    dump = glob.glob(path + "/viscous_burgers_*.h5")
+    if not dump or len(dump) > 1:
+        print "Error: No dump file found, or more than one dump file found."
+        sys.exit(1)
+    f = h5py.File(dump[-1], 'r')
     group = f["viscous_burgers_block"]
     
     phi = group["phi"].value
@@ -39,14 +43,9 @@ def plot(path):
     plt.xlabel(r"$x$ (m)")
     plt.ylabel(r"$\phi$")
     plt.legend()
-    plt.savefig("phi.pdf")
+    plt.savefig("phi.pdf", bbox_inches='tight')
     
 
 
 if(__name__ == "__main__"):
-    # Parse the command line arguments provided by the user
-    parser = argparse.ArgumentParser(prog="plot")
-    parser.add_argument("path", help="The path to the directory containing the output files.", action="store", type=str)
-    args = parser.parse_args()
-    
-    plot(args.path)
+    plot(path="./viscous_burgers_opsc_code")
