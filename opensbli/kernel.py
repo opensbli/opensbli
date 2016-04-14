@@ -24,6 +24,7 @@ from .equations import EinsteinTerm
 from .grid import GridVariable
 from .utils import *
 
+
 class Kernel(object):
 
     """ A computational kernel which will be executed over all the grid points. """
@@ -154,6 +155,7 @@ def create_derivative_kernels(derivatives, evals, spatial_derivative, work_array
             name = str_print(derivative)
             computations.append(Kernel(eq, ranges[number], name, grid))
     return computations
+
 
 def create_formula_kernels(ordered_evaluations, evaluations, known, grid):
     computation_kernels = []

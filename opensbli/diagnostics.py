@@ -24,6 +24,7 @@ from .utils import *
 from .evaluations import *
 from .kernel import *
 
+
 class ReductionVariable(Symbol):
 
     def __new__(self, var):

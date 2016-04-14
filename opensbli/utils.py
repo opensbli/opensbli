@@ -54,11 +54,11 @@ def group_derivatives(derivatives):
     return derivative_dict
 
 
-def get_indexed_grid_variables(equations):
-    """ Return all the variables in the equations that are Indexed on the Grid.
+def get_indexed_variables(equations):
+    """ Return all the variables in the equations that are of type Indexed.
 
     :arg list equations: A list of SymPy equations to consider.
-    :returns: A list of the variables in the equations that are Indexed on the Grid, and also the count of all the specific terms in the equations (Indexed or not).
+    :returns: A list of the variables in the equations that are Indexed, and also the count of all the specific terms in the equations (Indexed or not).
     :rtype: (list, int)
     """
 
@@ -202,7 +202,7 @@ class SymbolicDerivative(object):
 
 def get_used_formulas(formulas, equations):
     """ Return the formulas used in the equations. """
-    variables, count = get_indexed_grid_variables(equations)
+    variables, count = get_indexed_variables(equations)
 
     formulas = dict(zip([form.lhs for form in formulas], [form.rhs for form in formulas]))
 
