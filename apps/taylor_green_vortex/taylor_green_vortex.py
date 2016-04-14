@@ -77,8 +77,8 @@ grid = Grid(ndim,{'delta':deltas, 'number_of_points':np})
 spatial_discretisation = SpatialDiscretisation(expanded_equations, expanded_formulas, grid, spatial_scheme)
 
 # Perform the temporal discretisation
-const_dt = True
-temporal_discretisation = TemporalDiscretisation(temporal_scheme, grid, const_dt, spatial_discretisation)
+constant_dt = True
+temporal_discretisation = TemporalDiscretisation(temporal_scheme, grid, constant_dt, spatial_discretisation)
 
 boundary = BoundaryClass(grid)
 for dim in range(ndim):

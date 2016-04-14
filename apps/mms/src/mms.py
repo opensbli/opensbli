@@ -102,8 +102,8 @@ print expanded_equations[0][0]
 spatial_discretisation = SpatialDiscretisation(expanded_equations, expanded_formulas, grid, spatial_scheme)
 
 # Perform the temporal discretisation
-const_dt = True
-temporal_discretisation = TemporalDiscretisation(temporal_scheme, grid, const_dt, spatial_discretisation)
+constant_dt = True
+temporal_discretisation = TemporalDiscretisation(temporal_scheme, grid, constant_dt, spatial_discretisation)
 
 # Create Boundary class to store the boundary conditions on the grid
 boundary = BoundaryClass(grid)

@@ -43,7 +43,7 @@ def spatial_discretisation(mass, grid, central_scheme):
 
 @pytest.fixture
 def temporal_discretisation(rk3, grid, spatial_discretisation):
-    return TemporalDiscretisation(temporal_scheme=rk3, grid=grid, const_dt=True, spatial_discretisation=spatial_discretisation)
+    return TemporalDiscretisation(temporal_scheme=rk3, grid=grid, constant_dt=True, spatial_discretisation=spatial_discretisation)
     
     
 @pytest.fixture
