@@ -108,7 +108,7 @@ class Grid(object):
         base.is_constant = False
         return base[array.indices]
 
-    def indexed_by_grid(variable):
+    def indexed_by_grid(self, variable):
         """ Convert a variable/function or Indexed object to an Indexed object indexed by the Grid indices.
 
         :arg variable: The variable to convert to a Grid-based Indexed variable

@@ -93,13 +93,13 @@ def test_create_stencil(spatial_derivative, central_scheme, grid):
     
     
 def test_indexed_by_grid(grid):
-    """ Ensure that an Indexed object gets indexed by the grid indices. """
+    """ Ensure that an Indexed object gets correctly indexed by the Grid indices. """
 
     idx = Idx(Symbol("i", integer=True))
     base = IndexedBase("test")
     i = base[idx]
     
-    assert indexed_by_grid(i, grid) == base[grid.indices]
+    assert base[grid.indices] == grid.indexed_by_grid(i)
 
     return 
 

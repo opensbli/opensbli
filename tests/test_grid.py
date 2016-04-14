@@ -4,7 +4,6 @@ import os
 import pytest
 
 # OpenSBLI functions
-from opensbli.array import MutableDenseNDimArray
 from opensbli.grid import *
 
 
