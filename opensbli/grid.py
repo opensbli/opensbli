@@ -120,7 +120,7 @@ class Grid(object):
         return variable
     
 class GridVariable(Symbol):
-    """ """
+    """ A symbolic variable defined on the Grid. """
     def __new__(self, variable):
         self = Symbol.__xnew__(self, variable)
         return self
