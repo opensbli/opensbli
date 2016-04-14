@@ -244,7 +244,7 @@ def get_derivatives(equations):
 
 def str_print(expr):
     val = str(expr)
-    
+
     # Replacements
     indexed_objects = expr.atoms(Indexed)
     indexed_objects_replaced = [str(v.base) for v in indexed_objects]

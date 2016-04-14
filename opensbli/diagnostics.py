@@ -106,7 +106,7 @@ class Reduction(object):
 
     def create_reduction_variables(self, equations):
         """ Create the reduction variables for the diagnostic equations.
-       
+
         :arg equations: The diagnostic equations.
         :returns: A list with variables of type ReductionVariable.
         :rtype: list
@@ -121,7 +121,7 @@ class Reduction(object):
         are changed to the type ReductionVariable and the type of reduction is applied
         Eg. summation reduction of the equation "Eq(umean[x0, x1, x2], u0[x0, x1, x2]" is written as
         umean = umean + f[x0, x1, x2]; where umean is a ReductionVariable object.
-        
+
         :returns: A list of reduction equations
         :rtype: list
         """

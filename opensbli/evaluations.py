@@ -21,6 +21,7 @@
 from sympy import *
 from .utils import *
 
+
 class Evaluations(object):
 
     """ The evaluation of a LHS and RHS, containing information about what the LHS and RHS requires, whether there are any
@@ -64,7 +65,7 @@ class Evaluations(object):
             self.evaluation_range = []
 
         return
-        
+
 
 def create_derivative_evaluations(spatial_derivatives, evals, symbolic_derivative):
     """

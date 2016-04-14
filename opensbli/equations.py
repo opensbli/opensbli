@@ -37,12 +37,12 @@ class Skew(Function):
 
     """ Handler for the energy-conservative formulation of the Navier-Stokes equations, generally referred to as the skew-symmetric formulation.
     This is the Blaisdell version of the skew-symmetric formulation. For more information, see:
-    
+
     [1] G.A. Blaisdell, N.N. Mansour, W.C. Reynolds, Numerical simulations of homogeneous compressible turbulence, Report TF-50, Thermoscience Divison, Department of Mechanical Engineering, Stanford University, Stanford, 1991.
     [2] G.A. Blaisdell, E.T. Spyropoulos, J.H. Qin, The effect of the formulation of nonlinear terms on aliasing errors in spectral methods, Appl. Numer. Math. 1996 207-209
 
     To get the Blaisdell version of skew symmetric form for the energy and continuity equations, use
-        rhou = rho*u    
+        rhou = rho*u
     and split Conservative((p+rhoE)*u_j,x_j) as Conservative(p*u_j,x_j) + Skew(rhoE*u_j,x_j)
     """
 

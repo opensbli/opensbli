@@ -110,7 +110,7 @@ class Kernel(object):
         else:
             array.is_grid = False
         return array
-        
+
 
 def create_derivative_kernels(derivatives, evals, spatial_derivative, work_array_name, work_array_index, grid):
     computations = []
@@ -166,4 +166,3 @@ def create_formula_kernels(ordered_evaluations, evaluations, known, grid):
     for eq in non_group:
         computation_kernels += [Kernel(eq, range_dictionary[eq], "Non-Grouped Formula Evaluation", grid)]
     return computation_kernels
-

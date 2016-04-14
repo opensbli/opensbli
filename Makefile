@@ -33,7 +33,7 @@ lint:
 	flake8 opensbli
 	flake8 bin
 
-test: lint
+test:
 	@echo ">>> Running test suite..."
 	py.test tests
 
