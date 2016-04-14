@@ -72,8 +72,9 @@ class OPSCCodePrinter(CCodePrinter):
 
     def _print_Mod(self, expr):
         args = map(ccode, expr.args)
-        args = ['('+x+')' for x in args]
-        result = '%'.join(args)
+        args = [x for x in args]
+        result = ','.join(args)
+        result = 'fmod(%s)'%result
         return result
 
     def _print_Indexed(self, expr):

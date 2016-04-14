@@ -14,11 +14,6 @@ from opensbli.io import *
 from opensbli.diagnostics import Reduction
 from opensbli.opsc import OPSC
 
-def dt(dx, c):
-    """ Given a grid spacing dx and the wave speed c, return the value of dt such that the CFL condition is respected. """
-    courant_number = 0.2
-    return (dx*courant_number)/c
-
 BUILD_DIR = os.getcwd()
 
 opensbli.LOG.info("Generating code for the 2D Taylor-Green Vortex simulation...")
@@ -27,9 +22,9 @@ start_total = time.time()
 ndim = 3
 
 # Define the compresible Navier-Stokes equations in Einstein notation.
-mass = "Eq(Der(rho,t), - Conservative(rhou_j,x_j))"
+mass = "Eq(Der(rho,t), - Skew(rho*u_j,x_j))"
 momentum = "Eq(Der(rhou_i,t) , -Skew(rhou_i*u_j,x_j) - Der(p,x_i) + Der(tau_i_j,x_j) )"
-energy = "Eq(Der(rhoE,t), - Conservative((p+rhoE)*u_j,x_j) + Der(q_j,x_j) + Der(u_i*tau_i_j ,x_j) )"
+energy = "Eq(Der(rhoE,t), - Skew(rhoE*u_j,x_j) - Conservative(p*u_j,x_j) + Der(q_j,x_j) + Der(u_i*tau_i_j ,x_j) )"
 ke = "Eq(ke, rho*(1/2)*u_j*u_j)"
 enstrophy = "Eq(enstrophy, (1/2)*rho*(LC(_i,_j,_k)*Der(u_k,x_j))**2)"
 rhomean = "Eq(rhomean, rho)"
@@ -84,9 +79,10 @@ spatial_discretisation = SpatialDiscretisation(expanded_equations, expanded_form
 const_dt = True
 temporal_discretisation = TemporalDiscretisation(temporal_scheme, grid, const_dt, spatial_discretisation)
 
-# Apply Boundary conditions
-bcs = [("periodic", "periodic"), ("periodic", "periodic"), ("periodic", "periodic")]
-boundary = BoundaryConditions(bcs, grid, temporal_discretisation.prognostic_variables)
+boundary = BoundaryClass(grid)
+for dim in range(ndim):
+    p = periodicboundary()
+    boundary = p.apply_boundary(boundary, grid, temporal_discretisation.prognostic_variables, dim)
 
 # Initial conditions
 x = "Eq(grid.grid_var(x), grid.Idx[0]*grid.deltas[0])"
@@ -118,14 +114,19 @@ red_eq.append([Reduction(grid, expanded_diagnostics, expanded_formulas, temporal
 
 end = time.time()
 LOG.debug('The time taken to prepare the reductions in %d dimensions is %.2f seconds.' % (problem.ndim, end - start))
-# I/O save conservative variables at the end of simulation
-io = FileIO(temporal_discretisation.prognostic_variables)
+
+# Fix the deltat for 64^3 grid size and scale for other grid sizes accordingly
+deltat = 3.385*10**-3/ (np[0]/64)
+niter = ceil(20/deltat)
+save_every = ceil(niter/8)
+
+# I/O save conservative variables at every save_every steps and at the end of simulation
+io = FileIO(temporal_discretisation.prognostic_variables, save_every)
 
 start = time.time()
 # Grid parameters like number of points, length in each direction, and delta in each direction
 l1 = ['niter', 'Re', 'Pr', 'gama', 'Minf', 'mu', 'precision', 'name', 'deltat']
-deltat = 3.385e-3
-niter = ceil(20.0/deltat)
+
 print "Going to do %d iterations." % niter
 l2 = [niter, 1600, 0.71, 1.4, 0.1, 1.0, "double", "taylor_green_vortex", deltat]
 # Constants in the system
