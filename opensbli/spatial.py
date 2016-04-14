@@ -148,9 +148,7 @@ class SpatialDerivative(object):
         return
 
     def get_derivative_formula(self, derivative):
-        """
-        This returns the formula for the derivative function
-        """
+        """ Returns the formula for the derivative function. """
         order = len(derivative.args[1:])
         indices = list(derivative.args[1:])
         if order == 1 or len(set(indices)) == 1:
@@ -162,9 +160,9 @@ class SpatialDerivative(object):
             formula = formula*pow(delta, -order)
         elif order == 2:
             # Do the derivative of derivative
-            raise NotImplementedError("Derivatives of order == 2  Mixed is not implemented")
+            raise NotImplementedError("Derivatives of order == 2 are not implemented.")
         else:
-            raise NotImplementedError("Derivatives of order > 2 are not implemented")
+            raise NotImplementedError("Derivatives of order > 2 are not implemented.")
         return formula
 
     def get_derivative(self, derivative):
