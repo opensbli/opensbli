@@ -20,8 +20,6 @@
 
 from sympy import *
 from .equations import EinsteinTerm
-from .evaluations import *
-from .kernel import *
 
 
 def decreasing_order(s1, s2):
@@ -54,26 +52,6 @@ def group_derivatives(derivatives):
             derivative_dict[key] = (sorted(value, cmp=increasing_order))
 
     return derivative_dict
-
-
-def indexed_by_grid(variable, grid):
-    """ Convert a variable/function or Indexed object to an Indexed object indexed by the Grid indices.
-
-    :arg variable: The variable to convert to a Grid-based Indexed variable
-    :arg grid: The numerical Grid of solution points.
-    :returns: An Indexed variable, which is the same variable as the one provided, but is indexed by the Grid indices.
-    :rtype: sympy.Indexed
-    """
-
-    if isinstance(variable, Indexed):
-        base = IndexedBase('%s' % variable.base)
-    elif isinstance(variable, Function):
-        base = IndexedBase('%s' % variable.func)
-    else:
-        raise ValueError("Only functions or Indexed Objects are supported", variable)
-    base.is_grid = True
-    base.is_constant = False
-    return base[grid.indices]
 
 
 def get_indexed_grid_variables(equations):
@@ -127,17 +105,6 @@ def update_work_arrays(ordered_evaluations, evaluations, work_array_name, work_a
     return evaluations, work_array_index
 
 
-def create_formula_kernels(ordered_evaluations, evaluations, known, grid):
-    computation_kernels = []
-    forms = [ev for ev in ordered_evaluations if isinstance(ev, Indexed) and ev not in known]
-    grouped, non_group, range_dictionary = group_formulas(forms, evaluations, known)
-    if grouped:
-        computation_kernels += [Kernel(grouped, range_dictionary[grouped[0]], "Grouped Formula Evaluation", grid)]
-    for eq in non_group:
-        computation_kernels += [Kernel(eq, range_dictionary[eq], "Non-Grouped Formula Evaluation", grid)]
-    return computation_kernels
-
-
 def group_formulas(formulas, evals, known):
     """ This groups the formulas. """
     ranges = [evals[ev].evaluation_range for ev in formulas]
@@ -158,51 +125,6 @@ def group_formulas(formulas, evals, known):
         else:
             non_group += [eqs[number]]
     return grouped_eq, non_group, range_dictionary
-
-
-def create_derivative_kernels(derivatives, evals, spatial_derivative, work_array_name, work_array_index, grid):
-    computations = []
-    ranges = [evals[ev].evaluation_range for ev in derivatives]
-    subevals = [evals[ev].subevals for ev in derivatives]
-    require = [evals[ev].requires for ev in derivatives]
-    for number, derivative in enumerate(derivatives):
-        if not any(isinstance(req, Derivative) for req in require[number]):
-            if all(subev is None for subev in subevals[number]):
-                rhs = spatial_derivative.get_derivative_formula(derivative)
-                eq = Eq(evals[derivative].work, rhs)
-                name = str_print(derivative)
-                computations.append(Kernel(eq, ranges[number], name, grid))
-            else:
-                # Store into temporary array the sub evaluation
-                eqs = []
-                temp_work_array_index = work_array_index
-                for subev in subevals[number]:
-                    wk = grid.work_array('%s%d' % (work_array_name, temp_work_array_index))
-                    temp_work_array_index += 1
-                    for req in require[number]:
-                        local_range = evals[req].evaluation_range
-                        subev = subev.subs(req, evals[req].work)
-                    eqs.append(Eq(wk, subev))
-                name = str_print(subev)
-                computations.append(Kernel(eqs, local_range, name, grid))
-                for eq in eqs:
-                    new_derivative = derivative.subs(eq.rhs, eq.lhs)
-                rhs = spatial_derivative.get_derivative_formula(new_derivative)
-                eq = Eq(evals[derivative].work, rhs)
-                name = str_print(derivative)
-                computations.append(Kernel(eq, ranges[number], name, grid))
-        else:
-            new_derivative = derivative
-            if all(subev is None for subev in subevals[number]):
-                for req in require[number]:
-                    new_derivative = new_derivative.subs(req, evals[req].work)
-            else:
-                raise NotImplementedError("Sub-evaluations in a mixed derivative", grid)
-            rhs = spatial_derivative.get_derivative_formula(new_derivative)
-            eq = Eq(evals[derivative].work, rhs)
-            name = str_print(derivative)
-            computations.append(Kernel(eq, ranges[number], name, grid))
-    return computations
 
 
 class SymbolicDerivative(object):
@@ -289,98 +211,6 @@ def get_used_formulas(formulas, equations):
     return used_formulas
 
 
-def create_derivative_evaluations(spatial_derivatives, evals, symbolic_derivative):
-    """
-    Derivative computations are evaluated seperately as they sometimes require evaluation of
-    temporary work arrays
-    """
-    for out in spatial_derivatives:
-        general_formula, subevals, requires = symbolic_derivative.get_derivative(out)
-        evaluated = Evaluations(out, general_formula, requires, subevals, None)
-        evals[out] = evaluated
-
-    return evals
-
-
-def create_formula_evaluations(all_formulas, evals):
-    """
-    Creates computation class for all the equations provided.
-    This is used for creating any computation (Diagnostics, Spatial, Temporal, Shock-capturing)
-    """
-    for formula in all_formulas:
-        evaluated = Evaluations(formula.lhs, formula.rhs, list(formula.rhs.atoms(Indexed)), None, None)
-        evals[formula.lhs] = evaluated
-    return evals
-
-
-def sort_evaluations(order, evaluations, typef):
-    """ Sort the evaluations based on the requirements of each term. For example, if we have
-    the primitive variables p, u0, u1, and T, then the pressure p may depend on the velocity u0 and u1, and T may depend on p,
-    so we need this be evaluate in the following order: u0, u1, p, T.
-
-
-    :arg list order: The list of terms to sort.
-    :arg evaluations: The evaluation information, containing dependency information.
-    :arg typef: The type of term to sort.
-    :returns: A list of ordered terms.
-    :rtype: list
-    """
-    key_list = [key for key in evaluations.keys() if isinstance(key, typef) and key not in order]
-    requires_list = [evaluations[key].requires for key in key_list]
-    zipped = zip(key_list, requires_list)
-    # Breaks after 1000 iterations
-    iter_count = 0
-    while key_list:
-        iter_count = iter_count+1
-        order += [x for (x, y) in zipped if all(req in order for req in y)]
-        key_list = [key for key in evaluations.keys() if isinstance(key, typef) and key not in order]
-        requires_list = [evaluations[key].requires for key in key_list]
-        zipped = zip(key_list, requires_list)
-        if iter_count > 1000:
-            pprint([req for req in requires_list[0]])
-            pprint(order)
-            pprint([req in order for req in requires_list[0]])
-            raise ValueError("Exiting sort evaluations ")
-
-    return order
-
-
-def set_range_of_evaluations(order_of_evaluations, evaluations, grid):
-    """ Set the evaluation ranges of each Evaluation object based on the shape of the grid of points.
-    First the ranges of derivatives are updated, then other ranges are updated. """
-
-    derivatives = []
-    for ev in order_of_evaluations:
-        if isinstance(ev, Derivative):
-            derivatives.append(ev)
-        evaluations[ev].evaluation_range = [tuple([0, s]) for s in grid.shape]
-
-    # Update the range for the derivatives
-    grouped_derivatives = group_derivatives(derivatives)
-    for key, value in grouped_derivatives.iteritems():
-        for val in value:
-            require = evaluations[val].requires
-            formula = evaluations[val].formula
-            direction = formula[1][0]
-            halos = grid.halos[direction]
-            for req in require:
-                erange = list(evaluations[req].evaluation_range[direction])
-                if erange[0] == 0 and erange[1] == grid.shape[direction]:
-                    erange[0] += halos[0]
-                    erange[1] += halos[1]
-                evaluations[req].evaluation_range[direction] = tuple(erange)
-
-    # Update the range for the formulas this might require some modifications
-    for ev in order_of_evaluations:
-        if isinstance(ev, Indexed):
-            require = evaluations[ev].requires
-            if require:
-                for req in require:
-                    evaluations[req].evaluation_range = evaluations[ev].evaluation_range
-
-    return
-
-
 def get_derivatives(equations):
     """ Return all the spatial Derivative terms in the equations.
     Any equations involving Derivative objects in terms of the time 't' are handled separately.
@@ -414,11 +244,11 @@ def get_derivatives(equations):
 
 def str_print(expr):
     val = str(expr)
-    # replace various stuff
-
-    iind = expr.atoms(Indexed)
-    iind_rep = [str(v.base) for v in iind]
-    replacements = dict(zip([str(v) for v in iind], iind_rep))
+    
+    # Replacements
+    indexed_objects = expr.atoms(Indexed)
+    indexed_objects_replaced = [str(v.base) for v in indexed_objects]
+    replacements = dict(zip([str(v) for v in indexed_objects], indexed_objects_replaced))
     replacements['Derivative'] = 'D'
     replacements[','] = ''
     for key, value in replacements.iteritems():

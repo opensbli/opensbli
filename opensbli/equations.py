@@ -21,11 +21,10 @@
 import logging
 import collections
 
-import numpy as np
+import numpy
 
 from sympy import *
 from sympy.parsing.sympy_parser import parse_expr
-
 from sympy.tensor.array import MutableDenseNDimArray, tensorcontraction, tensorproduct
 from sympy.tensor.array import NDimArray
 
@@ -36,16 +35,15 @@ LOCAL_FUNCTIONS = []
 
 class Skew(Function):
 
-    """ Handler for the Energy conservative formulation for the Navier-Stokes equations
-    generally referred to as Skew symmetric formulation.
-    This is the Blaisdell version of skew symmetric formulation
-    references are
+    """ Handler for the energy-conservative formulation of the Navier-Stokes equations, generally referred to as the skew-symmetric formulation.
+    This is the Blaisdell version of the skew-symmetric formulation. For more information, see:
+    
     [1] G.A. Blaisdell, N.N. Mansour, W.C. Reynolds, Numerical simulations of homogeneous compressible turbulence, Report TF-50, Thermoscience Divison, Department of Mechanical Engineering, Stanford University, Stanford, 1991.
     [2] G.A. Blaisdell, E.T. Spyropoulos, J.H. Qin, The effect of the formulation of nonlinear terms on aliasing errors in spectral methods, Appl. Numer. Math. 1996 207-209
 
     To get the Blaisdell version of skew symmetric form for the energy and continuity equations, use
-    rhou = rho*u and
-    split Conservative((p+rhoE)*u_j,x_j) as Conservative(p*u_j,x_j) + Skew(rhoE*u_j,x_j)
+        rhou = rho*u    
+    and split Conservative((p+rhoE)*u_j,x_j) as Conservative(p*u_j,x_j) + Skew(rhoE*u_j,x_j)
     """
 
     @property
@@ -64,11 +62,10 @@ class Skew(Function):
             return Der(var, *directions)
         elif nvar == 2:
             explicitvars = var.args
-            out = 0.5*(Conservative(var, *directions) + explicitvars[1]*Der(explicitvars[0], *directions) +
-                       explicitvars[0]*Der(explicitvars[1], *directions))
+            out = 0.5*(Conservative(var, *directions) + explicitvars[1]*Der(explicitvars[0], *directions) + explicitvars[0]*Der(explicitvars[1], *directions))
             return out
         else:
-            raise ValueError("More than two terms for skew formulation")
+            raise ValueError("More than two terms for Skew formulation.")
         return
 
 
@@ -107,7 +104,7 @@ class Der(Function):
         # Apply derivatives (i.e. put SymPy's diff function to use)
         if shape:
             derivative = MutableDenseNDimArray.zeros(*shape)
-            for index in np.ndindex(*shape):
+            for index in numpy.ndindex(*shape):
                 index_map = self.split_index(index, functions)
                 derivative[index] = self.apply_derivative(index_map, arrays, functions, evaluated)
         else:
@@ -202,7 +199,7 @@ class Conservative(Function):
 
         # Fill an array of the same shape as the derivative structure with the actual SymPy Derivative objects.
         derivative = MutableDenseNDimArray.zeros(*shape)
-        for index in np.ndindex(*shape):
+        for index in numpy.ndindex(*shape):
             index_map = self.split_index(index, functions)
             derivative[index] = self.apply_derivative(index_map, arrays, functions, evaluated)
 
@@ -288,7 +285,7 @@ class KD(Function):
         """ Return an array of KroneckerDelta objects comprising the appropriate indices given in the user's equations. """
 
         array = MutableDenseNDimArray.zeros(*indexed.shape)
-        for index in np.ndindex(*indexed.shape):
+        for index in numpy.ndindex(*indexed.shape):
             array[index[:]] = KroneckerDelta(*index)
         return array
 
@@ -318,7 +315,7 @@ class LC(Function):
         """ Return an array of LeviCivita objects comprising the appropriate indices given in the user's equations. """
 
         array = MutableDenseNDimArray.zeros(*indexed.shape)
-        for index in np.ndindex(*indexed.shape):
+        for index in numpy.ndindex(*indexed.shape):
             array[index[:]] = LeviCivita(*index)
         return array
 
@@ -434,7 +431,7 @@ class EinsteinTerm(Symbol):
             return array
         array = MutableDenseNDimArray.zeros(*indexed.shape)
         from_indices = indexed.indices
-        for index in np.ndindex(*indexed.shape):
+        for index in numpy.ndindex(*indexed.shape):
             index_map = self.map_indices(from_indices, index)
             value = self.get_expanded(index_map)
             value.is_commutative = True
@@ -560,7 +557,7 @@ class EinsteinExpansion(object):
         # The expanded equations will be of type SymPy Eq.
         array_types = (collections.Iterable, MatrixBase, NDimArray)
         if isinstance(evaluated_lhs, array_types):
-            for index in np.ndindex(evaluated_lhs.shape):
+            for index in numpy.ndindex(evaluated_lhs.shape):
                 self.expanded += [Eq(evaluated_lhs[index], evaluated_rhs[index])]
         else:
             self.expanded += [Eq(evaluated_lhs, evaluated_rhs)]
@@ -753,7 +750,7 @@ def add_args(arg_evaluated, arg_indices):
                 index.reverse()
                 if leading_index == index and len(index) == 2:
                     array = arg_evaluated[number]
-                    for index in np.ndindex(*array.shape):
+                    for index in numpy.ndindex(*array.shape):
                         transpose = tuple([index[1], index[0]])  # Swap the indices around and apply them to the array to get the transpose.
                         evaluated[index] += array[transpose]
                 else:

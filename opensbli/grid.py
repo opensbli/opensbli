@@ -108,6 +108,25 @@ class Grid(object):
         base.is_constant = False
         return base[array.indices]
 
+    def indexed_by_grid(variable):
+        """ Convert a variable/function or Indexed object to an Indexed object indexed by the Grid indices.
+
+        :arg variable: The variable to convert to a Grid-based Indexed variable
+        :arg grid: The numerical Grid of solution points.
+        :returns: An Indexed variable, which is the same variable as the one provided, but is indexed by the Grid indices.
+        :rtype: sympy.Indexed
+        """
+
+        if isinstance(variable, Indexed):
+            base = IndexedBase('%s' % variable.base)
+        elif isinstance(variable, Function):
+            base = IndexedBase('%s' % variable.func)
+        else:
+            raise ValueError("Only functions or Indexed Objects are supported", variable)
+        base.is_grid = True
+        base.is_constant = False
+        return base[self.indices]
+
     def grid_variable(self, name):
         """ Define a variable on the grid. This is not an Indexed variable but varies with the grid.
         Can be used as a local variable to be defined in a kernel.

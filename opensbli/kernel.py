@@ -22,8 +22,7 @@ from sympy import *
 
 from .equations import EinsteinTerm
 from .grid import GridVariable
-from .diagnostics import ReductionVariable
-
+from .utils import *
 
 class Kernel(object):
 
@@ -89,6 +88,7 @@ class Kernel(object):
         else:
             self.has_Idx = False
 
+        from .diagnostics import ReductionVariable
         self.reductions = flatten([list(e.rhs.atoms(ReductionVariable)) for e in self.equations])
         self.gridvariable = flatten([list(e.lhs.atoms(GridVariable)) for e in self.equations])
         if grid:
@@ -109,3 +109,59 @@ class Kernel(object):
         else:
             array.is_grid = False
         return array
+        
+
+def create_derivative_kernels(derivatives, evals, spatial_derivative, work_array_name, work_array_index, grid):
+    computations = []
+    ranges = [evals[ev].evaluation_range for ev in derivatives]
+    subevals = [evals[ev].subevals for ev in derivatives]
+    require = [evals[ev].requires for ev in derivatives]
+    for number, derivative in enumerate(derivatives):
+        if not any(isinstance(req, Derivative) for req in require[number]):
+            if all(subev is None for subev in subevals[number]):
+                rhs = spatial_derivative.get_derivative_formula(derivative)
+                eq = Eq(evals[derivative].work, rhs)
+                name = str_print(derivative)
+                computations.append(Kernel(eq, ranges[number], name, grid))
+            else:
+                # Store into temporary array the sub evaluation
+                eqs = []
+                temp_work_array_index = work_array_index
+                for subev in subevals[number]:
+                    wk = grid.work_array('%s%d' % (work_array_name, temp_work_array_index))
+                    temp_work_array_index += 1
+                    for req in require[number]:
+                        local_range = evals[req].evaluation_range
+                        subev = subev.subs(req, evals[req].work)
+                    eqs.append(Eq(wk, subev))
+                name = str_print(subev)
+                computations.append(Kernel(eqs, local_range, name, grid))
+                for eq in eqs:
+                    new_derivative = derivative.subs(eq.rhs, eq.lhs)
+                rhs = spatial_derivative.get_derivative_formula(new_derivative)
+                eq = Eq(evals[derivative].work, rhs)
+                name = str_print(derivative)
+                computations.append(Kernel(eq, ranges[number], name, grid))
+        else:
+            new_derivative = derivative
+            if all(subev is None for subev in subevals[number]):
+                for req in require[number]:
+                    new_derivative = new_derivative.subs(req, evals[req].work)
+            else:
+                raise NotImplementedError("Sub-evaluations in a mixed derivative", grid)
+            rhs = spatial_derivative.get_derivative_formula(new_derivative)
+            eq = Eq(evals[derivative].work, rhs)
+            name = str_print(derivative)
+            computations.append(Kernel(eq, ranges[number], name, grid))
+    return computations
+
+def create_formula_kernels(ordered_evaluations, evaluations, known, grid):
+    computation_kernels = []
+    forms = [ev for ev in ordered_evaluations if isinstance(ev, Indexed) and ev not in known]
+    grouped, non_group, range_dictionary = group_formulas(forms, evaluations, known)
+    if grouped:
+        computation_kernels += [Kernel(grouped, range_dictionary[grouped[0]], "Grouped Formula Evaluation", grid)]
+    for eq in non_group:
+        computation_kernels += [Kernel(eq, range_dictionary[eq], "Non-Grouped Formula Evaluation", grid)]
+    return computation_kernels
+

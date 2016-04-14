@@ -21,7 +21,8 @@
 
 from sympy.tensor import Indexed
 from .utils import *
-
+from .evaluations import *
+from .kernel import *
 
 class ReductionVariable(Symbol):
 
@@ -30,7 +31,7 @@ class ReductionVariable(Symbol):
         return self
 
 
-class Reduction():
+class Reduction(object):
 
     def __init__(self, grid, equations, formulas, prognostic_variables, spatial_scheme, rtype, compute_every):
 

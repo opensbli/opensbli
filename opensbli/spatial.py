@@ -28,6 +28,7 @@ from .equations import *
 from .utils import *
 from .kernel import *
 from .scheme import *
+from .evaluations import *
 
 
 class Central(Scheme):
@@ -121,7 +122,7 @@ class SpatialDerivative(object):
             fdarray = MutableDenseNDimArray.zeros(*shape)
             derivative_kernel = MutableDenseNDimArray.zeros(*shape)
 
-            for ind in np.ndindex(*array.shape):
+            for ind in numpy.ndindex(*array.shape):
                 # Arguments to the derivative in terms of grid indices
                 derivative_args = [grid.indices[i] for i in ind]
                 # The derivative kernel's name
