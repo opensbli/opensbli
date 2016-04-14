@@ -7,6 +7,7 @@ import pytest
 from opensbli.spatial import *
 from opensbli.grid import *
 from opensbli.problem import *
+from opensbli.utils import *
 
 @pytest.fixture
 def grid():
@@ -30,7 +31,8 @@ def spatial_derivative(grid, central_scheme, max_order):
 
 @pytest.fixture
 def spatial_discretisation(navier_stokes_problem, grid, central_scheme):
-    expanded_equations, expanded_formulas = navier_stokes_problem.get_expanded()
+    expanded_equations = navier_stokes_problem.get_expanded(navier_stokes_problem.equations)
+    expanded_formulas = navier_stokes_problem.get_expanded(navier_stokes_problem.formulas)
     return SpatialDiscretisation(expanded_equations, expanded_formulas, grid, central_scheme)
 
 
@@ -122,8 +124,10 @@ def test_get_indexed_grid_variables(mass, grid):
 def test_get_spatial_derivatives(navier_stokes_problem, spatial_discretisation, grid, central_scheme):
     """ Ensure that spatial and temporal Derivative objects are identified and returned correctly. """
 
-    expanded_equations, expanded_formulas = navier_stokes_problem.get_expanded()
-    spatial_derivatives, count, temporal_derivatives = spatial_discretisation.get_spatial_derivatives(flatten(expanded_equations))
+    expanded_equations = navier_stokes_problem.get_expanded(navier_stokes_problem.equations)
+    expanded_formulas = navier_stokes_problem.get_expanded(navier_stokes_problem.formulas)
+    
+    spatial_derivatives, temporal_derivatives = get_derivatives(flatten(expanded_equations))
     
     assert str(spatial_derivatives) == "[Derivative(rhou0[x0, x1, t], x0), Derivative(rhou1[x0, x1, t], x1), Derivative(rhou0[x0, x1, t]*u1[x0, x1, t], x1), Derivative(p[x0, x1, t] + rhou0[x0, x1, t]*u0[x0, x1, t], x0), Derivative(u1[x0, x1, t], x0, x1), Derivative(u0[x0, x1, t], x0, x0), Derivative(u0[x0, x1, t], x1, x1), Derivative(rhou1[x0, x1, t]*u0[x0, x1, t], x0), Derivative(p[x0, x1, t] + rhou1[x0, x1, t]*u1[x0, x1, t], x1), Derivative(u0[x0, x1, t], x0, x1), Derivative(u1[x0, x1, t], x1, x1), Derivative(u1[x0, x1, t], x0, x0), Derivative((p[x0, x1, t] + rhoE[x0, x1, t])*u0[x0, x1, t], x0), Derivative((p[x0, x1, t] + rhoE[x0, x1, t])*u1[x0, x1, t], x1), Derivative(u0[x0, x1, t], x0), Derivative(u1[x0, x1, t], x1), Derivative(u0[x0, x1, t], x1), Derivative(u1[x0, x1, t], x0), Derivative(T[x0, x1, t], x0, x0), Derivative(T[x0, x1, t], x1, x1)]"
     

@@ -81,7 +81,8 @@ def test_forward_euler(forward_euler):
 
 def test_temporal_discretisation(temporal_discretisation):
     """ Ensure that the time discretisation scheme is applied correctly. """
-    assert temporal_discretisation.prognostic_variables == [IndexedBase("phi")] # Only phi should be identified as a prognostic variable.
+    prognostic = [x.base for x in temporal_discretisation.prognostic_variables]
+    assert prognostic == [IndexedBase("phi")] # Only phi should be identified as a prognostic variable.
     
     assert len(temporal_discretisation.start_computations) == 1 # For the 'save' equations.
     assert len(temporal_discretisation.computations) == 2 # There should be 2 stages in the main body of the computation, since an RK3 scheme is being used.
