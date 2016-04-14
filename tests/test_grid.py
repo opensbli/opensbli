@@ -42,10 +42,8 @@ def test_work_array(grid):
     return
 
 def test_grid_variable(grid, grid_variable):
-    """ Ensure that a variable on a grid returns of type GridVariable. """
-
+    """ Ensure that a variable on a grid returns an object of type GridVariable. """
     assert grid.grid_variable('test') == grid_variable
-
     return
 if __name__ == '__main__':
     pytest.main(os.path.abspath(__file__))

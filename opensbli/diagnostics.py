@@ -41,7 +41,7 @@ class Reduction():
         evaluations = {}
 
         # Instance of Symbolic spatial derivative
-        spatial_derivative = SymDerivative(spatial_scheme, grid)
+        spatial_derivative = SymbolicDerivative(spatial_scheme, grid)
 
         # Create evaluations for the formulas
         evaluations = create_formula_evaluations(all_formulas, evaluations)
