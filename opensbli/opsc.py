@@ -529,7 +529,7 @@ class OPSC(object):
         :returns: The updated/modified code dictionary.
         :rtype: dict
         """
-        from .bcs import Exchange, ExchangeSelf
+        from .bcs import ExchangeSelf
         from .kernel import Kernel
 
         bc_call = [[] for block in range(self.nblocks)]
@@ -793,7 +793,7 @@ class OPSC(object):
             code += [sten_format%(value, self.ndim, count, value + "_temp", key)]
         return code
 
-    def hdf5_io(self, instance):
+    def hdf5_io(self, instance, name):
         code = []
         block_to_hdf5 = ["ops_fetch_block_hdf5_file(%s, %s)%s" % (self.block_name, name, self.end_of_statement)]
         code += block_to_hdf5
@@ -869,7 +869,7 @@ class OPSC(object):
         if computation.has_Idx:
             header += [self.ops_header['Idx'] % ('idx') ]
 
-        header = comments + ['void ' + computation.name + self.left_parenthesis + ' , '.join(header) + self.right_parenthesis]
+        header = ['void ' + computation.name + self.left_parenthesis + ' , '.join(header) + self.right_parenthesis]
         header += [self.left_brace]
         code = header
         ops_accs = self.get_OPS_ACC_number(computation)

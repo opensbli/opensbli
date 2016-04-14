@@ -48,10 +48,10 @@ class Skew(Function):
     This is the Blaisdell version of skew symmetric formulation
     references are
     [1] G.A. Blaisdell, N.N. Mansour, W.C. Reynolds, Numerical simulations of homogeneous compressible turbulence, Report TF-50, Thermoscience Divison, Department of Mechanical Engineering, Stanford University, Stanford, 1991.
-    [2] G.A. Blaisdell, E.T. Spyropoulos, J.H. Qin, The effect of the formulation of nonlinear terms on aliasing errors in spectral methods, Appl. Numer. Math. 21 (3) (1996) 207–219
-    
+    [2] G.A. Blaisdell, E.T. Spyropoulos, J.H. Qin, The effect of the formulation of nonlinear terms on aliasing errors in spectral methods, Appl. Numer. Math. 1996 207-209
+
     To get the Blaisdell version of skew symmetric form for the energy and continuity equations, use
-    rhou = rho*u and 
+    rhou = rho*u and
     split Conservative((p+rhoE)*u_j,x_j) as Conservative(p*u_j,x_j) + Skew(rhoE*u_j,x_j)
     """
 
@@ -76,7 +76,7 @@ class Skew(Function):
         else:
             raise ValueError("More than two terms for skew formulation")
         return
-    
+
 
 class Der(Function):
 
