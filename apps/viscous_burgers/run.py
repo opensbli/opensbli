@@ -3,7 +3,7 @@ import sys
 import subprocess
 import shutil
 
-base_name = "wave"
+base_name = "viscous_burgers"
 
 # Generate the code
 exit_code = subprocess.call("python %s.py" % base_name, shell=True)

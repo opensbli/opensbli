@@ -8,6 +8,7 @@ import matplotlib.cm as cm
 import h5py
 import string
 from scipy.interpolate import griddata
+import glob
 
 # Matplotlib settings for publication-ready figures
 try:
@@ -55,7 +56,11 @@ def compute_error(degree, simulation_index, number_of_points):
 
     # Read in the simulation output
     path = "./mms_%d_%d/mms_%d_%d_opsc_code/" % (degree, simulation_index, degree, simulation_index)
-    f = h5py.File(path + "/state.h5", 'r')
+    dump = glob.glob(path + "/mms_*.h5")
+    if not dump or len(dump) > 1:
+        print "Error: No dump file found, or more than one dump file found."
+        sys.exit(1)
+    f = h5py.File(dump[-1], 'r')
     group = f["mms_%d_%d_block" % (degree, simulation_index)]
     
     # Get the numerical solution field
