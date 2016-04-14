@@ -699,7 +699,7 @@ def evaluate_Pow_expression(term, arrays, index_structure):
 
         if indices:
             if e == 2:
-                evaluated = evaluated**e
+                evaluated = evaluated.applyfunc(lambda i: i**e)
                 tensor_indices = indices
                 evaluated = apply_contraction([], tensor_indices, evaluated)
                 indices = None
