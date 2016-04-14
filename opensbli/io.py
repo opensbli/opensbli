@@ -20,11 +20,12 @@
 
 from sympy import *
 
+
 class FileIO(object):
 
     """ Saves the arrays provided after every n iterations. These will eventually be dumped into an HDF5 file. """
 
-    def __init__(self, arrays, niter = None):
+    def __init__(self, arrays, niter=None):
         """ Setup the 'save' arrays to dump to an HDF5 file.
 
         :arg arrays: The arrays to save to a file.
@@ -44,4 +45,3 @@ class FileIO(object):
         else:
             self.save_arrays.append(arrays)
         return
-

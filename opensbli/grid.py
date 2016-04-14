@@ -98,7 +98,7 @@ class Grid(object):
         Returns the new array with same name and same indices as the input array.
         The reason for the work-around is it is better to create an IndexedBase object and add attributes to it.
         
-        :arg sympy.Indexed arr: The array to be converted onto the Grid.
+        :arg sympy.Indexed array: The array to be converted onto the Grid.
         :returns: The Indexed object representing the array defined on the Grid.
         :rtype: sympy.Indexed
         """
