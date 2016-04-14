@@ -26,8 +26,8 @@ import numpy as np
 from sympy import *
 from sympy.parsing.sympy_parser import parse_expr
 
-from .array import MutableDenseNDimArray, tensorcontraction, tensorproduct
-from .array import NDimArray
+from sympy.tensor.array import MutableDenseNDimArray, tensorcontraction, tensorproduct
+from sympy.tensor.array import NDimArray
 
 LOG = logging.getLogger(__name__)
 
