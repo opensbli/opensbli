@@ -83,9 +83,12 @@ spatial_discretisation = SpatialDiscretisation(expanded_equations, expanded_form
 const_dt = True
 temporal_discretisation = TemporalDiscretisation(temporal_scheme, grid, const_dt, spatial_discretisation)
 
-# Apply Boundary conditions
-bcs = [("periodic", "periodic")]
-boundary = BoundaryConditions(bcs, grid, temporal_discretisation.prognostic_variables)
+boundary = BoundaryClass(grid)
+
+# Update periodic boundary conditions in all direction
+for dim in range(ndim):
+    p = periodicboundary()
+    boundary = p.apply_boundary(boundary, grid, temporal_discretisation.prognostic_variables, dim)
 
 # Initial conditions
 initial_conditions = ["Eq(grid.work_array(phi), sin(2*M_PI*(grid.Idx[0])*grid.deltas[0]))"]
