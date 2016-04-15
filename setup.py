@@ -29,7 +29,6 @@ setup(name='OpenSBLI',
       package_dir={'opensbli': 'opensbli'},
       scripts=[],
       classifiers=[
-      'Development Status :: 3 - Alpha',
       'Environment :: Console',
       'Intended Audience :: Science/Research',
       'Natural Language :: English',
