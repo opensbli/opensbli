@@ -110,10 +110,6 @@ simulation_parameters = dict(zip(l1,l2))
 
 # Generate the code.
 opsc = OPSC(grid, spatial_discretisation, temporal_discretisation, boundary_condition, initial_conditions, io, simulation_parameters)
-#opsc.set_diagnostics_level(1)
-#opsc.generate()
-#opsc.translate()
-
 
 end = time.time()
 LOG.debug('The time taken to prepare the system in %d dimensions is %.2f seconds.' % (problem.ndim, end - start))
