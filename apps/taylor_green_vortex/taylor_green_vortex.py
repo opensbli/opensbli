@@ -60,6 +60,23 @@ expanded_equations = problem.get_expanded(problem.equations)
 expanded_formulas = problem.get_expanded(problem.formulas)
 expanded_diagnostics = problem.get_expanded(problem.expand(diagnostics))
 
+# Output equations in LaTeX format.
+latex = LatexWriter()
+latex.open(path=BUILD_DIR + "/equations.tex")
+metadata = {"title": "Equations", "author": "", "institution": ""}
+latex.write_header(metadata)
+temp = flatten(expanded_equations)
+latex.write_expression(temp[0])
+# NOTE: Due to a bug in the LaTeX writer, you must replace (1.0/Re) and (1.0/((gama-1)*Minf*Minf*Pr*Re)) by their floating-point values in order to print the momentum and energy equations.
+#latex.write_expression(temp[1])
+#latex.write_expression(temp[2])
+temp = flatten(expanded_formulas)
+latex.write_expression(temp)
+temp = flatten(expanded_diagnostics)
+latex.write_expression(temp)
+latex.write_footer()
+latex.close()
+
 # Discretise the equations
 start = time.time()
 
