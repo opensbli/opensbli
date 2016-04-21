@@ -114,7 +114,7 @@ class SymmetryBoundaryCondition(BoundaryConditionBase):
         
         # Create the kernel.
         self.computations[boundary_direction*2 + side] = self.get_kernel(boundary_direction, side, arrays)
-        return boundaryclass
+        return
 
     def get_kernel(self, direction, side, arrays):
         """ Write the application of the symmetry boundary condition as a Kernel. """
@@ -147,7 +147,7 @@ class SymmetryBoundaryCondition(BoundaryConditionBase):
             range_of_evaluation[direction] = tuple([base-1, base])
 
             # Get equations for the symmetry BC
-            symmetry_equations = self.get_symmetry_equations(tuples, arrays, direction, self.grid)
+            symmetry_equations = self.get_symmetry_equations(tuples, arrays, direction)
 
             # Kernel for the computations
             kernel = Kernel(symmetry_equations, range_of_evaluation, "Symmetry bc %d %s" % (direction, self.types[side]), self.grid)
@@ -187,7 +187,7 @@ class SymmetryBoundaryCondition(BoundaryConditionBase):
             else:
                 # Scalar symmetry
                 array_equation = []
-                new_array = self.grid.work_array(ar.base)
+                new_array = self.grid.work_array(array.base)
                 direction_index = new_array.indices[direction]
 
                 for t in tuples:
