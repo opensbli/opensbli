@@ -51,7 +51,6 @@ metrics = [False, False]
 velocity = "Eq(u_i, rhou_i/rho)"
 pressure = "Eq(p, (gama-1)*(rhoE - rho*(1/2)*(u_j*u_j)))"
 temperature = "Eq(T, p*gama*Minf*Minf/(rho))"
-viscosity = "Eq(mu, T**(2/3))"
 formulas = [velocity, pressure, temperature]
 
 # Create the TGV problem and expand the equations.
