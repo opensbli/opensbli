@@ -31,7 +31,6 @@ clean:
 lint:
 	@echo ">>> Linting..."
 	flake8 opensbli
-	flake8 bin
 
 test:
 	@echo ">>> Running test suite..."

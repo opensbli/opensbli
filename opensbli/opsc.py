@@ -33,6 +33,7 @@ import subprocess
 try:
     from ops_translator.c import ops as translator
     have_ops = True
+    print "Found translator module: ", translator
 except ImportError:
     logging.warning("Could not import the OPS library. The generated OPSC code will need to be manually put through the translator.")
     have_ops = False
@@ -99,7 +100,7 @@ class OPSCCodePrinter(CCodePrinter):
 
 def pow_to_constant(expr, constants):
     from sympy.core.function import _coeff_isneg
-    # Only negative powers i.e they correspond to division and they are stored into constant arrays
+    # Only negative powers i.e. they correspond to division and they are stored into constant arrays
     inverse_terms = {}
     for at in expr.atoms(Pow):
         if _coeff_isneg(at.exp) and not at.base.atoms(Indexed):

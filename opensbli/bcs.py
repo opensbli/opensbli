@@ -49,6 +49,7 @@ class BoundaryConditionBase(object):
         self.computations = [None for sh in range(2) for sh in grid.shape]
         return
 
+
 class PeriodicBoundaryCondition(BoundaryConditionBase):
 
     """ Periodic boundary condition. This updates the BoundaryClass specified"""
@@ -60,7 +61,7 @@ class PeriodicBoundaryCondition(BoundaryConditionBase):
             # Set boundary type. We do not really require the boundary type; this is mainly for debugging.
             self.boundary_types[boundary_direction*2 + 0] = 'exchange_self'
             self.boundary_types[boundary_direction*2 + 1] = 'exchange_self'
-            
+
             # Get the exchanges which form the computations.
             left, right = self.get_exchange(boundary_direction, arrays)
             self.computations[boundary_direction*2 + 0] = left
@@ -102,7 +103,7 @@ class SymmetryBoundaryCondition(BoundaryConditionBase):
 
     def apply(self, arrays, boundary_direction, side):
         """ Apply the symmetry boundary condition.
-        
+
         :arg grid: The grid on which the boundary condition is applied.
         :arg arrays: A list of lists. vectors should be in the inner lists.
         :arg boundary_direction: The direction on the grid symmetry boundary condition should be applied.
@@ -111,7 +112,7 @@ class SymmetryBoundaryCondition(BoundaryConditionBase):
         # Set boundary type. We do not really require the boundary type; this is mainly for debugging.
         self.boundary_types[boundary_direction*2 + 0] = 'Computation'
         self.boundary_types[boundary_direction*2 + 1] = 'Computation'
-        
+
         # Create the kernel.
         self.computations[boundary_direction*2 + side] = self.get_kernel(boundary_direction, side, arrays)
         return
@@ -153,10 +154,9 @@ class SymmetryBoundaryCondition(BoundaryConditionBase):
             kernel = Kernel(symmetry_equations, range_of_evaluation, "Symmetry bc %d %s" % (direction, self.types[side]), self.grid)
 
             return kernel
-            
+
         else:
             raise ValueError("The 'side' of the symmetry boundary should be either 0 or 1, corresponding to left or right boundary in the given direction.")
-
 
     def get_symmetry_equations(self, tuples, arrays, direction):
         """ Return the symmetry boundary condition equations depending on the direction and the type of the variable.
