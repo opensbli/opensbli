@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #    OpenSBLI: An automatic code generator for solving differential equations.
-#    Copyright (C) 2016 Satya P. Jammy, Christian T. Jacobs
+#    Copyright (C) 2016 Satya P. Jammy, Christian T. Jacobs, Neil D. Sandham
 
 #    This file is part of OpenSBLI.
 
@@ -23,7 +23,7 @@ from distutils.core import setup
 setup(name='OpenSBLI',
       version='1.0',
       description='An automatic code generator which expands a set of equations written in Einstein notation, and writes out the finite difference code in a supported language.',
-      author='Satya P. Jammy, Christian T. Jacobs',
+      author='Satya P. Jammy, Christian T. Jacobs, Neil D. Sandham',
       url='https://bitbucket.org/spjammy/opensbli',
       packages=['opensbli'],
       package_dir={'opensbli': 'opensbli'},

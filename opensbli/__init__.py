@@ -1,5 +1,5 @@
 #    OpenSBLI: An automatic code generator for solving differential equations.
-#    Copyright (C) 2016 Satya P. Jammy, Christian T. Jacobs
+#    Copyright (C) 2016 Satya P. Jammy, Christian T. Jacobs, Neil D. Sandham
 
 #    This file is part of OpenSBLI.
 
