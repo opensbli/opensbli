@@ -10,7 +10,7 @@ First ensure that the following dependencies are satisfied:
 * Python 2.7
 * Sympy >= 1.0
 * python-h5py
-* OPS (to generate OPSC code)
+* OPS (to generate OPSC code), specifically revision 178ec4f7c1ccb1917a85b4248820cfecb912ac6f of the [OPS project's repository](https://github.com/gihanmudalige/OPS) or later.
 * pytest (for running the test suite)
 * python-flake8 (for linting the code base)
 * Sphinx (to build the documentation)
