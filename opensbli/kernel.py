@@ -68,17 +68,17 @@ class Kernel(object):
         indexbase_outs = set(outs).difference(indexbase_inouts)
 
         for v in indexbase_ins:
-            indexes = [vin.indices for vin in allindexed if vin.base == v]
+            indexes = list(set([vin.indices for vin in allindexed if vin.base == v]))
             if grid:
                 v = self.set_grid_arrays(v, grid, indexes)
             self.inputs[v] = indexes
         for v in indexbase_outs:
-            indexes = [vout.indices for vout in allindexed if vout.base == v]
+            indexes = list(set([vout.indices for vout in allindexed if vout.base == v]))
             if grid:
                 v = self.set_grid_arrays(v, grid, indexes)
             self.outputs[v] = indexes
         for v in indexbase_inouts:
-            indexes = [vinout.indices for vinout in allindexed if vinout.base == v]
+            indexes = list(set([vinout.indices for vinout in allindexed if vinout.base == v]))
             if grid:
                 v = self.set_grid_arrays(v, grid, indexes)
             self.inputoutput[v] = indexes

@@ -350,6 +350,10 @@ class OPSC(object):
         # IO calls
         code_dictionary = self.get_io(code_dictionary)
 
+        # Get diagnostics kernel calls
+        if self.diagnostics:
+            code_dictionary = self.get_diagnostic_kernels(code_dictionary)
+
         # Define and initialise all the data arrays used in the computations
         code_dictionary['define_dat'] = '\n'.join(self.define_dat())
         code_dictionary['initialise_dat'] = '\n'.join(self.initialise_dat())
@@ -367,11 +371,7 @@ class OPSC(object):
         # Reduction declarations
         code_dictionary['declare_reductions'] = '\n'.join(self.declare_reduction_variables())
 
-        # get diagnostics kernel calls
-        if self.diagnostics:
-            code_dictionary = self.get_diagnostic_kernels(code_dictionary)
-
-        # write the main file
+        # Write the main file
         code_template = code_template.safe_substitute(code_dictionary)
         self.write_main_file(code_template)
         return
