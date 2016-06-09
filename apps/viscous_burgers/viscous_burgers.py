@@ -26,7 +26,7 @@ start_total = time.time()
 ndim = 1
 
 # Define the viscous Burgers equation in Einstein notation. Note that the advection term is written in the so-called "conservation form".
-viscous_burgers = "Eq( Der(phi,t), -c_j*Der(phi*phi,x_j) + d*Der(Der(phi,x_j),x_j) )"
+viscous_burgers = "Eq( Der(phi,t), -c_j*Conservative(phi*phi,x_j) + d*Der(Der(phi,x_j),x_j) )"
 equations = [viscous_burgers]
 
 # Substitutions
