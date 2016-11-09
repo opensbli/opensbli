@@ -15,7 +15,12 @@ The development of OpenSBLI was supported by EPSRC grants EP/K038567/1 ("Future-
 Licensing
 ---------
 
-OpenSBLI is released under the `GNU General Public License <http://www.gnu.org/licenses/gpl-3.0.en.html>`_. See the file called ``LICENSE`` for more information.
+OpenSBLI is released as an open-source project under the `GNU General Public License <http://www.gnu.org/licenses/gpl-3.0.en.html>`_. See the file called ``LICENSE`` for more information.
+
+Citing
+------
+
+If you use OpenSBLI, please consider citing the papers and other resources listed in the `Citing section <citing.html>`_.
 
 Support
 -------

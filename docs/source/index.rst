@@ -15,6 +15,7 @@ Contents:
    getting_started
    problem
    wave
+   citing
 
 Indices and tables
 ==================
