@@ -26,7 +26,7 @@ OpenSBLI is a Python package and can be installed system-wide by running
 sudo make install
 ```
 
-from the OpenSBLI base directory (i.e. the same directory this README file is in).
+from the OpenSBLI base directory (i.e. the same directory this `README` file is in).
 
 #### Local builds
 Alternatively, you can just add OpenSBLI to your `PYTHONPATH` environment variable using
@@ -44,8 +44,24 @@ make docs
 
 This will build the documentation in HTML format and can be opened in a Web browser.
 
+## Citing
+
+If you use OpenSBLI for your research, please cite the following paper:
+
+C. T. Jacobs, S. P. Jammy, N. D. Sandham (Accepted). **OpenSBLI: A framework for the automated derivation and parallel execution of finite difference solvers on a range of computer architectures**. *Journal of Computational Science*. DOI: [10.1016/j.jocs.2016.11.001](http://dx.doi.org/10.1016/j.jocs.2016.11.001)
+
+```
+@Article{Jacobs_etal_Accepted,
+  Title                    = {{OpenSBLI: A framework for the automated derivation and parallel execution of finite difference solvers on a range of computer architectures}},
+  Author                   = {Jacobs, C. T. and Jammy, S. P. and Sandham, N. D.},
+  Journal                  = {{Journal of Computational Science}},
+  Year                     = {Accepted},
+  Doi                      = {10.1016/j.jocs.2016.11.001}
+}
+```
+
 ## Contact
 If you wish to report a bug with the software, please contact [Satya P. Jammy](mailto:S.P.Jammy@soton.ac.uk) or [Christian T. Jacobs](mailto:C.T.Jacobs@soton.ac.uk).
 
 ## Licence
-OpenSBLI is released under the GNU General Public License. See the file called `LICENSE` for more information.
+OpenSBLI is released as an open-source project under the GNU General Public License. See the file called `LICENSE` for more information.
