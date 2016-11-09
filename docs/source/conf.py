@@ -248,7 +248,7 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
   ('index', 'OpenSBLI', u'OpenSBLI Documentation',
-   u'Satya P. Jammy, Christian T. Jacobs, Neil D. Sandham', 'OpenSBLI', 'One line description of project.',
+   u'Satya P. Jammy, Christian T. Jacobs, Neil D. Sandham', 'OpenSBLI', 'OpenSBLI is an automatic code generator which expands a set of equations written in Einstein notation, and writes out the finite difference code in the OPSC language.',
    'Miscellaneous'),
 ]
 

@@ -15,7 +15,7 @@ from the OpenSBLI base/root directory.
 Obtaining OPS
 -------------
 
-In order to target and compile the generated OPSC code, you will need to have OPS available. First, clone the `OPS GitHub <https://github.com/gihanmudalige/OPS>`_ repository using
+In order to target and compile the generated OPSC code, you will need to have OPS available. First, clone the `OPS GitHub repository <https://github.com/gihanmudalige/OPS>`_ using
 
 .. code-block:: bash
 
@@ -35,7 +35,13 @@ You will then need to set up your OPS-related environment variables, listed belo
 You can include these export commands in your ``~/.bashrc`` file to save typing them out each time you open up a new terminal.
 
 Installing OpenSBLI
------------------
+-------------------
+
+First, clone the `OpenSBLI GitHub repository <https://github.com/opensbli/opensbli>`_ using
+
+.. code-block:: bash
+
+    git clone https://github.com/opensbli/opensbli.git
 
 You can install OpenSBLI using
 
@@ -47,7 +53,7 @@ from within the base directory of OpenSBLI. Alternatively, particularly for deve
 
 .. code-block:: bash
 
-    export PYTHONPATH=$PYTHONPATH:~/OpenSBLI
+    export PYTHONPATH=$PYTHONPATH:~/opensbli
 
 After installation, it is recommended that you run the test suite to check that OpenSBLI is performing as it should by using
 
