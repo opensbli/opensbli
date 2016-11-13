@@ -45,7 +45,7 @@ The documentation for OpenSBLI can be built using Sphinx via the following comma
 make docs
 ```
 
-This will build the documentation in HTML format and can be opened in a Web browser.
+This will build the documentation in HTML format and can be opened in a Web browser. Alternatively, the OpenSBLI documentation can be viewed on [Read the Docs](http://opensbli.readthedocs.io/).
 
 ## Citing
 
