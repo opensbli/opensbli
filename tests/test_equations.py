@@ -3,11 +3,8 @@
 import os
 import pytest
 
-from sympy import Symbol, Idx
-
-
-# OpenSBLI functions
-from opensbli.equations import *
+from sympy import Symbol, Idx, flatten
+from opensbli.equations import EinsteinTerm, Equation, remove_repeated_index, maximum_derivative_order
 
 @pytest.fixture
 def coordinate_symbol():
