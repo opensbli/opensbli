@@ -3,13 +3,13 @@
 import os
 import pytest
 
-from sympy import Symbol, Idx, Rational
+from sympy import Symbol, IndexedBase, Rational
 
-# OpenSBLI functions
-from opensbli.equations import *
-from opensbli.timestepping import *
-from opensbli.spatial import *
-from opensbli.grid import *
+# OpenSBLI classes and functions
+from opensbli.equations import Equation
+from opensbli.timestepping import TemporalDiscretisation, RungeKutta, ForwardEuler
+from opensbli.spatial import Central, SpatialDiscretisation
+from opensbli.grid import Grid
 
 @pytest.fixture
 def coordinate_symbol():

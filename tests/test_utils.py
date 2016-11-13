@@ -3,10 +3,13 @@
 import os
 import pytest
 
-# OpenSBLI functions
-from opensbli.grid import *
-from opensbli.problem import *
-from opensbli.utils import *
+from sympy import flatten, IndexedBase
+
+# OpenSBLI classes and functions
+from opensbli.grid import Grid
+from opensbli.equations import Equation, EinsteinTerm
+from opensbli.problem import Problem
+from opensbli.utils import get_indexed_variables, get_derivatives
 
 @pytest.fixture
 def grid():

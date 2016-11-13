@@ -4,6 +4,8 @@ import os
 import pytest
 
 from sympy import Symbol, Idx, flatten
+
+# OpenSBLI classes and functions
 from opensbli.equations import EinsteinTerm, Equation, remove_repeated_index, maximum_derivative_order
 
 @pytest.fixture

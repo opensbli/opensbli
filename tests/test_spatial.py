@@ -3,11 +3,11 @@
 import os
 import pytest
 
-# OpenSBLI functions
-from opensbli.spatial import *
-from opensbli.grid import *
-from opensbli.problem import *
-from opensbli.utils import *
+from sympy import Symbol, Idx, flatten
+
+# OpenSBLI classes and functions
+from opensbli.spatial import SpatialDerivative, Central
+from opensbli.grid import Grid
 
 @pytest.fixture
 def grid():

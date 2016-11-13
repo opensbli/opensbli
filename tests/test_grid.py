@@ -3,9 +3,11 @@
 import os
 import pytest
 
-# OpenSBLI functions
-from opensbli.grid import *
+from sympy import Idx, IndexedBase, Symbol, symbols
 
+# OpenSBLI classes and functions
+from opensbli.grid import Grid, GridVariable
+from opensbli.equations import EinsteinTerm
 
 @pytest.fixture
 def grid():

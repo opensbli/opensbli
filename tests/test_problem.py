@@ -3,8 +3,10 @@
 import os
 import pytest
 
-# OpenSBLI functions
-from opensbli.problem import *
+from sympy import flatten
+
+# OpenSBLI classes and functions
+from opensbli.problem import Problem
 
 def test_expand():
     """ Ensure that an equation is expanded correctly. """

@@ -3,8 +3,10 @@
 import os
 import pytest
 
-# OpenSBLI functions
-from opensbli.opsc import *
+from sympy import symbols, pi, cos
+
+# OpenSBLI classes and functions
+from opensbli.opsc import ccode
 
 def test_ccode():
     """ Check that the OPSC code writer outputs the expected C code statement.
