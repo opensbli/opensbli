@@ -2,6 +2,8 @@
 
 OpenSBLI is an automatic code generator which expands a set of equations written in Einstein notation, and writes out the finite difference code in the OPSC language.
 
+[![Documentation Status](https://readthedocs.org/projects/opensbli/badge/?version=latest)](http://opensbli.readthedocs.io/en/latest/?badge=latest)
+
 ## Getting started
 
 ### Dependencies
