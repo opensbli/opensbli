@@ -104,7 +104,7 @@ def pow_to_constant(expr, constants):
     inverse_terms = {}
     for at in expr.atoms(Pow):
         if _coeff_isneg(at.exp) and not at.base.atoms(Indexed):
-            if not at in constants.keys():
+            if at not in constants.keys():
                 constants[at] = 'rinv%d' % len(constants.keys())
             inverse_terms[at] = constants[at]
     expr = expr.subs(inverse_terms)

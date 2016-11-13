@@ -517,13 +517,13 @@ class EinsteinExpansion(object):
 
         # Get the arrays for the Kronecker Delta function
         for kd in expression.atoms(KD):
-            if not kd in indexed.keys():
+            if kd not in indexed.keys():
                 indexed[kd] = kd.get_indexed(self.ndim)
                 arrays[indexed[kd]] = kd.get_array(indexed[kd])
 
         # Get the arrays for the Levi-Civita function
         for lc in expression.atoms(LC):
-            if not lc in indexed.keys():
+            if lc not in indexed.keys():
                 indexed[lc] = lc.get_indexed(self.ndim)
                 arrays[indexed[lc]] = lc.get_array(indexed[lc])
 
@@ -531,7 +531,7 @@ class EinsteinExpansion(object):
         functions_to_eval = []
         for function in expression.atoms(Function):
             if not function.args[0].atoms(Function):
-                if not function in indexed.keys():
+                if function not in indexed.keys():
                     new_array_name = '%s%d' % (self.indexed_object_name, self.indexed_object_number)
                     self.indexed_object_number = self.indexed_object_number + 1
                     function.get_indexed(self.ndim, indexed, arrays, new_array_name)
