@@ -1,0 +1,16 @@
+language: python
+
+python:
+  - "2.7"
+
+install:
+  - pip install -r requirements.txt
+
+before_script:
+  - export PYTHONPATH=`pwd`:$PYTHONPATH
+  - echo $PYTHONPATH
+  
+script:
+  - make lint
+  - make docs
+  - make test
