@@ -25,5 +25,5 @@ If you use OpenSBLI, please consider citing the papers and other resources liste
 Support
 -------
 
-The preferred method of reporting bugs and issues with OpenSBLI is to submit an issue via the repository's issue tracker. Users can also email the authors `Satya P Jammy <mailto:S.P.Jammy@soton.ac.uk>`_ and `Christian T. Jacobs <mailto:C.T.Jacobs@soton.ac.uk>`_ directly.
+The preferred method of reporting bugs and issues with OpenSBLI is to submit an issue via the repository's issue tracker. Users can also email the authors `Satya P. Jammy <mailto:S.P.Jammy@soton.ac.uk>`_ and `Christian T. Jacobs <mailto:C.T.Jacobs@soton.ac.uk>`_ directly.
 
