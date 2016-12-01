@@ -17,7 +17,7 @@ BUILD_DIR = os.getcwd()
 ndim = 3
 
 # Define the compresible Navier-Stokes equations in Einstein notation.
-mass = "Eq(Der(rho,t), - Conservative(rhou_j,x_j,**{\'scheme\':\'Central\'}))"
+mass = "Eq(Der(rho,t), - Conservative(rhou_j,x_j,**{\'scheme\':\'Weno\'}))"
 momentum = "Eq(Der(rhou_i,t) , -Conservative(rhou_i*u_j + KD(_i,_j)*p,x_j)  + Der(tau_i_j,x_j) )"
 energy = "Eq(Der(rhoE,t), - Conservative((p+rhoE)*u_j,x_j) + Der(q_j,x_j) + Der(u_i*tau_i_j ,x_j) )"
 ke = "Eq(ke, rho*(1/2)*Dot(u_j,u_j))"
@@ -96,7 +96,3 @@ for index, eq in enumerate(flatten(simulation_eq.equations)):
 latex.write_footer()
 latex.close()
 
-v = "Eq(q22 ,wy(18)*((wy(11)*dxidx -wy(12)*detadx) +(-wy(8)*dxidy +wy(9)*detady)))"
-v = parse_expr(v)
-pprint(v)
-print print_latex(v)

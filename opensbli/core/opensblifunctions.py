@@ -488,6 +488,34 @@ class WenoDerivative(Function, BasicDescritisation):
     def simple_name(cls):
         return "%s"%("WD")
 
+    def _discretise_derivative(cls, scheme):
+        """This would return the descritised derivative of the
+        local object depending on the order of accuracy specified
+        Returns the formula for the derivative function, only first derivatives or homogeneous
+        derivatives of higher order are supported. The mixed derivatives will be handled impl-
+        citly while creating the kernels
+        :arg derivative: the derivative on which descritisation should be performed
+        :returns: the descritised derivative, in case of wall boundaries this is a Piecewise-
+        function
+        """
+        order = cls.order
+        if (order > 1):
+            raise ValueError("")
+
+        form = cls.args[0]
+        dire = cls.get_direction[0]
+        expr = cls.args[0]
+        for req in (cls.required_datasets):
+            loc = req.location[:]
+            loc[dire] = loc[dire] -1
+            #pprint([loc, req.location])
+            val = req.get_location_dataset(loc)
+            expr = expr.replace(req, val)
+        form = form - expr
+        if form == 0:
+            raise ValueError("Central derivative formula is zero for %s"%cls)
+        return form
+
 
 class TemporalDerivative(Function, BasicDescritisation):
 

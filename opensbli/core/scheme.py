@@ -5,6 +5,7 @@ from sympy.printing import *
 from .opensbliobjects import ConstantObject
 from .opensblifunctions import CentralDerivative
 from .opensbliequations import OpenSBLIExpression
+from .weno_opensbli import *
 from .kernel import *
 from .latex import *
 class Scheme(object):
@@ -77,6 +78,7 @@ class Central(Scheme):
 
     def discretise(self, type_of_eq, block):
         """
+        This is main calling function from opensbli equations.spatial_discretisation, which is called from block.discretise
         Do here the following
         a. Find all the Function of type(self.name)
         b. Add all the DataSetBases required to the type_of_eq
