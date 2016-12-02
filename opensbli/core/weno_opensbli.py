@@ -2,7 +2,7 @@
 # from .scheme import Scheme
 
 class WenoHalos(object):
-    def __init__(self):
+    def __init__(self, order):
         # Check for the boundary types in the blocks and set the halo points
         #self.halos = [[-scheme.order, scheme.order] for dim in range(block.ndim)]
         return
@@ -40,6 +40,7 @@ class Weno(Scheme):
         self.schemetype = "Spatial"
         self.k = int(0.5*(order+1))
         self.halotype = WenoHalos(order)
+        print "Inside Weno"
         return
 
 class EigenSystem(object):
@@ -83,3 +84,57 @@ class GLFCharacteristic(Characteristic, Weno):
         """
 
         return
+
+class ScalarLocalLFScheme(Weno):
+
+    def __init__(self, order):
+        self.is_vector_type = True
+        Weno.__init__(self, order)
+        return
+
+    # def halos_required(self, k, ndim):
+    #     halos = [(-k, k+1)for dim in range(ndim)]
+    #     return halos
+    # def set_fluxes_direction(self, eq_vector_form):
+    #     self.vector_notation = eq_vector_form
+    #     return
+    # def set_scalar_speed(self, speed):
+    #     self.speed = speed
+    #     return
+    # def pre_process(self, key):
+    #     """ Find the lax fedrich fluxes"""
+    #     spatial_flux_vec = self.vector_notation[key]
+    #     time_vector = self.vector_notation[EinsteinTerm('t')]
+    #     pprint(time_vector)
+    #     pprint(Abs(self.speed[key]))
+    #     # find the fluxes
+    #     self.fplus = Rational(1,2)*(Matrix(spatial_flux_vec) + Abs(self.speed[key])*Matrix(time_vector))
+    #     self.fminus = Rational(1,2)*(Matrix(spatial_flux_vec) - Abs(self.speed[key])*Matrix(time_vector))
+    #     required_interpolations = []
+    #     leftRight = [False, True]
+    #     for val in self.fplus:
+    #         temp = WenoSolutionType(val,leftRight)
+    #         temp.direction = key
+    #         required_interpolations += [temp]
+    #     leftRight = [True, False]
+    #     for val in self.fminus:
+    #         temp = WenoSolutionType(val,leftRight)
+    #         temp.direction = key
+    #         required_interpolations += [temp]
+    #     return required_interpolations
+    # def post_process(self,interpolated):
+    #     self.post_process_equations = []
+    #     temp_dictionary = {}
+    #     for val in interpolated:
+    #         self.post_process_equations, reconstructed_symbols = val.evaluate_interpolation(self.post_process_equations)
+    #         temp_dictionary[val.variable] = reconstructed_symbols
+    #     #pprint(temp_dictionary)
+    #     # The new naming uplus will be minus
+    #     self.right_interpolated = []
+    #     self.left_interpolated = []
+    #     for val in self.fplus:
+    #         self.right_interpolated += temp_dictionary[val][1]
+    #     for val in self.fminus:
+    #         self.left_interpolated += temp_dictionary[val][-1]
+    #     final_flux  = (Matrix(self.right_interpolated) + Matrix(self.left_interpolated))
+    #     return self.post_process_equations,final_flux

@@ -6,6 +6,7 @@ from math import ceil
 #import opensbli as base
 from opensbli.core import *
 from opensbli.core.bcs import *
+from opensbli.physical_models.euler_eigensystem import *
 
 
 BUILD_DIR = os.getcwd()
@@ -68,20 +69,42 @@ constituent.add_equations(eqns)
 #pprint(simulation_eq.equations)
 # Discretise the constituent relations if it contains any derivatives
 #simulation_eq.add_constituent_relations(constituent)
-#exit()
+
+block= SimulationBlock(ndim, block_number = 0)
+pprint(block.idx_shapes)
+pprint(block.shape)
+pprint(block.ranges)
+## Create eigensystem
+Euler = EulerEquations(ndim)
+ev_dict, LEV_dict, REV_dict = Euler.generate_eig_system()
+weno_order = 5
+GLF = GLFCharacteristic(ev_dict, LEV_dict, REV_dict, weno_order)
+SF = ScalarLocalLFScheme(weno_order)
+exit()
+
 schemes = {}
 cent = Central(4)
 schemes[cent.name] = cent
+weno = Weno(5)
+schemes[weno.name] = weno
 rk = RungeKutta(3)
 schemes[rk.name] = rk
 #print(ndim, type(ndim))
+print schemes
 import copy
+exit()
 # Create a descritisation class where the equations are deepcopied using deepcopy
 #ex = copy.deepcopy(simulation_eq)
 block= SimulationBlock(ndim, block_number = 0)
 block.sbli_rhs_discretisation = True
-bounaries = [PeriodicBoundaryConditionBlock()]*2*ndim#, PeriodicBoundaryConditionBlock(), PeriodicBoundaryConditionBlock()]
-block.set_block_boundaries(bounaries)
+
+
+
+
+
+#################
+boundaries = [PeriodicBoundaryConditionBlock()]*2*ndim#, PeriodicBoundaryConditionBlock(), PeriodicBoundaryConditionBlock()]
+block.set_block_boundaries(boundaries)
 block.set_equations([constituent,simulation_eq])
 block.set_discretisation_schemes(schemes)
 block.discretise()
