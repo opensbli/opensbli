@@ -4,9 +4,9 @@ Citing
 Journal articles
 ----------------
 
-* Jacobs, C. T., Jammy, S. P., Sandham N. D. (Accepted). **OpenSBLI: A framework for the automated derivation and parallel execution of finite difference solvers on a range of computer architectures**. *Journal of Computational Science*, DOI: `10.1016/j.jocs.2016.11.001 <http://dx.doi.org/10.1016/j.jocs.2016.11.001>`_
+* Jacobs, C. T., Jammy, S. P., Sandham N. D. (2017). **OpenSBLI: A framework for the automated derivation and parallel execution of finite difference solvers on a range of computer architectures**. *Journal of Computational Science*, 18:12-23, DOI: `10.1016/j.jocs.2016.11.001 <http://dx.doi.org/10.1016/j.jocs.2016.11.001>`_
 
-* Jammy, S. P., Jacobs, C. T., Sandham N. D. (Accepted). **Performance evaluation of explicit finite difference algorithms with varying amounts of computational and memory intensity**. *Journal of Computational Science*, DOI: `10.1016/j.jocs.2016.10.015 <http://dx.doi.org/10.1016/j.jocs.2016.10.015>`_
+* Jammy, S. P., Jacobs, C. T., Sandham N. D. (In Press). **Performance evaluation of explicit finite difference algorithms with varying amounts of computational and memory intensity**. *Journal of Computational Science*, DOI: `10.1016/j.jocs.2016.10.015 <http://dx.doi.org/10.1016/j.jocs.2016.10.015>`_
 
 Datasets
 --------

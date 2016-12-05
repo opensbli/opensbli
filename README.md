@@ -51,14 +51,16 @@ This will build the documentation in HTML format and can be opened in a Web brow
 
 If you use OpenSBLI, please consider citing the following paper:
 
-* C. T. Jacobs, S. P. Jammy, N. D. Sandham (In Press). **OpenSBLI: A framework for the automated derivation and parallel execution of finite difference solvers on a range of computer architectures**. *Journal of Computational Science*. DOI: [10.1016/j.jocs.2016.11.001](http://dx.doi.org/10.1016/j.jocs.2016.11.001)
+* C. T. Jacobs, S. P. Jammy, N. D. Sandham (2017). **OpenSBLI: A framework for the automated derivation and parallel execution of finite difference solvers on a range of computer architectures**. *Journal of Computational Science*, 18:12-23, DOI: [10.1016/j.jocs.2016.11.001](http://dx.doi.org/10.1016/j.jocs.2016.11.001)
 
 ```
-@Article{Jacobs_etal_InPress,
+@Article{Jacobs_etal_2017,
   Title                    = {{OpenSBLI: A framework for the automated derivation and parallel execution of finite difference solvers on a range of computer architectures}},
   Author                   = {Jacobs, C. T. and Jammy, S. P. and Sandham, N. D.},
   Journal                  = {{Journal of Computational Science}},
-  Year                     = {In Press},
+  Year                     = {2017},
+  Pages                    = {12--23},
+  Volume                   = {18},
   Doi                      = {10.1016/j.jocs.2016.11.001}
 }
 ```
