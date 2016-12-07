@@ -3,13 +3,13 @@ from .opensblifunctions import *
 from sympy import flatten, preorder_traversal
 from sympy import Equality
 import copy
-class Descritisation(object):
+class Discretisation(object):
     """
-    This should contain the following, TODO descri-->discre
+    This should contain the following
     1. Required_datasets these are the required data sets used in the simulations
     2. Required_constants these are the required constants for the SimulationEquations
     3. Local_evaluations this returns a list of evluations that should be performed for
-    the Descritisation of any equations
+    the Discretisation of any equations
     """
     @property
     def required_datasets(cls):
@@ -100,7 +100,7 @@ class Solution(object):
         return
 class OpenSBLIExpression(Expr):
     """
-    This represents each and every Descritisation expression
+    This represents each and every Discretisation expression
     for example, to evaluate CD((p+rhoE)*u0, x0)
     will have two expressions
     a. to evaluate work = (p+rhoE)*u0
@@ -114,7 +114,7 @@ class OpenSBLIExpression(Expr):
     def as_expr(cls):
         return cls.args[0]
 
-class SimulationEquations(Descritisation, Solution):
+class SimulationEquations(Discretisation, Solution):
     """
     To proceed
     We will create solution equations, these are nothing but the
@@ -189,7 +189,7 @@ class SimulationEquations(Descritisation, Solution):
 
     def spatial_discretisation(cls, schemes, block):
         """
-        Descritisation will be done by
+        Discretisation will be done by
         a. Update the work arrays (based on location) for the CD, WD, TD --> irrespective of Type
         b. Set the evaluation range of each of the workbases to be that of the grid, irrespective of CD, WD or TD
         c. Descritise each and every CD, WD, TD
@@ -309,7 +309,7 @@ class SimulationEquations(Descritisation, Solution):
     def all_spatial_kernels(cls):
         return cls.boundary_kernels + cls.sort_constituents + cls.Kernels
 
-class ConstituentRelations(Descritisation, Solution):
+class ConstituentRelations(Discretisation, Solution):
     def __new__(cls):
         ret = super(ConstituentRelations,cls).__new__(cls)
         ret.equations = []
@@ -336,7 +336,7 @@ class ConstituentRelations(Descritisation, Solution):
 
     def spatial_discretisation(cls, schemes, block):
         """
-        Descritisation will be done by
+        Discretisation will be done by
         a. Update the work arrays (based on location) for the CD, WD, TD --> irrespective of Type
         b. Set the evaluation range of each of the workbases to be that of the grid, irrespective of CD, WD or TD
         c. Descritise each and every CD, WD, TD
@@ -373,7 +373,7 @@ class DiagnosticsEquation(OpenSBLIEquation):
         # The order for this would be >100
         return
 from .parsing import Equation
-class MetricsEquation(Descritisation):
+class MetricsEquation(Discretisation):
 
     def __new__(cls, ndim, coordinate_symbol, parameters, max_order):
         ret = super(MetricsEquation,cls).__new__(cls)

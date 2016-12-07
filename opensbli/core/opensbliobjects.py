@@ -169,7 +169,7 @@ class DataSet(Indexed):
     def location(cls):
         return list(cls.args[1:])
 
-    def get_location_dataset(cls, location):
+    def get_location_dataset(cls, location): ### Used for updating indices for weighting of points
         base = cls.base
         ret = type(cls)(str(base), **{'location': location})
         return ret

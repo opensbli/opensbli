@@ -104,7 +104,7 @@ class Central(Scheme):
                 pass
             return self.required_constituent_relations
 
-    def get_local_fiunction(self, list_of_components):
+    def get_local_function(self, list_of_components):
         CD_fns = []
         for c in list_of_components:
             CD_fns += list(c.atoms(CentralDerivative))
@@ -149,11 +149,11 @@ class Central(Scheme):
         """
         equations =  flatten(type_of_eq.equations)
         classify_parameter = ConstantObject("Re")
-        pprint(classify_parameter)
         self.required_constituent_relations = {}
         viscous, convective = self.classify_equations_on_parameter(equations, classify_parameter)
         #pprint(convective)
         # Process the convective terms
+
         convective_grouped = self.group_by_direction(convective)
         # Create equations for evaluation of derivatives
         for key, value in convective_grouped.iteritems():
@@ -184,6 +184,7 @@ class Central(Scheme):
                 else:
                     v1 = v
                 expr = Eq(v.work, v1._discretise_derivative(self))
+                pprint(expr)
                 ker = Kernel(block)
                 ker.add_equation(expr)
                 ker.set_computation_name("Convective %s "%(v))
@@ -205,8 +206,10 @@ class Central(Scheme):
         residual_arrays = [eq.residual for eq in equations]
 
         convective_descritised = convective[:]
+
         for no, c in enumerate(convective_descritised):
             convective_descritised[no] = convective_descritised[no].subs(subs_conv)
+
         conv_residual_kernel = self.create_residual_kernel(residual_arrays,convective_descritised, block)
         conv_residual_kernel.set_computation_name("Convective residual ")
         kernels += [conv_residual_kernel]
@@ -242,7 +245,7 @@ class Central(Scheme):
         group the derivatives or any thing
         """
         descritised_equations = equations[:]
-        cds = self.get_local_fiunction(equations)
+        cds = self.get_local_function(equations)
         if cds:
             local_kernels = {}
             if block.store_derivatives:
@@ -379,7 +382,7 @@ class RungeKutta(Scheme):
     def __str__(cls):
         return "%s"%(cls.__class__.__name__)
 
-    def get_local_fiunction(cls, list_of_components):
+    def get_local_function(cls, list_of_components):
         from .opensblifunctions import TemporalDerivative
         CD_fns = []
         for c in flatten(list_of_components):
@@ -392,7 +395,7 @@ class RungeKutta(Scheme):
             pass
         else:
             cls.solution[type_of_eq] = TemproalSolution()
-        td_fns = cls.get_local_fiunction(type_of_eq.equations)
+        td_fns = cls.get_local_function(type_of_eq.equations)
         #print td_fns
         if td_fns:
             # Create a Kernel for the update ()

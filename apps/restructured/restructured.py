@@ -15,10 +15,10 @@ BUILD_DIR = os.getcwd()
 #start_total = time.time()
 
 # Problem dimension
-ndim = 3
+ndim = 2
 
 # Define the compresible Navier-Stokes equations in Einstein notation.
-mass = "Eq(Der(rho,t), - Conservative(rhou_j,x_j,**{\'scheme\':\'Weno\'}))"
+mass = "Eq(Der(rho,t), - Conservative(rhou_j,x_j,**{\'scheme\':\'Central\'}))"
 momentum = "Eq(Der(rhou_i,t) , -Conservative(rhou_i*u_j + KD(_i,_j)*p,x_j)  + Der(tau_i_j,x_j) )"
 energy = "Eq(Der(rhoE,t), - Conservative((p+rhoE)*u_j,x_j) + Der(q_j,x_j) + Der(u_i*tau_i_j ,x_j) )"
 ke = "Eq(ke, rho*(1/2)*Dot(u_j,u_j))"
@@ -50,12 +50,14 @@ viscosity = "Eq(mu, T**(2/3))"
 simulation_eq = SimulationEquations()
 eq = Equation()
 eqns = eq.expand(mass, ndim, coordinate_symbol, substitutions, constants)
+
 simulation_eq.add_equations(eqns)
+
 eqns = eq.expand(momentum, ndim, coordinate_symbol, substitutions, constants)
+
 simulation_eq.add_equations(eqns)
 eqns = eq.expand(energy, ndim, coordinate_symbol, substitutions, constants)
 simulation_eq.add_equations(eqns)
-#pprint(simulation_eq.equations)
 #OpenSBLIExpression(simulation_eq.equations[0].rhs)
 # Parse the constituent relations
 constituent = ConstituentRelations()
@@ -65,50 +67,47 @@ eqns = eq.expand(pressure, ndim, coordinate_symbol, substitutions, constants)
 constituent.add_equations(eqns)
 eqns = eq.expand(temperature, ndim, coordinate_symbol, substitutions, constants)
 constituent.add_equations(eqns)
-#pprint(constituent.equations)
+pprint(constituent.equations)
 #pprint(simulation_eq.equations)
 # Discretise the constituent relations if it contains any derivatives
 #simulation_eq.add_constituent_relations(constituent)
 
 block= SimulationBlock(ndim, block_number = 0)
-pprint(block.idx_shapes)
-pprint(block.shape)
-pprint(block.ranges)
+
 ## Create eigensystem
-Euler = EulerEquations(ndim)
-ev_dict, LEV_dict, REV_dict = Euler.generate_eig_system()
-weno_order = 5
-GLF = GLFCharacteristic(ev_dict, LEV_dict, REV_dict, weno_order)
-SF = ScalarLocalLFScheme(weno_order)
-exit()
+# Euler = EulerEquations(ndim)
+# ev_dict, LEV_dict, REV_dict = Euler.generate_eig_system()
+# weno_order = 5
+# GLF = GLFCharacteristic(ev_dict, LEV_dict, REV_dict, weno_order)
+# SF = ScalarLocalLFScheme(weno_order)
+# # exit()
 
 schemes = {}
 cent = Central(4)
 schemes[cent.name] = cent
-weno = Weno(5)
-schemes[weno.name] = weno
+# weno = Weno(weno_order)
+# schemes[weno.name] = weno
 rk = RungeKutta(3)
 schemes[rk.name] = rk
-#print(ndim, type(ndim))
-print schemes
-import copy
-exit()
+# exit()
+block.sbli_rhs_discretisation = True
+boundaries = [PeriodicBoundaryConditionBlock()]*2*ndim
+block.set_block_boundaries(boundaries)
+block.set_equations([constituent,simulation_eq])
+block.set_discretisation_schemes(schemes)
+block.discretise()
+
+TraditionalAlgorithm(block)
 # Create a descritisation class where the equations are deepcopied using deepcopy
 #ex = copy.deepcopy(simulation_eq)
-block= SimulationBlock(ndim, block_number = 0)
-block.sbli_rhs_discretisation = True
+# block= SimulationBlock(ndim, block_number = 0)
 
 
 
 
 
 #################
-boundaries = [PeriodicBoundaryConditionBlock()]*2*ndim#, PeriodicBoundaryConditionBlock(), PeriodicBoundaryConditionBlock()]
-block.set_block_boundaries(boundaries)
-block.set_equations([constituent,simulation_eq])
-block.set_discretisation_schemes(schemes)
-block.discretise()
-TraditionalAlgorithm(block)
+
 latex = LatexWriter()
 latex.open('./equations.tex')
 metadata = {"title": "Einstein Expansion of equations", "author": "Jammy", "institution": ""}

@@ -253,7 +253,7 @@ class EinsteinStructure(object):
                 continue
         return expression
 
-class BasicDescritisation(EinsteinStructure):
+class BasicDiscretisation(EinsteinStructure):
     @property
     def required_datasets(cls):
         """By the time this function is called all the functions such as
@@ -420,7 +420,7 @@ e. update the work arrays
 f. Create computations
 g. Update the original equations
 """
-class CentralDerivative(Function, BasicDescritisation):
+class CentralDerivative(Function, BasicDiscretisation):
     """
     wrapper class to represent derivatives
     Sympy already have a "Derivative" class, thus double D
@@ -455,16 +455,22 @@ class CentralDerivative(Function, BasicDescritisation):
 
         if cls.is_homogeneous:
             dire = cls.get_direction[0]
+            pprint(dire)
             weights = scheme._generate_weights(dire, order)
+            pprint(weights)
+            pprint(scheme.points)
             for no, p in enumerate(scheme.points):
                 expr = cls.args[0]
                 for req in (cls.required_datasets):
                     loc = req.location[:]
                     loc[dire] = loc[dire] + p
-                    #pprint([loc, req.location])
+                    # pprint([loc, req.location])
                     val = req.get_location_dataset(loc)
+                    pprint(val)
                     expr = expr.replace(req, val)
+                    print(expr)
                 form = form + weights[no]*expr
+                pprint(form)
             if form == 0:
                 raise ValueError("Central derivative formula is zero for %s"%cls)
         else:
@@ -477,7 +483,7 @@ class CentralDerivative(Function, BasicDescritisation):
 
 
 
-class WenoDerivative(Function, BasicDescritisation):
+class WenoDerivative(Function, BasicDiscretisation):
 
     def __new__(cls, expr, *args):
         args = flatten([expr] + list(args))
@@ -517,7 +523,7 @@ class WenoDerivative(Function, BasicDescritisation):
         return form
 
 
-class TemporalDerivative(Function, BasicDescritisation):
+class TemporalDerivative(Function, BasicDiscretisation):
 
     def __new__(cls, expr, *args):
         args = flatten([expr] + list(args))
@@ -540,7 +546,7 @@ class OpenSBLIexpression(Equality, EinsteinStructure):
     def simple_name(cls):
         return "%s"%("Expr")
 
-class MetricDerivative(Function, BasicDescritisation):
+class MetricDerivative(Function, BasicDiscretisation):
     """
     wrapper class to represent derivatives
     Sympy already have a "Derivative" class, thus double D
