@@ -455,7 +455,6 @@ class CentralDerivative(Function, BasicDiscretisation):
 
         if cls.is_homogeneous:
             dire = cls.get_direction[0]
-            pprint(dire)
             weights = scheme._generate_weights(dire, order)
             pprint(weights)
             pprint(scheme.points)

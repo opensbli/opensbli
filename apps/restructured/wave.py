@@ -36,7 +36,6 @@ simulation_eq = SimulationEquations()
 eq = Equation()
 eqns = eq.expand(wave, ndim, coordinate_symbol, substitutions, constants)
 simulation_eq.add_equations(eqns)
-pprint(eqns)
 #pprint(simulation_eq.equations)
 # Discretise the constituent relations if it contains any derivatives
 #simulation_eq.add_constituent_relations(constituent)
@@ -47,47 +46,41 @@ block= SimulationBlock(ndim, block_number = 0)
 Euler = EulerEquations(ndim)
 ev_dict, LEV_dict, REV_dict = Euler.generate_eig_system()
 weno_order = 3
-flat_eqs = flatten(simulation_eq.equations)
+flat_eqns = flatten(simulation_eq.equations)
 # GLF = GLFCharacteristic(ev_dict, LEV_dict, REV_dict, weno_order)
-SF = ScalarLocalLFScheme(weno_order)
-# grouped = GLF.group_by_direction(flat_eqs)
-grouped = SF.group_by_direction(flat_eqs)
 
 cart = CoordinateObject('%s_i'%(coordinate_symbol))
 coordinates = [cart.apply_index(cart.indices[0], dim) for dim in range(ndim)]
-
 speeds = [ConstantObject('c%d'%d) for d in range(ndim)]
-# pprint(srepr(speeds))
 speeds_dict = dict(zip(coordinates, speeds))
-SF.set_scalar_speed(speeds_dict)
-pprint(grouped)
-t = EinsteinTerm('t')
-vector_notation = {}
-vector_notation[t] = SF.get_time_derivative(eqns)
-vector_notation = SF.get_space_derivatives(vector_notation, grouped, ndim)
 
-SF.set_fluxes_direction(vector_notation)
-pprint(SF.vector_notation)
-# SF.pre_process(coordinates[0])
-print "----------------------------------------------------"
+
 
 schemes = {}
+SF = ScalarLocalLFScheme(weno_order, flat_eqns, speeds_dict, ndim)
+schemes[SF.name] = SF
 cent = Central(4)
 schemes[cent.name] = cent
-# weno = Weno(weno_order)
-
-# schemes[weno.name] = weno
 rk = RungeKutta(3)
 schemes[rk.name] = rk
 
-deriv = grouped[0][0]
-pprint(srepr(deriv))
+deriv = SF.grouped_eqns[0][0]
 fn = deriv.args[0]
 direction = deriv.args[-1]
+direction_index = coordinates.index(direction)
+pprint(direction_index)
 pprint(fn)
 pprint(direction)
 side = -1
-SF.generate_weno(fn, direction, side)
+# SF.generate_weno(fn, direction, side)
+interpolations = SF.pre_process(direction, direction_index)
+
+SF.update_WenoSolutionType(interpolations)
+
+pprint(interpolations)
+local_eval, reconstruction = SF.post_process(interpolations)
+
+
 
 exit()
 block.sbli_rhs_discretisation = True

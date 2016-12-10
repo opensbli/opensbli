@@ -6,20 +6,6 @@ from opensbli.core import *
 import pyweno.symbolic as symbolic
 from .grid import GridVariable
 
-
-# from .scheme import Scheme
-
-class WenoHalos(object):
-    def __init__(self, order):
-        # Check for the boundary types in the blocks and set the halo points
-        #self.halos = [[-scheme.order, scheme.order] for dim in range(block.ndim)]
-        k = int(0.5*(order+1))
-        # self.halos = [(-k, k+1)for dim in range(ndim)]
-        self.halos = [-k, k+1]
-        return
-    def get_halos(self, side):
-        return self.halos[side]
-
 class Scheme(object):
 
     """ A numerical discretisation scheme. """
@@ -34,12 +20,51 @@ class Scheme(object):
         self.name = name
         self.order = order
         return
+
+class WenoHalos(object):
+    def __init__(self, order):
+        # Check for the boundary types in the blocks and set the halo points
+        #self.halos = [[-scheme.order, scheme.order] for dim in range(block.ndim)]
+        k = int(0.5*(order+1))
+        # self.halos = [(-k, k+1)for dim in range(ndim)]
+        self.halos = [-k, k+1]
+        return
+    def get_halos(self, side):
+        return self.halos[side]
+
+class WenoSolutionType(object):
+    def __init__(self, variable, left_right=None):
+        self.variable = variable
+        if left_right:
+            print "in left_right"
+            self.reconstruction = left_right
+        else:
+            self.reconstruction = [False, True]
+        self.reconstructedclass = {} 
+        return
+    def evaluate_interpolation(self, local_equations):
+        symbols_list = []
+        formulas_list = []
+        reconstructed_symbols = {}
+        # Left reconstruction
+        if self.reconstruction[0]:
+            left = self.reconstructedclass[-1]
+            reconstructed_symbols[-1]= [left.symbolic_reconstructed]
+            local_equations += left.all_equations
+        # Right reconstruction
+        if self.reconstruction[1]:
+            print "in right"
+            right = self.reconstructedclass[1]
+            reconstructed_symbols[1]= [right.symbolic_reconstructed]
+            local_equations += right.all_equations
+
+        return local_equations, reconstructed_symbols
+
 class Weno(Scheme):
     """ The spatial derivatives of an arbitrary function 'F'
     on the numerical grid with the provided spatial scheme.
 
     For a wall boundary condition this will have a dependency on the grid range. """
-
     def __init__(self, order):
         """ Initialise the spatial derivative, which gives the equations
         of spatial Derivatives for the various combinations of the spatial scheme and order of accuracy.
@@ -48,13 +73,10 @@ class Weno(Scheme):
         :arg grid: The numerical grid of solution points.
         :returns: None
         """
-        # self.derivative_direction = grid.indices
-        # self.index_mapping = grid.mapped_indices
         Scheme.__init__(self, "WenoDerivative", order)
         self.schemetype = "Spatial"
         self.k = int(0.5*(order+1))
         self.halotype = WenoHalos(order)
-        # self.reconstruction_type = spatial_scheme.reconstruction
         self.func_points = {}
         self.generate_left_right_points()
         pprint(self.func_points)
@@ -72,16 +94,17 @@ class Weno(Scheme):
         """
         class reconstruction(object):
             pass
-        # Object to store the WENO properties
         if index:
             number = index
         else:
             number = 0
         weno = reconstruction()
         weno.all_equations = []
+        pprint(fn)
         # Generate the function points needed for the stencil
         weno.func_points = self.generate_function_points(weno, fn, direction, side, number)
         pprint(weno.func_points)
+        exit()
         # ENO coefficients
         weno.eno_coeffs = self.get_eno_coefficients(side)
         # Optimal coefficients for WENO
@@ -110,10 +133,13 @@ class Weno(Scheme):
         for key, value in reclass.symbolc_points_dict.iteritems():
             symbolic_list += [value]
             points_list += [reclass.points_values[key]]
+        print "here"
+        pprint(symbolic_list)
         pprint(points_list)
         reclass.all_equations += [Eq(a,b) for a,b in zip(symbolic_list, points_list)]
         # Beta equations
         reclass.all_equations += reclass.smoothness_equations
+        pprint(reclass.smoothness_equations)
         # Alpha equations
         reclass.symbolic_alpha = [GridVariable('alpha_%s%d%d'%(name,number,i)) for i in range(0, self.k)]
         temp_zip = zip(reclass.symbolic_alpha, reclass.alpha)
@@ -166,9 +192,6 @@ class Weno(Scheme):
         reclass.symbolc_points_dict = {}
         reclass.points_values = {}
 
-        dire = fn.args[-1]
-
-        pprint(dire)
         for p in set(self.func_points[side]):
             pprint(p)
             if p>=0:
@@ -177,11 +200,30 @@ class Weno(Scheme):
             else:
                 reclass.symbolc_points_dict[p] = GridVariable('fn_%s%d_m%d'%(name,number,abs(p)))
             expr = fn
-            loc = fn.location[:]
-            loc[dire] = loc[dire] + p
-            # pprint([loc, req.location])
-            val = fn.get_location_dataset(loc)
-            expr = expr.replace(fn, val)
+            # Get the current location of the function
+            old_loc = [dset.location for dset in expr.atoms(DataSet)][0]
+            loc = old_loc[:]
+            # Increment the location based on the direction we are applying WENO to
+            loc[direction] = old_loc[direction] + 999 # 999 should be p when not testing (p starts at 0)
+
+            #WARNING : I don't know how to update the locations for both terms in the flux fn, while retaining
+            # the original function of 1/2 phi[0,0] + |c_0| phi[0,0]/2
+            # e.g. (1/2 phi[0,0] + |c_0| phi[0,0]/2) -----> 1/2 phi[999,0] + |c_0| phi[999,0]/2
+            # old location [0,0] is stored in old_loc, new location [999,0] stored in loc, expr needs to be updated
+            # run wave.py to get output up until here
+            pprint(srepr(expr))
+            pprint(fn)
+            pprint(expr.args)
+            pprint(old_loc)
+            pprint(loc)
+            for func in expr.args:
+                func.args[-1].replace(old_loc, loc)
+                pprint(func.args)
+            pprint(func)
+            exit()
+            expr = expr.subs(old_loc, loc)
+            pprint(expr)
+            exit()
             reclass.points_values[p] = expr
 
         pprint(reclass.points_values)
@@ -202,63 +244,12 @@ class Weno(Scheme):
         all_indices = []
         wrt = direction
         all_fns = []
-        ### Need to change subs wrt: wrt + p here to new indexing based on below commented code
-        # for p in set(self.func_points[side]):
-        #     pprint(p)
-        #     if p>=0:
-        #         reclass.symbolc_points_dict[p] = GridVariable('fn_%s%d_p%d'%(name,number,p))
-        #         pprint(reclass.symbolc_points_dict[p])
-        #     else:
-        #         reclass.symbolc_points_dict[p] = GridVariable('fn_%s%d_m%d'%(name,number,abs(p)))
-        #     expr = fn
-        #     loc = fn.location[:]
-        #     loc[dire] = loc[dire] + p
-        #     # pprint([loc, req.location])
-        #     val = fn.get_location_dataset(loc)
-        #     expr = expr.replace(fn, val)
-        #     reclass.points_values[p] = expr
-
-            
+         
         for p in shift:
             if p in reclass.symbolc_points_dict.keys():
                 all_fns += [reclass.symbolc_points_dict[p]]
-            else:
-                if p>=0:
-                    reclass.symbolc_points_dict[p] = GridVariable('fn_%s%d_p%d'%(name,number,p))
-                else:
-                    print('NOT IN STENCIL \n\n\n\n')
-                    reclass.symbolc_points_dict[p] = GridVariable('fn_%s%d_m%d'%(name,number,abs(p)))
-                reclass.points_values[p] = fn.subs({wrt: wrt+p})
-                all_fns += [reclass.symbolc_points_dict[p]]
         fn_product = all_fns[0]*all_fns[1]
-        pprint(fn_product)
         return fn_product
-
-    def wenoz(self, reconstruction, fn, direction, side, number):
-        if side == -1:
-            name = 'L'
-        elif side == 1:
-            name = 'R'
-
-        if self.k == 2:
-            smooth_coeffs = symbolic.jiang_shu_smoothness_coefficients(self.k+1)
-            r = 1
-            variable = GridVariable('beta_%s%d_%d'%(name, number,self.k))
-            smoothness_indicator = 0
-            for m in range(0, 2*(self.k+1)-1):
-                for n in range(0, 2*(self.k+1)-1):
-                    beta = smooth_coeffs.get((r,m,n))
-                    if beta != None:
-                        if side == 1:
-                            shift = [-r+m, -r+n]
-                        elif side == -1:
-                            shift = [-r+m+1, -r+n+1]
-                        func_product = self.generate_smoothness_points(fn, direction, shift, side, reconstruction)
-                        smoothness_indicator += beta*func_product
-            equation = [Eq(variable,smoothness_indicator)]
-        else:
-            raise NotImplementedError("")
-        return equation, variable
 
     def get_eno_coefficients(self, side):
         """ Returns the ENO coefficients given the left/right
@@ -316,16 +307,11 @@ class Weno(Scheme):
             name = 'R'
 
         smoothness_symbols = [GridVariable('beta_%s%d_%d'%(name, number, r)) for r in range(self.k)]
-        if self.k ==2:
-            smoothness_equations, zreconstruct = self.wenoz(reconstruction, fn, direction, side, number)
-        else:
-            smoothness_equations = []
 
-
+        smoothness_equations = []
+        #### Add conditional here that WENO-Z only works for self.k == 3, otherwise use JS formulation without tau parameter
         weno_z_symbol = GridVariable('tau_N_%s%d'%(name, number))
         alpha = []
-        # Save the functions as temporary grid variables
-
         # Compute the smoothness indicator and alpha
 
         for r in range(k):
@@ -346,12 +332,7 @@ class Weno(Scheme):
             alpha.append(opt_coeffs.get((0,r))*(Float(1.0) +weno_z_symbol/(eps +variable)))
 
             self.alpha = alpha
-        # Update the smoothness equations with TauN
-        if self.k ==2:
-            # smoothness_equations += [Eq(weno_z_symbol, abs(Rational(1,2)*(sum(smoothness_symbols)) -zreconstruct ))]
-            smoothness_equations += [Eq(weno_z_symbol, abs(smoothness_symbols[-1]- smoothness_symbols[0]))]
-        else:
-            smoothness_equations += [Eq(weno_z_symbol, abs(smoothness_symbols[-1]- smoothness_symbols[0]))]
+        smoothness_equations += [Eq(weno_z_symbol, abs(smoothness_symbols[-1]- smoothness_symbols[0]))]
         reconstruction.smoothness_equations = smoothness_equations
         return  alpha
 
@@ -371,19 +352,9 @@ class Weno(Scheme):
             stencil += reconstruction.symbolic_alpha[r]*sum(eno_expansion)/reconstruction.sum_alpha
         return stencil
 
-    def update_alpha(self, reclass, side, number):
-        if side == -1:
-            name = 'L'
-        elif side == 1:
-            name = 'R'
-        reclass.symbolic_alpha = [GridVariable('alpha_%s%d%d'%(name,number,i)) for i in range(0, self.k)]
-        reclass.sum_alpha =  GridVariable('Sigma_alpha_%s%d'%(name,number))
-        reclass.symbolic_reconstructed = GridVariable('Recon_%s%d'%(name,number))
-        return
-
     def update_WenoSolutionType(self, required_interpolations):
         for no,interpolation in enumerate(required_interpolations):
-            direction_no = self.derivative_direction.index(self.index_mapping[interpolation.direction])
+            direction = interpolation.direction_index
             fn = interpolation.variable
             sides = []
             if interpolation.reconstruction[0]:
@@ -392,14 +363,13 @@ class Weno(Scheme):
                 sides += [1]
             interpolation.sides = sides
             for side in sides:
-                interpolation.reconstructedclass[side] = self.generate_weno(fn, direction_no, side, no)
+                interpolation.reconstructedclass[side] = self.generate_weno(fn, direction, side, no)
         return
 
 class EigenSystem(object):
     def __init__(self, eigenvalue, left_ev, right_ev):
         if not isinstance(left_ev, dict) or not isinstance(right_ev, dict) or not isinstance(eigenvalue, dict):
             raise ValueError("Eigen values and eigen vectors should be in dictionary format")
-        # TODO the above line should be made more explicit one condition for each input
         self.eigen_value = eigenvalue
         self.left_eigen_vector = left_ev
         self.right_eigen_vector = right_ev
@@ -443,10 +413,8 @@ class GLFCharacteristic(Characteristic, Weno):
             work array or discretised formula
 
         """
-
-
-
         return
+
     def get_time_derivative(self, eqns):
         time_deriv = []
         for deriv in eqns.atoms(TemporalDerivative):
@@ -469,11 +437,19 @@ class GLFCharacteristic(Characteristic, Weno):
 
 class ScalarLocalLFScheme(Weno):
 
-    def __init__(self, order):
-        self.is_vector_type = True
+    def __init__(self, order, eqns, speeds, ndim):
         Weno.__init__(self, order)
+        self.ndim = ndim
+        self.speed = speeds
+        self.grouped_eqns = self.group_by_direction(eqns)
 
+        self.t = ConstantObject('t')
+        self.vector_notation = {}
+        self.vector_notation[self.t] = self.get_time_derivative(eqns[0])
+        self.get_space_derivatives()
+        pprint(self.vector_notation)
         return
+
     def discretise(self, type_of_eq, block):
         return
 
@@ -485,21 +461,20 @@ class ScalarLocalLFScheme(Weno):
         for deriv in eqns.atoms(TemporalDerivative):
             time_deriv.append(deriv.args[0])
         return time_deriv
-    def get_space_derivatives(self, vector_notation, grouped, ndim):
+    def get_space_derivatives(self):
         """
         Add space derivatives for each direction in the vector_notation dictionary.
         """
         coordinate_symbol = "x"
         cart = CoordinateObject('%s_i'%(coordinate_symbol))
-        coordinates = [cart.apply_index(cart.indices[0], dim) for dim in range(ndim)]
+        coordinates = [cart.apply_index(cart.indices[0], dim) for dim in range(self.ndim)]
 
         for index in coordinates:
-            vector_notation[index] = []
-
-        for i in range(ndim):
-            if coordinates[i] in vector_notation:
-                vector_notation[coordinates[i]] = [deriv.args[0] for deriv in grouped[i]]
-        return vector_notation
+            self.vector_notation[index] = []
+        for i in range(self.ndim):
+            if coordinates[i] in self.vector_notation:
+                self.vector_notation[coordinates[i]] = [deriv.args[0] for deriv in self.grouped_eqns[i]]
+        return 
 
     def group_by_direction(self, eqs):
         """
@@ -518,57 +493,52 @@ class ScalarLocalLFScheme(Weno):
                 grouped[direction] = [cd]
         return grouped
 
-    def set_scalar_speed(self, speed):
-        """
-        Set the scalar wave speeds.
-        """
-        self.speed = speed
-        return
 
-    def set_fluxes_direction(self, eq_vector_form):
+    def pre_process(self, direction, direction_index):
         """
-        Set the flux direction in vector form
+        Find the Lax Friedrich fluxes.
         """
-        self.vector_notation = eq_vector_form
-        return
-
-    def pre_process(self, key):
-        """ Find the lax fedrich fluxes"""
-        spatial_flux_vec = self.vector_notation[key]
-        time_vector = self.vector_notation[EinsteinTerm('t')]
-        pprint(time_vector)
-        pprint(Abs(self.speed[key]))
-        pprint(spatial_flux_vec)
-        # find the fluxes
-        self.fplus = Rational(1,2)*(Matrix(spatial_flux_vec) + Abs(self.speed[key])*Matrix(time_vector))
-        self.fminus = Rational(1,2)*(Matrix(spatial_flux_vec) - Abs(self.speed[key])*Matrix(time_vector))
+        # Direction x0, x1, x2 index 0, 1, 2
+        self.direction_index = direction_index
+        # Spatial and time vectors
+        spatial_flux_vec = self.vector_notation[direction]
+        time_vector = self.vector_notation[self.t]
+        # Construct the fluxes
+        self.fplus = Rational(1,2)*(Matrix(spatial_flux_vec) + Abs(self.speed[direction])*Matrix(time_vector))
+        self.fminus = Rational(1,2)*(Matrix(spatial_flux_vec) - Abs(self.speed[direction])*Matrix(time_vector))
         pprint(self.fplus)
         pprint(self.fminus)
         required_interpolations = []
+        # Required reconstruction
         leftRight = [False, True]
-        for val in self.fplus:
-            temp = WenoSolutionType(val,leftRight)
-            temp.direction = key
-            required_interpolations += [temp]
+        for flux in self.fplus:
+            pprint(flux)
+            interpolation = WenoSolutionType(flux,leftRight)
+            interpolation.direction = direction
+            interpolation.direction_index = self.direction_index
+            required_interpolations += [interpolation]
         leftRight = [True, False]
-        for val in self.fminus:
-            temp = WenoSolutionType(val,leftRight)
-            temp.direction = key
-            required_interpolations += [temp]
+        for flux in self.fminus:
+            interpolation = WenoSolutionType(flux,leftRight)
+            interpolation.direction = direction
+            interpolation.direction_index = self.direction_index
+            required_interpolations += [interpolation]
         return required_interpolations
-    # def post_process(self,interpolated):
-    #     self.post_process_equations = []
-    #     temp_dictionary = {}
-    #     for val in interpolated:
-    #         self.post_process_equations, reconstructed_symbols = val.evaluate_interpolation(self.post_process_equations)
-    #         temp_dictionary[val.variable] = reconstructed_symbols
-    #     #pprint(temp_dictionary)
-    #     # The new naming uplus will be minus
-    #     self.right_interpolated = []
-    #     self.left_interpolated = []
-    #     for val in self.fplus:
-    #         self.right_interpolated += temp_dictionary[val][1]
-    #     for val in self.fminus:
-    #         self.left_interpolated += temp_dictionary[val][-1]
-    #     final_flux  = (Matrix(self.right_interpolated) + Matrix(self.left_interpolated))
-    #     return self.post_process_equations,final_flux
+
+    def post_process(self,interpolated):
+        self.post_process_equations = []
+        temp_dictionary = {}
+        for value in interpolated:
+            self.post_process_equations, reconstructed_symbols = value.evaluate_interpolation(self.post_process_equations)
+            temp_dictionary[value.variable] = reconstructed_symbols
+        pprint(temp_dictionary)
+        exit()
+        # The new naming uplus will be minus
+        self.right_interpolated = []
+        self.left_interpolated = []
+        for val in self.fplus:
+            self.right_interpolated += temp_dictionary[val][1]
+        for val in self.fminus:
+            self.left_interpolated += temp_dictionary[val][-1]
+        final_flux  = (Matrix(self.right_interpolated) + Matrix(self.left_interpolated))
+        return self.post_process_equations,final_flux
