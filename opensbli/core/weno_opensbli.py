@@ -443,7 +443,7 @@ class ScalarLocalLFScheme(Weno):
         self.speed = speeds
         self.grouped_eqns = self.group_by_direction(eqns)
 
-        self.t = ConstantObject('t')
+        self.t = CoordinateObject('t')
         self.vector_notation = {}
         self.vector_notation[self.t] = self.get_time_derivative(eqns[0])
         self.get_space_derivatives()
