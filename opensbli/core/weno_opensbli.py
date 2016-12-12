@@ -53,7 +53,6 @@ class WenoSolutionType(object):
             local_equations += left.all_equations
         # Right reconstruction
         if self.reconstruction[1]:
-            print "in right"
             right = self.reconstructedclass[1]
             reconstructed_symbols[1]= [right.symbolic_reconstructed]
             local_equations += right.all_equations
@@ -103,8 +102,6 @@ class Weno(Scheme):
         pprint(fn)
         # Generate the function points needed for the stencil
         weno.func_points = self.generate_function_points(weno, fn, direction, side, number)
-        pprint(weno.func_points)
-        exit()
         # ENO coefficients
         weno.eno_coeffs = self.get_eno_coefficients(side)
         # Optimal coefficients for WENO
@@ -133,7 +130,6 @@ class Weno(Scheme):
         for key, value in reclass.symbolc_points_dict.iteritems():
             symbolic_list += [value]
             points_list += [reclass.points_values[key]]
-        print "here"
         pprint(symbolic_list)
         pprint(points_list)
         reclass.all_equations += [Eq(a,b) for a,b in zip(symbolic_list, points_list)]
@@ -193,7 +189,6 @@ class Weno(Scheme):
         reclass.points_values = {}
 
         for p in set(self.func_points[side]):
-            pprint(p)
             if p>=0:
                 reclass.symbolc_points_dict[p] = GridVariable('fn_%s%d_p%d'%(name,number,p))
                 pprint(reclass.symbolc_points_dict[p])
@@ -204,32 +199,17 @@ class Weno(Scheme):
             old_loc = [dset.location for dset in expr.atoms(DataSet)][0]
             loc = old_loc[:]
             # Increment the location based on the direction we are applying WENO to
-            loc[direction] = old_loc[direction] + 999 # 999 should be p when not testing (p starts at 0)
-
-            #WARNING : I don't know how to update the locations for both terms in the flux fn, while retaining
-            # the original function of 1/2 phi[0,0] + |c_0| phi[0,0]/2
-            # e.g. (1/2 phi[0,0] + |c_0| phi[0,0]/2) -----> 1/2 phi[999,0] + |c_0| phi[999,0]/2
-            # old location [0,0] is stored in old_loc, new location [999,0] stored in loc, expr needs to be updated
-            # run wave.py to get output up until here
-            pprint(srepr(expr))
-            pprint(fn)
-            pprint(expr.args)
-            pprint(old_loc)
-            pprint(loc)
-            for func in expr.args:
-                func.args[-1].replace(old_loc, loc)
-                pprint(func.args)
-            pprint(func)
-            exit()
-            expr = expr.subs(old_loc, loc)
-            pprint(expr)
-            exit()
+            loc[direction] = old_loc[direction] + p
+            for derivative in expr.args:
+                base_func = derivative.args[-1]
+                updated_derivative = derivative.replace(base_func, base_func.get_location_dataset(loc))
+                expr = expr.replace(derivative, updated_derivative)
             reclass.points_values[p] = expr
+        pprint(expr)
 
         pprint(reclass.points_values)
         all_fns = [reclass.symbolc_points_dict[x] for x in self.func_points[side]]
         pprint(all_fns)
-        # exit()
         return all_fns
 
     def generate_smoothness_points(self, fn, direction, shift, side, reclass):
@@ -447,7 +427,6 @@ class ScalarLocalLFScheme(Weno):
         self.vector_notation = {}
         self.vector_notation[self.t] = self.get_time_derivative(eqns[0])
         self.get_space_derivatives()
-        pprint(self.vector_notation)
         return
 
     def discretise(self, type_of_eq, block):
@@ -532,7 +511,6 @@ class ScalarLocalLFScheme(Weno):
             self.post_process_equations, reconstructed_symbols = value.evaluate_interpolation(self.post_process_equations)
             temp_dictionary[value.variable] = reconstructed_symbols
         pprint(temp_dictionary)
-        exit()
         # The new naming uplus will be minus
         self.right_interpolated = []
         self.left_interpolated = []
@@ -541,4 +519,9 @@ class ScalarLocalLFScheme(Weno):
         for val in self.fminus:
             self.left_interpolated += temp_dictionary[val][-1]
         final_flux  = (Matrix(self.right_interpolated) + Matrix(self.left_interpolated))
+        print "final flux"
+        pprint(final_flux)
+        print "equations"
+        pprint(self.post_process_equations)
+        print "finished post_process"
         return self.post_process_equations,final_flux

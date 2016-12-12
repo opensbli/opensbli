@@ -12,7 +12,7 @@ from opensbli.physical_models.euler_eigensystem import *
 BUILD_DIR = os.getcwd()
 
 # Problem dimension
-ndim = 2
+ndim = 1
 
 # Define the wave equation in Einstein notation.
 wave = "Eq(Der(phi,t), -c_j*Der(phi,x_j, **{\'scheme\':\'Weno\'}))"
