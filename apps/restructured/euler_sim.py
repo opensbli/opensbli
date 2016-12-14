@@ -6,40 +6,48 @@ from math import ceil
 #import opensbli as base
 from opensbli.core import *
 from opensbli.core.bcs import *
+from opensbli.physical_models.euler_eigensystem import *
+
 
 BUILD_DIR = os.getcwd()
 
-# Problem dimension
 ndim = 1
 
-# Define the wave equation in Einstein notation.
-wave = "Eq(Der(phi,t), -c_j*Der(phi,x_j, **{\'scheme\':\'Weno\'}))"
-# wave = "Eq(Der(phi,t), -c_j*Der(phi,x_j, **{\'scheme\':\'Central\'}))"
-# wave = "Eq( Der(phi,t) + Der(rho,t), -c_j*Conservative(phi*phi,x_j, **{\'scheme\':\'Weno\'}) - c_j*Conservative(phi*phi*phi, x_j, **{\'scheme\':\'Weno\'}))"
+weno = True
+Euler_eq = EulerEquations(ndim, weno)
 
-mass = []
-
-# equations = [burg]
-
-# Substitutions
 substitutions = []
 
-# The wave speed
-constants = ["c_j"]
 
-# Coordinate direction symbol (x) this will be x_i, x_j, x_k
 coordinate_symbol = "x"
 
 simulation_eq = SimulationEquations()
 eq = Equation()
-eqns = eq.expand(wave, ndim, coordinate_symbol, substitutions, constants)
-simulation_eq.add_equations(eqns)
-#pprint(simulation_eq.equations)
-# Discretise the constituent relations if it contains any derivatives
-#simulation_eq.add_constituent_relations(constituent)
+
+#WARNING: Not sure if the pressure in the momentum equation is being correctly evaluated 
+# with the kronecker delta object, there is no pressure in the parsed equations
+for equation in Euler_eq.equations:
+	eqns = eq.expand(equation, ndim, coordinate_symbol, substitutions, constants=Euler_eq.constants)
+	pprint(eqns)
+	print "-----------------------------------------------------------------"
+	simulation_eq.add_equations(eqns)
+
+exit()
+constituent = ConstituentRelations()
+
+for equation in Euler_eq.formulas:
+	print "Equation is: %s " % equation
+	eqns = eq.expand(equation, ndim, coordinate_symbol, substitutions, constants=Euler_eq.constants)
+	constituent.add_equations(eqns)
+	print "------------------------------------------------------------------"
+pprint(constituent.equations)
+exit()
 
 block= SimulationBlock(ndim, block_number = 0)
 
+## Create eigensystem
+Euler = EulerEquations(ndim)
+ev_dict, LEV_dict, REV_dict = Euler.generate_eig_system()
 weno_order = 3
 flat_eqns = flatten(simulation_eq.equations)
 # GLF = GLFCharacteristic(ev_dict, LEV_dict, REV_dict, weno_order)

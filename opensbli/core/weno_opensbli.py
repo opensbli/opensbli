@@ -36,7 +36,6 @@ class WenoSolutionType(object):
     def __init__(self, variable, left_right=None):
         self.variable = variable
         if left_right:
-            print "in left_right"
             self.reconstruction = left_right
         else:
             self.reconstruction = [False, True]
@@ -108,15 +107,11 @@ class Weno(Scheme):
         weno.optimal_coeffs = self.get_optimal_coefficients(side)
         # Generate the weno coefficients
         weno.alpha = self.get_weno_coefficients(weno, fn, direction, side,number)
-        pprint(weno.alpha)
         # Update the symbolic alphas used for reducing computations
         # Create the final stencil
         self.update_weno_equations(weno, side, number)
         weno.stencil = self.create_stencil(weno)
-        pprint(weno.stencil)
-        # exit()
         weno.all_equations += [Eq(weno.symbolic_reconstructed, weno.stencil)]
-        pprint(weno.all_equations)
         return weno
 
     def update_weno_equations(self, reclass, side, number):
@@ -125,6 +120,7 @@ class Weno(Scheme):
         elif side == 1:
             name = 'R' # This can be moved to the RECLASS LATER
         # First the equations for fn points
+        ### EDIT THIS FUNCTION LATER
         symbolic_list = []
         points_list = []
         for key, value in reclass.symbolc_points_dict.iteritems():
@@ -135,7 +131,6 @@ class Weno(Scheme):
         reclass.all_equations += [Eq(a,b) for a,b in zip(symbolic_list, points_list)]
         # Beta equations
         reclass.all_equations += reclass.smoothness_equations
-        pprint(reclass.smoothness_equations)
         # Alpha equations
         reclass.symbolic_alpha = [GridVariable('alpha_%s%d%d'%(name,number,i)) for i in range(0, self.k)]
         temp_zip = zip(reclass.symbolic_alpha, reclass.alpha)
@@ -191,7 +186,6 @@ class Weno(Scheme):
         for p in set(self.func_points[side]):
             if p>=0:
                 reclass.symbolc_points_dict[p] = GridVariable('fn_%s%d_p%d'%(name,number,p))
-                pprint(reclass.symbolc_points_dict[p])
             else:
                 reclass.symbolc_points_dict[p] = GridVariable('fn_%s%d_m%d'%(name,number,abs(p)))
             expr = fn
@@ -205,9 +199,8 @@ class Weno(Scheme):
                 updated_derivative = derivative.replace(base_func, base_func.get_location_dataset(loc))
                 expr = expr.replace(derivative, updated_derivative)
             reclass.points_values[p] = expr
-        pprint(expr)
-
-        pprint(reclass.points_values)
+        # pprint(reclass.symbolc_points_dict[p])
+        # pprint(reclass.points_values)
         all_fns = [reclass.symbolc_points_dict[x] for x in self.func_points[side]]
         pprint(all_fns)
         return all_fns
@@ -363,6 +356,27 @@ class Characteristic(EigenSystem):
         EigenSystem.__init__(self, eigenvalue, left_ev, right_ev)
         return
 
+    def pre_process(self, key):
+        """ Derivatives should be of size of number of equations in flux vector format
+        Characteristic decomposition evaluation requires
+            # multiply with left Ev and interpolate them
+        """
+        pre_process_equations = []
+        time = (Matrix(self.vector_notation[CoordinateObject('t')]))
+        conservative_vars_base = [Symbol(str(l.base)) for l in time]
+        left = list(time) # i)
+        direction = key
+        substitution = {direction: direction+1} # sub i--> i+1
+        right = [e.subs(substitution) for e in left] # i+1
+        pprint(right)
+        # use the bases as the eigen values and eigen vectors are defined on base terms
+        left_subs_dict = dict(zip(conservative_vars_base, left)) #
+        right_subs_dict = dict(zip(conservative_vars_base, right)) #
+        # Do the simple averaging procedure defined in the Eigen values and eigen vectors
+        name = 'LR'
+        pre_process_equations += self.simple_average_left_right(left_subs_dict, right_subs_dict, name)
+        avg_eigen_name = 'LR'
+        self.eigenvalues_names = {}
 
 class GLFCharacteristic(Characteristic, Weno):
     """ This class contains the Global Lax-Fedrich scheme
@@ -485,13 +499,10 @@ class ScalarLocalLFScheme(Weno):
         # Construct the fluxes
         self.fplus = Rational(1,2)*(Matrix(spatial_flux_vec) + Abs(self.speed[direction])*Matrix(time_vector))
         self.fminus = Rational(1,2)*(Matrix(spatial_flux_vec) - Abs(self.speed[direction])*Matrix(time_vector))
-        pprint(self.fplus)
-        pprint(self.fminus)
         required_interpolations = []
         # Required reconstruction
         leftRight = [False, True]
         for flux in self.fplus:
-            pprint(flux)
             interpolation = WenoSolutionType(flux,leftRight)
             interpolation.direction = direction
             interpolation.direction_index = self.direction_index
@@ -510,7 +521,6 @@ class ScalarLocalLFScheme(Weno):
         for value in interpolated:
             self.post_process_equations, reconstructed_symbols = value.evaluate_interpolation(self.post_process_equations)
             temp_dictionary[value.variable] = reconstructed_symbols
-        pprint(temp_dictionary)
         # The new naming uplus will be minus
         self.right_interpolated = []
         self.left_interpolated = []

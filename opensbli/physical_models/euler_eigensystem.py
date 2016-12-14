@@ -30,18 +30,17 @@ from opensbli.core.opensbliequations import OpenSBLIExpression
 from sympy.parsing.sympy_parser import parse_expr
 
 class EulerEquations(object):
-    def __init__(self, ndim, **kwargs):
+    def __init__(self, ndim, weno=True, **kwargs):
         """ """
-        # self.constants = []
-        # self.general_equations()
-        # self.formulas = []
-        # self.velocity_components()
-        # self.pressure_equation()
-        # self.speed_of_sound()
+        self.weno = weno
+        self.constants = []
+        self.general_equations()
+        self.formulas = []
+        self.velocity_components()
+        self.pressure_equation()
+        self.speed_of_sound()
         self.ndim = ndim
-        # coordinate_symbol = "x"
-        # metrics = []
-        # problem = Problem(self.equations, [], self.ndim, self.constants, coordinate_symbol, self.formulas)
+        coordinate_symbol = "x"
         # self.expanded_equations = problem.get_expanded(problem.equations)
         # self.expanded_formulas = problem.get_expanded(problem.formulas)
         # self.problem = problem
@@ -54,6 +53,48 @@ class EulerEquations(object):
         self.LEV = {}
         self.EV= {}
         # self.conser_to_primitive()
+        return
+
+    def general_equations(self):
+        '''General equations for the compressible Navier Stokes are written in here, depending on the
+        equations required these will be modified at the initialisation of the class
+        '''
+        # Shock capturing enabled
+        if self.weno == True:
+            scheme = "**{\'scheme\':\'Weno\'}"
+        else:
+            scheme = "**{\'scheme\':\'Central\'}"
+        mass = "Eq(Der(rho,t), - Conservative(rhou_j,x_j, %s))" % scheme
+        momentum = "Eq(Der(rhou_i,t) , -Conservative(rhou_i*u_j+KD(_i,_j)*p,x_j, %s))" % scheme
+        energy = "Eq(Der(rhoE,t), - Conservative((rhoE+p)*u_j,x_j, %s) )" % scheme
+        self.equations = [mass, momentum, energy]
+        return
+    def velocity_components(self):
+        velocity = "Eq(u_i, rhou_i/rho)"
+        self.formulas = self.formulas + [velocity]
+        return
+    def pressure_equation(self, conservative= True):
+        if not conservative:
+            pressure = "Eq(p, (gama-1)*(rhoE - (1/2)*rho*(u_j*u_j)))"
+        else:
+            pressure = "Eq(p, (gama-1)*(rhoE - (1/2)*(rhou_j*rhou_j/rho)))"
+        self.constants += ['gama']
+        self.formulas = self.formulas + [pressure]
+        return
+    def speed_of_sound(self,conservative= True):
+        asq = "Eq(asq, gama*(gama-1)*(rhoE/rho - (1/2)*(rhou_j*rhou_j/(rho*rho))))"
+        self.formulas = self.formulas + [asq]
+        return
+    def eq_to_vector_form(self):
+        vector_notation = {key:[] for key in (self.space_derivative_symbols)}
+        vector_notation[self.time_derivative] = []
+        for eq in flatten(self.expanded_equations):
+            dictionary = group_derivative_direction(eq.atoms(Derivative))
+            for key,value in dictionary.iteritems():
+                if key in vector_notation.keys():
+                    vector_notation[key] = vector_notation[key] + [v.args[0] for v in value]
+        self.vector_notation = vector_notation
+        self.no_indexed_vector_notation = self.remove_indices_in_dictionary(vector_notation)
         return
 
     def generate_eig_system(self, block=None):
@@ -70,10 +111,10 @@ class EulerEquations(object):
         met_symbols = eye(ndim)
 
         if ndim == 1:
-            list1 = ['H']
-            list2 = ['a**2/(gama-1) + u0**2/2']
-            list1 = [parse_expr(l) for l in list1]
-            list2 = [parse_expr(l) for l in list2]
+            matrix_symbols = ['H']
+            matrix_formulae = ['a**2/(gama-1) + u0**2/2']
+            matrix_symbols = [parse_expr(l) for l in matrix_symbols]
+            matrix_formulae = [parse_expr(l) for l in matrix_formulae]
 
             ev = 'diag([u0-a, u0, u0+a])'
             REV = 'Matrix([[1,1,1], [u0-a,u0,u0+a], [H-u0*a,u0**2 /2,H+u0*a]])'
@@ -82,7 +123,7 @@ class EulerEquations(object):
             REV = parse_expr(REV)
             LEV = parse_expr(LEV)
 
-            subs_dict = dict(zip(list1, list2))
+            subs_dict = dict(zip(matrix_symbols, symbol_formulae))
             f = lambda x:x.subs(subs_dict)
             ev = ev.applyfunc(f)
             REV = REV.applyfunc(f)
@@ -105,17 +146,17 @@ class EulerEquations(object):
                 eq_directions[direction] = [e.subs(subs_list[no]) for e in equations]
 
         if ndim == 2:
-            list1 = ['alpha', 'bta', 'theta', 'phi_sq', 'k']
-            list2 = ['rho/(a*sqrt(2))', '1/(rho*a*sqrt(2))', 'k0*u0 + k1*u1', '(gama-1)*((u0**2 + u1**2)/2)', 'sqrt(k0**2 + k1**2)']
-            list3 = ['k0_t','k1_t', 'theta_t', 'U']
-            list4 = ['k0/k', 'k1/k', 'k0_t*u0 + k1_t*u1', 'k0*u0+k1*u1']
+            matrix_symbols = ['alpha', 'bta', 'theta', 'phi_sq', 'k']
+            matrix_formulae = ['rho/(a*sqrt(2))', '1/(rho*a*sqrt(2))', 'k0*u0 + k1*u1', '(gama-1)*((u0**2 + u1**2)/2)', 'sqrt(k0**2 + k1**2)']
+            matrix_symbols_2 = ['k0_t','k1_t', 'theta_t', 'U']
+            matrix_formulae_2 = ['k0/k', 'k1/k', 'k0_t*u0 + k1_t*u1', 'k0*u0+k1*u1']
 
-            list1 = [parse_expr(l,evaluate=False) for l in list1]
-            list2 = [parse_expr(l, evaluate=False) for l in list2]
-            list3 = [parse_expr(l, evaluate=False) for l in list3]
-            list4 = [parse_expr(l, evaluate=False) for l in list4]
-            subs_dict = dict(zip(list1, list2))
-            subs_dict2 = dict(zip(list3, list4))
+            matrix_symbols = [parse_expr(l,evaluate=False) for l in matrix_symbols]
+            matrix_formulae = [parse_expr(l, evaluate=False) for l in matrix_formulae]
+            matrix_symbols_2 = [parse_expr(l, evaluate=False) for l in matrix_symbols_2]
+            matrix_formulae_2 = [parse_expr(l, evaluate=False) for l in matrix_formulae_2]
+            subs_dict = dict(zip(matrix_symbols, matrix_formulae))
+            subs_dict2 = dict(zip(matrix_symbols_2, matrix_formulae_2))
 
             ev = 'diag([U, U, U+a*k, U-a*k])'
             ev = parse_expr(ev, evaluate=False)
@@ -157,17 +198,17 @@ class EulerEquations(object):
                 LEV_dict[direction] = LEV.applyfunc(g)
 
         elif ndim == 3:
-            list1 = ['alpha', 'bta', 'theta', 'phi_sq', 'k']
-            list2 = ['rho/(a*sqrt(2))', '1/(rho*a*sqrt(2))', 'k0*u0 + k1*u1 + k2*u2', '(gama-1)*((u0**2 + u1**2 + u2**2)/2)', 'sqrt(k0**2 + k1**2 + k2**2)']
-            list3 = ['k0_t','k1_t', 'k2_t', 'theta_t', 'U']
-            list4 = ['k0/k', 'k1/k', 'k2/k', 'k0_t*u0 + k1_t*u1 + k2_t*u2', 'k0*u0+k1*u1+k2*u2']
+            matrix_symbols = ['alpha', 'bta', 'theta', 'phi_sq', 'k']
+            matrix_formulae = ['rho/(a*sqrt(2))', '1/(rho*a*sqrt(2))', 'k0*u0 + k1*u1 + k2*u2', '(gama-1)*((u0**2 + u1**2 + u2**2)/2)', 'sqrt(k0**2 + k1**2 + k2**2)']
+            matrix_symbols_2 = ['k0_t','k1_t', 'k2_t', 'theta_t', 'U']
+            matrix_formulae_2 = ['k0/k', 'k1/k', 'k2/k', 'k0_t*u0 + k1_t*u1 + k2_t*u2', 'k0*u0+k1*u1+k2*u2']
 
-            list1 = [parse_expr(l,evaluate=False) for l in list1]
-            list2 = [parse_expr(l, evaluate=False) for l in list2]
-            list3 = [parse_expr(l, evaluate=False) for l in list3]
-            list4 = [parse_expr(l, evaluate=False) for l in list4]
-            subs_dict = dict(zip(list1, list2))
-            subs_dict2 = dict(zip(list3, list4))
+            matrix_symbols = [parse_expr(l,evaluate=False) for l in matrix_symbols]
+            matrix_formulae = [parse_expr(l, evaluate=False) for l in matrix_formulae]
+            matrix_symbols_2 = [parse_expr(l, evaluate=False) for l in matrix_symbols_2]
+            matrix_formulae_2 = [parse_expr(l, evaluate=False) for l in matrix_formulae_2]
+            subs_dict = dict(zip(matrix_symbols, matrix_formulae))
+            subs_dict2 = dict(zip(matrix_symbols_2, matrix_formulae_2))
 
             ev = 'diag([U, U, U, U+a*k, U-a*k])'
             ev = parse_expr(ev, evaluate=False)
