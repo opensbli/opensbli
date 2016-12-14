@@ -12,7 +12,6 @@ from opensbli.physical_models.euler_eigensystem import *
 BUILD_DIR = os.getcwd()
 
 ndim = 2
-
 weno = True
 Euler_eq = EulerEquations(ndim, weno)
 
@@ -46,11 +45,13 @@ block= SimulationBlock(ndim, block_number = 0)
 ## Create eigensystem
 ev_dict, LEV_dict, REV_dict = Euler_eq.generate_eig_system()
 weno_order = 3
-flat_eqns = flatten(simulation_eq.equations)
-print "printing flat equations"
-for item in flat_eqns:
-	pprint(item)
+# Convert the system of equations into vector form
+Euler_eq.eq_to_vector_form(simulation_eq.equations)
+print "Vector form of the equations is:"
+pprint(Euler_eq.vector_notation)
+
 exit()
+
 
 cart = CoordinateObject('%s_i'%(coordinate_symbol))
 coordinates = [cart.apply_index(cart.indices[0], dim) for dim in range(ndim)]

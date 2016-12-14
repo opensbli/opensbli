@@ -17,9 +17,6 @@
 #    You should have received a copy of the GNU General Public License
 #    along with OpenSBLI.  If not, see <http://www.gnu.org/licenses/>
 
-import sys
-from math import ceil
-
 # Import local utility functions
 from sympy.tensor.array import MutableDenseNDimArray, tensorcontraction
 from opensbli.core.opensbliobjects import * 
@@ -28,6 +25,7 @@ from opensbli.core.opensbliobjects import ConstantObject
 from opensbli.core.opensblifunctions import CentralDerivative
 from opensbli.core.opensbliequations import OpenSBLIExpression
 from sympy.parsing.sympy_parser import parse_expr
+from opensbli.core.opensblifunctions import *
 
 class EulerEquations(object):
     def __init__(self, ndim, weno=True, **kwargs):
@@ -44,9 +42,9 @@ class EulerEquations(object):
         # self.expanded_equations = problem.get_expanded(problem.equations)
         # self.expanded_formulas = problem.get_expanded(problem.formulas)
         # self.problem = problem
-        # self.time_derivative = EinsteinTerm('t')
-        # self.space_derivative_symbols = EinsteinTerm('%s_j'%(coordinate_symbol))
-        # self.space_derivative_symbols= self.space_derivative_symbols.get_array(self.space_derivative_symbols.get_indexed(self.ndim))
+        self.time_derivative_symbol = CoordinateObject('t')
+        cart = CoordinateObject('%s_i'%(coordinate_symbol))
+        self.space_derivative_symbols = [cart.apply_index(cart.indices[0], dim) for dim in range(self.ndim)]
         # self.eq_to_vector_form()
         # self.formula_to_dict()
         self.REV = {}
@@ -54,6 +52,31 @@ class EulerEquations(object):
         self.EV= {}
         # self.conser_to_primitive()
         return
+
+    def get_time_derivative(self, eqns):
+        """
+        Get the time derivatives to add to the vector notation dictionary.
+        """
+        time_deriv = []
+        for deriv in eqns.atoms(TemporalDerivative):
+            time_deriv.append(deriv)
+        return time_deriv
+    
+    def group_by_direction(self, eqn):
+        """
+        Group the derivatives by direction, one equation at a time given to this function. 
+        """
+        all_WDS = []
+        all_WDS += eqn.atoms(WenoDerivative)
+        all_WDS = list(set(all_WDS))
+        grouped = {}
+        for cd in all_WDS:
+            direction = cd.get_direction[0]
+            if direction in grouped.keys():
+                grouped[direction] += [cd]
+            else:
+                grouped[direction] = [cd]
+        return grouped
 
     def general_equations(self):
         '''General equations for the compressible Navier Stokes are written in here, depending on the
@@ -69,10 +92,12 @@ class EulerEquations(object):
         energy = "Eq(Der(rhoE,t), - Conservative((rhoE+p)*u_j,x_j, %s) )" % scheme
         self.equations = [mass, momentum, energy]
         return
+
     def velocity_components(self):
         velocity = "Eq(u_i, rhou_i/rho)"
         self.formulas = self.formulas + [velocity]
         return
+
     def pressure_equation(self, conservative= True):
         # if not conservative:
         #     pressure = "Eq(p, (gama-1)*(rhoE - (1/2)*rho*(u_j*u_j)))"
@@ -82,22 +107,35 @@ class EulerEquations(object):
         self.constants += ['gama']
         self.formulas = self.formulas + [pressure]
         return
+
     def speed_of_sound(self,conservative= True):
         # asq = "Eq(asq, gama*(gama-1)*(rhoE/rho - (1/2)*(rhou_j*rhou_j/(rho*rho))))"
         #WARNING: Added speed of sound with KD instead of two dummy as before, is this formula correct?
         asq = "Eq(asq, gama*(gama-1)*(rhoE/rho - (1/2)*(KD(_i,_j)*u_i*u_j)))"
         self.formulas = self.formulas + [asq]
         return
-    def eq_to_vector_form(self):
-        vector_notation = {key:[] for key in (self.space_derivative_symbols)}
-        vector_notation[self.time_derivative] = []
-        for eq in flatten(self.expanded_equations):
-            dictionary = group_derivative_direction(eq.atoms(Derivative))
-            for key,value in dictionary.iteritems():
-                if key in vector_notation.keys():
-                    vector_notation[key] = vector_notation[key] + [v.args[0] for v in value]
-        self.vector_notation = vector_notation
-        self.no_indexed_vector_notation = self.remove_indices_in_dictionary(vector_notation)
+
+    def eq_to_vector_form(self, eqns):
+        # Flatten the system of equations
+        flat_eqns = flatten(eqns)
+        # Generate dictionary to group the terms in vector form for each coordinate
+        self.vector_notation = {key:[] for key in self.space_derivative_symbols}
+        t = self.time_derivative_symbol
+        self.vector_notation[t] = []
+        # Loop over the equations in the system
+        for eq in flat_eqns:
+            # Group terms in this equation based on the direction the differentiation is applied
+            grouped_dictionary = self.group_by_direction(eq)
+            # Loop over the directions
+            for key, derivatives in grouped_dictionary.iteritems():
+                coordinate = self.space_derivative_symbols[key]
+                # Check if the coordinate exists in the vector notation dictionary
+                if coordinate in self.vector_notation.keys():
+                    # Add the function being differentiated to its position in the vector notation
+                    self.vector_notation[coordinate] = self.vector_notation[coordinate] + [deriv.args[0] for deriv in derivatives]
+            # Find time derivatives and add them into the vector expression
+            grouped_dictionary[t] = self.get_time_derivative(eq)
+            self.vector_notation[t] = self.vector_notation[t] + [deriv.args[0] for deriv in grouped_dictionary[t]]
         return
 
     def generate_eig_system(self, block=None):
@@ -126,7 +164,7 @@ class EulerEquations(object):
             REV = parse_expr(REV)
             LEV = parse_expr(LEV)
 
-            subs_dict = dict(zip(matrix_symbols, symbol_formulae))
+            subs_dict = dict(zip(matrix_symbols, matrix_formulae))
             f = lambda x:x.subs(subs_dict)
             ev = ev.applyfunc(f)
             REV = REV.applyfunc(f)
