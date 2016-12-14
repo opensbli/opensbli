@@ -74,15 +74,18 @@ class EulerEquations(object):
         self.formulas = self.formulas + [velocity]
         return
     def pressure_equation(self, conservative= True):
-        if not conservative:
-            pressure = "Eq(p, (gama-1)*(rhoE - (1/2)*rho*(u_j*u_j)))"
-        else:
-            pressure = "Eq(p, (gama-1)*(rhoE - (1/2)*(rhou_j*rhou_j/rho)))"
+        # if not conservative:
+        #     pressure = "Eq(p, (gama-1)*(rhoE - (1/2)*rho*(u_j*u_j)))"
+        # pressure = "Eq(p, (gama-1)*(rhoE - (1/2)*(rhou_j*rhou_j/rho)))"
+        #WARNING: Added pressure with KD instead of two dummy as before, is this formula correct?
+        pressure = "Eq(p, (gama-1)*(rhoE - rho*(1/2)*(KD(_i,_j)*u_i*u_j)))"
         self.constants += ['gama']
         self.formulas = self.formulas + [pressure]
         return
     def speed_of_sound(self,conservative= True):
-        asq = "Eq(asq, gama*(gama-1)*(rhoE/rho - (1/2)*(rhou_j*rhou_j/(rho*rho))))"
+        # asq = "Eq(asq, gama*(gama-1)*(rhoE/rho - (1/2)*(rhou_j*rhou_j/(rho*rho))))"
+        #WARNING: Added speed of sound with KD instead of two dummy as before, is this formula correct?
+        asq = "Eq(asq, gama*(gama-1)*(rhoE/rho - (1/2)*(KD(_i,_j)*u_i*u_j)))"
         self.formulas = self.formulas + [asq]
         return
     def eq_to_vector_form(self):

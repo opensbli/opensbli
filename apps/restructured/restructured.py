@@ -54,6 +54,7 @@ eqns = eq.expand(mass, ndim, coordinate_symbol, substitutions, constants)
 simulation_eq.add_equations(eqns)
 
 eqns = eq.expand(momentum, ndim, coordinate_symbol, substitutions, constants)
+exit()
 
 simulation_eq.add_equations(eqns)
 eqns = eq.expand(energy, ndim, coordinate_symbol, substitutions, constants)

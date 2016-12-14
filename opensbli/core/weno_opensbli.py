@@ -356,6 +356,23 @@ class Characteristic(EigenSystem):
         EigenSystem.__init__(self, eigenvalue, left_ev, right_ev)
         return
 
+    def group_by_direction(self, eqs):
+        """
+        Group the derivatives by direction.
+        """
+        all_WDS = []
+        for eq in eqs:
+            all_WDS += list(eq.atoms(WenoDerivative))
+        all_WDS = list(set(all_WDS))
+        grouped = {}
+        for cd in all_WDS:
+            direction = cd.get_direction[0]
+            if direction in grouped.keys():
+                grouped[direction] += [cd]
+            else:
+                grouped[direction] = [cd]
+        return grouped
+
     def pre_process(self, key):
         """ Derivatives should be of size of number of equations in flux vector format
         Characteristic decomposition evaluation requires

@@ -11,7 +11,7 @@ from opensbli.physical_models.euler_eigensystem import *
 
 BUILD_DIR = os.getcwd()
 
-ndim = 1
+ndim = 2
 
 weno = True
 Euler_eq = EulerEquations(ndim, weno)
@@ -25,32 +25,32 @@ simulation_eq = SimulationEquations()
 eq = Equation()
 
 #WARNING: Not sure if the pressure in the momentum equation is being correctly evaluated 
-# with the kronecker delta object, there is no pressure in the parsed equations
+# with the kronecker delta object, there is no pressure in the second parsed equation
 for equation in Euler_eq.equations:
 	eqns = eq.expand(equation, ndim, coordinate_symbol, substitutions, constants=Euler_eq.constants)
 	pprint(eqns)
 	print "-----------------------------------------------------------------"
 	simulation_eq.add_equations(eqns)
-
-exit()
 constituent = ConstituentRelations()
 
-for equation in Euler_eq.formulas:
+for no, equation in enumerate(Euler_eq.formulas):
+	pprint(no)
 	print "Equation is: %s " % equation
 	eqns = eq.expand(equation, ndim, coordinate_symbol, substitutions, constants=Euler_eq.constants)
 	constituent.add_equations(eqns)
 	print "------------------------------------------------------------------"
 pprint(constituent.equations)
-exit()
 
 block= SimulationBlock(ndim, block_number = 0)
 
 ## Create eigensystem
-Euler = EulerEquations(ndim)
-ev_dict, LEV_dict, REV_dict = Euler.generate_eig_system()
+ev_dict, LEV_dict, REV_dict = Euler_eq.generate_eig_system()
 weno_order = 3
 flat_eqns = flatten(simulation_eq.equations)
-# GLF = GLFCharacteristic(ev_dict, LEV_dict, REV_dict, weno_order)
+print "printing flat equations"
+for item in flat_eqns:
+	pprint(item)
+exit()
 
 cart = CoordinateObject('%s_i'%(coordinate_symbol))
 coordinates = [cart.apply_index(cart.indices[0], dim) for dim in range(ndim)]
@@ -60,14 +60,14 @@ speeds_dict = dict(zip(coordinates, speeds))
 
 
 schemes = {}
-SF = ScalarLocalLFScheme(weno_order, flat_eqns, speeds_dict, ndim)
-schemes[SF.name] = SF
+GLF = GLFCharacteristic(ev_dict, LEV_dict, REV_dict, weno_order)
+schemes[GLF.name] = GLF
 cent = Central(4)
 schemes[cent.name] = cent
 rk = RungeKutta(3)
 schemes[rk.name] = rk
 
-deriv = SF.grouped_eqns[0][0]
+deriv = GLF.grouped_eqns[0][0]
 fn = deriv.args[0]
 direction = deriv.args[-1]
 direction_index = coordinates.index(direction)
