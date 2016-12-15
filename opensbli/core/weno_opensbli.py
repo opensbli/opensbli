@@ -354,34 +354,85 @@ class Characteristic(EigenSystem):
         EigenSystem.__init__(self, eigenvalue, left_ev, right_ev)
         return
 
-    def pre_process(self, key):
+    def group_by_direction(self, eqs):
+        all_WDS = []
+        for eq in eqs:
+            all_WDS += list(eq.atoms(WenoDerivative))
+        all_WDS = list(set(all_WDS))
+        grouped = {}
+        for cd in all_WDS:
+            direction = cd.get_direction[0]
+            if direction in grouped.keys():
+                grouped[direction] += [cd]
+            else:
+                grouped[direction] = [cd]
+        return grouped
+
+    def simple_average_left_right(self, formulas, required_symbols, name):
+        avg_equations = []
+        # Get default function location
+        left_loc = self.rho.location
+        right_loc = left_loc[:]
+        # # Increment the location by one to i+1 in the direction given to pre_process
+        right_loc[self.direction_index] +=  1
+        # Loop over the formulas and check which ones are required for the eigenvalues
+        for eq in formulas:
+            if eq.lhs in required_symbols:
+                # Increment by one to get left and right versions of each dataset (i and i+1)
+                left = eq.rhs
+                right = eq.rhs
+                for dset in right.atoms(DataSet):
+                    right = right.subs(dset, dset.get_location_dataset(right_loc))
+                # Form the simple average 0.5*(f(i)+f(i+1))
+                avg_equations += [Eq(GridVariable("%s_%s"%(name, eq.lhs.base)), Rational(1,2)*(left + right))]
+        return avg_equations
+
+    def pre_process(self, direction, direction_index):
         """ Derivatives should be of size of number of equations in flux vector format
         Characteristic decomposition evaluation requires
             # multiply with left Ev and interpolate them
         """
+        self.direction = direction
+        self.direction_index = direction_index
         pre_process_equations = []
-        time = (Matrix(self.vector_notation[CoordinateObject('t')]))
-        conservative_vars_base = [Symbol(str(l.base)) for l in time]
-        left = list(time) # i)
-        direction = key
-        substitution = {direction: direction+1} # sub i--> i+1
-        right = [e.subs(substitution) for e in left] # i+1
-        pprint(right)
-        # use the bases as the eigen values and eigen vectors are defined on base terms
-        left_subs_dict = dict(zip(conservative_vars_base, left)) #
-        right_subs_dict = dict(zip(conservative_vars_base, right)) #
-        # Do the simple averaging procedure defined in the Eigen values and eigen vectors
+        time_vector = (Matrix(self.vector_notation[CoordinateObject('t')]))
+        # Save rho[0,0] for eigensystem evaluations
+        self.rho = time_vector[0]
+        # conservative_vars_base = [Symbol(str(l.base)) for l in time_vector]
+        # # Do I need this symbol substitution? 
+        # pprint(conservative_vars_base)
+        # # Solution vector at grid index i
+        # left = list(time_vector)
+        # Function versions of the symbols in the eigensystems
+        required_ev_symbols = set([DataSet('a')] + [DataSet('u%d' % i) for i in range(self.ndim)])
+        # List of Euler formulas
         name = 'LR'
-        pre_process_equations += self.simple_average_left_right(left_subs_dict, right_subs_dict, name)
+        euler_formulas = self.required_formulas
+        pre_processed_eqns = self.simple_average_left_right(euler_formulas, required_ev_symbols, name)
+        print "Simple averaged equations for eigenvalues are: "
+        pprint(pre_processed_eqns)
+        exit()
+        ## Done up to here
         avg_eigen_name = 'LR'
         self.eigenvalues_names = {}
+        # As the name is changed for to simple LR_*, convert the EV to this name
+        pre_process_equations += self.eigen_value_evaluation_eq(self.convert_to_grid_var_matrix(
+            self.eigen_value[direction], name), avg_eigen_name)
+
+        # Store the Eigen values as they are reused in the flux_evaluation
+        self.eigenvalues_names[0] = self.eigenvalues_symbolic
+
+
+
+        return
 
 class GLFCharacteristic(Characteristic, Weno):
     """ This class contains the Global Lax-Fedrich scheme
     """
-    def __init__(self,  eigenvalue, left_ev, right_ev, order):
+    def __init__(self,  eigenvalue, left_ev, right_ev, order, ndim):
         Characteristic.__init__(self, eigenvalue, left_ev, right_ev)
         Weno.__init__(self, order)
+        self.ndim = ndim
         return
 
     def discretise(self, type_of_eq, block):
@@ -404,9 +455,21 @@ class GLFCharacteristic(Characteristic, Weno):
         e. Update the Descritised equations in type_of_eq by substituting the equations with respective
             work array or discretised formula
 
-        """
+        """  
+                # self.set_halos(block)
+        # from .opensbliequations import *
+        # if isinstance(type_of_eq, SimulationEquations):
+        #     if block.sbli_rhs_discretisation:
+        #         self.sbli_rhs_discretisation(type_of_eq, block)
+        #         return self.required_constituent_relations
+        # else:
+        #     local_kernels, discretised_eq = self.genral_discretisation(type_of_eq.equations, block)
+        #     if discretised_eq:
+        #         raise ValueError("")
+        #     else:
+        #         pass
+        #     return self.required_constituent_relations    
         return
-
     def get_time_derivative(self, eqns):
         time_deriv = []
         for deriv in eqns.atoms(TemporalDerivative):
@@ -442,6 +505,20 @@ class ScalarLocalLFScheme(Weno):
         return
 
     def discretise(self, type_of_eq, block):
+        # self.set_halos(block)
+        # from .opensbliequations import *
+        # if isinstance(type_of_eq, SimulationEquations):
+        #     if block.sbli_rhs_discretisation:
+        #         self.sbli_rhs_discretisation(type_of_eq, block)
+        #         return self.required_constituent_relations
+        # else:
+        #     local_kernels, discretised_eq = self.genral_discretisation(type_of_eq.equations, block)
+        #     if discretised_eq:
+        #         raise ValueError("")
+        #     else:
+        #         pass
+        #     return self.required_constituent_relations
+        # return
         return
 
     def get_time_derivative(self, eqns):
@@ -500,6 +577,7 @@ class ScalarLocalLFScheme(Weno):
         required_interpolations = []
         # Required reconstruction
         leftRight = [False, True]
+        # Perform the WENO procedure to each of the fluxes
         for flux in self.fplus:
             interpolation = WenoSolutionType(flux,leftRight)
             interpolation.direction = direction

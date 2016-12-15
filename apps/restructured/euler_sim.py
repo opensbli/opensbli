@@ -7,6 +7,7 @@ from math import ceil
 from opensbli.core import *
 from opensbli.core.bcs import *
 from opensbli.physical_models.euler_eigensystem import *
+from sympy import *
 
 
 BUILD_DIR = os.getcwd()
@@ -40,6 +41,7 @@ for no, equation in enumerate(Euler_eq.formulas):
 	print "------------------------------------------------------------------"
 pprint(constituent.equations)
 
+
 block= SimulationBlock(ndim, block_number = 0)
 
 ## Create eigensystem
@@ -50,34 +52,47 @@ Euler_eq.eq_to_vector_form(simulation_eq.equations)
 print "Vector form of the equations is:"
 pprint(Euler_eq.vector_notation)
 
-exit()
+print "Formulae are :"
+pprint(constituent.equations)
 
 
-cart = CoordinateObject('%s_i'%(coordinate_symbol))
-coordinates = [cart.apply_index(cart.indices[0], dim) for dim in range(ndim)]
-speeds = [ConstantObject('c%d'%d) for d in range(ndim)]
-speeds_dict = dict(zip(coordinates, speeds))
+# speeds = [ConstantObject('c%d'%d) for d in range(ndim)]
+# speeds_dict = dict(zip(coordinates, speeds))
 
 
 
 schemes = {}
-GLF = GLFCharacteristic(ev_dict, LEV_dict, REV_dict, weno_order)
+GLF = GLFCharacteristic(ev_dict, LEV_dict, REV_dict, weno_order, ndim)
 schemes[GLF.name] = GLF
 cent = Central(4)
 schemes[cent.name] = cent
 rk = RungeKutta(3)
 schemes[rk.name] = rk
 
-deriv = GLF.grouped_eqns[0][0]
-fn = deriv.args[0]
-direction = deriv.args[-1]
+cart = CoordinateObject('%s_i'%(coordinate_symbol))
+coordinates = [cart.apply_index(cart.indices[0], dim) for dim in range(ndim)]
+
+#WARNING: Currently, grouped equations, vector notation and required formula are generated in EulerEquations, 
+# and then passed to GLF here. Need a better way to do it, make GLF dependent on Euler equations class or move 
+# everything into Eigensystem inside WENO instead? Otherwise move the 3 eigensystems into EigenSystem class rather than
+# in physical models? 
+
+GLF.grouped_equations = GLF.group_by_direction(flatten(simulation_eq.equations))
+GLF.vector_notation = Euler_eq.vector_notation
+GLF.required_formulas = constituent.equations
+
+deriv = GLF.grouped_equations[0][0]
+
+pprint(deriv)
+# direction = deriv.args[-1]
+direction = coordinates[0]
 direction_index = coordinates.index(direction)
-# pprint(direction_index)
-# pprint(fn)
-# pprint(direction)
 side = -1
-# SF.generate_weno(fn, direction, side)
-interpolations = SF.pre_process(direction, direction_index)
+
+interpolations = GLF.pre_process(direction, direction_index)
+
+
+exit()
 
 SF.update_WenoSolutionType(interpolations)
 

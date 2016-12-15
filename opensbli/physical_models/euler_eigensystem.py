@@ -112,7 +112,9 @@ class EulerEquations(object):
         # asq = "Eq(asq, gama*(gama-1)*(rhoE/rho - (1/2)*(rhou_j*rhou_j/(rho*rho))))"
         #WARNING: Added speed of sound with KD instead of two dummy as before, is this formula correct?
         asq = "Eq(asq, gama*(gama-1)*(rhoE/rho - (1/2)*(KD(_i,_j)*u_i*u_j)))"
+        a = "Eq(a, sqrt(gama*(gama-1)*(rhoE/rho - (1/2)*(KD(_i,_j)*u_i*u_j))))"
         self.formulas = self.formulas + [asq]
+        self.formulas = self.formulas + [a]
         return
 
     def eq_to_vector_form(self, eqns):
@@ -136,6 +138,9 @@ class EulerEquations(object):
             # Find time derivatives and add them into the vector expression
             grouped_dictionary[t] = self.get_time_derivative(eq)
             self.vector_notation[t] = self.vector_notation[t] + [deriv.args[0] for deriv in grouped_dictionary[t]]
+        # Convert to matrices
+        for key, eq in self.vector_notation.iteritems():
+            self.vector_notation[key] = Matrix(eq)
         return
 
     def generate_eig_system(self, block=None):
