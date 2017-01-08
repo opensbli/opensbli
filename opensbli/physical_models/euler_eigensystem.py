@@ -39,6 +39,7 @@ class EulerEquations(object):
         self.speed_of_sound()
         self.ndim = ndim
         coordinate_symbol = "x"
+
         # self.expanded_equations = problem.get_expanded(problem.equations)
         # self.expanded_formulas = problem.get_expanded(problem.formulas)
         # self.problem = problem
@@ -298,5 +299,7 @@ class EulerEquations(object):
                 REV_dict[direction] = REV.applyfunc(g)
                 LEV_dict[direction] = LEV.applyfunc(g)
 
-
+        pprint(ev_dict)
+        pprint(LEV_dict)
+        pprint(REV_dict)
         return ev_dict, LEV_dict, REV_dict

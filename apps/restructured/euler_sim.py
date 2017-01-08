@@ -77,6 +77,20 @@ coordinates = [cart.apply_index(cart.indices[0], dim) for dim in range(ndim)]
 # everything into Eigensystem inside WENO instead? Otherwise move the 3 eigensystems into EigenSystem class rather than
 # in physical models? 
 
+
+GLF.req_datasets = tuple([DataSet('a')] + [DataSet('rho')] + [DataSet('u%d' % i) for i in range(ndim)])
+GLF.req_symbols = tuple([Symbol('a')] + [Symbol('rho')] + [Symbol('u%d' % i) for i in range(ndim)])
+pprint(GLF.req_datasets)
+pprint(GLF.req_symbols)
+subs_dict = dict(zip(GLF.req_symbols, GLF.req_datasets))
+ev_dict = ev_dict[coordinates[0]].subs(subs_dict)
+LEV_dict = LEV_dict[coordinates[0]].subs(subs_dict)
+REV_dict = REV_dict[coordinates[0]].subs(subs_dict)
+
+pprint(LEV_dict)
+pprint(ev_dict)
+pprint(REV_dict)
+
 GLF.grouped_equations = GLF.group_by_direction(flatten(simulation_eq.equations))
 GLF.vector_notation = Euler_eq.vector_notation
 GLF.required_formulas = constituent.equations

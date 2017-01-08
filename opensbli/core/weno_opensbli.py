@@ -354,6 +354,37 @@ class Characteristic(EigenSystem):
         EigenSystem.__init__(self, eigenvalue, left_ev, right_ev)
         return
 
+    def increment_dataset(self, eq, increment):
+        """
+        Increments a dataset by the given increment in the direction passed to the characteristic routine.
+        """
+        new_loc = self.base_location[:]
+        new_loc[self.direction_index] += increment
+        for dset in eq.atoms(DataSet):
+            eq = eq.subs(dset, dset.get_location_dataset(new_loc))
+        return eq
+
+
+    def evaluate_eigen_values(self, formulas, required_symbols, side, position):
+        """
+        Evaluates rho, u0..u2, a for the eigenvalues for grid index i (left) and i+1 (right).
+        """
+        eqns = []
+        if side == 'left':
+            for eq in formulas:
+                if eq.lhs in required_symbols:
+                    left = eq.rhs
+                    eqns += [Eq(GridVariable("%s_%s_%s"%(side, eq.lhs.args[0], position)), left)]
+            eqns += [Eq(GridVariable("%s_%s_%s"%(side, self.rho.args[0], position)), self.rho)]
+        elif side == 'right':
+            for eq in formulas:
+                if eq.lhs in required_symbols:
+                    left = eq.rhs
+                    right = self.increment_dataset(left, 1)
+                    eqns += [Eq(GridVariable("%s_%s_%s"%(side, eq.lhs.args[0], position)), right)]
+            eqns += [Eq(GridVariable("%s_%s_%s"%(side, self.rho.args[0], position)), self.increment_dataset(self.rho,1))]
+        return eqns
+
     def group_by_direction(self, eqs):
         all_WDS = []
         for eq in eqs:
@@ -370,21 +401,18 @@ class Characteristic(EigenSystem):
 
     def simple_average_left_right(self, formulas, required_symbols, name):
         avg_equations = []
-        # Get default function location
-        left_loc = self.rho.location
-        right_loc = left_loc[:]
-        # # Increment the location by one to i+1 in the direction given to pre_process
-        right_loc[self.direction_index] +=  1
         # Loop over the formulas and check which ones are required for the eigenvalues
         for eq in formulas:
             if eq.lhs in required_symbols:
                 # Increment by one to get left and right versions of each dataset (i and i+1)
                 left = eq.rhs
-                right = eq.rhs
-                for dset in right.atoms(DataSet):
-                    right = right.subs(dset, dset.get_location_dataset(right_loc))
+                right = self.increment_dataset(left, 1)
                 # Form the simple average 0.5*(f(i)+f(i+1))
                 avg_equations += [Eq(GridVariable("%s_%s"%(name, eq.lhs.base)), Rational(1,2)*(left + right))]
+        # Add the simple averaged rho
+        left = self.rho
+        right = self.increment_dataset(left, 1)
+        avg_equations += [Eq(GridVariable("%s_%s"%(name, self.rho.base)), Rational(1,2)*(left + right))]
         return avg_equations
 
     def pre_process(self, direction, direction_index):
@@ -398,30 +426,103 @@ class Characteristic(EigenSystem):
         time_vector = (Matrix(self.vector_notation[CoordinateObject('t')]))
         # Save rho[0,0] for eigensystem evaluations
         self.rho = time_vector[0]
-        # conservative_vars_base = [Symbol(str(l.base)) for l in time_vector]
-        # # Do I need this symbol substitution? 
-        # pprint(conservative_vars_base)
-        # # Solution vector at grid index i
-        # left = list(time_vector)
+        # Location [0,0,0] in 3D
+        self.base_location  = self.rho.location
+        conservative_vars_base = [Symbol(str(l.base)) for l in time_vector]
+        pprint(conservative_vars_base)
+        # Solution vector at grid index i
+        left = list(time_vector)
+        # Solution vector at grid index i+1
+        right = [self.increment_dataset(dset, 1) for dset in left]
         # Function versions of the symbols in the eigensystems
-        required_ev_symbols = set([DataSet('a')] + [DataSet('u%d' % i) for i in range(self.ndim)])
+        required_ev_symbols = set([DataSet('a')] + [DataSet('rho')] + [DataSet('u%d' % i) for i in range(self.ndim)])
         # List of Euler formulas
         name = 'LR'
         euler_formulas = self.required_formulas
+        # Perform simple average in rho, u, a
         pre_processed_eqns = self.simple_average_left_right(euler_formulas, required_ev_symbols, name)
         print "Simple averaged equations for eigenvalues are: "
         pprint(pre_processed_eqns)
+
+        ######
+        evaluated_eigenvalue_quantities = []
+        evaluated_eigenvalue_quantities += self.evaluate_eigen_values(euler_formulas, required_ev_symbols, 'left', 'm1')   
+        evaluated_eigenvalue_quantities += self.evaluate_eigen_values(euler_formulas, required_ev_symbols, 'left', 'm2')
+        evaluated_eigenvalue_quantities += self.evaluate_eigen_values(euler_formulas, required_ev_symbols, 'right', 'p1')
+        evaluated_eigenvalue_quantities += self.evaluate_eigen_values(euler_formulas, required_ev_symbols, 'right', 'p2')
+        evaluated_eigenvalue_quantities += self.evaluate_eigen_values(euler_formulas, required_ev_symbols, 'right', 'p3')
+        pprint(evaluated_eigenvalue_quantities)
         exit()
-        ## Done up to here
-        avg_eigen_name = 'LR'
-        self.eigenvalues_names = {}
-        # As the name is changed for to simple LR_*, convert the EV to this name
-        pre_process_equations += self.eigen_value_evaluation_eq(self.convert_to_grid_var_matrix(
-            self.eigen_value[direction], name), avg_eigen_name)
+
+
+        # avg_eigen_name = 'LR'
+        # self.eigenvalues_names = {}
+        # # As the name is changed for to simple LR_*, convert the EV to this name
+        # pre_process_equations += self.eigen_value_evaluation_eq(self.convert_to_grid_var_matrix(
+        #     self.eigen_value[direction], name), avg_eigen_name)
+        # pprint(pre_process_equations)
+        # exit()
+        ## Done up to here, need to create dictionary of diagonal matrices, one to store evs for each of the points in weno
+        # at fifth order this is -2, -1, 0, 1, 2, 3, make it general for the order of WENO
 
         # Store the Eigen values as they are reused in the flux_evaluation
-        self.eigenvalues_names[0] = self.eigenvalues_symbolic
+        # self.eigenvalues_names[0] = self.eigenvalues_symbolic
 
+        # # Eigen values for i and i+1
+        # # Substituting in left for m1, m2, right for p1, p2, p3 ()
+        # pre_process_equations += self.evaluate_eigen_values(left_subs_dict, "left")
+        # pre_process_equations += self.evaluate_eigen_values(left_subs_dict, "leftm2")
+        # pre_process_equations += self.evaluate_eigen_values(right_subs_dict, "rightp1")
+        # pre_process_equations += self.evaluate_eigen_values(right_subs_dict, "rightp2")
+        # pre_process_equations += self.evaluate_eigen_values(right_subs_dict, "rightp3")
+        # ### This is all naming stuff, leftm_2_lamda_0 = leftm2_symbol version etc
+        # pre_process_equations += self.eigen_value_evaluation_eq(self.convert_to_grid_var_matrix(
+        #     self.eigen_value[direction], "left"), "left")
+        # self.eigenvalues_names[-1] = self.eigenvalues_symbolic
+        # pre_process_equations += self.eigen_value_evaluation_eq(self.convert_to_grid_var_matrix(
+        #     self.eigen_value[direction], "rightp1"), "rightp1")
+        # self.eigenvalues_names[1] = self.eigenvalues_symbolic
+
+        # pre_process_equations += self.eigen_value_evaluation_eq(self.convert_to_grid_var_matrix(
+        #     self.eigen_value[direction], "rightp2"), "rightp2")
+        # self.eigenvalues_names[2] = self.eigenvalues_symbolic
+
+        # pre_process_equations += self.eigen_value_evaluation_eq(self.convert_to_grid_var_matrix(
+        #     self.eigen_value[direction], "rightp3"), "rightp3")
+        # self.eigenvalues_names[3] = self.eigenvalues_symbolic
+
+        # pre_process_equations += self.eigen_value_evaluation_eq(self.convert_to_grid_var_matrix(
+        #     self.eigen_value[direction], "leftm2"), "leftm2")
+        # self.eigenvalues_names[-2] = self.eigenvalues_symbolic
+
+        # This is calculating the LEV components and adding to pre_process
+        # Left Eigen vector  matrix
+        pre_process_equations += self.left_eigen_vectors_evaluation_eq(self.convert_to_grid_var_matrix(
+            self.left_eigen_vector[direction], name))
+        pprint(pre_process_equations)
+        exit()
+        # Calculating all of the REV components, in terms of LR_variable i.e. LEV31 = -sqrt2*(LR_a + 2*LR_u0)/(2*LR_a * LR_rho) <-------- this is where we
+        # need an expression for rho, as it is in the LEV/REV matrices, are there any other terms I am missing in the new formulation of the eigensystems? 
+        # LR_a for example is currently given by 'a' formula in terms of the simple averaged LR_a = 0.5*(formula for a at i, formula for a at i+1)
+        # Right Eigen value matrix
+        pre_process_equations += self.right_eigen_vectors_evaluation_eq(self.convert_to_grid_var_matrix(
+            self.right_eigen_vector[direction], name))
+
+        self.pre_process_equations = pre_process_equations
+
+        ## Here the time vector (solution vector (rho, rhou0, rhou1, rhou2, rhoE) is passed to interp functions with the direction to interpolate by)
+        # Need to see what interp_functions does. Self.direction also set to key, where is this used? required interpolations are what is returned by 
+        # the pre_proecss function, all of the pre_process equations are stored to self. 
+
+        # Interp multiplies the source vector by the LEV matrix elements, these are then passed to the update_weno solution routine
+        # and then passed into the post processing part of the decomposition
+
+        #characteristic = self.left_eigen_vector_symbolic*time
+        exit()
+        required_interpolations = self.interp_functions(time, key)
+        pprint(required_interpolations)
+        exit()
+        self.direction = key
 
 
         return
@@ -489,6 +590,93 @@ class GLFCharacteristic(Characteristic, Weno):
             else:
                 grouped[direction] = [cd]
         return grouped
+
+    def interp_functions(self, time_vector, key):
+        local_equations = []
+        f = lambda x:x.subs(x, abs(x))
+        center = self.eigenvalues_names[0].applyfunc(f)
+        # Center is diag matrix contianing abs value symbols LR_lambda_0..3 or 4
+        diagonal = []
+        for i in range(center.shape[0]):
+            for j in range(center.shape[1]):
+                if i == j:
+                    diagonal += [abs(center[i,j])]
+        # Diagonal is a list containing the diagonal terms of center
+        max_lambda_names = [GridVariable('max_lambda')]
+        local_equations = [Eq(max_lambda_names[0], Max(*(diagonal)))]
+        lambda_max_matrix = diag(*([max_lambda_names[0]]*center.shape[0]))
+        flux_vector = Matrix(self.vector_notation[key])
+        censerv_vector = Matrix(self.vector_notation[EinsteinTerm('t')])
+        ### lambda_max_matrix is a diagonal matrix saying "max_lambda" 4 times
+        ### flux vector is flux vector from euler equations, self.vector(spatial direction we are using "here it is key")
+        ### censerv vector is the solution vector rho, rhou0, rhou1, rhou2, rhoE
+
+        # Maximum_lambda hard code them
+        ### Here multiply the LEV symbolic matrix (LEV00 etc) by the flux and solution vectors
+        ### Transformation to characteristic space is done here THIS IS PART (c) of the WENO procedure 2.10
+        max_lam_vec = []
+        flux_conserve = self.left_eigen_vector_symbolic*flux_vector
+        censerv_vector = self.left_eigen_vector_symbolic*Matrix(self.vector_notation[EinsteinTerm('t')])
+        ## Positive and negative are used to store ? 
+        positive = []
+        negative = []
+        ## Loop over the length of flux, i= 4-5
+        ## l_EV, r_EV etc store the names left_lambda_0 etc given for the 5 points, this needs to be generalised above
+        ## In the pre_proecss function 
+        ## This is the part where alpha is multiplied for the flux splitting f+ and f- are calculated here into positive, negative arrays
+        ## The flux here is constructed once for each row of the flux/soln vectors f = 0.5*(f(u)+alpha*u), 4 times
+        for i in range(len(flux_vector)):
+            l_EV = self.eigenvalues_names[-1][i,i]
+            r_EV = self.eigenvalues_names[1][i,i]
+            c_EV = self.eigenvalues_names[0][i,i]
+            r2EV = self.eigenvalues_names[2][i,i]
+            r3EV = self.eigenvalues_names[3][i,i]
+            lm2EV = self.eigenvalues_names[-2][i,i]
+            # The solution for if local lambda == 0
+            max_lambda = Max(Abs(c_EV),Abs(r_EV), Abs(l_EV), Abs(r2EV),Abs(lm2EV))#,Abs(r3EV))
+            pprint(max_lambda)
+            exit()
+            # max(abs(lr_lambda_0)), abs(left_lambda_0) ... for each point, in a list? 
+            # Adds "max_lambda_0, max_lambda_1  ... to a list"
+            max_lam_vec += [GridVariable('max_lambda_%d'%i)]
+            # Equates the above grid variable max_lambda_0 to the max_lambda equation expression for this component of flux vector
+            # Adds to the massive pre_process list 
+            self.pre_process_equations += [Eq(max_lam_vec[-1],max_lambda )]
+            # This part does f+ = 0.5*(u(i) + MAX(alpha?)*f(u(i)))
+            # and f- = 0.5*(u(i) - MAX(alpha?)*f(u(i)))
+            # They have already been converted into characteristic space by multiplying by LEV in this function
+            # This process is done 4 times in 2D, once for each component of the soln/flux vectors.  
+            positive += [Rational(1,2)*(flux_conserve[i] + max_lam_vec[-1]*censerv_vector[i])]
+            negative += [Rational(1,2)*(flux_conserve[i] - max_lam_vec[-1]*censerv_vector[i])]
+        self.max_lam_vec = max_lam_vec
+
+        # The fluxes in characteristic form are stored to self.u_plus/minus
+        self.u_plus = positive
+        self.u_minus = negative
+        # Interpolations required  are right for uplus and left for uminus
+        ## At this point the FULL flux equations in both u_plus/minus are passed to WENO to do the interpolations, with their key
+        # left is used for u_minus (false, true)
+        # right used for u_plus (true, false)
+
+        ## ACTUAL weno procedure is applied in update_WenoSolutionType, which is called on the pre_processed equations in the main calling computations part
+        ## This is done after WenoSolutionType is called updating which flux terms need WENO and the side to apply WENO to
+        ## All of the below is setting up what weno procedures are needed, the actual weno is applied by update_WenoSolutionType.
+        required_interpolations = []
+        leftRight = [False, True]
+        for val in self.u_plus:
+            temp = WenoSolutionType(val,leftRight)
+            temp.direction = key
+            required_interpolations += [temp]
+        leftRight = [True, False]
+        for val in self.u_minus:
+            temp = WenoSolutionType(val,leftRight)
+            temp.direction = key
+            required_interpolations += [temp]
+
+        ### The interpolations are then returned back to weno_local control
+
+
+        return required_interpolations
 
 class ScalarLocalLFScheme(Weno):
 
