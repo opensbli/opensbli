@@ -354,6 +354,41 @@ class Characteristic(EigenSystem):
         EigenSystem.__init__(self, eigenvalue, left_ev, right_ev)
         return
 
+
+    def convert_to_eq(self, lhs, rhs):
+        """
+        Converts two expressions in to a sympy equation.
+        """
+        eqns = []
+        for l,r in zip(lhs,rhs):
+            eq = Eq(l,r)
+            if isinstance(eq, Equality):
+                eqns += [eq]
+        return eqns
+
+    def generate_symbolic_LEV_REV(self):
+        """
+        Creates matrices containing the indexed LEV and REV placeholder symbols.
+        """
+        key = list(self.right_eigen_vector.keys())[0]
+        matrixshape = self.right_eigen_vector[key].shape
+        self.LEV_symbolic = zeros(*matrixshape)
+        self.REV_symbolic = zeros(*matrixshape)
+        for i in range(matrixshape[0]):
+            for j in range(matrixshape[1]):
+                self.LEV_symbolic[i,j] = GridVariable('LEV_%d%d'%(i,j))
+                self.REV_symbolic[i,j] = GridVariable('REV_%d%d'%(i,j))
+        return
+
+    def convert_matrix_to_grid_variable(self, mat, name):
+        """Converts the given matrix function to grid variable equivalent
+        """
+        syms = list(mat.atoms(Symbol))
+        new_syms = [GridVariable('%s_%s'%(name,str(sym))) for sym in syms]
+        substitutions = dict(zip(syms, new_syms))
+        mat = mat.subs(substitutions)
+        return mat
+
     def increment_dataset(self, eq, increment):
         """
         Increments a dataset by the given increment in the direction passed to the characteristic routine.
@@ -437,76 +472,44 @@ class Characteristic(EigenSystem):
         # Function versions of the symbols in the eigensystems
         required_ev_symbols = set([DataSet('a')] + [DataSet('rho')] + [DataSet('u%d' % i) for i in range(self.ndim)])
         # List of Euler formulas
-        name = 'LR'
         euler_formulas = self.required_formulas
-        # Perform simple average in rho, u, a
-        pre_processed_eqns = self.simple_average_left_right(euler_formulas, required_ev_symbols, name)
-        print "Simple averaged equations for eigenvalues are: "
-        pprint(pre_processed_eqns)
 
-        ######
+        # Evaluate left/right EV for m1, m2, p1, p2, p3
         evaluated_eigenvalue_quantities = []
         evaluated_eigenvalue_quantities += self.evaluate_eigen_values(euler_formulas, required_ev_symbols, 'left', 'm1')   
         evaluated_eigenvalue_quantities += self.evaluate_eigen_values(euler_formulas, required_ev_symbols, 'left', 'm2')
         evaluated_eigenvalue_quantities += self.evaluate_eigen_values(euler_formulas, required_ev_symbols, 'right', 'p1')
         evaluated_eigenvalue_quantities += self.evaluate_eigen_values(euler_formulas, required_ev_symbols, 'right', 'p2')
         evaluated_eigenvalue_quantities += self.evaluate_eigen_values(euler_formulas, required_ev_symbols, 'right', 'p3')
-        pprint(evaluated_eigenvalue_quantities)
+
+        # Perform simple average in rho, u, a
+        name = 'LR'
+        pre_processed_eqns = self.simple_average_left_right(euler_formulas, required_ev_symbols, name)
+        print "Simple averaged equations for eigenvalues are: "
+        pprint(pre_processed_eqns)
+        # Convert eigenvalue matrix terms to LR_u0, LR_u0 + LR_a .. averaged symbols. 
+        self.avg_eigen_values = self.convert_matrix_to_grid_variable(self.eigen_value[self.direction], name)
+        pprint(self.avg_eigen_values)
+
+        #### Need to finish the name storage part here, equating the left/right value placeholder with the left_u0 etc
+
+        # Create matrices of indexed LEV, REV placeholders
+        self.generate_symbolic_LEV_REV()
+        pprint(self.LEV_symbolic)
+        pprint(self.REV_symbolic)
+        # Convert the LEV/REV value matrices to averaged LR symbols
+        LEV = self.convert_matrix_to_grid_variable(self.left_eigen_vector[self.direction], name)
+        REV = self.convert_matrix_to_grid_variable(self.right_eigen_vector[self.direction], name)
+        # Create the equality between the symbols and the averaged values
+        LEV_eqns = []
+        REV_eqns = []
+        for index in range(len(list(LEV))):
+            LEV_eqns += [Eq(self.LEV_symbolic[index], LEV[index])]
+            REV_eqns += [Eq(self.REV_symbolic[index], REV[index])]
+        pprint(LEV_eqns)
+        pprint(REV_eqns)
         exit()
 
-
-        # avg_eigen_name = 'LR'
-        # self.eigenvalues_names = {}
-        # # As the name is changed for to simple LR_*, convert the EV to this name
-        # pre_process_equations += self.eigen_value_evaluation_eq(self.convert_to_grid_var_matrix(
-        #     self.eigen_value[direction], name), avg_eigen_name)
-        # pprint(pre_process_equations)
-        # exit()
-        ## Done up to here, need to create dictionary of diagonal matrices, one to store evs for each of the points in weno
-        # at fifth order this is -2, -1, 0, 1, 2, 3, make it general for the order of WENO
-
-        # Store the Eigen values as they are reused in the flux_evaluation
-        # self.eigenvalues_names[0] = self.eigenvalues_symbolic
-
-        # # Eigen values for i and i+1
-        # # Substituting in left for m1, m2, right for p1, p2, p3 ()
-        # pre_process_equations += self.evaluate_eigen_values(left_subs_dict, "left")
-        # pre_process_equations += self.evaluate_eigen_values(left_subs_dict, "leftm2")
-        # pre_process_equations += self.evaluate_eigen_values(right_subs_dict, "rightp1")
-        # pre_process_equations += self.evaluate_eigen_values(right_subs_dict, "rightp2")
-        # pre_process_equations += self.evaluate_eigen_values(right_subs_dict, "rightp3")
-        # ### This is all naming stuff, leftm_2_lamda_0 = leftm2_symbol version etc
-        # pre_process_equations += self.eigen_value_evaluation_eq(self.convert_to_grid_var_matrix(
-        #     self.eigen_value[direction], "left"), "left")
-        # self.eigenvalues_names[-1] = self.eigenvalues_symbolic
-        # pre_process_equations += self.eigen_value_evaluation_eq(self.convert_to_grid_var_matrix(
-        #     self.eigen_value[direction], "rightp1"), "rightp1")
-        # self.eigenvalues_names[1] = self.eigenvalues_symbolic
-
-        # pre_process_equations += self.eigen_value_evaluation_eq(self.convert_to_grid_var_matrix(
-        #     self.eigen_value[direction], "rightp2"), "rightp2")
-        # self.eigenvalues_names[2] = self.eigenvalues_symbolic
-
-        # pre_process_equations += self.eigen_value_evaluation_eq(self.convert_to_grid_var_matrix(
-        #     self.eigen_value[direction], "rightp3"), "rightp3")
-        # self.eigenvalues_names[3] = self.eigenvalues_symbolic
-
-        # pre_process_equations += self.eigen_value_evaluation_eq(self.convert_to_grid_var_matrix(
-        #     self.eigen_value[direction], "leftm2"), "leftm2")
-        # self.eigenvalues_names[-2] = self.eigenvalues_symbolic
-
-        # This is calculating the LEV components and adding to pre_process
-        # Left Eigen vector  matrix
-        pre_process_equations += self.left_eigen_vectors_evaluation_eq(self.convert_to_grid_var_matrix(
-            self.left_eigen_vector[direction], name))
-        pprint(pre_process_equations)
-        exit()
-        # Calculating all of the REV components, in terms of LR_variable i.e. LEV31 = -sqrt2*(LR_a + 2*LR_u0)/(2*LR_a * LR_rho) <-------- this is where we
-        # need an expression for rho, as it is in the LEV/REV matrices, are there any other terms I am missing in the new formulation of the eigensystems? 
-        # LR_a for example is currently given by 'a' formula in terms of the simple averaged LR_a = 0.5*(formula for a at i, formula for a at i+1)
-        # Right Eigen value matrix
-        pre_process_equations += self.right_eigen_vectors_evaluation_eq(self.convert_to_grid_var_matrix(
-            self.right_eigen_vector[direction], name))
 
         self.pre_process_equations = pre_process_equations
 
