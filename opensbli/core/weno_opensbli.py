@@ -354,18 +354,6 @@ class Characteristic(EigenSystem):
         EigenSystem.__init__(self, eigenvalue, left_ev, right_ev)
         return
 
-
-    def convert_to_eq(self, lhs, rhs):
-        """
-        Converts two expressions in to a sympy equation.
-        """
-        eqns = []
-        for l,r in zip(lhs,rhs):
-            eq = Eq(l,r)
-            if isinstance(eq, Equality):
-                eqns += [eq]
-        return eqns
-
     def generate_symbolic_LEV_REV(self):
         """
         Creates matrices containing the indexed LEV and REV placeholder symbols.
@@ -474,6 +462,13 @@ class Characteristic(EigenSystem):
         # List of Euler formulas
         euler_formulas = self.required_formulas
 
+        ## Eigenvalue name placeholders:
+        #WARNING: Need to update the pre_process_equations with all of the correct placeholder EV names and equate to symbolic versions
+        self.eigenvalue_names = {}
+        names = ['leftm2', 'leftm1', 'LR', 'rightp1', 'rightp2', 'rightp3']
+        for index, name in enumerate(names):
+            self.eigenvalue_names[index-2] = diag(*[GridVariable('%s_lambda_%d' % (name, i)) for i in range(self.ndim+2)])
+
         # Evaluate left/right EV for m1, m2, p1, p2, p3
         evaluated_eigenvalue_quantities = []
         evaluated_eigenvalue_quantities += self.evaluate_eigen_values(euler_formulas, required_ev_symbols, 'left', 'm1')   
@@ -489,14 +484,9 @@ class Characteristic(EigenSystem):
         pprint(pre_processed_eqns)
         # Convert eigenvalue matrix terms to LR_u0, LR_u0 + LR_a .. averaged symbols. 
         self.avg_eigen_values = self.convert_matrix_to_grid_variable(self.eigen_value[self.direction], name)
-        pprint(self.avg_eigen_values)
-
-        #### Need to finish the name storage part here, equating the left/right value placeholder with the left_u0 etc
 
         # Create matrices of indexed LEV, REV placeholders
         self.generate_symbolic_LEV_REV()
-        pprint(self.LEV_symbolic)
-        pprint(self.REV_symbolic)
         # Convert the LEV/REV value matrices to averaged LR symbols
         LEV = self.convert_matrix_to_grid_variable(self.left_eigen_vector[self.direction], name)
         REV = self.convert_matrix_to_grid_variable(self.right_eigen_vector[self.direction], name)
@@ -506,28 +496,19 @@ class Characteristic(EigenSystem):
         for index in range(len(list(LEV))):
             LEV_eqns += [Eq(self.LEV_symbolic[index], LEV[index])]
             REV_eqns += [Eq(self.REV_symbolic[index], REV[index])]
-        pprint(LEV_eqns)
-        pprint(REV_eqns)
-        exit()
-
 
         self.pre_process_equations = pre_process_equations
 
-        ## Here the time vector (solution vector (rho, rhou0, rhou1, rhou2, rhoE) is passed to interp functions with the direction to interpolate by)
-        # Need to see what interp_functions does. Self.direction also set to key, where is this used? required interpolations are what is returned by 
+        # required interpolations are what is returned by 
         # the pre_proecss function, all of the pre_process equations are stored to self. 
 
         # Interp multiplies the source vector by the LEV matrix elements, these are then passed to the update_weno solution routine
         # and then passed into the post processing part of the decomposition
 
-        #characteristic = self.left_eigen_vector_symbolic*time
-        exit()
-        required_interpolations = self.interp_functions(time, key)
+        required_interpolations = self.interp_functions(direction)
         pprint(required_interpolations)
         exit()
         self.direction = key
-
-
         return
 
 class GLFCharacteristic(Characteristic, Weno):
@@ -559,20 +540,7 @@ class GLFCharacteristic(Characteristic, Weno):
         e. Update the Descritised equations in type_of_eq by substituting the equations with respective
             work array or discretised formula
 
-        """  
-                # self.set_halos(block)
-        # from .opensbliequations import *
-        # if isinstance(type_of_eq, SimulationEquations):
-        #     if block.sbli_rhs_discretisation:
-        #         self.sbli_rhs_discretisation(type_of_eq, block)
-        #         return self.required_constituent_relations
-        # else:
-        #     local_kernels, discretised_eq = self.genral_discretisation(type_of_eq.equations, block)
-        #     if discretised_eq:
-        #         raise ValueError("")
-        #     else:
-        #         pass
-        #     return self.required_constituent_relations    
+        """     
         return
     def get_time_derivative(self, eqns):
         time_deriv = []
@@ -594,63 +562,45 @@ class GLFCharacteristic(Characteristic, Weno):
                 grouped[direction] = [cd]
         return grouped
 
-    def interp_functions(self, time_vector, key):
+    def interp_functions(self, key):
         local_equations = []
+        # Symbols for absolute max eigenvalues
         f = lambda x:x.subs(x, abs(x))
-        center = self.eigenvalues_names[0].applyfunc(f)
-        # Center is diag matrix contianing abs value symbols LR_lambda_0..3 or 4
-        diagonal = []
-        for i in range(center.shape[0]):
-            for j in range(center.shape[1]):
-                if i == j:
-                    diagonal += [abs(center[i,j])]
-        # Diagonal is a list containing the diagonal terms of center
+        centre = self.eigenvalue_names[0].applyfunc(f)
+        diagonal_entries = [e_val for e_val in centre if e_val != 0]
         max_lambda_names = [GridVariable('max_lambda')]
-        local_equations = [Eq(max_lambda_names[0], Max(*(diagonal)))]
-        lambda_max_matrix = diag(*([max_lambda_names[0]]*center.shape[0]))
-        flux_vector = Matrix(self.vector_notation[key])
-        censerv_vector = Matrix(self.vector_notation[EinsteinTerm('t')])
-        ### lambda_max_matrix is a diagonal matrix saying "max_lambda" 4 times
-        ### flux vector is flux vector from euler equations, self.vector(spatial direction we are using "here it is key")
-        ### censerv vector is the solution vector rho, rhou0, rhou1, rhou2, rhoE
+        local_equations = [Eq(max_lambda_names[0], Max(*(diagonal_entries)))]
+        lambda_max_matrix = diag(*([max_lambda_names[0]]*centre.shape[0]))
 
-        # Maximum_lambda hard code them
+        flux_vector = Matrix(self.vector_notation[key])
+        time_vector = Matrix(self.vector_notation[CoordinateObject('t')])
         ### Here multiply the LEV symbolic matrix (LEV00 etc) by the flux and solution vectors
         ### Transformation to characteristic space is done here THIS IS PART (c) of the WENO procedure 2.10
-        max_lam_vec = []
-        flux_conserve = self.left_eigen_vector_symbolic*flux_vector
-        censerv_vector = self.left_eigen_vector_symbolic*Matrix(self.vector_notation[EinsteinTerm('t')])
-        ## Positive and negative are used to store ? 
+        flux_conserve = self.LEV_symbolic*flux_vector
+        time_vector = self.LEV_symbolic*Matrix(self.vector_notation[CoordinateObject('t')])
+        # Perform the flux splitting by finding max absolute eigenvalues
         positive = []
         negative = []
-        ## Loop over the length of flux, i= 4-5
-        ## l_EV, r_EV etc store the names left_lambda_0 etc given for the 5 points, this needs to be generalised above
-        ## In the pre_proecss function 
-        ## This is the part where alpha is multiplied for the flux splitting f+ and f- are calculated here into positive, negative arrays
-        ## The flux here is constructed once for each row of the flux/soln vectors f = 0.5*(f(u)+alpha*u), 4 times
+        max_lam_vec = []
         for i in range(len(flux_vector)):
-            l_EV = self.eigenvalues_names[-1][i,i]
-            r_EV = self.eigenvalues_names[1][i,i]
-            c_EV = self.eigenvalues_names[0][i,i]
-            r2EV = self.eigenvalues_names[2][i,i]
-            r3EV = self.eigenvalues_names[3][i,i]
-            lm2EV = self.eigenvalues_names[-2][i,i]
+            lm2EV = self.eigenvalue_names[-2][i,i]
+            l_EV = self.eigenvalue_names[-1][i,i]
+            c_EV = self.eigenvalue_names[0][i,i]
+            r_EV = self.eigenvalue_names[1][i,i]
+            r2EV = self.eigenvalue_names[2][i,i]
+            r3EV = self.eigenvalue_names[3][i,i] # 3rd not used?
             # The solution for if local lambda == 0
-            max_lambda = Max(Abs(c_EV),Abs(r_EV), Abs(l_EV), Abs(r2EV),Abs(lm2EV))#,Abs(r3EV))
-            pprint(max_lambda)
-            exit()
-            # max(abs(lr_lambda_0)), abs(left_lambda_0) ... for each point, in a list? 
-            # Adds "max_lambda_0, max_lambda_1  ... to a list"
+            max_lambda = Max(Abs(c_EV),Abs(r_EV), Abs(l_EV), Abs(r2EV),Abs(lm2EV))
             max_lam_vec += [GridVariable('max_lambda_%d'%i)]
             # Equates the above grid variable max_lambda_0 to the max_lambda equation expression for this component of flux vector
             # Adds to the massive pre_process list 
             self.pre_process_equations += [Eq(max_lam_vec[-1],max_lambda )]
+            pprint(self.pre_process_equations[-1])
             # This part does f+ = 0.5*(u(i) + MAX(alpha?)*f(u(i)))
             # and f- = 0.5*(u(i) - MAX(alpha?)*f(u(i)))
-            # They have already been converted into characteristic space by multiplying by LEV in this function
-            # This process is done 4 times in 2D, once for each component of the soln/flux vectors.  
-            positive += [Rational(1,2)*(flux_conserve[i] + max_lam_vec[-1]*censerv_vector[i])]
-            negative += [Rational(1,2)*(flux_conserve[i] - max_lam_vec[-1]*censerv_vector[i])]
+            positive += [Rational(1,2)*(flux_conserve[i] + max_lam_vec[-1]*time_vector[i])]
+            negative += [Rational(1,2)*(flux_conserve[i] - max_lam_vec[-1]*time_vector[i])]
+
         self.max_lam_vec = max_lam_vec
 
         # The fluxes in characteristic form are stored to self.u_plus/minus
@@ -676,9 +626,6 @@ class GLFCharacteristic(Characteristic, Weno):
             temp.direction = key
             required_interpolations += [temp]
 
-        ### The interpolations are then returned back to weno_local control
-
-
         return required_interpolations
 
 class ScalarLocalLFScheme(Weno):
@@ -688,7 +635,6 @@ class ScalarLocalLFScheme(Weno):
         self.ndim = ndim
         self.speed = speeds
         self.grouped_eqns = self.group_by_direction(eqns)
-
         self.t = CoordinateObject('t')
         self.vector_notation = {}
         self.vector_notation[self.t] = self.get_time_derivative(eqns[0])
@@ -696,20 +642,7 @@ class ScalarLocalLFScheme(Weno):
         return
 
     def discretise(self, type_of_eq, block):
-        # self.set_halos(block)
-        # from .opensbliequations import *
-        # if isinstance(type_of_eq, SimulationEquations):
-        #     if block.sbli_rhs_discretisation:
-        #         self.sbli_rhs_discretisation(type_of_eq, block)
-        #         return self.required_constituent_relations
-        # else:
-        #     local_kernels, discretised_eq = self.genral_discretisation(type_of_eq.equations, block)
-        #     if discretised_eq:
-        #         raise ValueError("")
-        #     else:
-        #         pass
-        #     return self.required_constituent_relations
-        # return
+        ## Add the calling of functions for pre/post process and WENO in here
         return
 
     def get_time_derivative(self, eqns):
