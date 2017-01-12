@@ -80,8 +80,6 @@ coordinates = [cart.apply_index(cart.indices[0], dim) for dim in range(ndim)]
 
 GLF.req_datasets = tuple([DataSet('a')] + [DataSet('rho')] + [DataSet('u%d' % i) for i in range(ndim)])
 GLF.req_symbols = tuple([Symbol('a')] + [Symbol('rho')] + [Symbol('u%d' % i) for i in range(ndim)])
-pprint(GLF.req_datasets)
-pprint(GLF.req_symbols)
 subs_dict = dict(zip(GLF.req_symbols, GLF.req_datasets))
 ev_dict = ev_dict[coordinates[0]].subs(subs_dict)
 LEV_dict = LEV_dict[coordinates[0]].subs(subs_dict)
@@ -106,13 +104,12 @@ side = -1
 interpolations = GLF.pre_process(direction, direction_index)
 
 
-exit()
+GLF.direction_index = direction_index
 
-SF.update_WenoSolutionType(interpolations)
-
-local_eval, reconstruction = SF.post_process(interpolations)
+GLF.update_WenoSolutionType(interpolations)
 
 
+local_eval, reconstruction = GLF.post_process(interpolations)
 
 exit()
 block.sbli_rhs_discretisation = True

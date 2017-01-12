@@ -96,7 +96,6 @@ class Weno(Scheme):
             number = 0
         weno = reconstruction()
         weno.all_equations = []
-        pprint(fn)
         # Generate the function points needed for the stencil
         weno.func_points = self.generate_function_points(weno, fn, direction, side, number)
         # ENO coefficients
@@ -124,8 +123,6 @@ class Weno(Scheme):
         for key, value in reclass.symbolc_points_dict.iteritems():
             symbolic_list += [value]
             points_list += [reclass.points_values[key]]
-        pprint(symbolic_list)
-        pprint(points_list)
         reclass.all_equations += [Eq(a,b) for a,b in zip(symbolic_list, points_list)]
         # Beta equations
         reclass.all_equations += reclass.smoothness_equations
@@ -180,27 +177,29 @@ class Weno(Scheme):
             name = 'R'
         reclass.symbolc_points_dict = {}
         reclass.points_values = {}
+        expr = fn
+        old_loc = [dset.location for dset in expr.atoms(DataSet)][0]
 
         for p in set(self.func_points[side]):
             if p>=0:
                 reclass.symbolc_points_dict[p] = GridVariable('fn_%s%d_p%d'%(name,number,p))
             else:
                 reclass.symbolc_points_dict[p] = GridVariable('fn_%s%d_m%d'%(name,number,abs(p)))
-            expr = fn
-            # Get the current location of the function
-            old_loc = [dset.location for dset in expr.atoms(DataSet)][0]
+            #Get the current location of the function
             loc = old_loc[:]
             # Increment the location based on the direction we are applying WENO to
             loc[direction] = old_loc[direction] + p
             for derivative in expr.args:
-                base_func = derivative.args[-1]
-                updated_derivative = derivative.replace(base_func, base_func.get_location_dataset(loc))
-                expr = expr.replace(derivative, updated_derivative)
+                derivative_old = derivative
+                for base_func in derivative.atoms(DataSet):
+                    updated_term = base_func.replace(base_func, base_func.get_location_dataset(loc))
+                    derivative = derivative.replace(base_func, updated_term)
+                
+                expr = expr.replace(derivative_old, derivative)
             reclass.points_values[p] = expr
         # pprint(reclass.symbolc_points_dict[p])
         # pprint(reclass.points_values)
         all_fns = [reclass.symbolc_points_dict[x] for x in self.func_points[side]]
-        pprint(all_fns)
         return all_fns
 
     def generate_smoothness_points(self, fn, direction, shift, side, reclass):
@@ -452,7 +451,6 @@ class Characteristic(EigenSystem):
         # Location [0,0,0] in 3D
         self.base_location  = self.rho.location
         conservative_vars_base = [Symbol(str(l.base)) for l in time_vector]
-        pprint(conservative_vars_base)
         # Solution vector at grid index i
         left = list(time_vector)
         # Solution vector at grid index i+1
@@ -480,8 +478,6 @@ class Characteristic(EigenSystem):
         # Perform simple average in rho, u, a
         name = 'LR'
         pre_processed_eqns = self.simple_average_left_right(euler_formulas, required_ev_symbols, name)
-        print "Simple averaged equations for eigenvalues are: "
-        pprint(pre_processed_eqns)
         # Convert eigenvalue matrix terms to LR_u0, LR_u0 + LR_a .. averaged symbols. 
         self.avg_eigen_values = self.convert_matrix_to_grid_variable(self.eigen_value[self.direction], name)
 
@@ -497,7 +493,12 @@ class Characteristic(EigenSystem):
             LEV_eqns += [Eq(self.LEV_symbolic[index], LEV[index])]
             REV_eqns += [Eq(self.REV_symbolic[index], REV[index])]
 
-        self.pre_process_equations = pre_process_equations
+        pprint(pre_processed_eqns)
+        exit()
+        self.pre_process_equations = pre_processed_eqns
+        self.pre_process_equations += LEV_eqns
+        self.pre_process_equations += REV_eqns
+        self.pre_process_equations += evaluated_eigenvalue_quantities
 
         # required interpolations are what is returned by 
         # the pre_proecss function, all of the pre_process equations are stored to self. 
@@ -506,10 +507,79 @@ class Characteristic(EigenSystem):
         # and then passed into the post processing part of the decomposition
 
         required_interpolations = self.interp_functions(direction)
-        pprint(required_interpolations)
+        return required_interpolations
+
+    def create_dictionary_interpolations(self, interpolated):
+        dictionary_interp = {}
+        direction = set()
+        for i in interpolated:
+            dictionary_interp[i.variable] = i
+            direction.add(i.direction)
+        if len(direction) > 1:
+            raise ValueError("Something is wrong")
+        direction = list(direction)[0]
+        return dictionary_interp, direction
+
+    def post_process(self, interpolated):
+        """ The left and right interpolations of the characteristic variables are returned back.
+        The process is first evaluate the averaged state, left and right eigen vectors and eigen
+        values
+        After that write the equations for the interpolations
+        """
+        self.post_process_equations = []
+        direction = self.direction
+
+        # Equations for the evaluation of interpolations and store the reconstructions
+        Interpolated_left_characteristic_flux = [] # Should be a list as we do not want to change the order
+        Interpolated_right_characteristic_flux = []
+        Interpolated_right_solution = []
+        Interpolated_left_solution = []
+        dictionary, key = self.create_dictionary_interpolations(interpolated)
+
+        temp_dictionary = {} # Temporary dictionary to store the reconstructed_symbols
+        # Do the evaluations for the interpolated quantities
+        for val in interpolated:
+            self.post_process_equations, reconstructed_symbols = val.evaluate_interpolation(self.post_process_equations)
+            temp_dictionary[val.variable] = reconstructed_symbols
+
+        # The new naming uplus will be minus
+        self.right_interpolated = []
+        self.left_interpolated = []
+        # Identify the right/left reconstructions
+        for val in self.u_plus:
+            self.right_interpolated += temp_dictionary[val][1]
+        for val in self.u_minus:
+            self.left_interpolated += temp_dictionary[val][-1]
+
+
+        # Construct the final flux using the reconstruction placeholders
+        # and transform back to the physical space using the symbolic right eigenvector matrix REV.
+        final_flux = self.REV_symbolic*(Matrix(self.right_interpolated)) + \
+            self.REV_symbolic*(Matrix(self.left_interpolated))
+
+        final_equations = self.pre_process_equations + self.post_process_equations
+        pprint(self.pre_process_equations)
+        print "##############################"
+        pprint(self.post_process_equations)
+        from .latex import *
+
+        fname = './hyper_eq.tex'
+        latex = LatexWriter()
+        latex.open('./hyper_eq.tex')
+        metadata = {"title": "Hyperbolic Flux equations", "author": "David", "institution": ""}
+        latex.write_header(metadata)
+        s = "Pre_process equations: "
+        latex.write_string(s)
+        for eq in self.pre_process_equations:
+            latex.write_expression(eq)
+        s = "Post_process equations: "
+        latex.write_string(s)
+        for eq in self.post_process_equations:
+            latex.write_expression(eq)
+        latex.write_footer()
+        latex.close()
         exit()
-        self.direction = key
-        return
+        return final_equations, final_flux
 
 class GLFCharacteristic(Characteristic, Weno):
     """ This class contains the Global Lax-Fedrich scheme
@@ -595,7 +665,6 @@ class GLFCharacteristic(Characteristic, Weno):
             # Equates the above grid variable max_lambda_0 to the max_lambda equation expression for this component of flux vector
             # Adds to the massive pre_process list 
             self.pre_process_equations += [Eq(max_lam_vec[-1],max_lambda )]
-            pprint(self.pre_process_equations[-1])
             # This part does f+ = 0.5*(u(i) + MAX(alpha?)*f(u(i)))
             # and f- = 0.5*(u(i) - MAX(alpha?)*f(u(i)))
             positive += [Rational(1,2)*(flux_conserve[i] + max_lam_vec[-1]*time_vector[i])]
@@ -619,11 +688,13 @@ class GLFCharacteristic(Characteristic, Weno):
         for val in self.u_plus:
             temp = WenoSolutionType(val,leftRight)
             temp.direction = key
+            temp.direction_index = self.direction_index
             required_interpolations += [temp]
         leftRight = [True, False]
         for val in self.u_minus:
             temp = WenoSolutionType(val,leftRight)
             temp.direction = key
+            temp.direction_index = self.direction_index
             required_interpolations += [temp]
 
         return required_interpolations
