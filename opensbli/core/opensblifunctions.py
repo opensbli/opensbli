@@ -80,6 +80,16 @@ class KD(Function):
         return indexed
     @property
     def value(self):
+        print "inside KD"
+        if len(self.args) != 2:
+            raise ValueError("Expected only two arguments in KD.")
+        if Symbol(str(self.args[0])) == Symbol(str(self.args[1])):
+            return 1
+        else:
+            return 0
+        for arg in self.args:
+            print arg, type(arg)
+        # pprint(KroneckerDelta(*self.args))
         return KroneckerDelta(*self.args)
 
 
@@ -207,6 +217,7 @@ class EinsteinStructure(object):
         indexed_subs = {}
         indexedBaseSubs = {}
         einsteinobjectsubs = {}
+        # pprint(indexedexpr)
 
         #for at in indexedexpr.atoms(EinsteinTerm):
             #einsteinobjectsubs[at] = at.expression
@@ -221,9 +232,11 @@ class EinsteinStructure(object):
                 pot.skip()
             else:
                 continue
+
         # now substitute them in the original expression
         indexedexpr = indexedexpr.xreplace(indexed_subs)
         indexedexpr = indexedexpr.xreplace(indexedBaseSubs)
+
         return indexedexpr
     def expand_summations(cls, expression, ndim):
         #pprint(expression.atoms(Sum))
@@ -513,7 +526,7 @@ class WenoDerivative(Function, BasicDiscretisation):
         for req in (cls.required_datasets):
             loc = req.location[:]
             loc[dire] = loc[dire] -1
-            #pprint([loc, req.location])
+            pprint([loc, req.location])
             val = req.get_location_dataset(loc)
             expr = expr.replace(req, val)
         form = form - expr

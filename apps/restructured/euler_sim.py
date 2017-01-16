@@ -41,12 +41,11 @@ for no, equation in enumerate(Euler_eq.formulas):
 	print "------------------------------------------------------------------"
 pprint(constituent.equations)
 
-
 block= SimulationBlock(ndim, block_number = 0)
 
 ## Create eigensystem
 ev_dict, LEV_dict, REV_dict = Euler_eq.generate_eig_system()
-weno_order = 3
+weno_order = 5
 # Convert the system of equations into vector form
 Euler_eq.eq_to_vector_form(simulation_eq.equations)
 print "Vector form of the equations is:"
@@ -77,25 +76,13 @@ coordinates = [cart.apply_index(cart.indices[0], dim) for dim in range(ndim)]
 # everything into Eigensystem inside WENO instead? Otherwise move the 3 eigensystems into EigenSystem class rather than
 # in physical models? 
 
-
-GLF.req_datasets = tuple([DataSet('a')] + [DataSet('rho')] + [DataSet('u%d' % i) for i in range(ndim)])
-GLF.req_symbols = tuple([Symbol('a')] + [Symbol('rho')] + [Symbol('u%d' % i) for i in range(ndim)])
-subs_dict = dict(zip(GLF.req_symbols, GLF.req_datasets))
-ev_dict = ev_dict[coordinates[0]].subs(subs_dict)
-LEV_dict = LEV_dict[coordinates[0]].subs(subs_dict)
-REV_dict = REV_dict[coordinates[0]].subs(subs_dict)
-
-pprint(LEV_dict)
-pprint(ev_dict)
-pprint(REV_dict)
-
 GLF.grouped_equations = GLF.group_by_direction(flatten(simulation_eq.equations))
 GLF.vector_notation = Euler_eq.vector_notation
 GLF.required_formulas = constituent.equations
 
-deriv = GLF.grouped_equations[0][0]
+# deriv = GLF.grouped_equations[0][0]
 
-pprint(deriv)
+# pprint(deriv)
 # direction = deriv.args[-1]
 direction = coordinates[0]
 direction_index = coordinates.index(direction)
@@ -103,13 +90,11 @@ side = -1
 
 interpolations = GLF.pre_process(direction, direction_index)
 
-
-GLF.direction_index = direction_index
-
 GLF.update_WenoSolutionType(interpolations)
 
-
 local_eval, reconstruction = GLF.post_process(interpolations)
+
+
 
 exit()
 block.sbli_rhs_discretisation = True

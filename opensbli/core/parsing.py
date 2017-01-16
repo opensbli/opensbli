@@ -228,7 +228,8 @@ class Conservative(AppliedUndef, ParsingSchemes):
                 continue
         #pprint(local_subs)
         #expr = expr.subs(local_subs)
-        #pprint(expr)
+        # print "Inside conservative"
+        # pprint(expr)
         #exit()
         subexpr = expr
         #pprint(expr)
@@ -433,6 +434,7 @@ class Equation(EinsteinStructure):
                 pot.skip()
             else:
                 continue
+
         # Handle metric derivatives as special functions
         pot = preorder_traversal(self.parsed)
         local = (MetricDer)
@@ -447,7 +449,9 @@ class Equation(EinsteinStructure):
         pprint(self.parsed)
         lhs, lhs_indices = self._structure(self.parsed.lhs)
         rhs, rhs_indices = self._structure(self.parsed.rhs)
-
+        print "printing rhs"
+        pprint(rhs)
+        pprint(rhs_indices)
         lhs = self.substitute_indexed(lhs)
         expanded_lhs = self.expand_summations(lhs, ndim)
 
@@ -467,7 +471,6 @@ class Equation(EinsteinStructure):
 
         elif lhs_indices == rhs_indices:
             expanded_equations = expand_free_indices(expanded_equation, lhs_indices, ndim)
-            #pprint(expanded_equations)
             for no, eq in enumerate(expanded_equations):
                 eq = self.apply_functions(eq)
                 eq = self.convert_to_data_sets(eq)

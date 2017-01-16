@@ -98,6 +98,10 @@ class Weno(Scheme):
         weno.all_equations = []
         # Generate the function points needed for the stencil
         weno.func_points = self.generate_function_points(weno, fn, direction, side, number)
+        #WARNING: Not using these yet
+        a = self.generate_eno_coefficients(self.k, side)
+        b = self.generate_smoothness_coefficients(self.k)
+        c = self.generate_optimal_weights(self.k, side)
         # ENO coefficients
         weno.eno_coeffs = self.get_eno_coefficients(side)
         # Optimal coefficients for WENO
@@ -135,9 +139,102 @@ class Weno(Scheme):
         reclass.all_equations += [Eq(reclass.sum_alpha, sum(reclass.symbolic_alpha))]
         return
 
+
+    def generate_eno_coefficients(self, k, side):
+      """ Generates the c_rj ENO reconstruction coefficients given in Table 2.1
+      of 'Essentially Non-Oscillatory and Weighted Essentially Non-Oscillatory Schemes
+      for Hyperbolic Conservation Laws' by Shu(1997). Computation is of equation (2.21).
+
+      :arg int k: WENO coefficient k, equal to scheme order = 2k - 1.
+      :arg int side: Reconstruction side. -1 for left, 1 for right.
+      :returns: dict c_rj: Dictionary in the form (r,j) : ENO coefficient c_rj.
+      """
+      if side == 1:
+        d = 1 
+      elif side == -1:
+        d = 0
+      else:
+        raise ValueError("Side must be equal to either -1 or 1.")
+      r_values = range(k)
+      j_values = range(k)
+      c_rj = {}
+      for r in r_values:
+        for j in j_values:
+          c_rj_sum = 0
+          for m in range(j+1, k+1):
+            top_sum = 0
+            bottom_product = 1
+            for l in [x for x in range(k+1) if x != m]:
+              top_product_total = 1
+              for q in [x for x in range(k+1) if (x != m and x!= l)]:
+                top_product = r - q + d
+                top_product_total *= top_product
+              bottom_product *= m - l 
+              top_sum += top_product_total
+            c_rj_sum += Rational(top_sum, bottom_product)
+          c_rj[(r,j)] = c_rj_sum
+      return c_rj
+
+    def generate_optimal_weights(self, k, side):
+      """
+      """
+      # Store reconstruction coefficients to form the sum
+      c_rj = self.generate_eno_coefficients(k, side)
+      c2_rj = self.generate_eno_coefficients(2*k -1, side)
+      opt_weights = [Symbol('d_%d' % r) for r in range(k)]
+      r_values = [[k-1-j for j in range(m+1)][::-1] for m in range(k)]
+      equations = []
+      for i, indices in enumerate(r_values):
+        variables = [opt_weights[r] for r in indices]
+        coeffs = [c_rj[(r,j)] for j, r in enumerate(indices)]
+        rhs = c2_rj[(k-1, i)]
+        v = [variables[i]*coeffs[i] for i in range(len(indices))]
+        equations += [sum(v) - rhs]
+      # Solve the linear system to get the coefficients
+      solution = solve(equations, opt_weights)
+      coeff_dict = {}
+      for i in range(k):
+        coeff_dict[(0,i)] = solution[opt_weights[i]]
+      return coeff_dict
+
+    def generate_smoothness_coefficients(self, k):
+      """Extracts the JS smoothness coefficients."""
+      smooth_coeffs = {}
+      for r in range(k):
+        # Generate x, y values to create interpolating polynomial
+        x = Symbol('x')
+        dx = Symbol('dx')
+        dx_values = [dx*i for i in range(-r, k+1-r)]
+        nodes = [Symbol('fn[i%+d]' % i) for i in range(-r,k-r)]
+        funcs = [0]
+        for i in range(len(nodes)):
+          funcs.append(funcs[-1] + dx*nodes[i])
+        # Perform Lagrange interpolation
+        n = len(funcs)
+        lagrange_interp = interpolating_poly(n, x, dx_values, funcs).diff(x)
+        # Loop over the derivatives of the interpolating polynomial
+        total = 0
+        for l in range(1,k):
+          q = (lagrange_interp.diff(x, l))**2
+          # Perform the integration and multiply by h^(2*l-1) over cell
+          q = integrate(q.as_poly(x), x)
+          q *= dx**(2*l-1)
+          q = (q.subs(x, dx) - q.subs(x,0))
+          total += q
+        done = []
+        # Save the coefficients of the smoothness indicator
+        for m in range(0, 2*k-2):
+          for n in range(0, 2*k-2):
+            func_product = Symbol('fn[i%+d]' % (-r+m))*Symbol('fn[i%+d]' % (-r+n))
+            if func_product not in done:
+              c = total.coeff(func_product)
+              if c != 0:
+                smooth_coeffs[(r,m,n)] = c
+              done.append(func_product)
+      return smooth_coeffs
+
     def generate_left_right_points(self):
-        """ Populate the function evaluation points for left and right
-        reconstruction.
+        """ Populate the function evaluation points for left and right reconstruction.
         args: None
         returns: None
         """
@@ -192,9 +289,8 @@ class Weno(Scheme):
             for derivative in expr.args:
                 derivative_old = derivative
                 for base_func in derivative.atoms(DataSet):
-                    updated_term = base_func.replace(base_func, base_func.get_location_dataset(loc))
-                    derivative = derivative.replace(base_func, updated_term)
-                
+                     updated_term = base_func.replace(base_func, base_func.get_location_dataset(loc))
+                     derivative = derivative.replace(base_func, updated_term)
                 expr = expr.replace(derivative_old, derivative)
             reclass.points_values[p] = expr
         # pprint(reclass.symbolc_points_dict[p])
@@ -480,7 +576,6 @@ class Characteristic(EigenSystem):
         pre_processed_eqns = self.simple_average_left_right(euler_formulas, required_ev_symbols, name)
         # Convert eigenvalue matrix terms to LR_u0, LR_u0 + LR_a .. averaged symbols. 
         self.avg_eigen_values = self.convert_matrix_to_grid_variable(self.eigen_value[self.direction], name)
-
         # Create matrices of indexed LEV, REV placeholders
         self.generate_symbolic_LEV_REV()
         # Convert the LEV/REV value matrices to averaged LR symbols
@@ -492,9 +587,7 @@ class Characteristic(EigenSystem):
         for index in range(len(list(LEV))):
             LEV_eqns += [Eq(self.LEV_symbolic[index], LEV[index])]
             REV_eqns += [Eq(self.REV_symbolic[index], REV[index])]
-
-        pprint(pre_processed_eqns)
-        exit()
+            
         self.pre_process_equations = pre_processed_eqns
         self.pre_process_equations += LEV_eqns
         self.pre_process_equations += REV_eqns
@@ -505,7 +598,6 @@ class Characteristic(EigenSystem):
 
         # Interp multiplies the source vector by the LEV matrix elements, these are then passed to the update_weno solution routine
         # and then passed into the post processing part of the decomposition
-
         required_interpolations = self.interp_functions(direction)
         return required_interpolations
 
@@ -558,27 +650,27 @@ class Characteristic(EigenSystem):
             self.REV_symbolic*(Matrix(self.left_interpolated))
 
         final_equations = self.pre_process_equations + self.post_process_equations
-        pprint(self.pre_process_equations)
-        print "##############################"
-        pprint(self.post_process_equations)
-        from .latex import *
+        # pprint(self.pre_process_equations)
+        # print "##############################"
+        # pprint(self.post_process_equations)
+        # from .latex import *
 
-        fname = './hyper_eq.tex'
-        latex = LatexWriter()
-        latex.open('./hyper_eq.tex')
-        metadata = {"title": "Hyperbolic Flux equations", "author": "David", "institution": ""}
-        latex.write_header(metadata)
-        s = "Pre_process equations: "
-        latex.write_string(s)
-        for eq in self.pre_process_equations:
-            latex.write_expression(eq)
-        s = "Post_process equations: "
-        latex.write_string(s)
-        for eq in self.post_process_equations:
-            latex.write_expression(eq)
-        latex.write_footer()
-        latex.close()
-        exit()
+        # fname = './hyper_eq.tex'
+        # latex = LatexWriter()
+        # latex.open('./hyper_eq.tex')
+        # metadata = {"title": "Hyperbolic Flux equations", "author": "David", "institution": ""}
+        # latex.write_header(metadata)
+        # s = "Pre_process equations: "
+        # latex.write_string(s)
+        # for eq in self.pre_process_equations:
+        #     latex.write_expression(eq)
+        # s = "Post_process equations: "
+        # latex.write_string(s)
+        # for eq in self.post_process_equations:
+        #     latex.write_expression(eq)
+        # latex.write_footer()
+        # latex.close()
+        # exit()
         return final_equations, final_flux
 
 class GLFCharacteristic(Characteristic, Weno):

@@ -1,6 +1,7 @@
 
 from sympy import Symbol, Eq, flatten
 from sympy.tensor import Idx, IndexedBase, Indexed
+from sympy import pprint
 #class EinsteinIndex(Symbol):
     #return
 class EinsteinTerm(Symbol):

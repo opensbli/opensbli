@@ -298,8 +298,4 @@ class EulerEquations(object):
                 ev_dict[direction] = diag(*list(ev.applyfunc(g)))
                 REV_dict[direction] = REV.applyfunc(g)
                 LEV_dict[direction] = LEV.applyfunc(g)
-
-        pprint(ev_dict)
-        pprint(LEV_dict)
-        pprint(REV_dict)
         return ev_dict, LEV_dict, REV_dict
