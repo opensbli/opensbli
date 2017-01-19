@@ -478,11 +478,11 @@ class CentralDerivative(Function, BasicDiscretisation):
                     loc[dire] = loc[dire] + p
                     # pprint([loc, req.location])
                     val = req.get_location_dataset(loc)
-                    pprint(val)
+                    # pprint(val)
                     expr = expr.replace(req, val)
-                    print(expr)
+                    # print(expr)
                 form = form + weights[no]*expr
-                pprint(form)
+                # pprint(form)
             if form == 0:
                 raise ValueError("Central derivative formula is zero for %s"%cls)
         else:
