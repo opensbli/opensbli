@@ -1,7 +1,6 @@
 from sympy import *
 from .opensblifunctions import *
 from opensbli.core import *
-import pyweno.symbolic as symbolic
 from .grid import GridVariable
 import time
 
@@ -51,7 +50,6 @@ class WenoSolutionType(object):
             right = self.reconstructedclass[1]
             reconstructed_symbols[1]= [right.symbolic_reconstructed]
             local_equations += right.all_equations
-
         return local_equations, reconstructed_symbols
 
 class WenoConfig(object):
@@ -60,8 +58,7 @@ class WenoConfig(object):
             self.name, self.short_name, self.shift = 'left', 'L', 1
         elif side == 1:
             self.name, self.short_name, self.shift = 'right', 'R', 0
-        self.k = k
-        self.side = side
+        self.k, self.side = k, side
         self.func_points = self.generate_left_right_points()
         # k passed explicitly as 2 sets of ENO coefficients are needed for the smoothness indicators
         self.c_rj = self.generate_eno_coefficients(k)
@@ -83,8 +80,7 @@ class WenoConfig(object):
         d = 1 
       elif side == -1:
         d = 0
-      r_values = range(k)
-      j_values = range(k)
+      r_values, j_values = range(k), range(k)
       c_rj = {}
       for r in r_values:
         for j in j_values:
@@ -107,9 +103,7 @@ class WenoConfig(object):
       """
       """
       # Store reconstruction coefficients to form the sum
-      k = self.k
-      c_rj = self.c_rj
-      c2_rj = self.c2_rj
+      k, c_rj, c2_rj = self.k, self.c_rj, self.c2_rj
       opt_weights = [Symbol('d_%d' % r) for r in range(k)]
       r_values = [[k-1-j for j in range(m+1)][::-1] for m in range(k)]
       equations = []
@@ -129,28 +123,22 @@ class WenoConfig(object):
     def generate_left_right_points(self):
         """ Populate the function evaluation points for left and right reconstruction.
         args: None
-        returns: None
+        returns: list: fn_points
         """
         k = self.k
-        fn_points = []
-        # Left points
         if self.side == -1:
             c = 1
         elif self.side == 1:
             c = 0
+        fn_points = []
         for r in range(k):
-            for j in range(k):
-                fn_points.append(-r + j + c)
+            fn_points += [-r+j+c for j in range(k)]
         return fn_points
 
 class Weno(Scheme):
     """ Main WENO class."""
     def __init__(self, order):
-        """ Initialise the spatial derivative, which gives the equations
-        of spatial Derivatives for the various combinations of the spatial scheme and order of accuracy.
-
-        :arg spatial_scheme: The spatial discretisation scheme to use.
-        :arg grid: The numerical grid of solution points.
+        """
         :returns: None
         """
         Scheme.__init__(self, "WenoDerivative", order)
@@ -165,7 +153,7 @@ class Weno(Scheme):
         self.WenoConfigR.smooth_coeffs = smooth_coeffs
         return
 
-    def generate_weno(self, fn, direction, side, index = None):
+    def generate_weno(self, fn, direction, side, index):
         """ Generate the WENO scheme for a given function, direction and
         reconstruction point.
 
@@ -173,8 +161,8 @@ class Weno(Scheme):
         :arg direction: Direction to apply WENO to.
         :arg side: Reconstruction point. Left: -1, Right: 1.
         :returns: The WENO reconstruction object.
-        Changing this to a list of equations
         """
+        self.direction, self.index = direction, index
         class reconstruction(object):
             pass
         # Store WENO attributes
@@ -182,25 +170,21 @@ class Weno(Scheme):
             self.WC = self.WenoConfigL
         elif side == 1:
             self.WC = self.WenoConfigR
-        if index:
-            number = index
-        else:
-            number = 0
         weno = reconstruction()
         weno.all_equations = []
         # Generate the symbolic function points needed for the stencil
-        weno.sym_func_points = self.generate_function_points(weno, fn, direction, number)
+        weno.sym_func_points = self.generate_function_points(weno, fn)
         # Generate the weno coefficients
-        weno.alpha = self.get_weno_coefficients(weno, fn, direction, number)
+        weno.alpha = self.get_weno_coefficients(weno, fn)
         # Update the symbolic alphas used for reducing computations
-        self.update_weno_equations(weno, number)
+        self.update_weno_equations(weno)
         # Create the final stencil
         weno.stencil = self.create_stencil(weno)
         weno.all_equations += [Eq(weno.symbolic_reconstructed, weno.stencil)]
         return weno
 
-    def update_weno_equations(self, reconstruction, number):
-        name = self.WC.short_name
+    def update_weno_equations(self, reconstruction):
+        name, index = self.WC.short_name, self.index
         symbolic_list = []
         points_list = []
         for key, value in reconstruction.symbolc_points_dict.iteritems():
@@ -210,11 +194,11 @@ class Weno(Scheme):
         # Beta equations
         reconstruction.all_equations += reconstruction.smoothness_equations
         # Alpha equations
-        reconstruction.symbolic_alpha = [GridVariable('alpha_%s%d%d'%(name,number,i)) for i in range(0, self.k)]
+        reconstruction.symbolic_alpha = [GridVariable('alpha_%s%d%d'%(name,index,i)) for i in range(0, self.k)]
         temp_zip = zip(reconstruction.symbolic_alpha, reconstruction.alpha)
         reconstruction.all_equations += [Eq(a,b) for a,b in temp_zip]
-        reconstruction.sum_alpha =  GridVariable('Sigma_alpha_%s%d'%(name,number))
-        reconstruction.symbolic_reconstructed = GridVariable('Recon_%s%d'%(name,number))
+        reconstruction.sum_alpha =  GridVariable('Sigma_alpha_%s%d'%(name,index))
+        reconstruction.symbolic_reconstructed = GridVariable('Recon_%s%d'%(name,index))
         reconstruction.all_equations += [Eq(reconstruction.sum_alpha, sum(reconstruction.symbolic_alpha))]
         return
 
@@ -222,27 +206,23 @@ class Weno(Scheme):
       """Extracts the JS smoothness coefficients."""
       k = self.k
       smooth_coeffs = {}
+      x, dx = Symbol('x'), Symbol('dx')
       for r in range(k):
         # Generate x, y values to create interpolating polynomial
-        x = Symbol('x')
-        dx = Symbol('dx')
         dx_values = [dx*i for i in range(-r, k+1-r)]
         nodes = [Symbol('fn[i%+d]' % i) for i in range(-r,k-r)]
         funcs = [0]
-        for i in range(len(nodes)):
+        for i in range(k):
           funcs.append(funcs[-1] + dx*nodes[i])
         # Perform Lagrange interpolation
-        n = len(funcs)
-        lagrange_interp = interpolating_poly(n, x, dx_values, funcs).diff(x)
+        lagrange_interp = interpolating_poly(k+1, x, dx_values, funcs).diff(x)
         # Loop over the derivatives of the interpolating polynomial
         total = 0
         for l in range(1,k):
           q = (lagrange_interp.diff(x, l))**2
           # Perform the integration and multiply by h^(2*l-1) over cell
-          q = integrate(q.as_poly(x), x)
-          q *= dx**(2*l-1)
-          q = (q.subs(x, dx) - q.subs(x,0))
-          total += q
+          q = integrate(q.as_poly(x), x) * dx**(2*l-1)
+          total += (q.subs(x, dx) - q.subs(x,0))
         done = []
         # Save the coefficients of the smoothness indicator
         for m in range(0, 2*k-2):
@@ -255,8 +235,7 @@ class Weno(Scheme):
               done.append(func_product)
       return smooth_coeffs
 
-
-    def generate_function_points(self, reconstruction, expr, direction, number):
+    def generate_function_points(self, reconstruction, expr):
         """ Indexes the function for a chosen direction and
         reconstruction point.
 
@@ -264,17 +243,14 @@ class Weno(Scheme):
         arg: direction: Direction to apply WENO.
         returns: all_fns: The function locations.
         """
-        side = self.WC.side
-        name = self.WC.name
-        reconstruction.symbolc_points_dict = {}
-        reconstruction.points_values = {}
+        side, name, direction, index = self.WC.side, self.WC.name, self.direction, self.index
+        reconstruction.symbolc_points_dict, reconstruction.points_values = {}, {}
         old_loc = [dset.location for dset in expr.atoms(DataSet)][0]
-        old_expr = expr
         for p in set(self.WC.func_points):
             if p>=0:
-                reconstruction.symbolc_points_dict[p] = GridVariable('fn_%s%d_p%d'%(name,number,p))
+                reconstruction.symbolc_points_dict[p] = GridVariable('fn_%s%d_p%d'%(name,index,p))
             else:
-                reconstruction.symbolc_points_dict[p] = GridVariable('fn_%s%d_m%d'%(name,number,abs(p)))
+                reconstruction.symbolc_points_dict[p] = GridVariable('fn_%s%d_m%d'%(name,index,abs(p)))
             # Get the current location of the function
             loc = old_loc[:]
             # Increment the location for each dataset based on the direction we are applying WENO to
@@ -301,7 +277,7 @@ class Weno(Scheme):
         fn_product = all_fns[0]*all_fns[1]
         return fn_product
 
-    def get_weno_coefficients(self, reconstruction, fn, direction, number):
+    def get_weno_coefficients(self, reconstruction, fn):
         """ Returns the WENO coefficients for a given order.
 
         arg: reconstruction: The WENO reconstruction object.
@@ -310,19 +286,13 @@ class Weno(Scheme):
         returns: None
         """
         eps = Float(1e-16)
-        p = 2.0
-        k = self.k
+        smooth_coeffs, opt_weights, side = self.WC.smooth_coeffs, self.WC.opt_weights, self.WC.side
+        k, name, shift, direction, index = self.k, self.WC.short_name, self.WC.shift, self.direction, self.index
         if k != 3:
             raise ValueError("WENO-Z is only implemented for k=3.") 
-        smooth_coeffs = self.WC.smooth_coeffs
-        opt_weights = self.WC.opt_weights
-        side = self.WC.side
-        name = self.WC.short_name
-        shift = self.WC.shift
-        smoothness_symbols = [GridVariable('beta_%s%d_%d'%(name, number, r)) for r in range(self.k)]
+        smoothness_symbols = [GridVariable('beta_%s%d_%d'%(name, index, r)) for r in range(self.k)]
         smoothness_equations = []
-        #### Add conditional here that WENO-Z only works for self.k == 3, otherwise use JS formulation without tau parameter
-        weno_z_symbol = GridVariable('tau_N_%s%d'%(name, number))
+        weno_z_symbol = GridVariable('tau_N_%s%d'%(name, index))
         alpha = []
         # Compute the smoothness indicator and alpha
         for r in range(k):
@@ -338,10 +308,9 @@ class Weno(Scheme):
                         smoothness_indicator += beta*func_product
             smoothness_equations += [Eq(variable,smoothness_indicator)]
             alpha.append(opt_weights.get((0,r))*(Float(1.0) +weno_z_symbol/(eps +variable)))
-            self.alpha = alpha
         smoothness_equations += [Eq(weno_z_symbol, abs(smoothness_symbols[-1]- smoothness_symbols[0]))]
         reconstruction.smoothness_equations = smoothness_equations
-        return  alpha
+        return alpha
 
     def create_stencil(self, reconstruction):
         """ Computes the linear sum of WENO & ENO coefficients & the function locations
@@ -420,7 +389,6 @@ class Characteristic(EigenSystem):
             eq = eq.subs(dset, dset.get_location_dataset(new_loc))
         return eq
 
-
     def evaluate_eigen_values(self, formulas, required_symbols, side, position):
         """
         Evaluates rho, u0..u2, a for the eigenvalues for grid index i (left) and i+1 (right).
@@ -472,9 +440,7 @@ class Characteristic(EigenSystem):
         return avg_equations
 
     def pre_process(self, direction, direction_index):
-        """ Derivatives should be of size of number of equations in flux vector format
-        Characteristic decomposition evaluation requires
-            # multiply with left Ev and interpolate them
+        """ 
         """
         self.direction = direction
         self.direction_index = direction_index
@@ -484,23 +450,16 @@ class Characteristic(EigenSystem):
         self.rho = time_vector[0]
         # Location [0,0,0] in 3D
         self.base_location  = self.rho.location
-        conservative_vars_base = [Symbol(str(l.base)) for l in time_vector]
-        # # Solution vector at grid index i
-        # left = list(time_vector)
-        # # Solution vector at grid index i+1
-        # right = [self.increment_dataset(dset, 1) for dset in left]
         # Function versions of the symbols in the eigensystems
         required_ev_symbols = set([DataSet('a')] + [DataSet('rho')] + [DataSet('u%d' % i) for i in range(self.ndim)])
         # List of Euler formulas
         euler_formulas = self.required_formulas
-
         ## Eigenvalue name placeholders:
         #WARNING: Need to update the pre_process_equations with all of the correct placeholder EV names and equate to symbolic versions
         self.eigenvalue_names = {}
         names = ['leftm2', 'leftm1', 'LR', 'rightp1', 'rightp2', 'rightp3']
         for index, name in enumerate(names):
             self.eigenvalue_names[index-2] = diag(*[GridVariable('%s_lambda_%d' % (name, i)) for i in range(self.ndim+2)])
-
         # Evaluate left/right EV for m1, m2, p1, p2, p3
         evaluated_eigenvalue_quantities = []
         evaluated_eigenvalue_quantities += self.evaluate_eigen_values(euler_formulas, required_ev_symbols, 'left', 'm1')   
@@ -508,7 +467,6 @@ class Characteristic(EigenSystem):
         evaluated_eigenvalue_quantities += self.evaluate_eigen_values(euler_formulas, required_ev_symbols, 'right', 'p1')
         evaluated_eigenvalue_quantities += self.evaluate_eigen_values(euler_formulas, required_ev_symbols, 'right', 'p2')
         evaluated_eigenvalue_quantities += self.evaluate_eigen_values(euler_formulas, required_ev_symbols, 'right', 'p3')
-
         # Perform simple average in rho, u, a
         name = 'LR'
         pre_processed_eqns = self.simple_average_left_right(euler_formulas, required_ev_symbols, name)
@@ -554,7 +512,6 @@ class Characteristic(EigenSystem):
         """
         self.post_process_equations = []
         direction = self.direction
-
         # Equations for the evaluation of interpolations and store the reconstructions
         Interpolated_left_characteristic_flux = [] # Should be a list as we do not want to change the order
         Interpolated_right_characteristic_flux = []
@@ -581,7 +538,6 @@ class Characteristic(EigenSystem):
         # and transform back to the physical space using the symbolic right eigenvector matrix REV.
         final_flux = self.REV_symbolic*(Matrix(self.right_interpolated)) + \
             self.REV_symbolic*(Matrix(self.left_interpolated))
-
         final_equations = self.pre_process_equations + self.post_process_equations
         # pprint(self.pre_process_equations)
         # print "##############################"
@@ -605,8 +561,8 @@ class Characteristic(EigenSystem):
         # latex.close()
         return final_equations, final_flux
 
-class GLFCharacteristic(Characteristic, Weno):
-    """ This class contains the Global Lax-Fedrich scheme
+class LLFCharacteristic(Characteristic, Weno):
+    """ This class contains the Local Lax-Fedrich scheme
     """
     def __init__(self,  eigenvalue, left_ev, right_ev, order, ndim):
         Characteristic.__init__(self, eigenvalue, left_ev, right_ev)
@@ -625,11 +581,6 @@ class GLFCharacteristic(Characteristic, Weno):
         Final derivatives are evaluated from Weno derivative class --> Using WD.discretise
         """     
         return
-    def get_time_derivative(self, eqns):
-        time_deriv = []
-        for deriv in eqns.atoms(TemporalDerivative):
-            time_deriv.append(deriv.args[0])
-        return time_deriv
 
     def group_by_direction(self, eqs):
         all_WDS = []
@@ -706,11 +657,9 @@ class GLFCharacteristic(Characteristic, Weno):
             temp.direction = key
             temp.direction_index = self.direction_index
             required_interpolations += [temp]
-
         return required_interpolations
 
 class ScalarLocalLFScheme(Weno):
-
     def __init__(self, order, eqns, speeds, ndim):
         Weno.__init__(self, order)
         self.ndim = ndim
@@ -730,9 +679,7 @@ class ScalarLocalLFScheme(Weno):
         """
         Get the time derivatives to add to the vector notation dictionary.
         """
-        time_deriv = []
-        for deriv in eqns.atoms(TemporalDerivative):
-            time_deriv.append(deriv.args[0])
+        time_deriv = [deriv.args[0] for deriv in eqns.atoms(TemporalDerivative)]
         return time_deriv
     def get_space_derivatives(self):
         """
@@ -741,7 +688,6 @@ class ScalarLocalLFScheme(Weno):
         coordinate_symbol = "x"
         cart = CoordinateObject('%s_i'%(coordinate_symbol))
         coordinates = [cart.apply_index(cart.indices[0], dim) for dim in range(self.ndim)]
-
         for index in coordinates:
             self.vector_notation[index] = []
         for i in range(self.ndim):
@@ -813,5 +759,4 @@ class ScalarLocalLFScheme(Weno):
         pprint(final_flux)
         print "equations"
         pprint(self.post_process_equations)
-        print "finished post_process"
         return self.post_process_equations,final_flux

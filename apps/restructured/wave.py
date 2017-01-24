@@ -40,7 +40,7 @@ simulation_eq.add_equations(eqns)
 
 block= SimulationBlock(ndim, block_number = 0)
 
-weno_order = 3
+weno_order = 5
 flat_eqns = flatten(simulation_eq.equations)
 # GLF = GLFCharacteristic(ev_dict, LEV_dict, REV_dict, weno_order)
 

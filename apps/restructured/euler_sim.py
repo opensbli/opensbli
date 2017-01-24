@@ -9,7 +9,6 @@ from opensbli.core.bcs import *
 from opensbli.physical_models.euler_eigensystem import *
 from sympy import *
 
-
 BUILD_DIR = os.getcwd()
 
 ndim = 2
@@ -54,15 +53,9 @@ pprint(Euler_eq.vector_notation)
 print "Formulae are :"
 pprint(constituent.equations)
 
-
-# speeds = [ConstantObject('c%d'%d) for d in range(ndim)]
-# speeds_dict = dict(zip(coordinates, speeds))
-
-
-
 schemes = {}
-GLF = GLFCharacteristic(ev_dict, LEV_dict, REV_dict, weno_order, ndim)
-schemes[GLF.name] = GLF
+LLF = LLFCharacteristic(ev_dict, LEV_dict, REV_dict, weno_order, ndim)
+schemes[LLF.name] = LLF
 cent = Central(4)
 schemes[cent.name] = cent
 rk = RungeKutta(3)
@@ -76,11 +69,11 @@ coordinates = [cart.apply_index(cart.indices[0], dim) for dim in range(ndim)]
 # everything into Eigensystem inside WENO instead? Otherwise move the 3 eigensystems into EigenSystem class rather than
 # in physical models? 
 
-GLF.grouped_equations = GLF.group_by_direction(flatten(simulation_eq.equations))
-GLF.vector_notation = Euler_eq.vector_notation
-GLF.required_formulas = constituent.equations
+LLF.grouped_equations = LLF.group_by_direction(flatten(simulation_eq.equations))
+LLF.vector_notation = Euler_eq.vector_notation
+LLF.required_formulas = constituent.equations
 
-# deriv = GLF.grouped_equations[0][0]
+# deriv = LLF.grouped_equations[0][0]
 
 # pprint(deriv)
 # direction = deriv.args[-1]
@@ -88,13 +81,14 @@ direction = coordinates[0]
 direction_index = coordinates.index(direction)
 side = -1
 
-interpolations = GLF.pre_process(direction, direction_index)
+for direction in coordinates:
+	direction_index = coordinates.index(direction)
 
-GLF.update_WenoSolutionType(interpolations)
+	interpolations = LLF.pre_process(direction, direction_index)
 
-local_eval, reconstruction = GLF.post_process(interpolations)
+	LLF.update_WenoSolutionType(interpolations)
 
-
+	local_eval, reconstruction = LLF.post_process(interpolations)
 
 exit()
 block.sbli_rhs_discretisation = True
