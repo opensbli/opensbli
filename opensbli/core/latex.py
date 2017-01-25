@@ -98,7 +98,9 @@ class LatexWriter(LatexPrinter):
 
         self._settings['mode'] = "dmath"
         self._settings['long_frac_ratio'] = 3
-        self._settings['mul_symbol'] = "ldot"
+        self._settings['mul_symbol_latex'] = r" \,.\, "
+        #self._settings['mul_symbol_latex'] = \
+            #mul_symbol_table[self._settings['mul_symbol']]
 
         tex = Printer.doprint(self, expression)
 
@@ -126,12 +128,13 @@ class LatexWriter(LatexPrinter):
         return tex
     def _print_EinsteinTerm(self, expr):
         return str(expr)
+
     def _print_CentralDerivative(self, expr):
-        return self._print(Derivative(*expr.args))
+        return r'\left. %s \right|_{{%s }}' % (self._print(Derivative(*expr.args)), "Central")
     def _print_MetricDerivative(self, expr):
-        return self._print(Derivative(*expr.args))
+        return r'\left. %s \right|_{{%s }}' % (self._print(Derivative(*expr.args)), "Metric")
     def _print_TemporalDerivative(self, expr):
-        return self._print(Derivative(*expr.args))
+        return r'\left. %s \right|_{{%s }}' % (self._print(Derivative(*expr.args)), "Temporal")
 
     def write_expression(self, expression, substitutions={}):
         """ Convert a single expression or list of expressions to LaTeX format and then write it/them to file.

@@ -1,5 +1,5 @@
 
-from sympy import Symbol, Eq, flatten
+from sympy import Symbol, Eq, flatten, srepr
 from sympy.tensor import Idx, IndexedBase, Indexed
 from sympy import pprint
 #class EinsteinIndex(Symbol):
@@ -163,7 +163,6 @@ class DataSet(Indexed):
         else:
             location = [0]*cls.dimensions
         base = DataSetBase(label)
-        #print([base, type(base)])
         ret = Indexed.__new__(cls, base , *location)
         return ret
     @property

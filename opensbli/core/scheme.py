@@ -30,6 +30,8 @@ class CentralHalos(object):
         return
     def get_halos(self, side):
         return self.halos[side]
+    def __str__(self):
+        return "CentralHalos"
 
 
 
@@ -151,9 +153,6 @@ class Central(Scheme):
         classify_parameter = ConstantObject("Re")
         self.required_constituent_relations = {}
         viscous, convective = self.classify_equations_on_parameter(equations, classify_parameter)
-        #pprint(convective)
-        # Process the convective terms
-
         convective_grouped = self.group_by_direction(convective)
         # Create equations for evaluation of derivatives
         for key, value in convective_grouped.iteritems():

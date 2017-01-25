@@ -106,7 +106,7 @@ class TraditionalAlgorithm(MainPrg):
         return
 
     def generate_time_loop(self, blocks):
-        """ Add the spatial kernels to the temporal solution
+        """ Add the spatial kernels to the temporal solution now the scheme.solution
         """
         fname = './algorithm.tex'
         latex = LatexWriter()
@@ -117,8 +117,10 @@ class TraditionalAlgorithm(MainPrg):
             for scheme in b.get_temporal_schemes:
                 for key, value in scheme.solution.iteritems():
                     for l in b.list_of_equation_classes:
-                        if l.order >=0 and l.order <100: # CHECK for better implementation
+                        if l.order >=0 and l.order <100: #Checks if the equation classes are part of the time loop
                             scheme.solution[key].kernels = l.all_spatial_kernels + scheme.solution[key].kernels
+                        else:
+                            NotImplementedError("")
                 #print [s.computation_name for s in scheme.solution[key].kernels]
                 for s in scheme.solution[key].kernels:
                     s.write_latex(latex)

@@ -84,16 +84,14 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes): # BoundaryCo
         crs = self.get_constituent_equation_class
         for clas in self.list_of_equation_classes:
             if clas not in crs:
-                print clas
+                print clas, "Exitting"
+                #exit()
         # perform the temporal discretisation of the equations for all equation classes
         # Later move TD to equations.td
-        temporal = []
-        for sc in  self.discretisation_schemes:
-            if self.discretisation_schemes[sc].schemetype == "Temporal":
-                temporal += [sc]
+        temporal = self.get_temporal_schemes
         for t in temporal:
             for eq in self.list_of_equation_classes:
-                self.discretisation_schemes[t].discretise(eq, self)
+                self.discretisation_schemes[t.name].discretise(eq, self)
         return
 
     def apply_boundary_conditions(self, arrays):

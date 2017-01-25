@@ -1,5 +1,6 @@
 from sympy import flatten, Max
 from .latex import *
+from .opensbliobjects import DataSetBase, DataSet
 class Kernel(object):
 
     """ A computational kernel which will be executed over all the grid points and in parallel. """
@@ -81,18 +82,54 @@ class Kernel(object):
         return
     @property
     def required_data_sets(self):
-        from sympy.tensor import IndexedBase
-        from .opensbliobjects import DataSet
         requires = []
         for eq in self.equations:
-            requires += list(eq.rhs.atoms(DataSet))
-        #print requires
+            if isinstance(eq, Equality):
+                requires += list(eq.rhs.atoms(DataSet))
         return requires
+    @property
+    def lhs_datasets(self):
+        datasets = set()
+        for eq in self.equations:
+            if isinstance(eq, Equality):
+                datasets = datasets.union(eq.lhs.atoms(DataSetBase))
+        return datasets
+    @property
+    def rhs_datasets(self):
+        datasets = set()
+        for eq in self.equations:
+            if isinstance(eq, Equality):
+                datasets = datasets.union(eq.rhs.atoms(DataSetBase))
+        return datasets
+    @property
+    def Rational_constants(self):
+        rcs = set()
+        for eq in self.equations:
+            if isinstance(eq, Equality):
+                rcs = rcs.union(eq.atoms(Rational))
+        out = set()
+        # Integers are also being returned as Rational numbers, remove any integers
+        for rc in rcs:
+            if not isinstance(rc, Integer):
+                out.add(rc)
+        return out
+    def get_stencils(self):
+        """ Returns the stencils for the datasets used in the kernel
+        """
+        stencil_dictionary = {}
+        datasets = self.lhs_datasets.union(self.rhs_datasets)
+        return
 
     def write_latex(self, latex):
         latex.write_string('The kernel is %s'%self.computation_name)
-        #latex.write_string('The halos are ')
+        latex.write_string('. The range of evaluation is  %s \\ \n\n the halo ranges are %s'%(self.ranges, self.halo_ranges))
         for index, eq in enumerate(self.equations):
             if isinstance(eq, Equality):
                 latex.write_expression(eq)
+        self.opsc()
+        return
+    def opsc(self):
+        #print self.lhs_datasets.intersection(self.rhs_datasets)
+        #print "RC", self.Rational_constants
+        print self.rhs_datasets, self.computation_name
         return
