@@ -179,7 +179,7 @@ class DataSet(Indexed):
 
 class ConstantIndexed(Indexed):
     def __new__(cls, label, indices, **kwargs):
-        base = DataSetBase(label)
+        base = IndexedBase(label)
         if isinstance(indices, list):
             for i in indices:
                 if not isinstance(i, Idx):
