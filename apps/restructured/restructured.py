@@ -16,11 +16,18 @@ BUILD_DIR = os.getcwd()
 
 # Problem dimension
 ndim = 2
-
+sc1 = "**{\'scheme\':\'Weno\'}"
+sc2 = "**{\'scheme\':\'Central\'}"
 # Define the compresible Navier-Stokes equations in Einstein notation.
-mass = "Eq(Der(rho,t), - Conservative(rhou_j,x_j,**{\'scheme\':\'Central\'}))"
-momentum = "Eq(Der(rhou_i,t) , -Conservative(rhou_i*u_j + KD(_i,_j)*p,x_j)  + Der(tau_i_j,x_j) )"
-energy = "Eq(Der(rhoE,t), - Conservative((p+rhoE)*u_j,x_j) + Der(q_j,x_j) + Der(u_i*tau_i_j ,x_j) )"
+a = "Conservative(rhou_j,x_j,%s)"%sc1
+b = "Conservative(rhou_j,x_j,%s)"%sc2
+mass = "Eq(Der(rho,t), - %s -%s)"%(a,b)
+a = "Conservative(rhou_i*u_j + KD(_i,_j)*p,x_j , %s)"%sc1
+b = "Conservative(rhou_i*u_j + KD(_i,_j)*p,x_j , %s)"%sc2
+momentum = "Eq(Der(rhou_i,t) , -%s -%s  + Der(tau_i_j,x_j) )"%(a,b)
+a = "Conservative((p+rhoE)*u_j,x_j, %s)"%sc1
+b = "Conservative((p+rhoE)*u_j,x_j, %s)"%(sc2)
+energy = "Eq(Der(rhoE,t), - %s - %s + Der(q_j,x_j) + Der(u_i*tau_i_j ,x_j) )"%(a,b)
 ke = "Eq(ke, rho*(1/2)*Dot(u_j,u_j))"
 enstrophy = "Eq(enstrophy, (1/2)*rho*(LC(_i,_j,_k)*Der(u_k,x_j))**2)"
 rhomean = "Eq(rhomean, rho)"
@@ -54,8 +61,8 @@ eqns = eq.expand(mass, ndim, coordinate_symbol, substitutions, constants)
 simulation_eq.add_equations(eqns)
 
 eqns = eq.expand(momentum, ndim, coordinate_symbol, substitutions, constants)
-exit()
-
+#exit()
+#pprint(eqns)
 simulation_eq.add_equations(eqns)
 eqns = eq.expand(energy, ndim, coordinate_symbol, substitutions, constants)
 simulation_eq.add_equations(eqns)
@@ -68,10 +75,20 @@ eqns = eq.expand(pressure, ndim, coordinate_symbol, substitutions, constants)
 constituent.add_equations(eqns)
 eqns = eq.expand(temperature, ndim, coordinate_symbol, substitutions, constants)
 constituent.add_equations(eqns)
-pprint(constituent.equations)
+#pprint(constituent.equations)
 #pprint(simulation_eq.equations)
 # Discretise the constituent relations if it contains any derivatives
 #simulation_eq.add_constituent_relations(constituent)
+latex = LatexWriter()
+latex.open('./equations.tex')
+metadata = {"title": "Einstein Expansion of equations", "author": "Jammy", "institution": ""}
+latex.write_header(metadata)
+for index, eq in enumerate(flatten(simulation_eq.equations)):
+    if isinstance(eq, Equality):
+        latex.write_expression(eq)
+latex.write_footer()
+latex.close()
+#exit()
 
 block= SimulationBlock(ndim, block_number = 0)
 
@@ -90,32 +107,32 @@ schemes[cent.name] = cent
 # schemes[weno.name] = weno
 rk = RungeKutta(3)
 schemes[rk.name] = rk
-# exit()
+#exit()
 block.sbli_rhs_discretisation = True
 boundaries = [PeriodicBoundaryConditionBlock()]*2*ndim
 block.set_block_boundaries(boundaries)
 block.set_equations([constituent,simulation_eq])
 block.set_discretisation_schemes(schemes)
 block.discretise()
-
-TraditionalAlgorithm(block)
+#exit()
+# This creates the traditional algorithm
+alg = TraditionalAlgorithmRK(block)
+OPSC(alg)
 # Create a descritisation class where the equations are deepcopied using deepcopy
 #ex = copy.deepcopy(simulation_eq)
 # block= SimulationBlock(ndim, block_number = 0)
 
 
+"""
+Here I can do the algorithm on my own
+[MainPrg, GridRead, Initialisation, Metriceq, Tloop, Start[Simulation_eq], RKloopst,
+BC's, Simulatio_eq.spatial_kernels, Time_kernles], rkend, Diagnostics, output, tloopend,
+output, diagnostics, programend]
 
+"""
 
 
 #################
 
-latex = LatexWriter()
-latex.open('./equations.tex')
-metadata = {"title": "Einstein Expansion of equations", "author": "Jammy", "institution": ""}
-latex.write_header(metadata)
-for index, eq in enumerate(flatten(simulation_eq.equations)):
-    if isinstance(eq, Equality):
-        latex.write_expression(eq)
-latex.write_footer()
-latex.close()
+
 
