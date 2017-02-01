@@ -129,3 +129,35 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes): # BoundaryCo
             if self.discretisation_schemes[sc].schemetype == "Temporal":
                 temporal += [self.discretisation_schemes[sc]]
         return temporal
+    @property
+    def collect_all_spatial_kernels(self):
+        all_kernels = []
+        for scheme in self.get_temporal_schemes:
+            for key, value in scheme.solution.iteritems(): # These are equation classes
+                if key.order >=0 and key.order <100: #Checks if the equation classes are part of the time loop
+                    all_kernels += key.all_spatial_kernels
+                else:
+                    print 'NOPE' # Just checking
+        return all_kernels
+    
+    def grid_generation(self):
+        
+        return
+    
+    def initial_conditions(self):
+        
+        return
+    
+    def io(self):
+        return
+    
+    def pre_process_eq(self, eq_class):
+        """
+        These are type non Simulation equations
+        """
+        return
+    
+    def post_process_eq(self, eq_class_list):
+        
+        return
+    

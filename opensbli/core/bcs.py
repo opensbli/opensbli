@@ -22,19 +22,24 @@
 
 from sympy import *
 from .kernel import *
-
+side_names  = {0:'left', 1:'right'}
 
 class ExchangeSelf(object):
 
     """ Defines data exchange on the same block. """
 
-    def __init__(self):
+    def __init__(self, block, direction, side):
         ## Range of evaluation (i.e. the grid points, including the halo points, over which the computation should be performed).
         self.computation_name = "EXCHANGE"
+        self.block_number = block.blocknumber
+        self.direction = direction
+        self.side = side_names[side]
         return
+
     def set_name(self, name):
         self.computation_name = name
         return
+
     def set_number(self, number):
         self.number = number
         return
@@ -49,10 +54,17 @@ class ExchangeSelf(object):
     def set_transfer_to(self, transfer):
         self.transfer_to = transfer
         return
+    @property
+    def algorithm_node_name(self):
+        name = "Boundary_exchange_block_%d_direction%d_side%s"%(self.block_number,self.direction, self.side)
+        return name
 
     def write_latex(self, latex):
         latex.write_string("This is an exchange self kernel on variables %s\\\\"%', '.join([str(a) for a in self.transfer_arrays]))
         return
+    @property
+    def opsc_code(self):
+        return ["Exchange self kernel"]
 
     #def set
 
@@ -130,7 +142,7 @@ class PeriodicBoundaryConditionBlock(BoundaryConditionBase):
         transfer_from[boundary_direction] = block.ranges[boundary_direction][side_from]
         transfer_to = halos[:]
         transfer_to[boundary_direction] = block.ranges[boundary_direction][side] + halos[boundary_direction]
-        ex = ExchangeSelf()
+        ex = ExchangeSelf(block, boundary_direction, side)
         ex.set_transfer_from(transfer_from)
         ex.set_transfer_to(transfer_to)
         ex.set_arrays(arrays)

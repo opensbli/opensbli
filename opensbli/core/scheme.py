@@ -214,7 +214,7 @@ class Central(Scheme):
         kernels += [conv_residual_kernel]
         # reset the work index of blocks
         block.reset_work_index
-        # Discretise the viscous fluxes. This is straight forward as we need not modify anythin
+        # Discretise the viscous fluxes. This is straight forward as we need not modify anything
         viscous_kernels, viscous_discretised = self.genral_discretisation(viscous, block)
         if viscous_kernels:
             for ker in viscous_kernels:
@@ -227,7 +227,7 @@ class Central(Scheme):
             kernels += [visc_residual_kernel]
         #create_latex_kernel(kernels)
         # Add the kernels to the solutions
-        type_of_eq.Kernels = kernels
+        type_of_eq.Kernels += kernels
         return
     def create_residual_kernel(self, residual_arrays, discretised_eq, block):
         if len(residual_arrays) != len(discretised_eq):
@@ -362,7 +362,6 @@ class RungeKutta(Scheme):
             raise NotImplementedError("")
         else:
             cls.constant_time_step = True
-        print cls.get_coefficients
         return
     @property
     def get_coefficients(cls):
@@ -411,6 +410,10 @@ class RungeKutta(Scheme):
             zipped = zip(old_data_sets, new_data_sets, residuals)
             kernels = cls.create_discretisation_kernel(zipped, block)
             cls.solution[type_of_eq].kernels += kernels
+            # New testing
+            type_of_eq.temporalsolution = TemproalSolution()
+            type_of_eq.temporalsolution.kernels += kernels
+            type_of_eq.temporalsolution.start_kernels += cls.solution[type_of_eq].start_kernels
         return
 
     def create_discretisation_kernel(cls, zipped, block):
@@ -449,3 +452,9 @@ class RungeKutta(Scheme):
             fn = eq.time_advance_array
             old_data_sets += [block.work_array('%s_old' % fn.base)]
         return old_data_sets
+
+    def generate_inner_loop(cls, kernels):
+        from .algorithm import DoLoop
+        rkloop = DoLoop(cls.stage)
+        rkloop.add_components(kernels)
+        return rkloop

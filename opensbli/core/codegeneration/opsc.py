@@ -141,8 +141,40 @@ def ccode(expr, Indexed_accs=None, constants=None):
         return code, code_print.constants
     return OPSCCodePrinter(Indexed_accs, constants).doprint(expr)
 
+from opensbli.core.kernel import Kernel
+from opensbli.core.algorithm import Loop
 
-class opsc(object):
+class OPSC(object):
 
-    def __init__(self):
+    def __init__(self, algorithm):
+        """ Generating an OPSC code from the algorithm"""
+        if not algorithm.MultiBlock:
+            self.datasets_to_declare = set()
+            self.Rational_constants = set()
+            self.constants = set()
+            self.stencils_to_declare = set()
+            self.generate_OPSC_dependants_sb(algorithm)
+        return
+
+    def add_block_name_to_kernel_sb(self, kernel):
+        kernel.block_name = "block"
+        return
+
+    def generate_OPSC_dependants_sb(self, algorithm):
+        def _generate(components):
+            for component1 in components:
+                if isinstance(component1, Loop):
+                    return _generate(component1.components)
+                elif isinstance(component1, Kernel):
+                    self.add_block_name_to_kernel_sb(component1)
+                    self.datasets_to_declare = self.datasets_to_declare.union(component1.lhs_datasets).union(component1.rhs_datasets)
+                    self.Rational_constants = self.Rational_constants.union(component1.Rational_constants)
+                    self.constants = self.constants.union(component1.constants).union(component1.IndexedConstants)
+                    # WARNING need to implement this
+                    stens = component1.get_stencils
+                    for key, value in stens.iteritems():
+                        self.stencils_to_declare.add(tuple(value))
+        code = algorithm.prg.opsc_code
+        print '\n'.join(code)
+        _generate(algorithm.prg.components)
         return

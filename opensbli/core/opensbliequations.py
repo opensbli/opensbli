@@ -78,8 +78,6 @@ class Discretisation(object):
         return equation
 
 
-
-
 class OpenSBLIEquation(Equality):
     def __new__(cls, equation):
         ret = super(OpenSBLIEquation, cls).__new__(cls, equation.lhs, equation.rhs)
@@ -124,7 +122,7 @@ class SimulationEquations(Discretisation, Solution):
     Eq(CD(rhou0,x0), ITS descritised formula)
     similarly, for the momentum equation
     or, the best way would be create an object for evaluating for each and every
-    term of the equation CD / WD, TD also includes diagnostic terms
+    term of the equation CD / WD, TD 
     CD(rhou0,x0,x0) --> is an evaluation object already have function (CD).
     It should give you requires
 
@@ -142,13 +140,14 @@ class SimulationEquations(Discretisation, Solution):
     a. required functions (spatial and temporal)
 
     """
-    def __new__(cls, order = None):
+    def __new__(cls, order = None, **kwargs):
         ret = super(SimulationEquations,cls).__new__(cls)
         if order:
             ret.order = order
         else:
             ret.order = 0
         ret.equations = []
+        ret.kwargs = kwargs
         return ret
 
     def add_equations(cls, equation):
@@ -303,11 +302,11 @@ class SimulationEquations(Discretisation, Solution):
                 TD_fns += [td.time_advance_array  for td in c.atoms(TemporalDerivative)]
         return TD_fns
     @property
-    def is_algorithm_component(cls):
+    def algorithm_location(cls):
         return True
     @property
     def all_spatial_kernels(cls):
-        return cls.boundary_kernels + cls.sort_constituents + cls.Kernels
+        return cls.sort_constituents + cls.Kernels
 
 class ConstituentRelations(Discretisation, Solution):
     def __new__(cls):
@@ -367,7 +366,13 @@ class ConstituentRelations(Discretisation, Solution):
         pass
         return
 
-class DiagnosticsEquation(OpenSBLIEquation):
+class NonSimulationEquations(Discretisation, Solution):
+    """ Dummy place holder for all the equations that are not simulated but needs to be evaluated
+    e.g, metrics or diagnostics or Statistics, """
+    pass
+
+
+class DiagnosticsEquations(NonSimulationEquations):
 
     def __new__(cls):
         # The order for this would be >100

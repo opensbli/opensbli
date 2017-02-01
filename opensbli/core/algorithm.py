@@ -1,130 +1,182 @@
+
+loopcounter = 0
+
+from .block import SimulationBlock as SB
+from .kernel import Kernel
+from .latex import *
+from .opensbliequations import *
+
 class Loop(object):
     pass
 
-class StartLoop(Loop):
-    """ Dummy place holder for various loop start"""
-    pass
-class EndLoop(Loop):
-    """ Dummy place holder for various loop ends"""
-    pass
-class Doloopst(Loop):
-    def __init__(self, index, name, ranges):
-        self.doloopname = "%s"%name
-        self.components = []
-        self.loop = Idx(str(name), tuple(ranges))
-        return
-    def __str__(self):
-        return "%s_%s"%(self.__class__.__name__, self.doloopname)
-    def add_components(self, components):
-        self.components += components
-        return
-    def get_components(self):
-        return
-    def opsc(self):
-        return "for(int %s=%s, %s<%s, %s++)\n{"%(self.loop, str(self.loop.lower), self.loop, str(self.loop.upper), self.loop)
-
-
-class Doloopend(Loop):
-    def __init__(self, index):
-        self.doloopname = "doloop%d"%index
-        self.components = []
-        return
-    def __str__(self):
-        return "%s_%s"%(self.__class__.__name__, self.doloopname)
-    def add_components(self, components):
-        self.components = []
-        return
-    def get_components(self):
-        return
-    def opsc(self):
-        return "}"
-
-class ProgramStart(StartLoop):
-    """ Dummy place holder for main program, as of now it is not used but later we will move the
-    logic of main program definitions to here from OPSC"""
+class MainPrg(Loop):
     def __init__(self):
-        return
-    def name(self):
-        self.name = "%sNode"%(type(self).__name__)
-        return
-    def components(self):
-
-        return
-
-class ProgramEnd(EndLoop):
-    """ Dummy place holder for main program, as of now it is not used but later we will move the
-    logic of main program definitions to here from OPSC"""
-    def __init__(self):
-        return
-    def name(self):
-        self.name = "%sNode"%(type(self).__name__)
-        return
-
-class PreProcess():
-    def __init__(self):
-        self.computations = []
-        return
-    def set_computations(self, computations):
-        self.computations += flatten([computations])
-        return
-    def name(self):
-        self.name = "%sNode"%(type(self).__name__)
-        return
-
-class MainPrg():
-    def __init__(self, *components):
         self.components = []
         return
     def __str__(self):
         return "%s"%(self.__class__.__name__)
     def add_components(self, components):
         """ """
-        self.components += components
+        if isinstance(components, list):
+            self.components += components
+        else:
+            self.components += [components]
         return
-    def get_components(self):
+    def write_latex(self, latex):
+        latex.write_string("Starting of the main program\\\\\n")
+        for c in self.components:
+            c.write_latex(latex)
+        latex.write_string("End of Main")
         return
+    @property
+    def opsc_code(self):
+        code = []
+        code += [self.opsc_start]
+        for c in self.components:
+            code += c.opsc_code
+        code += [self.opsc_end]
+        return code
+    @property
+    def opsc_start(self):
+        return "Main Program Start \n {"
+    @property
+    def opsc_end(self):
+        return "Main program end \n }"
 
-    def insert_component(self, at, components):
-        location = self.locate_component(at)
-        self.components[location].add_components(components)
+class DoLoop(Loop):
+    def __init__(self, iterator):
+        self.loop = iterator
+        self.components = []
         return
-
-    def locate_component(self, comp):
-        """Helper function to locate the component in the main program
-        May be alter need to add traversing the loop to locate the component of components"""
-        for no,c in enumerate(self.components):
-            if str(c) == str(comp):
-                return no
-from .block import SimulationBlock as SB
-from .kernel import Kernel
-from .latex import *
-class TraditionalAlgorithm(MainPrg):
+    def add_components(self, components):
+        if isinstance(components, list):
+            self.components += components
+        else:
+            self.components += [components]
+        return
+    def write_latex(self, latex):
+        latex.write_string("Do loop %s,%s, %s\\\\\n"%(self.loop, self.loop.lower, self.loop.upper))
+        for c in self.components:
+            c.write_latex(latex)
+        latex.write_string("Ending Do loop %s\\\\\n"%(self.loop))
+        return
+    @property
+    def opsc_code(self):
+        code = []
+        code += [self.opsc_start]
+        for c in self.components:
+            code += c.opsc_code
+        code += [self.opsc_end]
+        return code
+    @property
+    def opsc_start(self):
+        return "for(int %s=%s, %s<%s, %s++)\n{"%(self.loop, str(self.loop.lower), self.loop, str(self.loop.upper), self.loop)
+    @property
+    def opsc_end(self):
+        return "}"
+class TraditionalAlgorithmRK(object):
+    """ It is where the algorithm is generated, This is a seperate layer
+    which gives user control to do any modifications for extra functionality that
+    is to be performed like, doing some post processing for every time loop or
+    sub rk loop
+    """
     def __init__(self, blocks):
         if isinstance(blocks, SB):
+            self.MultiBlock = False
             blocks = [blocks]
-        self.generate_time_loop(blocks)
+        else:
+            self.MultiBlock = True
+            raise NotImplementedError("")
+        self.check_temporal_scheme(blocks)
+        self.prg = MainPrg()
+        self.spatial_solution(blocks)
+        # Now try the algorithm generation
         return
 
-    def generate_time_loop(self, blocks):
-        """ Add the spatial kernels to the temporal solution now the scheme.solution
+    def spatial_solution(self, blocks):
+        """ Add the spatial kernels to the temporal solution i.e temporalscheme.solution
         """
+        print "Writing algorithm \n\n"
         fname = './algorithm.tex'
         latex = LatexWriter()
         latex.open('./algorithm.tex')
         metadata = {"title": "Algorithm for the equations", "author": "Jammy", "institution": ""}
         latex.write_header(metadata)
-        for b in blocks:
+        all_kernels = []
+        if self.MultiBlock:
+            raise NotImplementedError("")
+        else:
+            b = blocks[0]
+            bc_kernels = []
+            inner_temporal_advance_kernels = []
+            temporal_start = []
+            temporal_end = []
+            spatial_kernels = []
             for scheme in b.get_temporal_schemes:
                 for key, value in scheme.solution.iteritems():
-                    for l in b.list_of_equation_classes:
-                        if l.order >=0 and l.order <100: #Checks if the equation classes are part of the time loop
-                            scheme.solution[key].kernels = l.all_spatial_kernels + scheme.solution[key].kernels
-                        else:
-                            NotImplementedError("")
-                #print [s.computation_name for s in scheme.solution[key].kernels]
-                for s in scheme.solution[key].kernels:
-                    s.write_latex(latex)
+                    if isinstance(key, SimulationEquations):
+                        print "Yes"
+                        # Solution advancement kernels
+                        temporal_start += scheme.solution[key].start_kernels
+                        temporal_end += scheme.solution[key].end_kernels
+                        inner_temporal_advance_kernels += scheme.solution[key].kernels
+                        bc_kernels = key.boundary_kernels
+                        spatial_kernels = key.all_spatial_kernels
+                    else: # Add all other types of equations
+                        print "No", type(key)
+            sc = b.get_temporal_schemes[0]
+            innerloop = sc.generate_inner_loop(bc_kernels + spatial_kernels + inner_temporal_advance_kernels)
+            temporal_iteration = Idx("iter", Symbol('niter', integer =True))
+            tloop = DoLoop(temporal_iteration)
+            tloop.add_components(temporal_start)
+            tloop.add_components(innerloop)
+            tloop.add_components(temporal_end)
+            #tloop.write_latex(latex)
+            # Process the initial conditions and Diagnostics if any here
+            self.prg.add_components(tloop)
+            self.prg.write_latex(latex)
         latex.write_footer()
         latex.close()
         return
 
+    def check_temporal_scheme(self, blocks):
+        """
+        If Multi-block this checks the temporal scheme is the same for all the blocks
+        """
+        if self.MultiBlock:
+            raise NotImplementedError("")
+        else:
+            if len(blocks[0].get_temporal_schemes) > 1:
+                raise ValueError("More than one temporal scheme for a block")
+        return
+
+"""
+Best implementation of this would be
+What we will have are
+a. Equations evaluated in the time loop (order)
+b. Equations evaluated outside the time loop (Metrics evaluations, Diagnostics)
+c. Equations evaluated both inside and outside the time loop (Statistics, Diagnostics etc)
+
+Algorithm is a doubly linked list with the names as strings
+(For kernels it would be blocknumber+kernel_no)
+For BC's it would be
+next, previous
+insert
+remove
+
+For each of the equation classes we should have the following,
+a. solution_kernels (Simulation equations) (CR+Spatial)
+b. Temporal_soultion_kernels (Substage true or false for each kernel)
+c.
+
+Algorithm:
+a. tloop
+b. ts.start
+c. Rkloop
+d. SimulationEquationsBC
+e. SimulationEquationsSpatial, other
+f. Time advancement
+g. RKend
+h. Diagnostics,
+i. Tend
+"""

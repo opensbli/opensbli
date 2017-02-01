@@ -117,7 +117,7 @@ class Grid(WorkDataSet):
         # Instantiate WorkDataSet
         WorkDataSet.__init__(self)
         inds = symbols('shape_0:%d'%self.ndim, integer=True)
-        self.shape = symbols('np_0:%d'%self.ndim, integer=True)
+        self.shape = symbols('block%dnp_0:%d'%(self.blocknumber, self.ndim), integer=True)
         self.idx_shapes = [Idx(Symbol('i%d'%dim, integer = True),(0, self.shape[dim])) for dim in range(self.ndim)]
         self.ranges = [[s.lower, s.upper] for s in self.idx_shapes]
         #self.shape = [Idx(i, (upper[no])) for no,i in enumerate(inds)]

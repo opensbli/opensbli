@@ -135,6 +135,8 @@ class LatexWriter(LatexPrinter):
         return r'\left. %s \right|_{{%s }}' % (self._print(Derivative(*expr.args)), "Metric")
     def _print_TemporalDerivative(self, expr):
         return r'\left. %s \right|_{{%s }}' % (self._print(Derivative(*expr.args)), "Temporal")
+    def _print_WenoDerivative(self, expr):
+        return r'\left. %s \right|_{{%s }}' % (self._print(Derivative(*expr.args)), "Weno")
 
     def write_expression(self, expression, substitutions={}):
         """ Convert a single expression or list of expressions to LaTeX format and then write it/them to file.

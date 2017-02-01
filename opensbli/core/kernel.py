@@ -1,16 +1,17 @@
 from sympy import flatten, Max
 from .latex import *
-from .opensbliobjects import DataSetBase, DataSet
+from .opensbliobjects import DataSetBase, DataSet, ConstantIndexed, ConstantObject
+
 class Kernel(object):
 
     """ A computational kernel which will be executed over all the grid points and in parallel. """
     mulfactor = {0:-1, 1:1}
+    opsc_access = {'ins':"OPS_READ", "outs": "OPS_WRITE", "inouts":"OPS_RW"}
     def __init__(self, block, computation_name = None):
         """ Set up the computational kernel"""
         self.block_number = block.blocknumber
+        self.ndim = block.ndim
         self.computation_name = computation_name
-        #self.kernel_number = block.kernel_counter
-        #block.increase_kernel_counter
         self.equations = []
         self.halo_ranges = [[set(), set()] for d in range(block.ndim)]
         return
@@ -113,23 +114,69 @@ class Kernel(object):
             if not isinstance(rc, Integer):
                 out.add(rc)
         return out
+    @property
+    def constants(self):
+        consts = set()
+        for eq in self.equations:
+            if isinstance(eq, Equality):
+                consts = consts.union(eq.atoms(ConstantObject))
+        return consts
+    @property
+    def IndexedConstants(self):
+        consts = set()
+        for eq in self.equations:
+            if isinstance(eq, Equality):
+                consts = consts.union(eq.atoms(ConstantIndexed))
+        return consts
+    @property
     def get_stencils(self):
         """ Returns the stencils for the datasets used in the kernel
         """
         stencil_dictionary = {}
-        datasets = self.lhs_datasets.union(self.rhs_datasets)
-        return
+        datasetbases = self.lhs_datasets.union(self.rhs_datasets)
+        datasets = set()
+        for eq in self.equations:
+            if isinstance(eq, Equality):
+                datasets = datasets.union(eq.atoms(DataSet))
+        for s in datasets:
+            if s.base in stencil_dictionary.keys():
+                stencil_dictionary[s.base].add(tuple(s.indices))
+            else:
+                stencil_dictionary[s.base] = set()
+                stencil_dictionary[s.base].add(tuple(s.indices))
+        #pprint(stencil_dictionary)
+        return stencil_dictionary
 
     def write_latex(self, latex):
         latex.write_string('The kernel is %s'%self.computation_name)
-        latex.write_string('. The range of evaluation is  %s \\ \n\n the halo ranges are %s'%(self.ranges, self.halo_ranges))
+        #latex.write_string('. The range of evaluation is  %s \\ \n\n the halo ranges are %s'%(self.ranges, self.halo_ranges))
         for index, eq in enumerate(self.equations):
             if isinstance(eq, Equality):
                 latex.write_expression(eq)
-        self.opsc()
         return
-    def opsc(self):
-        #print self.lhs_datasets.intersection(self.rhs_datasets)
-        #print "RC", self.Rational_constants
-        print self.rhs_datasets, self.computation_name
-        return
+    @property
+    def opsc_code(self):
+        block_name = "OpensbliBlock%d"%self.block_number
+        ins = self.rhs_datasets
+        outs = self.lhs_datasets
+        inouts = ins.intersection(outs)
+        ins = ins.difference(inouts)
+        outs = outs.difference(inouts)
+        stens = self.get_stencils
+        name = "OpensbliKernel_block%d_kernel%d"%(self.block_number, 0)
+        iter_range = "Testing"
+        code = ['ops_par_loop(%s, \"%s\", %s, %s, %s' % (name, self.computation_name, block_name, self.ndim, iter_range)]
+        for i in ins:
+            code += ['ops_arg_dat(%s, %d, %s, \"%s\", %s)'%(i, 1, self.stencil_name(i, stens), "double", self.opsc_access['ins'])]
+        for o in outs:
+            code += ['ops_arg_dat(%s, %d, %s, \"%s\", %s)'%(i, 1, self.stencil_name(i, stens), "double", self.opsc_access['outs'])]
+        for io in inouts:
+            code += ['ops_arg_dat(%s, %d, %s, \"%s\", %s)'%(i, 1, self.stencil_name(i, stens), "double", self.opsc_access['inouts'])]
+
+        return code
+    def stencil_name(self, arr, stencils):
+        return str(stencils[arr])
+
+    def ops_argument_call(self, array, stencil, precision, access_type):
+        template = 'ops_arg_dat(%s, %d, %s, \"%s\", %s)'
+        return template % (array, 1, stencil, self.dtype, access_type)
