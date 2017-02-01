@@ -12,6 +12,7 @@ class Kernel(object):
         self.block_number = block.blocknumber
         self.ndim = block.ndim
         self.computation_name = computation_name
+        self.kernel_no = 0 #WARNING: update 
         self.equations = []
         self.halo_ranges = [[set(), set()] for d in range(block.ndim)]
         return
@@ -144,7 +145,8 @@ class Kernel(object):
             else:
                 stencil_dictionary[s.base] = set()
                 stencil_dictionary[s.base].add(tuple(s.indices))
-        #pprint(stencil_dictionary)
+        for key, val in stencil_dictionary.iteritems():
+            stencil_dictionary[key] = frozenset(val)
         return stencil_dictionary
 
     def write_latex(self, latex):
@@ -163,19 +165,68 @@ class Kernel(object):
         ins = ins.difference(inouts)
         outs = outs.difference(inouts)
         stens = self.get_stencils
-        name = "OpensbliKernel_block%d_kernel%d"%(self.block_number, 0)
+        # print self.computation_name, "\n"
+        # print stens
+        unique_stencils = set()
+        for stencil in stens.values():
+            unique_stencils.add(stencil)
+        # pprint(unique_stencils)
+        self.stencil_names = self.create_stencil_names(unique_stencils)
+        pprint(self.stencil_names)
+        # pprint(self.stencil_names)
+        name = "OpensbliKernel_block%d_kernel%d"%(self.block_number, self.kernel_no)
         iter_range = "Testing"
         code = ['ops_par_loop(%s, \"%s\", %s, %s, %s' % (name, self.computation_name, block_name, self.ndim, iter_range)]
         for i in ins:
             code += ['ops_arg_dat(%s, %d, %s, \"%s\", %s)'%(i, 1, self.stencil_name(i, stens), "double", self.opsc_access['ins'])]
         for o in outs:
-            code += ['ops_arg_dat(%s, %d, %s, \"%s\", %s)'%(i, 1, self.stencil_name(i, stens), "double", self.opsc_access['outs'])]
+            code += ['ops_arg_dat(%s, %d, %s, \"%s\", %s)'%(o, 1, self.stencil_name(o, stens), "double", self.opsc_access['outs'])]
         for io in inouts:
-            code += ['ops_arg_dat(%s, %d, %s, \"%s\", %s)'%(i, 1, self.stencil_name(i, stens), "double", self.opsc_access['inouts'])]
-
+            code += ['ops_arg_dat(%s, %d, %s, \"%s\", %s)'%(io, 1, self.stencil_name(io, stens), "double", self.opsc_access['inouts'])]
+        self.declare_OPS_stencils()
+        # exit()
         return code
+
+    def sort_stencil_indices(self, index_set):
+        """ Helper function for relative_stencil. Sorts the relative stencil. """
+        dim = len(list(index_set)[0])
+        sorted_index_set = sorted(index_set, key=lambda tup: tuple(tup[i] for i in range(dim)))
+        return sorted_index_set
+
+    def create_stencil_names(self, stencils):
+        names = {}
+        base_name = 'stencil_'
+        for position, stencil in enumerate(stencils):
+            names[stencil] = 'stencil_%d_%d_%d' % (self.block_number, self.kernel_no , position)
+        return names
+    def declare_OPS_stencils(self):
+        dtype = 'int'
+        # sten_format = 'ops_stencil %%s = ops_decl_stencil(%%d,%%d,%%s,\"%%s\")%s' % (self.end_of_statement)
+        OPS_stencils = []
+        for stencil, name in self.stencil_names.iteritems():
+            sorted_stencil = self.sort_stencil_indices(stencil)
+            OPS_stencils += flatten(sorted_stencil)
+        pprint(OPS_stencils)
+        return
+    # def declare_stencils(self):
+    #     """ Declare all the stencils used in the code. We do not differentiate between the stencils for each block.
+
+    #     :returns: The OPSC code declaring the stencil.
+    #     :rtype: str
+    #     """
+
+    #     code = ['%s Declare all the stencils used ' % (self.line_comment)]
+    #     dtype_int = 'int'
+    #     sten_format = 'ops_stencil %%s = ops_decl_stencil(%%d,%%d,%%s,\"%%s\")%s' % (self.end_of_statement)
+    #     for key, value in self.stencil_dictionary.iteritems():
+    #         count = len(key.split(',')) / self.ndim
+    #         # 'value' is the name in the stencil's format
+    #         code += [self.array(dtype_int, value + "_temp", [key])]
+    #         code += [sten_format % (value, self.ndim, count, value + "_temp", key)]
+    #     return code
+
     def stencil_name(self, arr, stencils):
-        return str(stencils[arr])
+        return self.stencil_names[stencils[arr]]
 
     def ops_argument_call(self, array, stencil, precision, access_type):
         template = 'ops_arg_dat(%s, %d, %s, \"%s\", %s)'
