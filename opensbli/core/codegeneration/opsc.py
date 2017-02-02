@@ -144,12 +144,26 @@ def ccode(expr, Indexed_accs=None, constants=None):
 from opensbli.core.kernel import Kernel
 from opensbli.core.algorithm import Loop
 
+class BeforeTimeOpsc():
+    def __init__(self):
+        self.components = []
+        return
+    def add_components(self):
+        if isinstance(components, list):
+            self.components += components
+        else:
+            self.components += [components]
+class DeclareDataset(object):
+    def __init__(self, dataset, blocknumber):
+        self.dataset = dataset
+        self.block_number = blocknumber
+        return
 class OPSC(object):
 
     def __init__(self, algorithm):
         """ Generating an OPSC code from the algorithm"""
         if not algorithm.MultiBlock:
-            self.datasets_to_declare = set()
+            self.datasets_to_declare = []
             self.Rational_constants = set()
             self.constants = set()
             self.stencils_to_declare = set()
@@ -159,6 +173,15 @@ class OPSC(object):
     def add_block_name_to_kernel_sb(self, kernel):
         kernel.block_name = "block"
         return
+    def kernel_datasets(self, kernel):
+        lhs = list(kernel.lhs_datasets) +list(kernel.rhs_datasets)
+        #rhs = kernel.rhs_datasets
+        dsets = []
+        for d in lhs:
+            d1 = DeclareDataset(d, kernel.block_number)
+            print d, d1
+        return dsets
+
 
     def generate_OPSC_dependants_sb(self, algorithm):
         def _generate(components):
@@ -167,7 +190,8 @@ class OPSC(object):
                     return _generate(component1.components)
                 elif isinstance(component1, Kernel):
                     self.add_block_name_to_kernel_sb(component1)
-                    self.datasets_to_declare = self.datasets_to_declare.union(component1.lhs_datasets).union(component1.rhs_datasets)
+                    #self.kernel_datasets(component1)
+                    self.datasets_to_declare += list(component1.lhs_datasets) + list(component1.rhs_datasets)
                     self.Rational_constants = self.Rational_constants.union(component1.Rational_constants)
                     self.constants = self.constants.union(component1.constants).union(component1.IndexedConstants)
                     # WARNING need to implement this
@@ -175,6 +199,6 @@ class OPSC(object):
                     for key, value in stens.iteritems():
                         self.stencils_to_declare.add(tuple(value))
         code = algorithm.prg.opsc_code
-        print '\n'.join(code)
+        #print '\n'.join(code)
         _generate(algorithm.prg.components)
         return

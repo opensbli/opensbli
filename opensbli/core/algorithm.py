@@ -5,6 +5,7 @@ from .block import SimulationBlock as SB
 from .kernel import Kernel
 from .latex import *
 from .opensbliequations import *
+from .opensbliobjects import *
 
 class Loop(object):
     pass
@@ -77,11 +78,31 @@ class DoLoop(Loop):
 class DefDecs(object):
     def __init__(self):
         self.components = []
-    def add_components(self, constants):
+    def add_components(self, components):
         if isinstance(components, list):
             self.components += components
         else:
             self.components += [components]
+    def write_latex(self, latex):
+        for c in self.components:
+            if isinstance(c, Constant):
+                if c.is_input:
+                    l = "Is an input"
+                else:
+                    l = "Is not an input"
+                latex.write_string("DefDec constant %s, %s\\\\\n"%(str(c), l))
+            elif isinstance(c, DataSetBase):
+                latex.write_string("DefDec dataset %s\\\\\n"%(str(c)))
+        return
+    @property
+    def opsc_code(self):
+        code = []
+        for c in self.components:
+            if isinstance(c, Constant):
+                code += ["DefDec constant %s"%(str(c))]
+            elif isinstance(c, DataSetBase):
+                code += ["DefDec dataset %s"%(str(c))]
+        return code
 
 class Constants(DefDecs):
     def __init__(self):
@@ -116,17 +137,23 @@ class TraditionalAlgorithmRK(object):
             raise NotImplementedError("")
         self.check_temporal_scheme(blocks)
         self.prg = MainPrg()
+        defdecs = self.get_definitions_declarations(blocks)
+        self.add_def_decs(defdecs)
         self.spatial_solution(blocks)
         # Now try the algorithm generation
         return
 
-    def add_definitions_declarations(self, blocks):
+    def add_def_decs(self, defdecs):
+        self.prg.add_components(defdecs)
+        return
+
+    def get_definitions_declarations(self, blocks):
         defdecs = DefDecs()
         for b in blocks:
-            defdecs.add_components()
-            b.block_datasets
-
-        return
+            defdecs.add_components(b.constants.values())
+            defdecs.add_components(b.Rational_constants.values())
+            defdecs.add_components(b.block_datasets.values())
+        return defdecs
 
     def spatial_solution(self, blocks):
         """ Add the spatial kernels to the temporal solution i.e temporalscheme.solution
