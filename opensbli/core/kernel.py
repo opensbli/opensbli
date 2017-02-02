@@ -307,15 +307,22 @@ class Kernel(object):
                     next_rc.is_input = False
                     next_rc.value = rc
                     block.Rational_constants[rc] = next_rc
-        pprint(block.Rational_constants)
+                    pprint([rc, next_rc.__dict__])
+            # pprint(block.Rational_constants)
 
-        # Update constant attributes
-        # constants = self.constants
-        # if constants:
-        #     for c in constants:
-        #         if str(c) in block.constants
-        #         const_obj = ConstantObject(c)
-        #         const_obj = constant_attributes(const_obj)
-        #         pprint(const_obj.__dict__)
-        #         exit()
+        constants = self.constants
+        if constants:
+            for c in constants:
+                if str(c) in block.constants:
+                    print "in existing"
+                    print c
+                    # exit()
+                else: 
+                    const_obj = constant_attributes(c)
+                    # pprint(const_obj.__dict__)
+                    block.constants[str(c)] = const_obj
+                    pprint([c, const_obj.__dict__])
+
+            # pprint(block.constants)
+
         return
