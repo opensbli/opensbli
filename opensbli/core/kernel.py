@@ -11,6 +11,14 @@ def dataset_attributes(dset):
     dset.size  = None
     dset.halos = None
     return dset
+
+def constant_attributes(const):
+    const.is_input = True
+    const.dtype = None
+    const.value = None
+    return const
+
+    ## similar define attributes for constant objects
 class Kernel(object):
 
     """ A computational kernel which will be executed over all the grid points and in parallel. """
@@ -273,4 +281,31 @@ class Kernel(object):
                 d.halo_ranges = self.halo_ranges
                 # Add dataset to block datasets
                 block.block_datasets[str(d)] = d
+        # Update rational constant attributes
+        rational_constants = self.Rational_constants
+        # pprint(self.constants)
+        if rational_constants:
+            for rc in rational_constants:
+                if rc in block.Rational_constants.keys():
+                    print "in existing"
+                    print block.Rational_constants[rc].__dict__
+                    pass
+                else:
+                    next_rc = block.get_next_rational_constant
+                    next_rc = constant_attributes(next_rc)
+                    next_rc.is_input = False
+                    next_rc.value = rc
+                    block.Rational_constants[rc] = next_rc
+        pprint(block.Rational_constants)
+
+
+        # Update constant attributes
+        # constants = self.constants
+        # if constants:
+        #     for c in constants:
+        #         if str(c) in block.constants
+        #         const_obj = ConstantObject(c)
+        #         const_obj = constant_attributes(const_obj)
+        #         pprint(const_obj.__dict__)
+        #         exit()
         return
