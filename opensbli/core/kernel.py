@@ -133,6 +133,17 @@ class Kernel(object):
                 out.add(rc)
         return out
     @property
+    def Inverse_constants(self):
+        from sympy.core.function import _coeff_isneg
+        # Only negative powers i.e. they correspond to division and they are stored into constant arrays
+        inverse_terms = set()
+        for eq in self.equations:
+            if isinstance(eq, Equality):
+                for at in eq.atoms(Pow):
+                    if _coeff_isneg(at.exp) and not at.base.atoms(Indexed):
+                        inverse_terms.add(at)
+        return inverse_terms
+    @property
     def constants(self):
         consts = set()
         for eq in self.equations:
@@ -254,7 +265,7 @@ class Kernel(object):
         a. existing.block_number is same as kernel
         b. set the range to block shape
         c. Update the halo ranges (similar to how we update the halo ranges of a kernel)
-        
+
         Apply the datasetbase attributes to the dataset and update the parameters
         dataset_attributes(d)
         1. d.block_numner to kernel block number
@@ -282,13 +293,13 @@ class Kernel(object):
                 # Add dataset to block datasets
                 block.block_datasets[str(d)] = d
         # Update rational constant attributes
-        rational_constants = self.Rational_constants
+        rational_constants = self.Rational_constants.union(self.Inverse_constants)
         # pprint(self.constants)
         if rational_constants:
             for rc in rational_constants:
                 if rc in block.Rational_constants.keys():
-                    print "in existing"
-                    print block.Rational_constants[rc].__dict__
+                    #print "in existing"
+                    #print block.Rational_constants[rc].__dict__
                     pass
                 else:
                     next_rc = block.get_next_rational_constant
@@ -297,7 +308,6 @@ class Kernel(object):
                     next_rc.value = rc
                     block.Rational_constants[rc] = next_rc
         pprint(block.Rational_constants)
-
 
         # Update constant attributes
         # constants = self.constants
