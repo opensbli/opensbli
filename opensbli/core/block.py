@@ -181,4 +181,4 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes, RationalCount
 
         return
 
-def sort_constants()
+#def sort_constants():

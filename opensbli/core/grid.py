@@ -95,10 +95,8 @@ class WorkDataSet():
     def reset_work_to_stored(self):
         self.work_index = self.stored_index
         return
-#Idx.lower.setter()
 
-#from .bcs import BoundaryConditionTypes
-
+from .opensbliobjects import ConstantObject
 class Grid(WorkDataSet):
 
     """ The numerical grid of solution points on which to discretise the equations. """
@@ -120,6 +118,7 @@ class Grid(WorkDataSet):
         self.shape = symbols('block%dnp_0:%d'%(self.blocknumber, self.ndim), integer=True)
         self.idx_shapes = [Idx(Symbol('i%d'%dim, integer = True),(0, self.shape[dim])) for dim in range(self.ndim)]
         self.ranges = [[s.lower, s.upper] for s in self.idx_shapes]
+        self.deltas = [ConstantObject("Delta_block_%d_%d"%(self.blocknumber, dire)) for dire in range(self.ndim)]
         #self.shape = [Idx(i, (upper[no])) for no,i in enumerate(inds)]
         #print(self.shape[0].args)
         #self.shape[0].args[1] = tuple([self.shape[0].lower, upper[1]])

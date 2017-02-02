@@ -50,14 +50,14 @@ def expand_free_indices(expr, indices, ndim):
     for i in it:
         local_expr = expr.copy()
         local_map = []
-        linear_index = 0 
+        linear_index = 0
         for no in range(len(indices)):
             local_map += [(indices[no], i[no])]
             #linear_index += ndim*i[no]
         for at in local_expr.atoms(EinsteinTerm):
             evaluated = at.apply_multiple_indices(indices, local_map)
             local_expr = local_expr.replace(at, evaluated)
-                
+
         out += [local_expr]
     return out
 
@@ -444,7 +444,7 @@ class CentralDerivative(Function, BasicDiscretisation):
         ret = super(CentralDerivative, cls).__new__(cls, *args, evaluate=False)
         ret.store = True # By default all the derivatives are stored
         return ret
-    
+
     def doit(cls):
         #print [arg==S.Zero for arg in cls.args]
         if any(arg == S.Zero for arg in cls.args):
@@ -452,7 +452,7 @@ class CentralDerivative(Function, BasicDiscretisation):
         else:
             return cls
 
-    def _discretise_derivative(cls, scheme):
+    def _discretise_derivative(cls, scheme, block):
         """This would return the descritised derivative of the
         local object depending on the order of accuracy specified
         Returns the formula for the derivative function, only first derivatives or homogeneous
@@ -468,9 +468,7 @@ class CentralDerivative(Function, BasicDiscretisation):
 
         if cls.is_homogeneous:
             dire = cls.get_direction[0]
-            weights = scheme._generate_weights(dire, order)
-            pprint(weights)
-            pprint(scheme.points)
+            weights = scheme._generate_weights(dire, order, block)
             for no, p in enumerate(scheme.points):
                 expr = cls.args[0]
                 for req in (cls.required_datasets):

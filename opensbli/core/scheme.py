@@ -55,11 +55,11 @@ class Central(Scheme):
         self.halotype = CentralHalos(order)
         return
 
-    def _generate_weights(self, direction, order):
+    def _generate_weights(self, direction, order, block):
         """ Descritises only the homogeneous derivatives of any order or
         first derivatives"""
         #print(self.points, direction, type(direction))
-        self.diffpoints = [i*ConstantObject('Delta_%s'%(direction)) for i in self.points]
+        self.diffpoints = [i*block.deltas[direction] for i in self.points]
         weights = finite_diff_weights(order, self.diffpoints, 0)
         return weights[order][-1]
 
@@ -182,7 +182,7 @@ class Central(Scheme):
                     v1 = v.subs(v.args[0], wk)
                 else:
                     v1 = v
-                expr = Eq(v.work, v1._discretise_derivative(self))
+                expr = Eq(v.work, v1._discretise_derivative(self, block))
                 pprint(expr)
                 ker = Kernel(block)
                 ker.add_equation(expr)
@@ -256,9 +256,8 @@ class Central(Scheme):
             work_arry_subs = {}
             for der in cds:
                 self.update_range_of_constituent_relations(der, block)
-                expr, local_kernels = self.traverse(der, local_kernels)
-                #pprint([expr, expr._discretise_derivative(self)])
-                expr_discretised = Eq(der.work, expr._discretise_derivative(self))
+                expr, local_kernels = self.traverse(der, local_kernels, block)
+                expr_discretised = Eq(der.work, expr._discretise_derivative(self, block))
                 work_arry_subs[expr] = der.work
                 local_kernels[der].add_equation(expr_discretised)
                 local_kernels[der].set_grid_range(block)
@@ -288,7 +287,7 @@ class Central(Scheme):
                     other_terms[number] =Add(other_terms[number], expr)
         return containing_terms, other_terms
 
-    def traverse(self, CD, kernel_dictionary):
+    def traverse(self, CD, kernel_dictionary, block):
         expr = CD.copy()
         inner_cds = []
         #if CD.args[0].atoms(CentralDerivative):
@@ -315,7 +314,7 @@ class Central(Scheme):
                     # while evaluating CD(CD(u0,x0),x1)
                     raise ValueError("NOT IMPLEMENTED THIS")
                 elif not cd.is_store:# Donot store derivatives
-                    expr = expr.subs(cd, cd._discretise_derivative(self))
+                    expr = expr.subs(cd, cd._discretise_derivative(self, block))
                 else:
                     raise ValueError("Could not classify this")
         return expr, kernel_dictionary
