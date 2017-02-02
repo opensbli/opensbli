@@ -10,7 +10,7 @@ def dataset_attributes(dset):
     dset.dtype = None
     dset.size  = None
     dset.halos = None
-    return
+    return dset
 class Kernel(object):
 
     """ A computational kernel which will be executed over all the grid points and in parallel. """
@@ -193,7 +193,6 @@ class Kernel(object):
         for io in inouts:
             code += ['ops_arg_dat(%s, %d, %s, \"%s\", %s)'%(io, 1, self.stencil_name(io, stens), "double", self.opsc_access['inouts'])]
         self.declare_OPS_stencils()
-        # exit()
         return code
 
     def sort_stencil_indices(self, index_set):
@@ -242,25 +241,36 @@ class Kernel(object):
         return template % (array, 1, stencil, self.dtype, access_type)
 
     def update_block_datasets(self, block):
-        print "IN Update", self.computation_name
+        """
+        Check the following
+        a. existing.block_number is same as kernel
+        b. set the range to block shape
+        c. Update the halo ranges (similar to how we update the halo ranges of a kernel)
+        
+        Apply the datasetbase attributes to the dataset and update the parameters
+        dataset_attributes(d)
+        1. d.block_numner to kernel block number
+        2. d.size = block shape
+        3. d.halo_ranges to kernel halo ranges
+        """
         dsets = self.lhs_datasets.union(self.rhs_datasets)
         for d in dsets:
-            if d in block.block_datasets:
-                existing = block.block_datasets.pop(d)
-                """
-                Check the following
-                a. existing.block_number is same as kernel
-                b. set the range to block shape
-                c. Update the halo ranges (similar to how we update the halo ranges of a kernel)
-                """
-                # Update the halo ranges of the existing dataset with that of the kernel
+            if str(d) in block.block_datasets.keys():
+                dset = block.block_datasets[str(d)]
+                for direction in range(len(dset.halo_ranges)):
+                    dset.halo_ranges[direction][0] = dset.halo_ranges[direction][0] | self.halo_ranges[direction][0]
+                    dset.halo_ranges[direction][1] = dset.halo_ranges[direction][1] | self.halo_ranges[direction][1]
+                block.block_datasets[str(d)] = dset
+                if block.blocknumber != dset.block_number:
+                    raise ValueError("Block number error")
+                if block.shape != dset.size:
+                    raise ValueError("Shape error")
             else:
-                print "NO"
-                """ Apply the datasetbase attributes to the dataset and update the parameters
-                dataset_attributes(d)
-                1. d.block_numner to kernel block number
-                2. d.size = block shape
-                3. d.halo_ranges to kernel halo ranges
-                """
-                pass
+                # Update dataset attributes
+                d = dataset_attributes(d)
+                d.size = block.shape
+                d.block_number = block.blocknumber
+                d.halo_ranges = self.halo_ranges
+                # Add dataset to block datasets
+                block.block_datasets[str(d)] = d
         return
