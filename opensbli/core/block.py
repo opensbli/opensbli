@@ -56,6 +56,7 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes): # BoundaryCo
         KernelCounter.__init__(self)
         Grid.__init__(self)
         self.boundary_halos = [[set(), set()] for d in range(self.ndim)]
+        self.block_datasets = set()
         return
 
     def set_block_number(self, number):

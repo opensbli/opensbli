@@ -222,6 +222,10 @@ class SimulationEquations(Discretisation, Solution):
                 else:
                     cls.requires[key] = value
         return
+    def process_kernels(cls, block):
+        for kernel in cls.constituent_relations_kernels:
+            kernel.update_block_datasets(block)
+        return
     @property
     def sort_constituents(cls):
         """

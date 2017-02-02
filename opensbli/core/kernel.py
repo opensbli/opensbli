@@ -1,7 +1,16 @@
 from sympy import flatten, Max
 from .latex import *
 from .opensbliobjects import DataSetBase, DataSet, ConstantIndexed, ConstantObject
-
+def dataset_attributes(dset):
+    """
+    Move to datasetbase? Should we??
+    """
+    dset.block_number = None
+    dset.read_from_hdf5 = False
+    dset.dtype = None
+    dset.size  = None
+    dset.halos = None
+    return
 class Kernel(object):
 
     """ A computational kernel which will be executed over all the grid points and in parallel. """
@@ -231,3 +240,17 @@ class Kernel(object):
     def ops_argument_call(self, array, stencil, precision, access_type):
         template = 'ops_arg_dat(%s, %d, %s, \"%s\", %s)'
         return template % (array, 1, stencil, self.dtype, access_type)
+    
+    def update_block_datasets(self, block):
+        dsets = self.lhs_datasets.union(self.rhs_datasets)
+        for d in dsets:
+            if d in block.block_datasets:
+                existing = block.block_datasets.pop(d)
+                # Update the halo ranges of the existing dataset with that of the kernel
+            else:
+                """ Apply the datasetbase attributes to the dataset and update the parameters
+                1. Block number
+                2. 
+                """
+                pass
+        return
