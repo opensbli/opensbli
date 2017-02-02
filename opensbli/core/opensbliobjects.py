@@ -95,15 +95,15 @@ class EinsteinTerm(Symbol):
             if self.get_indices():
                 val.direction = dictionary_indices[self.get_indices()[0]]
         return val
+class Constant(object):
+    pass
 
-
-class ConstantObject(EinsteinTerm):
+class ConstantObject(EinsteinTerm, Constant):
     is_commutative = True
     def __new__(cls, label):
         ret = super(ConstantObject,cls).__new__(cls, label)
+        ret.is_constant = True
         return ret
-    def is_constant(cls):
-        return True
 
 class CoordinateObject(EinsteinTerm):
     def __new__(cls, label, **kwargs):
@@ -177,7 +177,7 @@ class DataSet(Indexed):
     def requires(cls):
         return list(cls.atoms(IndexedBase))[0]
 
-class ConstantIndexed(Indexed):
+class ConstantIndexed(Indexed, Constant):
     def __new__(cls, label, indices, **kwargs):
         base = IndexedBase(label)
         if isinstance(indices, list):
@@ -189,6 +189,7 @@ class ConstantIndexed(Indexed):
                 raise ValueError("The indices of the Constant Indexed Object should be of type Idx", i)
             indices = flatten([indices])
         ret = Indexed.__new__(cls, base , *indices)
+        ret.is_constant = True
         return ret
     @property
     def location(cls):
