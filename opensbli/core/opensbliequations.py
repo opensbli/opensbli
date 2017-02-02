@@ -122,7 +122,7 @@ class SimulationEquations(Discretisation, Solution):
     Eq(CD(rhou0,x0), ITS descritised formula)
     similarly, for the momentum equation
     or, the best way would be create an object for evaluating for each and every
-    term of the equation CD / WD, TD 
+    term of the equation CD / WD, TD
     CD(rhou0,x0,x0) --> is an evaluation object already have function (CD).
     It should give you requires
 
@@ -221,9 +221,13 @@ class SimulationEquations(Discretisation, Solution):
                         cls.constituent_relations_kernels[key].add_equation(cr_dictionary[key])
                 else:
                     cls.requires[key] = value
+        cls.process_kernels(block)
         return
     def process_kernels(cls, block):
-        for kernel in cls.constituent_relations_kernels:
+        pprint(cls.constituent_relations_kernels)
+        for key,kernel in cls.constituent_relations_kernels.iteritems():
+            kernel.update_block_datasets(block)
+        for kernel in cls.Kernels:
             kernel.update_block_datasets(block)
         return
     @property

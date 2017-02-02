@@ -21,7 +21,7 @@ class Kernel(object):
         self.block_number = block.blocknumber
         self.ndim = block.ndim
         self.computation_name = computation_name
-        self.kernel_no = 0 #WARNING: update 
+        self.kernel_no = 0 #WARNING: update
         self.equations = []
         self.halo_ranges = [[set(), set()] for d in range(block.ndim)]
         return
@@ -181,7 +181,7 @@ class Kernel(object):
             unique_stencils.add(stencil)
         # pprint(unique_stencils)
         self.stencil_names = self.create_stencil_names(unique_stencils)
-        pprint(self.stencil_names)
+        #pprint(self.stencil_names)
         # pprint(self.stencil_names)
         name = "OpensbliKernel_block%d_kernel%d"%(self.block_number, self.kernel_no)
         iter_range = "Testing"
@@ -215,7 +215,7 @@ class Kernel(object):
         for stencil, name in self.stencil_names.iteritems():
             sorted_stencil = self.sort_stencil_indices(stencil)
             OPS_stencils += flatten(sorted_stencil)
-        pprint(OPS_stencils)
+        #pprint(OPS_stencils)
         return
     # def declare_stencils(self):
     #     """ Declare all the stencils used in the code. We do not differentiate between the stencils for each block.
@@ -240,17 +240,19 @@ class Kernel(object):
     def ops_argument_call(self, array, stencil, precision, access_type):
         template = 'ops_arg_dat(%s, %d, %s, \"%s\", %s)'
         return template % (array, 1, stencil, self.dtype, access_type)
-    
+
     def update_block_datasets(self, block):
+        print "IN Update", self.computation_name
         dsets = self.lhs_datasets.union(self.rhs_datasets)
         for d in dsets:
             if d in block.block_datasets:
                 existing = block.block_datasets.pop(d)
                 # Update the halo ranges of the existing dataset with that of the kernel
             else:
+                print "NO"
                 """ Apply the datasetbase attributes to the dataset and update the parameters
                 1. Block number
-                2. 
+                2.
                 """
                 pass
         return
