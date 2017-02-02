@@ -63,7 +63,7 @@ class RationalCounter():
         self.increase_rational_counter
         ret = ConstantObject(name)
         return ret
-class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes): # BoundaryConditionTypes add this later
+class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes, RationalCounter): # BoundaryConditionTypes add this later
     def __init__(self, ndim, block_number = None):
         if block_number:
             self.blocknumber = block_number
