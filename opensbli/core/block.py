@@ -181,4 +181,22 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes, RationalCount
 
         return
 
-#def sort_constants():
+def sort_constants(constants_dictionary):
+    known_constants, unknown_constants = [], []
+    pprint(constants_dictionary)
+    for const in constants_dictionary.values():
+        if const.is_input:
+            known_constants.append(const)
+        else:
+            unknown_constants.append(const)
+    while len(unknown_constants) != 0:
+        set_of_known = set(known_constants)
+        for const in unknown_constants:
+            requires = const.value.atoms(ConstantObject)
+            if requires.issubset(set_of_known):
+                print "const: ", const, " has formula: ", const.value, " requires: ", requires
+                known_constants.append(const)
+                unknown_constants = [x for x in unknown_constants if not const]
+            else:
+                print const, "is missing", " it requires", requires
+    return known_constants
