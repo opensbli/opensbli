@@ -52,7 +52,6 @@ class RationalCounter():
     def __init__(self):
         self.name = 'rc%d'
         self.rational_counter = 0
-
     @property
     def increase_rational_counter(self):
         self.rational_counter = self.rational_counter +1
@@ -75,7 +74,7 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes, RationalCount
         RationalCounter.__init__(self)
         self.boundary_halos = [[set(), set()] for d in range(self.ndim)]
         self.block_datasets = {}
-        self.constants = set()
+        self.constants = {}
         self.Rational_constants = {}
         return
 
@@ -181,3 +180,5 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes, RationalCount
     def post_process_eq(self, eq_class_list):
 
         return
+
+def sort_constants()
