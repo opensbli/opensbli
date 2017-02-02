@@ -56,7 +56,9 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes): # BoundaryCo
         KernelCounter.__init__(self)
         Grid.__init__(self)
         self.boundary_halos = [[set(), set()] for d in range(self.ndim)]
-        self.block_datasets = set()
+        self.block_datasets = {}
+        self.constants = set()
+        self.Rational_constants = set()
         return
 
     def set_block_number(self, number):
@@ -140,25 +142,24 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes): # BoundaryCo
                 else:
                     print 'NOPE' # Just checking
         return all_kernels
-    
+
     def grid_generation(self):
-        
+
         return
-    
+
     def initial_conditions(self):
-        
+
         return
-    
+
     def io(self):
         return
-    
+
     def pre_process_eq(self, eq_class):
         """
         These are type non Simulation equations
         """
         return
-    
+
     def post_process_eq(self, eq_class_list):
-        
+
         return
-    

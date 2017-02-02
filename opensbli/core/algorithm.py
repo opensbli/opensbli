@@ -74,6 +74,33 @@ class DoLoop(Loop):
     @property
     def opsc_end(self):
         return "}"
+class DefDecs(object):
+    def __init__(self):
+        self.components = []
+    def add_components(self, constants):
+        if isinstance(components, list):
+            self.components += components
+        else:
+            self.components += [components]
+
+class Constants(DefDecs):
+    def __init__(self):
+        self.components = []
+    def add_components(self, constants):
+        if isinstance(components, list):
+            self.components += components
+        else:
+            self.components += [components]
+
+class Datasets(DefDecs):
+    def __init__(self):
+        self.components = []
+    def add_components(self, constants):
+        if isinstance(components, list):
+            self.components += components
+        else:
+            self.components += [components]
+
 class TraditionalAlgorithmRK(object):
     """ It is where the algorithm is generated, This is a seperate layer
     which gives user control to do any modifications for extra functionality that
@@ -91,6 +118,14 @@ class TraditionalAlgorithmRK(object):
         self.prg = MainPrg()
         self.spatial_solution(blocks)
         # Now try the algorithm generation
+        return
+
+    def add_definitions_declarations(self, blocks):
+        defdecs = DefDecs()
+        for b in blocks:
+            defdecs.add_components()
+            b.block_datasets
+
         return
 
     def spatial_solution(self, blocks):

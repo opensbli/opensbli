@@ -224,11 +224,17 @@ class SimulationEquations(Discretisation, Solution):
         cls.process_kernels(block)
         return
     def process_kernels(cls, block):
-        pprint(cls.constituent_relations_kernels)
         for key,kernel in cls.constituent_relations_kernels.iteritems():
             kernel.update_block_datasets(block)
         for kernel in cls.Kernels:
             kernel.update_block_datasets(block)
+        #TODO similarly  update the rational constants and constants
+        """
+        Constants should have the attributes
+        a. is_input = True or False
+        b. dtype = int or double or float
+        c. if not input the value
+        """
         return
     @property
     def sort_constituents(cls):
