@@ -24,6 +24,7 @@ from .grid import *
 from sympy.matrices import *
 from .bcs import BoundaryConditionTypes
 from .opensbliequations import SimulationEquations
+from .opensbliobjects import ConstantObject
 
 class KernelCounter():
     # Counter for the kernels
@@ -49,7 +50,7 @@ class KernelCounter():
 class RationalCounter():
     # Counter for the kernels
     def __init__(self):
-        self.name = 'rc%d' 
+        self.name = 'rc%d'
         self.rational_counter = 0
 
     @property
