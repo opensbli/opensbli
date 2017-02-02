@@ -247,12 +247,20 @@ class Kernel(object):
         for d in dsets:
             if d in block.block_datasets:
                 existing = block.block_datasets.pop(d)
+                """
+                Check the following
+                a. existing.block_number is same as kernel
+                b. set the range to block shape
+                c. Update the halo ranges (similar to how we update the halo ranges of a kernel)
+                """
                 # Update the halo ranges of the existing dataset with that of the kernel
             else:
                 print "NO"
                 """ Apply the datasetbase attributes to the dataset and update the parameters
-                1. Block number
-                2.
+                dataset_attributes(d)
+                1. d.block_numner to kernel block number
+                2. d.size = block shape
+                3. d.halo_ranges to kernel halo ranges
                 """
                 pass
         return
