@@ -2,7 +2,7 @@
 loopcounter = 0
 
 from .block import SimulationBlock as SB
-from .kernel import Kernel
+from .kernel import *
 from .latex import *
 from .opensbliequations import *
 from .opensbliobjects import *
@@ -33,7 +33,7 @@ class MainPrg(Loop):
     def opsc_code(self):
         code = []
         code += [self.opsc_start]
-        for c in self.components:
+        for c in flatten(self.components):
             code += c.opsc_code
         code += [self.opsc_end]
         return code
@@ -104,43 +104,41 @@ class DefDecs(object):
                 code += ["DefDec dataset %s"%(str(c))]
         return code
 
-class Constants(DefDecs):
-    def __init__(self):
-        self.components = []
-    def add_components(self, constants):
-        if isinstance(components, list):
-            self.components += components
-        else:
-            self.components += [components]
-
-class Datasets(DefDecs):
-    def __init__(self):
-        self.components = []
-    def add_components(self, constants):
-        if isinstance(components, list):
-            self.components += components
-        else:
-            self.components += [components]
-
+class BlockDescription(object):
+    def __init__(self, block):
+        copy_block_attributes(block, self)
+        return
 class TraditionalAlgorithmRK(object):
     """ It is where the algorithm is generated, This is a seperate layer
     which gives user control to do any modifications for extra functionality that
     is to be performed like, doing some post processing for every time loop or
     sub rk loop
     """
-    def __init__(self, blocks):
+    def __init__(self, blocks, dtype=None):
+        self.block_descriptions = []
         if isinstance(blocks, SB):
             self.MultiBlock = False
             blocks = [blocks]
         else:
             self.MultiBlock = True
             raise NotImplementedError("")
+        if dtype:
+            self.dtype = dtype
+        else:
+            self.dtype = "double"
         self.check_temporal_scheme(blocks)
         self.prg = MainPrg()
+        self.add_block_names(blocks)
         defdecs = self.get_definitions_declarations(blocks)
-        self.add_def_decs(defdecs)
+        self.defnitionsdeclarations = defdecs
+        #self.add_def_decs(defdecs)
         self.spatial_solution(blocks)
         # Now try the algorithm generation
+        return
+    def add_block_names(self, blocks):
+        for b in blocks:
+            self.block_descriptions += [BlockDescription(b)]
+
         return
 
     def add_def_decs(self, defdecs):

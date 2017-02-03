@@ -23,8 +23,9 @@
 from sympy import *
 from .kernel import *
 side_names  = {0:'left', 1:'right'}
-
-class ExchangeSelf(object):
+class Exchange(object):
+    pass
+class ExchangeSelf(Exchange):
 
     """ Defines data exchange on the same block. """
 
@@ -35,7 +36,9 @@ class ExchangeSelf(object):
         self.direction = direction
         self.side = side_names[side]
         return
-
+    @property
+    def name(self):
+        return "%s%d"%(self.computation_name, self.number)
     def set_name(self, name):
         self.computation_name = name
         return
@@ -64,7 +67,7 @@ class ExchangeSelf(object):
         return
     @property
     def opsc_code(self):
-        return ["Exchange self kernel"]
+        return [self.call_name]
 
     #def set
 
@@ -130,22 +133,25 @@ class PeriodicBoundaryConditionBlock(BoundaryConditionBase):
 
         # Create a kernel this is a neater way to implement the transfers
         ker = Kernel(block)
-        halos = ker.get_plane_halos(block)
+        halos = ker.get_max_halos(boundary_direction, side, block)
         # Get the minimum for transfer from
-        halos = [Min(*ha) for ha in halos]
-        transfer_from = halos[:]
+        #halos = [Min(*ha) for ha in halos]
+        #transfer_from = halos
         #print transfer_from
         if side == 0:
             side_from = 1
         else:
             side_from = 0
-        transfer_from[boundary_direction] = block.ranges[boundary_direction][side_from]
-        transfer_to = halos[:]
-        transfer_to[boundary_direction] = block.ranges[boundary_direction][side] + halos[boundary_direction]
+        #transfer_from[boundary_direction] = block.ranges[boundary_direction][side_from]
+        transfer_from = block.ranges
+        #transfer_to = halos
+        #transfer_to[boundary_direction] = block.ranges[boundary_direction][side] + halos[boundary_direction]
+        transfer_to = block.ranges
         ex = ExchangeSelf(block, boundary_direction, side)
         ex.set_transfer_from(transfer_from)
         ex.set_transfer_to(transfer_to)
         ex.set_arrays(arrays)
+        ex.number = ker.kernel_no
         return ex
 
 class SymmetryBoundaryCondition(object):

@@ -10,7 +10,7 @@ def dataset_attributes(dset):
     dset.dtype = None
     dset.size  = None
     dset.halo_ranges = None
-    dset.block_name = "OpenSBLIBlock"
+    dset.block_name = None
     return dset
 
 def constant_attributes(const):
@@ -38,7 +38,7 @@ class StencilObject(object):
 class Kernel(object):
 
     """ A computational kernel which will be executed over all the grid points and in parallel. """
-    mulfactor = {0:-1, 1:1}
+    mulfactor = {0:1, 1:1}
     opsc_access = {'ins':"OPS_READ", "outs": "OPS_WRITE", "inouts":"OPS_RW"}
     def __init__(self, block, computation_name = None):
         """ Set up the computational kernel"""
@@ -64,13 +64,35 @@ class Kernel(object):
         self.ranges = block.ranges
         return
 
-    def get_max_halos(self, direction, side, block):
-        halos = block.boundary_halos[direction][side]
-        total_halos = 0
-        for h in halos:
-            total_halos = Max(total_halos, h.get_halos(side))
-        total_halos = self.mulfactor[side]*total_halos
-        return total_halos
+    #def get_max_halos(self, direction, side, block):
+        #halos = block.boundary_halos[direction][side]
+        #print halos
+        #total_halos = 0
+        #for h in halos:
+            #total_halos = Max(total_halos, h.get_halos(side))
+        #total_halos = self.mulfactor[side]*total_halos
+        #return total_halos
+
+    def get_max_halos(self,direction, side, block):
+        halos =  block.boundary_halos
+        halo_m = []
+        halo_p = []
+        for direction in range(len(halos)):
+            max_halo_direction = []
+            if halos[direction][0]:
+                hal = [d.get_halos(0) for d in halos[direction][0]]
+                halo_m += [min(hal)]
+            else:
+                halo_m += [0]
+            if halos[direction][1]:
+                hal = [d.get_halos(1) for d in halos[direction][1]]
+                halo_p += [max(hal)]
+            else:
+                halo_p += [0]
+        if side == 0:
+            return halo_m[direction]
+        elif side == 1:
+            return halo_p[direction]
 
     def get_plane_halos(self, block):
         plane_halos = []
@@ -212,8 +234,8 @@ class Kernel(object):
         ins = ins.difference(inouts)
         outs = outs.difference(inouts)
         iter_range = "Testing"
-        print self.computation_name
-        pprint(self.stencil_names)
+        #print self.computation_name
+        #pprint(self.stencil_names)
         code = ['ops_par_loop(%s, \"%s\", %s, %s, %s' % (name, self.computation_name, block_name, self.ndim, iter_range)]
         for i in ins:
             code += ['ops_arg_dat(%s, %d, %s, \"%s\", %s)'%(i, 1, self.stencil_names[i], "double", self.opsc_access['ins'])]
@@ -221,6 +243,10 @@ class Kernel(object):
             code += ['ops_arg_dat(%s, %d, %s, \"%s\", %s)'%(o, 1, self.stencil_names[o], "double", self.opsc_access['outs'])]
         for io in inouts:
             code += ['ops_arg_dat(%s, %d, %s, \"%s\", %s)'%(io, 1, self.stencil_names[io], "double", self.opsc_access['inouts'])]
+        if self.IndexedConstants:
+            for c in self.IndexedConstants:
+                code += ["ops_arg_gbl(&%s, %d, \"%s\", %s)"%(c, 1, "double", self.opsc_access['ins'])]
+        code = [',\n'.join(code) + ');\n\n']
         return code
 
 
@@ -260,6 +286,7 @@ class Kernel(object):
                 d.size = block.shape
                 d.block_number = block.blocknumber
                 d.halo_ranges = self.halo_ranges
+                d.block_name = block.blockname
                 # Add dataset to block datasets
                 block.block_datasets[str(d)] = d
         # Update rational constant attributes
@@ -293,8 +320,8 @@ class Kernel(object):
                 self.stencil_names[dset].add(block.block_stencils[stencil].name)
 
         # pprint(block.block_stencils)
-        print "\n"
-        pprint(self.stencil_names)
+        #print "\n"
+        #pprint(self.stencil_names)
         # for key, value in self.stencil_names.iteritems():
         #     print key, value, stens[key], block.block_stencils[stens[key]].name
         # pprint([self.stencil_names])

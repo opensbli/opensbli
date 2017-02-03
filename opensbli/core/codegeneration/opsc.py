@@ -143,6 +143,7 @@ def ccode(expr, Indexed_accs=None, constants=None):
 
 from opensbli.core.kernel import Kernel
 from opensbli.core.algorithm import Loop
+from opensbli.core.opensbliobjects import *
 
 class BeforeTimeOpsc():
     def __init__(self):
@@ -158,30 +159,218 @@ class DeclareDataset(object):
         self.dataset = dataset
         self.block_number = blocknumber
         return
+class WriteString(object):
+    def __init__(self, string):
+        if isinstance(string, list):
+            self.components = string
+        elif isinstance(string, str):
+            self.components = [string]
+        else:
+            raise ValueError("")
+        return
+    def __str__(self):
+        return '\n'.join(self.components)
+    def _print(self):
+        return str(self)
+    @property
+    def opsc_code(self):
+        return ['\n'.join(self.components)]
+
+
 class OPSC(object):
 
     def __init__(self, algorithm):
         """ Generating an OPSC code from the algorithm"""
         if not algorithm.MultiBlock:
+            self.MultiBlock = False
             self.datasets_to_declare = []
             self.Rational_constants = set()
             self.constants = set()
             self.stencils_to_declare = set()
-            self.generate_OPSC_dependants_sb(algorithm)
+            self.dtype = algorithm.dtype
+            #self.generate_OPSC_dependants_sb(algorithm)
+            def_decs = self.opsc_def_decs(algorithm)
+            algorithm.prg.components = def_decs + algorithm.prg.components
+            code = algorithm.prg.opsc_code
+            f = open('test.cpp', 'w')
+            f.write('\n'.join(code))
+            f.close()
         return
+
+    def opsc_def_decs(self, algorithm):
+        defs = []
+        decls = []
+        # Add OPS_init to the declarations as it should be called before all ops
+        decls += self.ops_init()
+        # First process all the constants in the definitions
+        for d in algorithm.defnitionsdeclarations.components:
+            if isinstance(d, Constant):
+                defs += [self.define_constants(d)]
+                decls += [self.declare_ops_constants(d)]
+        # Once the constants are done define and declare OPS dats
+        output = defs + decls
+        defs = []
+        decls = []
+        # Define and declare blocks
+        for b in algorithm.block_descriptions:
+            output += self.define_block(b)
+            output += self.declare_block(b)
+        #output += defs + decls
+        # Define and declare datasets on each block
+        for d in algorithm.defnitionsdeclarations.components:
+            if isinstance(d, DataSetBase):
+                #output += self.define_dataset(d)
+                output += self.declare_dataset(d)
+        #output = output + defs + decls
+        # Define stencils
+        output += [WriteString("// Define and declare stencils")]
+        # Loop through algorithm components to include any halo exchanges
+        from opensbli.core.bcs import Exchange
+        exchange_list = self.loop_alg(algorithm, Exchange)
+        for e in exchange_list:
+            call, code = self.bc_exchange_call_code(e)
+            output += [code]
+        return output
+
+    def Exchange_code(self, e):
+        #out =
+        return
+    def bc_exchange_call_code(self, instance):
+        off = 0
+        halo = 'halo'
+        instance.transfer_size = instance.transfer_from
+        # Name of the halo exchange
+        name = instance.name
+        #self.halo_exchange_number = self.halo_exchange_number + 1
+        code = ['// Boundary condition exchange code' ]
+        code += ['ops_halo_group %s %s' % (name, ";")]
+        code += ["{"]
+        code += ['int halo_iter[] = {%s}%s' % (', '.join([str(s) for s in instance.transfer_size]), ";")]
+        code += ['int from_base[] = {%s}%s' % (', '.join([str(s) for s in instance.transfer_from]), ";")]
+        code += ['int to_base[] = {%s}%s' % (', '.join([str(s) for s in instance.transfer_to]), ";")]
+        # dir in OPSC. FIXME: Not sure what it is, but 1 to ndim works.
+        code += ['int dir[] = {%s}%s' % (', '.join([str(ind+1) for ind in range(len(instance.transfer_to))]), ";")]
+        # Process the arrays
+        for arr in instance.transfer_arrays:
+            code += ['ops_halo %s%d = ops_decl_halo(%s, %s, halo_iter, from_base, to_base, dir, dir)%s'
+                     % (halo, off, arr.base, arr.base, ";")]
+            off = off+1
+        code += ['ops_halo grp[] = {%s}%s' % (','.join([str('%s%s' % (halo, of)) for of in range(off)]), ";")]
+        code += ['%s = ops_decl_halo_group(%d,grp)%s' % (name, off, ";")]
+        code += ["}"]
+        # Finished OPS halo exchange, now get the call
+        instance.call_name = 'ops_halo_group %s %s' % (name, ";")
+        call = ['// Boundary condition exchange calls' , 'ops_halo_transfer(%s)%s' % (name, ";")]
+        for no, c in enumerate(code):
+            code[no] = WriteString(c)
+        return call, code
+
+    def loop_alg(self, algorithm, type_of_component):
+        type_list = []
+        def _generate(components, type_list):
+            for component1 in components:
+                if isinstance(component1, type_of_component):
+                    type_list += [component1]
+                elif isinstance(component1, Loop):
+                    return _generate(component1.components, type_list)
+
+        _generate(algorithm.prg.components, type_list)
+        return type_list
+
+    def ops_init(self, diagnostics_level=None):
+        """ The default diagnostics level is 1, which offers no diagnostic information and should be used for production runs.
+        Refer to OPS user manual for more information.
+
+        :arg int diagnostics_level: The diagnostics level. If None, the diagnostic level defaults to 1.
+        :returns: The call to ops_init.
+        :rtype: list
+        """
+        out = [WriteString('// Initializing OPS ')]
+        if diagnostics_level:
+            self.ops_diagnostics = True
+            return out + [WriteString('ops_init(argc,argv,%d);' % (diagnostics_level))]
+        else:
+            self.ops_diagnostics = False
+            return out + [WriteString('ops_init(argc,argv,1);')]
+
+    def define_block(self, b):
+        if not self.MultiBlock:
+            return [WriteString("ops_block %s;"%b.block_name)]
+        else:
+            raise NotImplementedError("")
+
+    def declare_block(self, b):
+        if not self.MultiBlock:
+            string = '%s = ops_decl_block(%d, \"%s\");' % (b.block_name, b.ndim, b.block_name)
+            return [WriteString(string)]
+        else:
+            raise NotImplementedError("")
+
+    def define_constants(self, c):
+        if isinstance(c, ConstantObject):
+            if c.value:
+                return WriteString("%s=%s;"%(str(c), ccode(c.value)))
+            else:
+                return WriteString("%s=%s;"%(str(c), "Input"))
+        elif isinstance(c, ConstantIndexed):
+            if c.value:
+                raise NotImplementedError("")
+            else:
+                raise NotImplementedError("")
+        else:
+            print c
+            raise ValueError("")
+    def declare_ops_constants(self, c):
+        if isinstance(c, ConstantObject):
+            return WriteString("ops_decl_const(\"%s\" , 1, \"%s\", &%s);"%(str(c), c.dtype, str(c)))
+        return
+    def declare_inline_array(self, dtype, name, values):
+        return WriteString('%s %s[] = {%s};' % (dtype, name, ', '.join([str(s) for s in values])))
+    def update_inline_array(self, name, values):
+        out = []
+        for no,v in enumerate(values):
+            out += [WriteString("%s[%d] = %s;"%(name, no, value))]
+        return out
+    def define_dataset(self, dset):
+        if not self.MultiBlock:
+            return [WriteString("ops_dat %s;" %(dset))]
+    def get_max_halos(self, halos):
+        halo_m = []
+        halo_p = []
+        for direction in range(len(halos)):
+            max_halo_direction = []
+            if halos[direction][0]:
+                hal = [d.get_halos(0) for d in halos[direction][0]]
+                halo_m += [min(hal)]
+            else:
+                halo_m += [0]
+            if halos[direction][1]:
+                hal = [d.get_halos(1) for d in halos[direction][1]]
+                halo_p += [max(hal)]
+            else:
+                halo_p += [0]
+        return halo_m, halo_p
+    def declare_dataset(self, dset):
+        hm, hp = self.get_max_halos(dset.halo_ranges)
+        halo_p = self.declare_inline_array("int", "halo_p", hp)
+        halo_m = self.declare_inline_array("int", "halo_m", hm)
+        sizes = self.declare_inline_array("int", "size", [str(s) for s in (dset.size)])
+        base = self.declare_inline_array("int", "base", [0 for i in range(len(dset.size))])
+        if dset.dtype:
+            dtype = dset.dtype
+        else:
+            dtype = self.dtype
+        value = WriteString("%s value = NULL;"%dtype)
+        temp = 'ops_dat %s = ops_decl_dat(%s, 1, size, base, halo_m, halo_p, value, \"%s\", \"%s\");'%(dset,
+                            dset.block_name, dtype, dset)
+        temp = WriteString(temp)
+        out = [WriteString("{"), halo_p, halo_m, sizes, base, value, temp, WriteString("}")]
+        return out
+
 
     def add_block_name_to_kernel_sb(self, kernel):
         kernel.block_name = "block"
         return
-    def kernel_datasets(self, kernel):
-        lhs = list(kernel.lhs_datasets) +list(kernel.rhs_datasets)
-        #rhs = kernel.rhs_datasets
-        dsets = []
-        for d in lhs:
-            d1 = DeclareDataset(d, kernel.block_number)
-            print d, d1
-        return dsets
-
 
     def generate_OPSC_dependants_sb(self, algorithm):
         def _generate(components):
@@ -189,15 +378,9 @@ class OPSC(object):
                 if isinstance(component1, Loop):
                     return _generate(component1.components)
                 elif isinstance(component1, Kernel):
-                    self.add_block_name_to_kernel_sb(component1)
-                    #self.kernel_datasets(component1)
-                    self.datasets_to_declare += list(component1.lhs_datasets) + list(component1.rhs_datasets)
                     self.Rational_constants = self.Rational_constants.union(component1.Rational_constants)
                     self.constants = self.constants.union(component1.constants).union(component1.IndexedConstants)
-                    # WARNING need to implement this
-                    stens = component1.get_stencils
-                    for key, value in stens.iteritems():
-                        self.stencils_to_declare.add(tuple(value))
+
         code = algorithm.prg.opsc_code
         #print '\n'.join(code)
         _generate(algorithm.prg.components)
