@@ -10,6 +10,7 @@ def dataset_attributes(dset):
     dset.dtype = None
     dset.size  = None
     dset.halos = None
+    dset.block_name = "OpenSBLIBlock"
     return dset
 
 def constant_attributes(const):
@@ -18,6 +19,14 @@ def constant_attributes(const):
     const.value = None
     return const
 
+def copy_block_attributes(block, otherclass):
+    """
+    Move this to block
+    """
+    otherclass.block_number = block.blocknumber
+    otherclass.ndim = block.ndim
+    otherclass.block_name = block.blockname
+    return
     ## similar define attributes for constant objects
 class Kernel(object):
 
@@ -26,10 +35,11 @@ class Kernel(object):
     opsc_access = {'ins':"OPS_READ", "outs": "OPS_WRITE", "inouts":"OPS_RW"}
     def __init__(self, block, computation_name = None):
         """ Set up the computational kernel"""
-        self.block_number = block.blocknumber
-        self.ndim = block.ndim
+        copy_block_attributes(block,self)
         self.computation_name = computation_name
-        self.kernel_no = 0 #WARNING: update
+        self.kernel_no = block.kernel_counter
+        self.kernelname = self.block_name + "Kernel%d"%self.kernel_no
+        block.increase_kernel_counter
         self.equations = []
         self.halo_ranges = [[set(), set()] for d in range(block.ndim)]
         return
@@ -186,7 +196,8 @@ class Kernel(object):
         return
     @property
     def opsc_code(self):
-        block_name = "OpensbliBlock%d"%self.block_number
+        block_name = self.block_name
+        name = self.kernelname
         ins = self.rhs_datasets
         outs = self.lhs_datasets
         inouts = ins.intersection(outs)
@@ -202,7 +213,6 @@ class Kernel(object):
         self.stencil_names = self.create_stencil_names(unique_stencils)
         #pprint(self.stencil_names)
         # pprint(self.stencil_names)
-        name = "OpensbliKernel_block%d_kernel%d"%(self.block_number, self.kernel_no)
         iter_range = "Testing"
         code = ['ops_par_loop(%s, \"%s\", %s, %s, %s' % (name, self.computation_name, block_name, self.ndim, iter_range)]
         for i in ins:
@@ -307,22 +317,21 @@ class Kernel(object):
                     next_rc.is_input = False
                     next_rc.value = rc
                     block.Rational_constants[rc] = next_rc
-                    pprint([rc, next_rc.__dict__])
+                    #pprint([rc, next_rc.__dict__])
             # pprint(block.Rational_constants)
 
         constants = self.constants
         if constants:
             for c in constants:
                 if str(c) in block.constants:
-                    print "in existing"
-                    print c
+                    pass
+                    #print "in existing"
+                    #print c
                     # exit()
-                else: 
+                else:
                     const_obj = constant_attributes(c)
                     # pprint(const_obj.__dict__)
                     block.constants[str(c)] = const_obj
-                    pprint([c, const_obj.__dict__])
-
             # pprint(block.constants)
 
         return
