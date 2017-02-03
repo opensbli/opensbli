@@ -9,7 +9,7 @@ def dataset_attributes(dset):
     dset.read_from_hdf5 = False
     dset.dtype = None
     dset.size  = None
-    dset.halos = None
+    dset.halo_ranges = None
     dset.block_name = "OpenSBLIBlock"
     return dset
 
