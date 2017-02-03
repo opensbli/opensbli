@@ -259,7 +259,7 @@ class OPSC(object):
         code += ['%s = ops_decl_halo_group(%d,grp)%s' % (name, off, ";")]
         code += ["}"]
         # Finished OPS halo exchange, now get the call
-        instance.call_name = 'ops_halo_group %s %s' % (name, ";")
+        instance.call_name = 'ops_halo_transfer(%s)%s' % (name, ";")
         call = ['// Boundary condition exchange calls' , 'ops_halo_transfer(%s)%s' % (name, ";")]
         for no, c in enumerate(code):
             code[no] = WriteString(c)
