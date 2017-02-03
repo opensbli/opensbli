@@ -264,39 +264,25 @@ class Kernel(object):
                 block.block_datasets[str(d)] = d
         # Update rational constant attributes
         rational_constants = self.Rational_constants.union(self.Inverse_constants)
-        # pprint(self.constants)
         if rational_constants:
             for rc in rational_constants:
-                if rc in block.Rational_constants.keys():
-                    #print "in existing"
-                    #print block.Rational_constants[rc].__dict__
-                    pass
-                else:
+                if rc not in block.Rational_constants.keys():
                     next_rc = block.get_next_rational_constant
                     next_rc = constant_attributes(next_rc)
                     next_rc.is_input = False
                     next_rc.value = rc
                     block.Rational_constants[rc] = next_rc
-                    #pprint([rc, next_rc.__dict__])
-            # pprint(block.Rational_constants)
 
         constants = self.constants
         if constants:
             for c in constants:
-                if str(c) in block.constants:
-                    pass
-                    #print "in existing"
-                    #print c
-                    # exit()
-                else:
+                if str(c) not in block.constants:
                     const_obj = constant_attributes(c)
                     # pprint(const_obj.__dict__)
                     block.constants[str(c)] = const_obj
             # pprint(block.constants)
         stens = self.get_stencils()
         for dset, stencil in stens.iteritems():
-            # stencil = frozenset(self.sort_stencil_indices(stencil))
-            # pprint(stencil)
             if stencil not in block.block_stencils.keys():
                 name = 'stencil_%d_%d' % (block.blocknumber, len(block.block_stencils.keys()))
 
