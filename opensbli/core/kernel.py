@@ -28,6 +28,13 @@ def copy_block_attributes(block, otherclass):
     otherclass.block_name = block.blockname
     return
     ## similar define attributes for constant objects
+
+class StencilObject(object):
+    def __init__(self, name, stencil):
+        self.name = name
+        self.stencil = stencil
+        return
+
 class Kernel(object):
 
     """ A computational kernel which will be executed over all the grid points and in parallel. """
@@ -42,6 +49,7 @@ class Kernel(object):
         block.increase_kernel_counter
         self.equations = []
         self.halo_ranges = [[set(), set()] for d in range(block.ndim)]
+        # self.stencil_names = {}
         return
 
     def set_computation_name(self, name):
@@ -167,7 +175,7 @@ class Kernel(object):
             if isinstance(eq, Equality):
                 consts = consts.union(eq.atoms(ConstantIndexed))
         return consts
-    @property
+
     def get_stencils(self):
         """ Returns the stencils for the datasets used in the kernel
         """
@@ -203,67 +211,18 @@ class Kernel(object):
         inouts = ins.intersection(outs)
         ins = ins.difference(inouts)
         outs = outs.difference(inouts)
-        stens = self.get_stencils
-        # print self.computation_name, "\n"
-        # print stens
-        unique_stencils = set()
-        for stencil in stens.values():
-            unique_stencils.add(stencil)
-        # pprint(unique_stencils)
-        self.stencil_names = self.create_stencil_names(unique_stencils)
-        #pprint(self.stencil_names)
-        # pprint(self.stencil_names)
         iter_range = "Testing"
+        print self.computation_name
+        pprint(self.stencil_names)
         code = ['ops_par_loop(%s, \"%s\", %s, %s, %s' % (name, self.computation_name, block_name, self.ndim, iter_range)]
         for i in ins:
-            code += ['ops_arg_dat(%s, %d, %s, \"%s\", %s)'%(i, 1, self.stencil_name(i, stens), "double", self.opsc_access['ins'])]
+            code += ['ops_arg_dat(%s, %d, %s, \"%s\", %s)'%(i, 1, self.stencil_names[i], "double", self.opsc_access['ins'])]
         for o in outs:
-            code += ['ops_arg_dat(%s, %d, %s, \"%s\", %s)'%(o, 1, self.stencil_name(o, stens), "double", self.opsc_access['outs'])]
+            code += ['ops_arg_dat(%s, %d, %s, \"%s\", %s)'%(o, 1, self.stencil_names[o], "double", self.opsc_access['outs'])]
         for io in inouts:
-            code += ['ops_arg_dat(%s, %d, %s, \"%s\", %s)'%(io, 1, self.stencil_name(io, stens), "double", self.opsc_access['inouts'])]
-        self.declare_OPS_stencils()
+            code += ['ops_arg_dat(%s, %d, %s, \"%s\", %s)'%(io, 1, self.stencil_names[io], "double", self.opsc_access['inouts'])]
         return code
 
-    def sort_stencil_indices(self, index_set):
-        """ Helper function for relative_stencil. Sorts the relative stencil. """
-        dim = len(list(index_set)[0])
-        sorted_index_set = sorted(index_set, key=lambda tup: tuple(tup[i] for i in range(dim)))
-        return sorted_index_set
-
-    def create_stencil_names(self, stencils):
-        names = {}
-        base_name = 'stencil_'
-        for position, stencil in enumerate(stencils):
-            names[stencil] = 'stencil_%d_%d_%d' % (self.block_number, self.kernel_no , position)
-        return names
-    def declare_OPS_stencils(self):
-        dtype = 'int'
-        # sten_format = 'ops_stencil %%s = ops_decl_stencil(%%d,%%d,%%s,\"%%s\")%s' % (self.end_of_statement)
-        OPS_stencils = []
-        for stencil, name in self.stencil_names.iteritems():
-            sorted_stencil = self.sort_stencil_indices(stencil)
-            OPS_stencils += flatten(sorted_stencil)
-        #pprint(OPS_stencils)
-        return
-    # def declare_stencils(self):
-    #     """ Declare all the stencils used in the code. We do not differentiate between the stencils for each block.
-
-    #     :returns: The OPSC code declaring the stencil.
-    #     :rtype: str
-    #     """
-
-    #     code = ['%s Declare all the stencils used ' % (self.line_comment)]
-    #     dtype_int = 'int'
-    #     sten_format = 'ops_stencil %%s = ops_decl_stencil(%%d,%%d,%%s,\"%%s\")%s' % (self.end_of_statement)
-    #     for key, value in self.stencil_dictionary.iteritems():
-    #         count = len(key.split(',')) / self.ndim
-    #         # 'value' is the name in the stencil's format
-    #         code += [self.array(dtype_int, value + "_temp", [key])]
-    #         code += [sten_format % (value, self.ndim, count, value + "_temp", key)]
-    #     return code
-
-    def stencil_name(self, arr, stencils):
-        return self.stencil_names[stencils[arr]]
 
     def ops_argument_call(self, array, stencil, precision, access_type):
         template = 'ops_arg_dat(%s, %d, %s, \"%s\", %s)'
@@ -282,6 +241,7 @@ class Kernel(object):
         2. d.size = block shape
         3. d.halo_ranges to kernel halo ranges
         """
+        self.stencil_names = {}
         dsets = self.lhs_datasets.union(self.rhs_datasets)
         for d in dsets:
             if str(d) in block.block_datasets.keys():
@@ -333,5 +293,24 @@ class Kernel(object):
                     # pprint(const_obj.__dict__)
                     block.constants[str(c)] = const_obj
             # pprint(block.constants)
+        stens = self.get_stencils()
+        for dset, stencil in stens.iteritems():
+            # stencil = frozenset(self.sort_stencil_indices(stencil))
+            # pprint(stencil)
+            if stencil not in block.block_stencils.keys():
+                name = 'stencil_%d_%d' % (block.blocknumber, len(block.block_stencils.keys()))
 
+                block.block_stencils[stencil] = StencilObject(name, stencil)
+            if dset not in self.stencil_names:
+                self.stencil_names[dset] = block.block_stencils[stencil].name
+            else:
+                self.stencil_names[dset].add(block.block_stencils[stencil].name)
+
+        # pprint(block.block_stencils)
+        print "\n"
+        pprint(self.stencil_names)
+        # for key, value in self.stencil_names.iteritems():
+        #     print key, value, stens[key], block.block_stencils[stens[key]].name
+        # pprint([self.stencil_names])
+        # pprint(stens)
         return

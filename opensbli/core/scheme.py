@@ -26,7 +26,7 @@ class CentralHalos(object):
     def __init__(self, order):
         # Check for the boundary types in the blocks and set the halo points
         #self.halos = [[-scheme.order, scheme.order] for dim in range(block.ndim)]
-        self.halos = [order/2, order/2]
+        self.halos = [-order/2, order/2]
         return
     def get_halos(self, side):
         return self.halos[side]
@@ -426,6 +426,8 @@ class RungeKutta(Scheme):
             old, new = cls.constant_time_step_solution(zipped)
         solution_update_kernel.add_equation(old)
         stage_update_kernel.add_equation(new)
+        solution_update_kernel.update_block_datasets(block)
+        stage_update_kernel.update_block_datasets(block)
         return [stage_update_kernel, solution_update_kernel]
 
     def constant_time_step_solution(cls,zipped):
@@ -443,6 +445,7 @@ class RungeKutta(Scheme):
         kernel.set_grid_range(block)
         for z in zipped:
             kernel.add_equation(Eq(z[0], z[1]))
+        kernel.update_block_datasets(block)
         return kernel
 
     def create_old_data_sets(cls, equations, block):

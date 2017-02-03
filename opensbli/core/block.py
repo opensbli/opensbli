@@ -76,7 +76,12 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes, RationalCount
         self.block_datasets = {}
         self.constants = {}
         self.Rational_constants = {}
+        self.block_stencils = {}
         return
+
+    @property
+    def blockname(self):
+        return 'OpenSBLIBlock%d' % self.blocknumber
 
     def set_block_number(self, number):
         self.blocknumber = number
