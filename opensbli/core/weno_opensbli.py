@@ -67,58 +67,58 @@ class WenoConfig(object):
         return
 
     def generate_eno_coefficients(self, k):
-      """ Generates the c_rj ENO reconstruction coefficients given in Table 2.1
-      of 'Essentially Non-Oscillatory and Weighted Essentially Non-Oscillatory Schemes
-      for Hyperbolic Conservation Laws' by Shu(1997). Computation is of equation (2.21).
+        """ Generates the c_rj ENO reconstruction coefficients given in Table 2.1
+        of 'Essentially Non-Oscillatory and Weighted Essentially Non-Oscillatory Schemes
+        for Hyperbolic Conservation Laws' by Shu(1997). Computation is of equation (2.21).
 
-      :arg int k: WENO coefficient k, equal to scheme order = 2k - 1.
-      :arg int side: Reconstruction side. -1 for left, 1 for right.
-      :returns: dict c_rj: Dictionary in the form (r,j) : ENO coefficient c_rj.
-      """
-      side = self.side
-      if side == 1:
-        d = 1 
-      elif side == -1:
-        d = 0
-      r_values, j_values = range(k), range(k)
-      c_rj = {}
-      for r in r_values:
-        for j in j_values:
-          c_rj_sum = 0
-          for m in range(j+1, k+1):
-            top_sum = 0
-            bottom_product = 1
-            for l in [x for x in range(k+1) if x != m]:
-              top_product_total = 1
-              for q in [x for x in range(k+1) if (x != m and x!= l)]:
-                top_product = r - q + d
-                top_product_total *= top_product
-              bottom_product *= m - l 
-              top_sum += top_product_total
-            c_rj_sum += Rational(top_sum, bottom_product)
-          c_rj[(r,j)] = c_rj_sum
-      return c_rj
+        :arg int k: WENO coefficient k, equal to scheme order = 2k - 1.
+        :arg int side: Reconstruction side. -1 for left, 1 for right.
+        :returns: dict c_rj: Dictionary in the form (r,j) : ENO coefficient c_rj.
+        """
+        side = self.side
+        if side == 1:
+            d = 1 
+        elif side == -1:
+            d = 0
+        r_values, j_values = range(k), range(k)
+        c_rj = {}
+        for r in r_values:
+            for j in j_values:
+            c_rj_sum = 0
+            for m in range(j+1, k+1):
+                top_sum = 0
+                bottom_product = 1
+                for l in [x for x in range(k+1) if x != m]:
+                top_product_total = 1
+                for q in [x for x in range(k+1) if (x != m and x!= l)]:
+                    top_product = r - q + d
+                    top_product_total *= top_product
+                bottom_product *= m - l 
+                top_sum += top_product_total
+                c_rj_sum += Rational(top_sum, bottom_product)
+            c_rj[(r,j)] = c_rj_sum
+        return c_rj
 
     def generate_optimal_weights(self):
-      """
-      """
-      # Store reconstruction coefficients to form the sum
-      k, c_rj, c2_rj = self.k, self.c_rj, self.c2_rj
-      opt_weights = [Symbol('d_%d' % r) for r in range(k)]
-      r_values = [[k-1-j for j in range(m+1)][::-1] for m in range(k)]
-      equations = []
-      for i, indices in enumerate(r_values):
-        variables = [opt_weights[r] for r in indices]
-        coeffs = [c_rj[(r,j)] for j, r in enumerate(indices)]
-        rhs = c2_rj[(k-1, i)]
-        v = [variables[i]*coeffs[i] for i in range(len(indices))]
-        equations += [sum(v) - rhs]
-      # Solve the linear system to get the coefficients
-      solution = solve(equations, opt_weights)
-      coeff_dict = {}
-      for i in range(k):
-        coeff_dict[(0,i)] = solution[opt_weights[i]]
-      return coeff_dict
+        """
+        """
+        # Store reconstruction coefficients to form the sum
+        k, c_rj, c2_rj = self.k, self.c_rj, self.c2_rj
+        opt_weights = [Symbol('d_%d' % r) for r in range(k)]
+        r_values = [[k-1-j for j in range(m+1)][::-1] for m in range(k)]
+        equations = []
+        for i, indices in enumerate(r_values):
+            variables = [opt_weights[r] for r in indices]
+            coeffs = [c_rj[(r,j)] for j, r in enumerate(indices)]
+            rhs = c2_rj[(k-1, i)]
+            v = [variables[i]*coeffs[i] for i in range(len(indices))]
+            equations += [sum(v) - rhs]
+        # Solve the linear system to get the coefficients
+        solution = solve(equations, opt_weights)
+        coeff_dict = {}
+        for i in range(k):
+            coeff_dict[(0,i)] = solution[opt_weights[i]]
+        return coeff_dict
 
     def generate_left_right_points(self):
         """ Populate the function evaluation points for left and right reconstruction.
@@ -203,37 +203,37 @@ class Weno(Scheme):
         return
 
     def generate_smoothness_coefficients(self):
-      """Extracts the JS smoothness coefficients."""
-      k = self.k
-      smooth_coeffs = {}
-      x, dx = Symbol('x'), Symbol('dx')
-      for r in range(k):
-        # Generate x, y values to create interpolating polynomial
-        dx_values = [dx*i for i in range(-r, k+1-r)]
-        nodes = [Symbol('fn[i%+d]' % i) for i in range(-r,k-r)]
-        funcs = [0]
-        for i in range(k):
-          funcs.append(funcs[-1] + dx*nodes[i])
-        # Perform Lagrange interpolation
-        lagrange_interp = interpolating_poly(k+1, x, dx_values, funcs).diff(x)
-        # Loop over the derivatives of the interpolating polynomial
-        total = 0
-        for l in range(1,k):
-          q = (lagrange_interp.diff(x, l))**2
-          # Perform the integration and multiply by h^(2*l-1) over cell
-          q = integrate(q.as_poly(x), x) * dx**(2*l-1)
-          total += (q.subs(x, dx) - q.subs(x,0))
-        done = []
-        # Save the coefficients of the smoothness indicator
-        for m in range(0, 2*k-2):
-          for n in range(0, 2*k-2):
-            func_product = Symbol('fn[i%+d]' % (-r+m))*Symbol('fn[i%+d]' % (-r+n))
-            if func_product not in done:
-              c = total.coeff(func_product)
-              if c != 0:
-                smooth_coeffs[(r,m,n)] = c
-              done.append(func_product)
-      return smooth_coeffs
+        """Extracts the JS smoothness coefficients."""
+        k = self.k
+        smooth_coeffs = {}
+        x, dx = Symbol('x'), Symbol('dx')
+        for r in range(k):
+            # Generate x, y values to create interpolating polynomial
+            dx_values = [dx*i for i in range(-r, k+1-r)]
+            nodes = [Symbol('fn[i%+d]' % i) for i in range(-r,k-r)]
+            funcs = [0]
+            for i in range(k):
+            funcs.append(funcs[-1] + dx*nodes[i])
+            # Perform Lagrange interpolation
+            lagrange_interp = interpolating_poly(k+1, x, dx_values, funcs).diff(x)
+            # Loop over the derivatives of the interpolating polynomial
+            total = 0
+            for l in range(1,k):
+            q = (lagrange_interp.diff(x, l))**2
+            # Perform the integration and multiply by h^(2*l-1) over cell
+            q = integrate(q.as_poly(x), x) * dx**(2*l-1)
+            total += (q.subs(x, dx) - q.subs(x,0))
+            done = []
+            # Save the coefficients of the smoothness indicator
+            for m in range(0, 2*k-2):
+            for n in range(0, 2*k-2):
+                func_product = Symbol('fn[i%+d]' % (-r+m))*Symbol('fn[i%+d]' % (-r+n))
+                if func_product not in done:
+                c = total.coeff(func_product)
+                if c != 0:
+                    smooth_coeffs[(r,m,n)] = c
+                done.append(func_product)
+        return smooth_coeffs
 
     def generate_function_points(self, reconstruction, expr):
         """ Indexes the function for a chosen direction and
