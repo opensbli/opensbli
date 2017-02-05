@@ -455,15 +455,19 @@ class Characteristic(EigenSystem):
         pre_process_equations += flatten(self.generate_equations_from_matrices(grid_REV ,avg_REV_values))
         pre_process_equations = averaged_equations + [x for x in pre_process_equations if x != 0]
         self.flux_vector_to_characteristic(derivatives)
-        pprint(self.order)
+        self.solution_vector_to_characteristic(solution_vector, direction)
         exit()
 
         return 
 
-    def solution_vector_to_characteristic(self, solution_vector):
-
-
-
+    def solution_vector_to_characteristic(self, solution_vector, direction):
+        stencil_points = sorted(list(set(self.WenoConfigL.func_points + self.WenoConfigR.func_points)))
+        solution_vector_stencil = zeros(len(solution_vector), len(stencil_points))
+        for j, val in enumerate(stencil_points): # j in fv stencil matrix
+            for i, flux in enumerate(solution_vector):
+                solution_vector_stencil[i,j] = self.increment_dataset(flux, direction, val)
+        grid_LEV = self.generate_grid_variable_LEV(direction, 'AVG')
+        characteristic_solution_stencil = grid_LEV*solution_vector_stencil
         return
     def flux_vector_to_characteristic(self, derivatives):
         directions = []
@@ -484,12 +488,6 @@ class Characteristic(EigenSystem):
         pprint(flux_stencil)
         grid_LEV = self.generate_grid_variable_LEV(direction, 'AVG')
         characteristic_flux_stencil = grid_LEV*flux_stencil
-        pprint(characteristic_flux_stencil[:,1])
-        exit()
-
-        characteristic_flux_stencil = zeros(len(fv), len(stencil_points))
-        exit()
-
         return
 
     def create_dictionary_interpolations(self, interpolated):
