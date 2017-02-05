@@ -113,11 +113,15 @@ weno_order = 5
 weno = True
 Euler_eq = EulerEquations(ndim, weno)
 ev_dict, LEV_dict, REV_dict = Euler_eq.generate_eig_system() # Taking more time on my personal computer SPJ
+# 
+Avg = SimpleAverage([0, 1])
 
-LLF = LLFCharacteristic(ev_dict, LEV_dict, REV_dict, weno_order, ndim)
-Euler_eq.eq_to_vector_form(simulation_eq.equations)
-LLF.vector_notation = Euler_eq.vector_notation
-LLF.required_formulas = constituent.equations
+LLF = LLFCharacteristic(ev_dict, LEV_dict, REV_dict, weno_order, ndim, Avg)
+
+#
+# Euler_eq.eq_to_vector_form(simulation_eq.equations)
+# LLF.vector_notation = Euler_eq.vector_notation
+# LLF.required_formulas = constituent.equations
 schemes[LLF.name] = LLF
 
 # TESTING generate weno scheme

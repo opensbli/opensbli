@@ -348,27 +348,33 @@ class EigenSystem(object):
         self.right_eigen_vector = right_ev
         return
 
-class Characteristic(EigenSystem):
-    def __init__(self,  eigenvalue, left_ev, right_ev):
-        """ This holds the logic for the reconstruction procedure"""
-        self.is_vector_type = True
-        self.leftRight = [True, True]
-        EigenSystem.__init__(self, eigenvalue, left_ev, right_ev)
-        return
+    def get_symbols_in_ev(self, direction):
+        return self.eigen_value[direction].atoms(Symbol)
 
-    def generate_symbolic_LEV_REV(self):
-        """
-        Creates matrices containing the indexed LEV and REV placeholder symbols.
-        """
-        key = list(self.right_eigen_vector.keys())[0]
-        matrixshape = self.right_eigen_vector[key].shape
-        self.LEV_symbolic = zeros(*matrixshape)
-        self.REV_symbolic = zeros(*matrixshape)
-        for i in range(matrixshape[0]):
-            for j in range(matrixshape[1]):
-                self.LEV_symbolic[i,j] = GridVariable('LEV_%d%d'%(i,j))
-                self.REV_symbolic[i,j] = GridVariable('REV_%d%d'%(i,j))
-        return
+    def get_symbols_in_LEV(self, direction):
+        return self.left_eigen_vector[direction].atoms(Symbol)
+
+    def get_symbols_in_REV(self, direction):
+        return self.right_eigen_vector[direction].atoms(Symbol)
+
+    def generate_grid_variable_ev(self, direction, name):
+        name = '%s_%d_lambda' % (name, direction)
+        return self.symbol_matrix(self.eigen_value[direction].shape, name)
+
+    def generate_grid_variable_REV(self, direction, name):
+        name = '%s_%d_REV' % (name, direction)
+        return self.symbol_matrix(self.right_eigen_vector[direction].shape, name)
+
+    def generate_grid_variable_LEV(self, direction, name):
+        name = '%s_%d_LEV' % (name, direction)
+        return self.symbol_matrix(self.left_eigen_vector[direction].shape, name)
+
+    def symbol_matrix(self, shape, name):
+        symbolic_matrix = zeros(*shape)
+        for i in range(shape[0]):
+            for j in range(shape[1]):
+                symbolic_matrix[i,j] = GridVariable('%s_%d%d'%(name,i,j))
+        return symbolic_matrix
 
     def convert_matrix_to_grid_variable(self, mat, name):
         """Converts the given matrix function to grid variable equivalent
@@ -379,35 +385,38 @@ class Characteristic(EigenSystem):
         mat = mat.subs(substitutions)
         return mat
 
-    def increment_dataset(self, eq, increment):
+    def generate_equations_from_matrices(self, m1, m2):
+
+        if m1.shape != m2.shape:
+            raise ValueError("Matrices should have the same dimension.")
+        equations = zeros(*m1.shape)
+        for no, v in enumerate(m1):
+            if m2[no] != 0:
+                equations[no] = Eq(v, m2[no])
+        return equations
+  
+    def increment_dataset(self, expression, direction, value):
         """
         Increments a dataset by the given increment in the direction passed to the characteristic routine.
         """
-        new_loc = self.base_location[:]
-        new_loc[self.direction_index] += increment
-        for dset in eq.atoms(DataSet):
-            eq = eq.subs(dset, dset.get_location_dataset(new_loc))
-        return eq
+        for dset in expression.atoms(DataSet):
+            loc = dset.location[:]
+            loc[direction] = loc[direction] + value
+            new_dset =  dset.get_location_dataset(loc)
+            expression = expression.replace(dset, new_dset)
+        return expression
 
-    def evaluate_eigen_values(self, formulas, required_symbols, side, position):
-        """
-        Evaluates rho, u0..u2, a for the eigenvalues for grid index i (left) and i+1 (right).
-        """
-        eqns = []
-        if side == 'left':
-            for eq in formulas:
-                if eq.lhs in required_symbols:
-                    left = eq.rhs
-                    eqns += [Eq(GridVariable("%s_%s_%s"%(side, eq.lhs.args[0], position)), left)]
-            eqns += [Eq(GridVariable("%s_%s_%s"%(side, self.rho.args[0], position)), self.rho)]
-        elif side == 'right':
-            for eq in formulas:
-                if eq.lhs in required_symbols:
-                    left = eq.rhs
-                    right = self.increment_dataset(left, 1)
-                    eqns += [Eq(GridVariable("%s_%s_%s"%(side, eq.lhs.args[0], position)), right)]
-            eqns += [Eq(GridVariable("%s_%s_%s"%(side, self.rho.args[0], position)), self.increment_dataset(self.rho,1))]
-        return eqns
+
+
+
+
+class Characteristic(EigenSystem):
+    def __init__(self,  eigenvalue, left_ev, right_ev):
+        """ This holds the logic for the reconstruction procedure"""
+        self.is_vector_type = True
+        self.leftRight = [True, True]
+        EigenSystem.__init__(self, eigenvalue, left_ev, right_ev)
+        return
 
     def group_by_direction(self, eqs):
         all_WDS = []
@@ -423,79 +432,65 @@ class Characteristic(EigenSystem):
                 grouped[direction] = [cd]
         return grouped
 
-    def simple_average_left_right(self, formulas, required_symbols, name):
-        avg_equations = []
-        # Loop over the formulas and check which ones are required for the eigenvalues
-        for eq in formulas:
-            if eq.lhs in required_symbols:
-                # Increment by one to get left and right versions of each dataset (i and i+1)
-                left = eq.rhs
-                right = self.increment_dataset(left, 1)
-                # Form the simple average 0.5*(f(i)+f(i+1))
-                avg_equations += [Eq(GridVariable("%s_%s"%(name, eq.lhs.base)), Rational(1,2)*(left + right))]
-        # Add the simple averaged rho
-        left = self.rho
-        right = self.increment_dataset(left, 1)
-        avg_equations += [Eq(GridVariable("%s_%s"%(name, self.rho.base)), Rational(1,2)*(left + right))]
-        return avg_equations
 
-    def pre_process(self, direction, direction_index):
+    def pre_process(self, direction, derivatives, solution_vector):
         """
         """
-        self.direction = direction
-        self.direction_index = direction_index
         pre_process_equations = []
-        #time_vector = (Matrix(self.vector_notation[CoordinateObject('t')]))
-        # Save rho[0,0] for eigensystem evaluations
-        #print pre_process_equations
-        #self.rho = time_vector[0]
-        #print self.rho, self.rho.__dict__
-        # Location [0,0,0] in 3D
-        #self.base_location  = self.rho.location
-        # Function versions of the symbols in the eigensystems
-        #required_ev_symbols = set([DataSet('a')] + [DataSet('rho')] + [DataSet('u%d' % i) for i in range(self.ndim)])
-        # List of Euler formulas
-        euler_formulas = self.required_formulas
-        pprint(euler_formulas)
-        exit()
-        ## Eigenvalue name placeholders:
-        #WARNING: Need to update the pre_process_equations with all of the correct placeholder EV names and equate to symbolic versions
-        self.eigenvalue_names = {}
-        names = ['leftm2', 'leftm1', 'LR', 'rightp1', 'rightp2', 'rightp3']
-        for index, name in enumerate(names):
-            self.eigenvalue_names[index-2] = diag(*[GridVariable('%s_lambda_%d' % (name, i)) for i in range(self.ndim+2)])
-        # Evaluate left/right EV for m1, m2, p1, p2, p3
-        evaluated_eigenvalue_quantities = []
-        evaluated_eigenvalue_quantities += self.evaluate_eigen_values(euler_formulas, required_ev_symbols, 'left', 'm1')
-        evaluated_eigenvalue_quantities += self.evaluate_eigen_values(euler_formulas, required_ev_symbols, 'left', 'm2')
-        evaluated_eigenvalue_quantities += self.evaluate_eigen_values(euler_formulas, required_ev_symbols, 'right', 'p1')
-        evaluated_eigenvalue_quantities += self.evaluate_eigen_values(euler_formulas, required_ev_symbols, 'right', 'p2')
-        evaluated_eigenvalue_quantities += self.evaluate_eigen_values(euler_formulas, required_ev_symbols, 'right', 'p3')
-        # Perform simple average in rho, u, a
-        name = 'LR'
-        pre_processed_eqns = self.simple_average_left_right(euler_formulas, required_ev_symbols, name)
-        # Convert eigenvalue matrix terms to LR_u0, LR_u0 + LR_a .. averaged symbols.
-        self.avg_eigen_values = self.convert_matrix_to_grid_variable(self.eigen_value[self.direction], name)
-        # Create matrices of indexed LEV, REV placeholders
-        self.generate_symbolic_LEV_REV()
-        # Convert the LEV/REV value matrices to averaged LR symbols
-        LEV = self.convert_matrix_to_grid_variable(self.left_eigen_vector[self.direction], name)
-        REV = self.convert_matrix_to_grid_variable(self.right_eigen_vector[self.direction], name)
-        # Create the equality between the symbols and the averaged values
-        LEV_eqns = []
-        REV_eqns = []
-        for index in range(len(list(LEV))):
-            LEV_eqns += [Eq(self.LEV_symbolic[index], LEV[index])]
-            REV_eqns += [Eq(self.REV_symbolic[index], REV[index])]
+        required_symbols = self.get_symbols_in_ev(direction).union(self.get_symbols_in_LEV(direction)).union(self.get_symbols_in_REV(direction))
+        pprint(required_symbols)
+        averaged_suffix_name = 'AVG'
+        averaged_equations = self.average(required_symbols, direction, averaged_suffix_name)
+        # Eigensystem based on averaged quantities
+        avg_EV_values = self.convert_matrix_to_grid_variable(self.eigen_value[direction], averaged_suffix_name)
+        avg_REV_values = self.convert_matrix_to_grid_variable(self.right_eigen_vector[direction], averaged_suffix_name)
+        avg_LEV_values = self.convert_matrix_to_grid_variable(self.left_eigen_vector[direction], averaged_suffix_name)
+        # Grid variables to store averaged eigensystems
+        grid_EV = self.generate_grid_variable_ev(direction, averaged_suffix_name)
+        grid_LEV = self.generate_grid_variable_LEV(direction, averaged_suffix_name)
+        grid_REV = self.generate_grid_variable_REV(direction, averaged_suffix_name)
 
-        self.pre_process_equations = pre_processed_eqns
-        self.pre_process_equations += LEV_eqns
-        self.pre_process_equations += REV_eqns
-        self.pre_process_equations += evaluated_eigenvalue_quantities
-        # Interp multiplies the source vector by the LEV matrix elements, these are then passed to the update_weno solution routine
-        # and then passed into the post processing part of the decomposition
-        required_interpolations = self.interp_functions(direction)
-        return required_interpolations
+        pre_process_equations += flatten(self.generate_equations_from_matrices(grid_EV ,avg_EV_values))
+        pre_process_equations += flatten(self.generate_equations_from_matrices(grid_LEV ,avg_LEV_values))
+        pre_process_equations += flatten(self.generate_equations_from_matrices(grid_REV ,avg_REV_values))
+        pre_process_equations = averaged_equations + [x for x in pre_process_equations if x != 0]
+        self.flux_vector_to_characteristic(derivatives)
+        pprint(self.order)
+        exit()
+
+        return 
+
+    def solution_vector_to_characteristic(self, solution_vector):
+
+
+
+        return
+    def flux_vector_to_characteristic(self, derivatives):
+        directions = []
+        fv = []
+        for d in derivatives:
+            directions += d.get_direction
+            fv += [d.args[0]]
+        if len(set(directions)) != 1:
+            raise ValueError("Derivatives provided for flux vector are not homogeneous in direction.")
+        direction = directions[0]
+        pprint(fv)
+        stencil_points = sorted(list(set(self.WenoConfigL.func_points + self.WenoConfigR.func_points)))
+        flux_stencil = zeros(len(fv), len(stencil_points))
+        for j, val in enumerate(stencil_points): # j in fv stencil matrix
+            pprint(val)
+            for i, flux in enumerate(fv):
+                flux_stencil[i,j] = self.increment_dataset(flux, direction, val)
+        pprint(flux_stencil)
+        grid_LEV = self.generate_grid_variable_LEV(direction, 'AVG')
+        characteristic_flux_stencil = grid_LEV*flux_stencil
+        pprint(characteristic_flux_stencil[:,1])
+        exit()
+
+        characteristic_flux_stencil = zeros(len(fv), len(stencil_points))
+        exit()
+
+        return
 
     def create_dictionary_interpolations(self, interpolated):
         dictionary_interp = {}
@@ -568,9 +563,13 @@ class Characteristic(EigenSystem):
 class LLFCharacteristic(Characteristic, Weno):
     """ This class contains the Local Lax-Fedrich scheme
     """
-    def __init__(self,  eigenvalue, left_ev, right_ev, order, ndim):
+    def __init__(self,  eigenvalue, left_ev, right_ev, order, ndim, averaging=None):
         Characteristic.__init__(self, eigenvalue, left_ev, right_ev)
         Weno.__init__(self, order)
+        if averaging == None:
+            self.average = SimpleAverage([0,1]).average
+        else:
+            self.average = averaging.average
         self.ndim = ndim
         return
 
@@ -587,7 +586,6 @@ class LLFCharacteristic(Characteristic, Weno):
         #print "Here "
         from .opensbliequations import *
         if isinstance(type_of_eq, SimulationEquations):
-            print type_of_eq
             eqs = flatten(type_of_eq.equations)
             grouped = self.group_by_direction(eqs)
             for key, value in grouped.iteritems():
@@ -595,7 +593,9 @@ class LLFCharacteristic(Characteristic, Weno):
                 for v in value:
                     v.update_work(block)
                     print v.__dict__, v
-                self.pre_process(key, key)
+                self.pre_process(key, value, flatten(type_of_eq.time_advance_arrays))
+            # pprint(type_of_eq.__dict__)
+
             exit()
         return
 
@@ -675,3 +675,29 @@ class LLFCharacteristic(Characteristic, Weno):
             temp.direction_index = self.direction_index
             required_interpolations += [temp]
         return required_interpolations
+
+
+class SimpleAverage(object):
+    def __init__(self, locations):
+        self.locations = locations
+
+        return
+
+    def average(self, functions, direction, name_suffix):
+        """Performs simple average.
+        arg: functions: List of function (Symbols) to apply averaging on. 
+        arg: locations: Relative index used for averaging (e.g. [0,1] for i and i+1)
+        arg: direction: Axis of the dataset on which the location should be applied.
+        arg; name_suffix: Name to be appended to the functions. """
+        avg_equations = []
+        for f in functions:
+            d = DataSet(str(f))
+            loc = d.location[:]
+            loc1 = loc[:]
+            loc2 = loc[:]
+            loc1[direction] = loc[direction] + self.locations[0]
+            loc2[direction] = loc[direction] + self.locations[1]
+            a = d.get_location_dataset(loc1)
+            b = d.get_location_dataset(loc2)
+            avg_equations += [Eq(GridVariable('%s_%s' % (name_suffix, str(f))), (a+b)/2)]
+        return avg_equations
