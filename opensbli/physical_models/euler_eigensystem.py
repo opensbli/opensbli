@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #    OpenSBLI: An automatic code generator for solving differential equations.
-#    Copyright (C) 2016 Satya P. Jammy, David J. Lusher, Neil D. Sandham. 
+#    Copyright (C) 2016 Satya P. Jammy, David J. Lusher, Neil D. Sandham.
 
 #    This file is part of OpenSBLI.
 
@@ -19,8 +19,8 @@
 
 # Import local utility functions
 from sympy.tensor.array import MutableDenseNDimArray, tensorcontraction
-from opensbli.core.opensbliobjects import * 
-from sympy import * 
+from opensbli.core.opensbliobjects import *
+from sympy import *
 from opensbli.core.opensbliobjects import ConstantObject
 from opensbli.core.opensblifunctions import CentralDerivative
 from opensbli.core.opensbliequations import OpenSBLIExpression
@@ -62,10 +62,10 @@ class EulerEquations(object):
         for deriv in eqns.atoms(TemporalDerivative):
             time_deriv.append(deriv)
         return time_deriv
-    
+
     def group_by_direction(self, eqn):
         """
-        Group the derivatives by direction, one equation at a time given to this function. 
+        Group the derivatives by direction, one equation at a time given to this function.
         """
         all_WDS = []
         all_WDS += eqn.atoms(WenoDerivative)
@@ -151,6 +151,7 @@ class EulerEquations(object):
         cart = CoordinateObject('%s_i'%(coordinate_symbol))
         coordinates = [cart.apply_index(cart.indices[0], dim) for dim in range(ndim)]
         pprint(coordinates)
+
         # # Check if block has metrics to be used, else revert to cartesian
         # if block.metric_transformations:
         #     met_symbols = block.FD_simple_symbols
@@ -238,12 +239,13 @@ class EulerEquations(object):
                         {Symbol('k0'): met_symbols[1,0], Symbol('k1'): met_symbols[1,1], Symbol('k'): fact2, Symbol('gama'): Rational(7,5)}]
             # equations = [Eq(a,b) for a,b in subs_dict.items()]
             eq_directions = {}
-            for no,direction in enumerate(coordinates):
+            for no,coordinate in enumerate(coordinates):
+                direction =coordinate.direction
                 g = lambda x:x.subs(subs_list[no], evaluate=False)
                 ev_dict[direction] = diag(*list(ev.applyfunc(g)))
                 REV_dict[direction] = REV.applyfunc(g)
                 LEV_dict[direction] = LEV.applyfunc(g)
-
+            
         elif ndim == 3:
             matrix_symbols = ['alpha', 'bta', 'theta', 'phi_sq', 'k']
             matrix_formulae = ['rho/(a*sqrt(2))', '1/(rho*a*sqrt(2))', 'k0*u0 + k1*u1 + k2*u2', '(gama-1)*((u0**2 + u1**2 + u2**2)/2)', 'sqrt(k0**2 + k1**2 + k2**2)']

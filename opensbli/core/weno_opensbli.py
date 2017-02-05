@@ -34,7 +34,7 @@ class WenoSolutionType(object):
             self.reconstruction = left_right
         else:
             self.reconstruction = [False, True]
-        self.reconstructedclass = {} 
+        self.reconstructedclass = {}
         return
     def evaluate_interpolation(self, local_equations):
         symbols_list = []
@@ -77,7 +77,7 @@ class WenoConfig(object):
         """
         side = self.side
         if side == 1:
-            d = 1 
+            d = 1
         elif side == -1:
             d = 0
         r_values, j_values = range(k), range(k)
@@ -93,7 +93,7 @@ class WenoConfig(object):
                         for q in [x for x in range(k+1) if (x != m and x!= l)]:
                             top_product = r - q + d
                             top_product_total *= top_product
-                        bottom_product *= m - l 
+                        bottom_product *= m - l
                         top_sum += top_product_total
                     c_rj_sum += Rational(top_sum, bottom_product)
                 c_rj[(r,j)] = c_rj_sum
@@ -289,7 +289,7 @@ class Weno(Scheme):
         smooth_coeffs, opt_weights, side = self.WC.smooth_coeffs, self.WC.opt_weights, self.WC.side
         k, name, shift, direction, index = self.k, self.WC.short_name, self.WC.shift, self.direction, self.index
         if k != 3:
-            raise ValueError("WENO-Z is only implemented for k=3.") 
+            raise ValueError("WENO-Z is only implemented for k=3.")
         smoothness_symbols = [GridVariable('beta_%s%d_%d'%(name, index, r)) for r in range(self.k)]
         smoothness_equations = []
         weno_z_symbol = GridVariable('tau_N_%s%d'%(name, index))
@@ -440,20 +440,24 @@ class Characteristic(EigenSystem):
         return avg_equations
 
     def pre_process(self, direction, direction_index):
-        """ 
+        """
         """
         self.direction = direction
         self.direction_index = direction_index
         pre_process_equations = []
-        time_vector = (Matrix(self.vector_notation[CoordinateObject('t')]))
+        #time_vector = (Matrix(self.vector_notation[CoordinateObject('t')]))
         # Save rho[0,0] for eigensystem evaluations
-        self.rho = time_vector[0]
+        #print pre_process_equations
+        #self.rho = time_vector[0]
+        #print self.rho, self.rho.__dict__
         # Location [0,0,0] in 3D
-        self.base_location  = self.rho.location
+        #self.base_location  = self.rho.location
         # Function versions of the symbols in the eigensystems
-        required_ev_symbols = set([DataSet('a')] + [DataSet('rho')] + [DataSet('u%d' % i) for i in range(self.ndim)])
+        #required_ev_symbols = set([DataSet('a')] + [DataSet('rho')] + [DataSet('u%d' % i) for i in range(self.ndim)])
         # List of Euler formulas
         euler_formulas = self.required_formulas
+        pprint(euler_formulas)
+        exit()
         ## Eigenvalue name placeholders:
         #WARNING: Need to update the pre_process_equations with all of the correct placeholder EV names and equate to symbolic versions
         self.eigenvalue_names = {}
@@ -462,7 +466,7 @@ class Characteristic(EigenSystem):
             self.eigenvalue_names[index-2] = diag(*[GridVariable('%s_lambda_%d' % (name, i)) for i in range(self.ndim+2)])
         # Evaluate left/right EV for m1, m2, p1, p2, p3
         evaluated_eigenvalue_quantities = []
-        evaluated_eigenvalue_quantities += self.evaluate_eigen_values(euler_formulas, required_ev_symbols, 'left', 'm1')   
+        evaluated_eigenvalue_quantities += self.evaluate_eigen_values(euler_formulas, required_ev_symbols, 'left', 'm1')
         evaluated_eigenvalue_quantities += self.evaluate_eigen_values(euler_formulas, required_ev_symbols, 'left', 'm2')
         evaluated_eigenvalue_quantities += self.evaluate_eigen_values(euler_formulas, required_ev_symbols, 'right', 'p1')
         evaluated_eigenvalue_quantities += self.evaluate_eigen_values(euler_formulas, required_ev_symbols, 'right', 'p2')
@@ -470,7 +474,7 @@ class Characteristic(EigenSystem):
         # Perform simple average in rho, u, a
         name = 'LR'
         pre_processed_eqns = self.simple_average_left_right(euler_formulas, required_ev_symbols, name)
-        # Convert eigenvalue matrix terms to LR_u0, LR_u0 + LR_a .. averaged symbols. 
+        # Convert eigenvalue matrix terms to LR_u0, LR_u0 + LR_a .. averaged symbols.
         self.avg_eigen_values = self.convert_matrix_to_grid_variable(self.eigen_value[self.direction], name)
         # Create matrices of indexed LEV, REV placeholders
         self.generate_symbolic_LEV_REV()
@@ -483,7 +487,7 @@ class Characteristic(EigenSystem):
         for index in range(len(list(LEV))):
             LEV_eqns += [Eq(self.LEV_symbolic[index], LEV[index])]
             REV_eqns += [Eq(self.REV_symbolic[index], REV[index])]
-            
+
         self.pre_process_equations = pre_processed_eqns
         self.pre_process_equations += LEV_eqns
         self.pre_process_equations += REV_eqns
@@ -571,29 +575,42 @@ class LLFCharacteristic(Characteristic, Weno):
         return
 
     def discretise(self, type_of_eq, block):
-        """ This is the place where the logic of vector form of equations are implemented. 
-        Find physical fluxes by grouping derivatives by direction --> in central, copy over 
+        """ This is the place where the logic of vector form of equations are implemented.
+        Find physical fluxes by grouping derivatives by direction --> in central, copy over
         Then the physical fluxes are transformed to characteristic space ---> a function in Characteristic
         Find max lambda and update f+ and f- ------> This would be in this class (GLF)
         For each f+ and f-, find f_hat of i+1/2, i-1/2, (L+R) are evaluated  ----> Function in WENO scheme, called from in here
         flux at i+1/2 evaluated -- > Function in WENO scheme
         Then WENO derivative class is instantiated with the flux at i+1/2 array --> Function in WENO scheme, called from in here
         Final derivatives are evaluated from Weno derivative class --> Using WD.discretise
-        """     
+        """
+        #print "Here "
+        from .opensbliequations import *
+        if isinstance(type_of_eq, SimulationEquations):
+            print type_of_eq
+            eqs = flatten(type_of_eq.equations)
+            grouped = self.group_by_direction(eqs)
+            for key, value in grouped.iteritems():
+                print(key, value)
+                for v in value:
+                    v.update_work(block)
+                    print v.__dict__, v
+                self.pre_process(key, key)
+            exit()
         return
 
     def group_by_direction(self, eqs):
         all_WDS = []
-        for eq in eqs:
-            all_WDS += list(eq.atoms(WenoDerivative))
-        all_WDS = list(set(all_WDS))
         grouped = {}
-        for cd in all_WDS:
-            direction = cd.get_direction[0]
-            if direction in grouped.keys():
-                grouped[direction] += [cd]
-            else:
-                grouped[direction] = [cd]
+        for eq in eqs:
+            local_wds = list(eq.atoms(WenoDerivative))
+            all_WDS = list(eq.atoms(WenoDerivative))
+            for wd in all_WDS:
+                direction = wd.get_direction[0]
+                if direction in grouped.keys():
+                    grouped[direction] += [wd]
+                else:
+                    grouped[direction] = [wd]
         return grouped
 
     def interp_functions(self, key):
@@ -627,7 +644,7 @@ class LLFCharacteristic(Characteristic, Weno):
             max_lambda = Max(Abs(c_EV),Abs(r_EV), Abs(l_EV), Abs(r2EV),Abs(lm2EV))
             max_lam_vec += [GridVariable('max_lambda_%d'%i)]
             # Equates the above grid variable max_lambda_0 to the max_lambda equation expression for this component of flux vector
-            # Adds to the massive pre_process list 
+            # Adds to the massive pre_process list
             self.pre_process_equations += [Eq(max_lam_vec[-1],max_lambda )]
             # This part does f+ = 0.5*(u(i) + MAX(alpha?)*f(u(i)))
             # and f- = 0.5*(u(i) - MAX(alpha?)*f(u(i)))
@@ -658,105 +675,3 @@ class LLFCharacteristic(Characteristic, Weno):
             temp.direction_index = self.direction_index
             required_interpolations += [temp]
         return required_interpolations
-
-class ScalarLocalLFScheme(Weno):
-    def __init__(self, order, eqns, speeds, ndim):
-        Weno.__init__(self, order)
-        self.ndim = ndim
-        self.speed = speeds
-        self.grouped_eqns = self.group_by_direction(eqns)
-        self.t = CoordinateObject('t')
-        self.vector_notation = {}
-        self.vector_notation[self.t] = self.get_time_derivative(eqns[0])
-        self.get_space_derivatives()
-        return
-
-    def discretise(self, type_of_eq, block):
-        ## Add the calling of functions for pre/post process and WENO in here
-        return
-
-    def get_time_derivative(self, eqns):
-        """
-        Get the time derivatives to add to the vector notation dictionary.
-        """
-        time_deriv = [deriv.args[0] for deriv in eqns.atoms(TemporalDerivative)]
-        return time_deriv
-    def get_space_derivatives(self):
-        """
-        Add space derivatives for each direction in the vector_notation dictionary.
-        """
-        coordinate_symbol = "x"
-        cart = CoordinateObject('%s_i'%(coordinate_symbol))
-        coordinates = [cart.apply_index(cart.indices[0], dim) for dim in range(self.ndim)]
-        for index in coordinates:
-            self.vector_notation[index] = []
-        for i in range(self.ndim):
-            if coordinates[i] in self.vector_notation:
-                self.vector_notation[coordinates[i]] = [deriv.args[0] for deriv in self.grouped_eqns[i]]
-        return 
-
-    def group_by_direction(self, eqs):
-        """
-        Group the derivatives by direction.
-        """
-        all_WDS = []
-        for eq in eqs:
-            all_WDS += list(eq.atoms(WenoDerivative))
-        all_WDS = list(set(all_WDS))
-        grouped = {}
-        for cd in all_WDS:
-            direction = cd.get_direction[0]
-            if direction in grouped.keys():
-                grouped[direction] += [cd]
-            else:
-                grouped[direction] = [cd]
-        return grouped
-
-    def pre_process(self, direction, direction_index):
-        """
-        Find the Lax Friedrich fluxes.
-        """
-        # Direction x0, x1, x2 index 0, 1, 2
-        self.direction_index = direction_index
-        # Spatial and time vectors
-        spatial_flux_vec = self.vector_notation[direction]
-        time_vector = self.vector_notation[self.t]
-        # Construct the fluxes
-        self.fplus = Rational(1,2)*(Matrix(spatial_flux_vec) + Abs(self.speed[direction])*Matrix(time_vector))
-        self.fminus = Rational(1,2)*(Matrix(spatial_flux_vec) - Abs(self.speed[direction])*Matrix(time_vector))
-        required_interpolations = []
-        # Required reconstruction
-        leftRight = [False, True]
-        # Perform the WENO procedure to each of the fluxes
-        for flux in self.fplus:
-            interpolation = WenoSolutionType(flux,leftRight)
-            interpolation.direction = direction
-            interpolation.direction_index = self.direction_index
-            required_interpolations += [interpolation]
-        leftRight = [True, False]
-        for flux in self.fminus:
-            interpolation = WenoSolutionType(flux,leftRight)
-            interpolation.direction = direction
-            interpolation.direction_index = self.direction_index
-            required_interpolations += [interpolation]
-        return required_interpolations
-
-    def post_process(self,interpolated):
-        self.post_process_equations = []
-        temp_dictionary = {}
-        for value in interpolated:
-            self.post_process_equations, reconstructed_symbols = value.evaluate_interpolation(self.post_process_equations)
-            temp_dictionary[value.variable] = reconstructed_symbols
-        # The new naming uplus will be minus
-        self.right_interpolated = []
-        self.left_interpolated = []
-        for val in self.fplus:
-            self.right_interpolated += temp_dictionary[val][1]
-        for val in self.fminus:
-            self.left_interpolated += temp_dictionary[val][-1]
-        final_flux  = (Matrix(self.right_interpolated) + Matrix(self.left_interpolated))
-        print "final flux"
-        pprint(final_flux)
-        print "equations"
-        pprint(self.post_process_equations)
-        return self.post_process_equations,final_flux
