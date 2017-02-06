@@ -394,7 +394,7 @@ class EigenSystem(object):
             if m2[no] != 0:
                 equations[no] = Eq(v, m2[no])
         return equations
-  
+
     def increment_dataset(self, expression, direction, value):
         """
         Increments a dataset by the given increment in the direction passed to the characteristic routine.
@@ -454,11 +454,28 @@ class Characteristic(EigenSystem):
         pre_process_equations += flatten(self.generate_equations_from_matrices(grid_LEV ,avg_LEV_values))
         pre_process_equations += flatten(self.generate_equations_from_matrices(grid_REV ,avg_REV_values))
         pre_process_equations = averaged_equations + [x for x in pre_process_equations if x != 0]
-        self.flux_vector_to_characteristic(derivatives)
-        self.solution_vector_to_characteristic(solution_vector, direction)
+        # Transform the flux vector adn the solution vector to characteristic space
+        char_flux_evaluation = self.flux_vector_to_characteristic(derivatives)
+        if hasattr(self, 'flux_split') and self.flux_split:
+            print ("Characteristic flux splitting scheme")
+            # If flux splitting scheme then evaluate characteristic solution
+            char_solution_evaluation = self.solution_vector_to_characteristic(solution_vector, direction)
+            # Evaluate split parameter, this can be an equation or a Kernel
+            # Perform splitting of fluxes
+            # Do the interpolation
+        else:
+            print ("Characteristic WENO solution without splitting fluxes")
+            pass
+
+        """ TODO
+        Add flux vector characteristic n solution vector characteristic evaluations to pre_process_equations
+        Find the maximum lambda for the stencil
+        Create left flux and right flux (f(u) + alpha *u and f(u) - alpha*u
+        perform weno on these
+        """
         exit()
 
-        return 
+        return
 
     def solution_vector_to_characteristic(self, solution_vector, direction):
         stencil_points = sorted(list(set(self.WenoConfigL.func_points + self.WenoConfigR.func_points)))
@@ -468,7 +485,8 @@ class Characteristic(EigenSystem):
                 solution_vector_stencil[i,j] = self.increment_dataset(flux, direction, val)
         grid_LEV = self.generate_grid_variable_LEV(direction, 'AVG')
         characteristic_solution_stencil = grid_LEV*solution_vector_stencil
-        return
+        characteristic_solution_stencil.stencil_points = stencil_points
+        return characteristic_solution_stencil
     def flux_vector_to_characteristic(self, derivatives):
         directions = []
         fv = []
@@ -478,17 +496,15 @@ class Characteristic(EigenSystem):
         if len(set(directions)) != 1:
             raise ValueError("Derivatives provided for flux vector are not homogeneous in direction.")
         direction = directions[0]
-        pprint(fv)
         stencil_points = sorted(list(set(self.WenoConfigL.func_points + self.WenoConfigR.func_points)))
         flux_stencil = zeros(len(fv), len(stencil_points))
         for j, val in enumerate(stencil_points): # j in fv stencil matrix
-            pprint(val)
             for i, flux in enumerate(fv):
                 flux_stencil[i,j] = self.increment_dataset(flux, direction, val)
-        pprint(flux_stencil)
         grid_LEV = self.generate_grid_variable_LEV(direction, 'AVG')
         characteristic_flux_stencil = grid_LEV*flux_stencil
-        return
+        characteristic_flux_stencil.stencil_points = stencil_points
+        return characteristic_flux_stencil
 
     def create_dictionary_interpolations(self, interpolated):
         dictionary_interp = {}
@@ -569,6 +585,11 @@ class LLFCharacteristic(Characteristic, Weno):
         else:
             self.average = averaging.average
         self.ndim = ndim
+        self.flux_split = True
+        return
+
+    def split_fluxes(self, char_flux, char_solution):
+
         return
 
     def discretise(self, type_of_eq, block):
@@ -683,7 +704,7 @@ class SimpleAverage(object):
 
     def average(self, functions, direction, name_suffix):
         """Performs simple average.
-        arg: functions: List of function (Symbols) to apply averaging on. 
+        arg: functions: List of function (Symbols) to apply averaging on.
         arg: locations: Relative index used for averaging (e.g. [0,1] for i and i+1)
         arg: direction: Axis of the dataset on which the location should be applied.
         arg; name_suffix: Name to be appended to the functions. """
