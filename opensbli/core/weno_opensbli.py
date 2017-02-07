@@ -7,7 +7,6 @@ class Scheme(object):
     """ A numerical discretisation scheme. """
     def __init__(self, name, order):
         """ Initialise the scheme.
-
         :arg str name: The name of the scheme.
         :arg int order: The order of the scheme.
         """
@@ -39,8 +38,8 @@ class ConfigureWeno(object):
         self.c_rj = self.generate_eno_coefficients(k)
         self.c2_rj = self.generate_eno_coefficients(2*k-1)
         self.opt_weights = self.generate_optimal_weights()
-        
         return
+
     @property
     def generate_symbolic_function_points(self):
         ndim = DataSet.dimensions
@@ -63,10 +62,9 @@ class ConfigureWeno(object):
         :arg int side: Reconstruction side. -1 for left, 1 for right.
         :returns: dict c_rj: Dictionary in the form (r,j) : ENO coefficient c_rj.
         """
-        side = self.side
-        if side == 1:
+        if self.side == 1:
             d = 1
-        elif side == -1:
+        elif self.side == -1:
             d = 0
         r_values, j_values = range(k), range(k)
         c_rj = {}
@@ -184,12 +182,16 @@ class JS_smoothness(object):
 
 class ReconstructionVariable(object):
     def __init__(self, name):
+        self.name = name
         self.smoothness_indicators = []
         self.smoothness_symbols = []
         self.alpha_evaluated = []
         self.alpha_symbols = []
         self.omega_evaluated = []
         self.omega_symbols = []
+        self.function_stencil_dictionary = {}
+        self.reconstructed_expression = None
+        self.reconstructed_symbol = GridVariable('%s_%s' % ('reconstruct', name))
         return
     @property
     def create_equations(self):
@@ -197,6 +199,7 @@ class ReconstructionVariable(object):
         all_evaluations = self.smoothness_indicators + self.alpha_evaluated + self.omega_evaluated
 
         all_equations = (zip(all_symbols, all_evaluations))
+        pprint(all_equations)
         return all_equations
 
     def create_function_equations(self, drv):
@@ -214,6 +217,32 @@ class ReconstructionVariable(object):
         # pprint(all_eqs)
         return
 
+    def update(self, original):
+        print self.name
+        self.smoothness_symbols += [GridVariable('%s%s' % (s, self.name)) for s in original.smoothness_symbols]
+        self.alpha_symbols += [GridVariable('%s_%s' % (s, self.name)) for s in original.alpha_symbols]
+        self.omega_symbols += [GridVariable('%s_%s' % (s, self.name)) for s in original.omega_symbols]
+
+        subs_dict = dict(zip(original.smoothness_symbols+original.alpha_symbols+original.omega_symbols, self.smoothness_symbols+self.alpha_symbols+self.omega_symbols))
+        fn_subs_dict = {}
+        for key, value in original.function_stencil_dictionary.iteritems():
+            subs_dict[value] = self.function_stencil_dictionary[key]
+
+        self.smoothness_indicators = [s.subs(subs_dict) for s in original.smoothness_indicators]
+        self.alpha_evaluated = [s.subs(subs_dict) for s in original.alpha_evaluated]
+        self.omega_evaluated = [s.subs(subs_dict) for s in original.omega_evaluated]
+        self.reconstructed_expression = original.reconstructed_expression.subs(subs_dict)
+        return
+
+    def add_evaluations_to_kernel(self, kernel):
+        all_symbols = self.smoothness_symbols + self.alpha_symbols + self.omega_symbols
+        all_evaluations = self.smoothness_indicators + self.alpha_evaluated + self.omega_evaluated
+        for no, value in enumerate(all_symbols):
+            kernel.add_equation(Eq(value, all_evaluations[no]))
+        kernel.add_equation(Eq(self.reconstructed_symbol, self.reconstructed_expression))
+
+        return
+
 class LeftReconstructionVariable(ReconstructionVariable):
     def __init__(self, name):
         ReconstructionVariable.__init__(self, name)
@@ -223,7 +252,6 @@ class RightReconstructionVariable(ReconstructionVariable):
     def __init__(self, name):
         ReconstructionVariable.__init__(self, name)
         return
-
 
 class Weno(Scheme):
     """ Main WENO class."""
@@ -240,44 +268,38 @@ class Weno(Scheme):
         self.halotype = WenoHalos(order)
         # Generate smoothness coefficients and store configurations for left and right reconstructions.
         smooth_coeffs = JS.smooth_coeffs
-        reconstruction_classes = [LeftReconstructionVariable('left'), RightReconstructionVariable('right')]
+        self.reconstruction_classes = [LeftReconstructionVariable('left'), RightReconstructionVariable('right')]
         for no, side in enumerate([-1, 1]):
 
             WenoConfig = ConfigureWeno(self.k, side)
-            rc = reconstruction_classes[no]
+            rc = self.reconstruction_classes[no]
             rc.func_points = sorted(set(WenoConfig.func_points))
-            # pprint(WenoConfig.func_points)
-
             rc.stencil_points, rc.function_stencil_dictionary = WenoConfig.generate_symbolic_function_points
-            # rc.create_stencil_dictionary
             JS.generate_function_smoothness_indicators(rc)
             
             self.generate_alphas(rc, WenoConfig)
             self.generate_omegas(rc, WenoConfig)
             self.generate_reconstruction(rc, WenoConfig)
-            reconstruction_classes[no] = rc
+            self.reconstruction_classes[no] = rc
 
-        a = LeftReconstructionVariable('test')
-        a.function_stencil_dictionary = {}
-        t = DataSet('e')
-        fn = (DataSet('p')+DataSet('rhoE'))*DataSet('u0')
-        fn = DataSet('rhoE')*DataSet('u0')
-        for k in reconstruction_classes[0].func_points:
-            loc = t.location
-            loc[0] = loc[0] + k
-            local_dict = {}
-            for d in fn.atoms(DataSet):
-                local_dict[d] = d.get_location_dataset(loc)
-            a.function_stencil_dictionary[k] = fn.subs(local_dict)
-        pprint(a.function_stencil_dictionary)
-        reconstruction_classes[0].create_equations
-        a.create_function_equations(reconstruction_classes[0])
-        exit()
+        # a = LeftReconstructionVariable('test')
+        # a.function_stencil_dictionary = {}
+        # t = DataSet('e')
+        # fn = (DataSet('p')+DataSet('rhoE'))*DataSet('u0')
+        # fn = DataSet('rhoE')*DataSet('u0')
+        # for k in self.reconstruction_classes[0].func_points:
+        #     loc = t.location
+        #     loc[0] = loc[0] + k
+        #     local_dict = {}
+        #     for d in fn.atoms(DataSet):
+        #         local_dict[d] = d.get_location_dataset(loc)
+        #     a.function_stencil_dictionary[k] = fn.subs(local_dict)
+        # pprint(a.function_stencil_dictionary)
+        # self.reconstruction_classes[0].create_equations
+        # a.create_function_equations(self.reconstruction_classes[0])
+        # exit()
         return
 
-    def generate_weno_reconstruction(self, fn):
-
-        return
 
     def generate_alphas(self, fn, WenoConfig):
         for r in range(self.k):
@@ -297,10 +319,22 @@ class Weno(Scheme):
         for r in range(k):
             eno_expansion = [c_rj.get((r,j))*fn.function_stencil_dictionary[WenoConfig.func_points[r*k+j]] for j in range(k)]
             stencil += fn.omega_symbols[r]*sum(eno_expansion)
-
-        fn.reconstruction = stencil
+        fn.reconstructed_expression = stencil
         return
 
+    def interpolate_reconstruction_variables(self, derivatives, kernel):
+        for d in derivatives:
+            pprint(d)
+            for rv in d.reconstructions:
+                if isinstance(rv, RightReconstructionVariable):
+                    original_rv = self.reconstruction_classes[1]
+                elif isinstance(rv, LeftReconstructionVariable):
+                    original_rv = self.reconstruction_classes[0]
+                else:
+                    raise ValueError ("Reconstruction must be left or right")
+                rv.update(original_rv)
+                rv.add_evaluations_to_kernel(kernel)
+        return
 
 class EigenSystem(object):
     def __init__(self, eigenvalue, left_ev, right_ev):
@@ -369,15 +403,20 @@ class EigenSystem(object):
             expression = expression.replace(dset, new_dset)
         return expression
 
+    def convert_symbolic_to_dataset(self, symbolics, location, direction):
 
+        symbols = symbolics.atoms(Symbol)
+        dsets = [DataSet(s) for s in symbols]
+        loc = dsets[0].location[:]
+        loc[direction] = loc[direction] + location
+        location_datasets = [d.get_location_dataset(loc) for d in dsets]
+        substitutions = dict(zip(symbols, location_datasets))
 
-
+        return symbolics.subs(substitutions)
 
 class Characteristic(EigenSystem):
     def __init__(self,  eigenvalue, left_ev, right_ev):
         """ This holds the logic for the reconstruction procedure"""
-        self.is_vector_type = True
-        self.leftRight = [True, True]
         EigenSystem.__init__(self, eigenvalue, left_ev, right_ev)
         return
 
@@ -396,184 +435,116 @@ class Characteristic(EigenSystem):
         return grouped
 
 
-    def pre_process(self, direction, derivatives, solution_vector):
+    def pre_process(self, direction, derivatives, solution_vector, kernel):
         """
         """
+        self.direction = direction
         pre_process_equations = []
         required_symbols = self.get_symbols_in_ev(direction).union(self.get_symbols_in_LEV(direction)).union(self.get_symbols_in_REV(direction))
-        averaged_suffix_name = 'AVG'
+        averaged_suffix_name = 'AVG_%d' % direction
+        self.averaged_suffix_name = averaged_suffix_name
         averaged_equations = self.average(required_symbols, direction, averaged_suffix_name)
+        pre_process_equations += averaged_equations
         # Eigensystem based on averaged quantities
-        avg_EV_values = self.convert_matrix_to_grid_variable(self.eigen_value[direction], averaged_suffix_name)
-        avg_REV_values = self.convert_matrix_to_grid_variable(self.right_eigen_vector[direction], averaged_suffix_name)
+        
         avg_LEV_values = self.convert_matrix_to_grid_variable(self.left_eigen_vector[direction], averaged_suffix_name)
         # Grid variables to store averaged eigensystems
-        grid_EV = self.generate_grid_variable_ev(direction, averaged_suffix_name)
         grid_LEV = self.generate_grid_variable_LEV(direction, averaged_suffix_name)
-        grid_REV = self.generate_grid_variable_REV(direction, averaged_suffix_name)
-
-        pre_process_equations += flatten(self.generate_equations_from_matrices(grid_EV ,avg_EV_values))
+               
         pre_process_equations += flatten(self.generate_equations_from_matrices(grid_LEV ,avg_LEV_values))
-        pre_process_equations += flatten(self.generate_equations_from_matrices(grid_REV ,avg_REV_values))
-        pre_process_equations = averaged_equations + [x for x in pre_process_equations if x != 0]
+        
         # Transform the flux vector and the solution vector to characteristic space
-        characteristic_flux_vector = self.flux_vector_to_characteristic(derivatives)
-        characteristic_solution_vector = self.solution_vector_to_characteristic(solution_vector, direction)
-        pprint(characteristic_flux_vector[:,0])
-        print "-----"
-        pprint(characteristic_solution_vector[0,0])
-        # Here need to equate the symbolic CF, CS, alpha with the entries in characteristic flux/solution vectors to form the flux splitting
-        CF_matrix, CS_matrix, CW_speed_matrix = self.create_characteristic_symbol_matrices()
-        CF_matrix.stencil_points = characteristic_flux_vector.stencil_points
-        pprint(CF_matrix.stencil_points)
-        pprint(CF_matrix)
-        pprint(CS_matrix)
-        exit()
-
-        #######
-        side = -1
-        index = 0
-        left_WENO_reconstruction = self.generate_weno(direction, side, index)
-        side = 1
-        right_WENO_reconstruction = self.generate_weno(direction, side, index)
-        exit()
+        characteristic_flux_vector, CF_matrix = self.flux_vector_to_characteristic(derivatives, direction, averaged_suffix_name)
+        characteristic_solution_vector, CS_matrix = self.solution_vector_to_characteristic(solution_vector, direction, averaged_suffix_name)
+        pre_process_equations += flatten(self.generate_equations_from_matrices(CF_matrix, characteristic_flux_vector))
+        pre_process_equations += flatten(self.generate_equations_from_matrices(CS_matrix, characteristic_solution_vector))     
 
         if hasattr(self, 'flux_split') and self.flux_split:
             print ("Characteristic flux splitting scheme")
-            # If flux splitting scheme then evaluate characteristic solution
-            interpolated_solution = self.apply_weno(char_solution_evaluation)
-            pprint(char_solution_evaluation)
-            exit()
-            # Evaluate split parameter, this can be an equation or a Kernel
-            # Perform splitting of fluxes
-            # Do the interpolation
+            max_wavespeed_matrix, pre_process_equations = self.create_max_characteristic_wave_speed(pre_process_equations, direction)
+            # self.split_fluxes(CF_matrix, CS_matrix, max_wavespeed_matrix)
+            positive_flux = Rational(1,2)*(CF_matrix + max_wavespeed_matrix*CS_matrix)
+            negative_flux = Rational(1,2)*(CF_matrix - max_wavespeed_matrix*CS_matrix)
+            positive_flux.stencil_points = CF_matrix.stencil_points
+            negative_flux.stencil_points = CF_matrix.stencil_points
+            self.generate_right_reconstruction_variables(positive_flux, derivatives)
+            self.generate_left_reconstruction_variables(negative_flux, derivatives)
         else:
-            print ("Characteristic WENO solution without splitting fluxes")
-            pass
+            raise NotImplementedError("Only flux splitting is implemented in characteristic.")
+        # self.pre_process_equations = pre_process_equations
+        kernel.add_equation(pre_process_equations)
+        return 
 
-        """ TODO
-        Add flux vector characteristic n solution vector characteristic evaluations to pre_process_equations
-        Find the maximum lambda for the stencil
-        Create left flux and right flux (f(u) + alpha *u and f(u) - alpha*u
-        perform weno on these
-        """
-        exit()
+    def post_process(self, derivatives, kernel):
+        post_process_equations = []
+        averaged_suffix_name = self.averaged_suffix_name
+        avg_REV_values = self.convert_matrix_to_grid_variable(self.right_eigen_vector[self.direction], averaged_suffix_name)
+        grid_REV = self.generate_grid_variable_REV(self.direction, averaged_suffix_name) 
+        post_process_equations += flatten(self.generate_equations_from_matrices(grid_REV ,avg_REV_values))
+        reconstructed_characteristics = Matrix([d.evaluate_reconstruction for d in derivatives])
+        reconstructed_flux = grid_REV*reconstructed_characteristics 
+        reconstructed_work = [d.reconstruction_work for d in derivatives]
+        post_process_equations += [Eq(x,y) for x,y in zip(reconstructed_work, reconstructed_flux)]
+        kernel.add_equation(post_process_equations)
+        
+        return reconstructed_flux
 
+    def generate_left_reconstruction_variables(self, flux, derivatives):
+        if isinstance(flux, Matrix):
+            stencil = flux.stencil_points
+            for i in range(flux.shape[0]):
+                rv = LeftReconstructionVariable('L_X%d_%d' % (self.direction, i))
+                for p in sorted(set(self.reconstruction_classes[0].func_points)):
+                    rv.function_stencil_dictionary[p] = flux[i,stencil.index(p)]
+                derivatives[i].add_reconstruction_classes([rv])
         return
 
-    def create_characteristic_symbol_matrices(self):
-        CF_matrix = zeros(self.ndim+2, self.order+1)
-        CS_matrix = zeros(self.ndim+2, self.order+1)
-        CW_speed_matrix = zeros(self.ndim+2, self.ndim+2)
-        for i in range(self.ndim+2):
-            for j in range(self.order+1):
-                CF_matrix[i,j] = Symbol('CF_%d%d' % (i,j))
-                CS_matrix[i,j] = Symbol('CS_%d%d' %(i,j))
-            CW_speed_matrix[i,i] = Symbol('WS_%i%i' % (i,i))
-        return CF_matrix, CS_matrix, CW_speed_matrix
+    def generate_right_reconstruction_variables(self, flux, derivatives):
+        if isinstance(flux, Matrix):
+            stencil = flux.stencil_points
+            for i in range(flux.shape[0]):
+                rv = RightReconstructionVariable('R_X%d_%d' % (self.direction, i))
+                for p in sorted(set(self.reconstruction_classes[1].func_points)):
+                    rv.function_stencil_dictionary[p] = flux[i,stencil.index(p)]
+                derivatives[i].add_reconstruction_classes([rv])
+        return 
 
-
-    def apply_weno(self, char_solution_evaluation):
-
-        return
-
-    def solution_vector_to_characteristic(self, solution_vector, direction):
-        stencil_points = sorted(list(set(self.WenoConfigL.func_points + self.WenoConfigR.func_points)))
+    def solution_vector_to_characteristic(self, solution_vector, direction, name):
+        stencil_points = sorted(list(set(self.reconstruction_classes[0].func_points + self.reconstruction_classes[1].func_points)))
         print "stencil points are: ", stencil_points
         solution_vector_stencil = zeros(len(solution_vector), len(stencil_points))
+        CS_matrix = zeros(len(solution_vector), len(stencil_points))
         for j, val in enumerate(stencil_points): # j in fv stencil matrix
             for i, flux in enumerate(solution_vector):
                 solution_vector_stencil[i,j] = self.increment_dataset(flux, direction, val)
-        grid_LEV = self.generate_grid_variable_LEV(direction, 'AVG')
+                CS_matrix[i,j] = GridVariable('CS_%d%d' %(i,j))
+        grid_LEV = self.generate_grid_variable_LEV(direction, name)
         characteristic_solution_stencil = grid_LEV*solution_vector_stencil
         characteristic_solution_stencil.stencil_points = stencil_points
-        return characteristic_solution_stencil
-    def flux_vector_to_characteristic(self, derivatives):
-        directions = []
+        CS_matrix.stencil_points = stencil_points
+        return characteristic_solution_stencil, CS_matrix
+
+    def flux_vector_to_characteristic(self, derivatives, direction, name):
         fv = []
         for d in derivatives:
-            directions += d.get_direction
+            if d.get_direction[0] != direction:
+                raise ValueError("Derivatives provided for flux vector are not homogeneous in direction.")
             fv += [d.args[0]]
-        if len(set(directions)) != 1:
-            raise ValueError("Derivatives provided for flux vector are not homogeneous in direction.")
-        direction = directions[0]
-        stencil_points = sorted(list(set(self.WenoConfigL.func_points + self.WenoConfigR.func_points)))
+        stencil_points = sorted(list(set(self.reconstruction_classes[0].func_points + self.reconstruction_classes[1].func_points)))
         flux_stencil = zeros(len(fv), len(stencil_points))
+        CF_matrix = zeros(len(fv), len(stencil_points))
         for j, val in enumerate(stencil_points): # j in fv stencil matrix
             for i, flux in enumerate(fv):
                 flux_stencil[i,j] = self.increment_dataset(flux, direction, val)
-        grid_LEV = self.generate_grid_variable_LEV(direction, 'AVG')
+                CF_matrix[i,j] = GridVariable('CF_%d%d' % (i,j))
+        grid_LEV = self.generate_grid_variable_LEV(direction, name)
         characteristic_flux_stencil = grid_LEV*flux_stencil
         characteristic_flux_stencil.stencil_points = stencil_points
-        return characteristic_flux_stencil
+        CF_matrix.stencil_points = stencil_points
+        return characteristic_flux_stencil, CF_matrix
 
-    def create_dictionary_interpolations(self, interpolated):
-        dictionary_interp = {}
-        direction = set()
-        for i in interpolated:
-            dictionary_interp[i.variable] = i
-            direction.add(i.direction)
-        if len(direction) > 1:
-            raise ValueError("Something is wrong")
-        direction = list(direction)[0]
-        return dictionary_interp, direction
 
-    def post_process(self, interpolated):
-        """ The left and right interpolations of the characteristic variables are returned back.
-        The process is first evaluate the averaged state, left and right eigen vectors and eigen
-        values
-        After that write the equations for the interpolations
-        """
-        self.post_process_equations = []
-        direction = self.direction
-        # Equations for the evaluation of interpolations and store the reconstructions
-        Interpolated_left_characteristic_flux = [] # Should be a list as we do not want to change the order
-        Interpolated_right_characteristic_flux = []
-        Interpolated_right_solution = []
-        Interpolated_left_solution = []
-        dictionary, key = self.create_dictionary_interpolations(interpolated)
 
-        temp_dictionary = {} # Temporary dictionary to store the reconstructed_symbols
-        # Do the evaluations for the interpolated quantities
-        for val in interpolated:
-            self.post_process_equations, reconstructed_symbols = val.evaluate_interpolation(self.post_process_equations)
-            temp_dictionary[val.variable] = reconstructed_symbols
-
-        # The new naming uplus will be minus
-        self.right_interpolated = []
-        self.left_interpolated = []
-        # Identify the right/left reconstructions
-        for val in self.u_plus:
-            self.right_interpolated += temp_dictionary[val][1]
-        for val in self.u_minus:
-            self.left_interpolated += temp_dictionary[val][-1]
-
-        # Construct the final flux using the reconstruction placeholders
-        # and transform back to the physical space using the symbolic right eigenvector matrix REV.
-        final_flux = self.REV_symbolic*(Matrix(self.right_interpolated)) + \
-            self.REV_symbolic*(Matrix(self.left_interpolated))
-        final_equations = self.pre_process_equations + self.post_process_equations
-        # pprint(self.pre_process_equations)
-        # print "##############################"
-        # pprint(self.post_process_equations)
-        # from .latex import *
-
-        # fname = './hyper_eq.tex'
-        # latex = LatexWriter()
-        # latex.open('./hyper_eq.tex')
-        # metadata = {"title": "Hyperbolic Flux equations", "author": "David", "institution": ""}
-        # latex.write_header(metadata)
-        # s = "Pre_process equations: "
-        # latex.write_string(s)
-        # for eq in self.pre_process_equations:
-        #     latex.write_expression(eq)
-        # s = "Post_process equations: "
-        # latex.write_string(s)
-        # for eq in self.post_process_equations:
-        #     latex.write_expression(eq)
-        # latex.write_footer()
-        # latex.close()
-        return final_equations, final_flux
 
 class LLFCharacteristic(Characteristic, Weno):
     """ This class contains the Local Lax-Fedrich scheme
@@ -589,9 +560,22 @@ class LLFCharacteristic(Characteristic, Weno):
         self.flux_split = True
         return
 
-    def split_fluxes(self, char_flux, char_solution):
 
-        return
+    def create_max_characteristic_wave_speed(self, pre_process_equations, direction):
+        stencil_points = sorted(list(set(self.reconstruction_classes[0].func_points + self.reconstruction_classes[1].func_points)))
+        ev = self.eigen_value[direction]
+        out = zeros(*ev.shape)
+        for p in stencil_points:
+            location_ev = self.convert_symbolic_to_dataset(ev, p, direction)
+            for no, val in enumerate(location_ev):
+                out[no] = Max(out[no], Abs(val))
+        max_wave_speed = self.generate_grid_variable_ev(direction, 'max')
+        ev_equations = self.generate_equations_from_matrices(max_wave_speed, out)
+        ev_equations = [x for x in ev_equations if x != 0]
+        pre_process_equations += ev_equations
+        max_wave_speed = diag(*([max_wave_speed[i,i] for i in range(ev.shape[0])]))
+        return max_wave_speed, pre_process_equations
+
 
     def discretise(self, type_of_eq, block):
         """ This is the place where the logic of vector form of equations are implemented.
@@ -605,17 +589,34 @@ class LLFCharacteristic(Characteristic, Weno):
         """
         #print "Here "
         from .opensbliequations import *
+        from .latex import *
+
+        fname = './weno.tex'
+        latex = LatexWriter()
+        latex.open('./weno.tex')
+        metadata = {"title": "Weno Flux equations", "author": "David", "institution": ""}
+        latex.write_header(metadata)
+    
         if isinstance(type_of_eq, SimulationEquations):
             eqs = flatten(type_of_eq.equations)
             grouped = self.group_by_direction(eqs)
-            for key, value in grouped.iteritems():
-                print(key, value)
-                for v in value:
-                    v.update_work(block)
-                    print v.__dict__, v
-                self.pre_process(key, value, flatten(type_of_eq.time_advance_arrays))
-            # pprint(type_of_eq.__dict__)
+            for key, derivatives in grouped.iteritems():
+                pprint(key)
+                for deriv in derivatives:
+                    deriv.create_reconstruction_work_array(block)
+                weno_kernel = Kernel(block)
+                self.pre_process(key, derivatives, flatten(type_of_eq.time_advance_arrays), weno_kernel)
+                pprint(len(weno_kernel.equations))
+                self.interpolate_reconstruction_variables(derivatives, weno_kernel)
+                
+                reconstructed_flux = self.post_process(derivatives, weno_kernel)
+                if key == 0:
+                    weno_kernel.write_latex(latex)
+                # self.post_process(derivatives)
 
+            # pprint(type_of_eq.__dict__)
+            latex.write_footer()
+            latex.close()
             exit()
         return
 
@@ -633,68 +634,7 @@ class LLFCharacteristic(Characteristic, Weno):
                     grouped[direction] = [wd]
         return grouped
 
-    def interp_functions(self, key):
-        local_equations = []
-        # Symbols for absolute max eigenvalues
-        f = lambda x:x.subs(x, abs(x))
-        centre = self.eigenvalue_names[0].applyfunc(f)
-        diagonal_entries = [e_val for e_val in centre if e_val != 0]
-        max_lambda_names = [GridVariable('max_lambda')]
-        local_equations = [Eq(max_lambda_names[0], Max(*(diagonal_entries)))]
-        lambda_max_matrix = diag(*([max_lambda_names[0]]*centre.shape[0]))
 
-        flux_vector = Matrix(self.vector_notation[key])
-        time_vector = Matrix(self.vector_notation[CoordinateObject('t')])
-        ### Here multiply the LEV symbolic matrix (LEV00 etc) by the flux and solution vectors
-        ### Transformation to characteristic space is done here THIS IS PART (c) of the WENO procedure 2.10
-        flux_conserve = self.LEV_symbolic*flux_vector
-        time_vector = self.LEV_symbolic*Matrix(self.vector_notation[CoordinateObject('t')])
-        # Perform the flux splitting by finding max absolute eigenvalues
-        positive = []
-        negative = []
-        max_lam_vec = []
-        for i in range(len(flux_vector)):
-            lm2EV = self.eigenvalue_names[-2][i,i]
-            l_EV = self.eigenvalue_names[-1][i,i]
-            c_EV = self.eigenvalue_names[0][i,i]
-            r_EV = self.eigenvalue_names[1][i,i]
-            r2EV = self.eigenvalue_names[2][i,i]
-            r3EV = self.eigenvalue_names[3][i,i] # 3rd not used?
-            # The solution for if local lambda == 0
-            max_lambda = Max(Abs(c_EV),Abs(r_EV), Abs(l_EV), Abs(r2EV),Abs(lm2EV))
-            max_lam_vec += [GridVariable('max_lambda_%d'%i)]
-            # Equates the above grid variable max_lambda_0 to the max_lambda equation expression for this component of flux vector
-            # Adds to the massive pre_process list
-            self.pre_process_equations += [Eq(max_lam_vec[-1],max_lambda )]
-            # This part does f+ = 0.5*(u(i) + MAX(alpha?)*f(u(i)))
-            # and f- = 0.5*(u(i) - MAX(alpha?)*f(u(i)))
-            positive += [Rational(1,2)*(flux_conserve[i] + max_lam_vec[-1]*time_vector[i])]
-            negative += [Rational(1,2)*(flux_conserve[i] - max_lam_vec[-1]*time_vector[i])]
-
-        self.max_lam_vec = max_lam_vec
-
-        # The fluxes in characteristic form are stored to self.u_plus/minus
-        self.u_plus = positive
-        self.u_minus = negative
-        ## At this point the FULL flux equations in both u_plus/minus are passed to WENO to do the interpolations, with their key
-
-        ## weno procedure is applied in update_WenoSolutionType, which is called on the pre_processed equations in the main calling computations part
-        ## This is done after WenoSolutionType is called updating which flux terms need WENO and the side to apply WENO to
-        ## All of the below is setting up what weno procedures are needed, the actual weno is applied by update_WenoSolutionType.
-        required_interpolations = []
-        leftRight = [False, True]
-        for val in self.u_plus:
-            temp = WenoSolutionType(val,leftRight)
-            temp.direction = key
-            temp.direction_index = self.direction_index
-            required_interpolations += [temp]
-        leftRight = [True, False]
-        for val in self.u_minus:
-            temp = WenoSolutionType(val,leftRight)
-            temp.direction = key
-            temp.direction_index = self.direction_index
-            required_interpolations += [temp]
-        return required_interpolations
 
 
 class SimpleAverage(object):

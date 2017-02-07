@@ -109,7 +109,7 @@ rk = RungeKutta(3)
 schemes[rk.name] = rk
 
 
-weno_order = 5
+weno_order = 3
 weno = True
 Euler_eq = EulerEquations(ndim, weno)
 ev_dict, LEV_dict, REV_dict = Euler_eq.generate_eig_system() # Taking more time on my personal computer SPJ
@@ -130,6 +130,7 @@ boundaries = [PeriodicBoundaryConditionBlock()]*2*ndim
 block.set_block_boundaries(boundaries)
 block.set_equations([constituent,simulation_eq])
 block.set_discretisation_schemes(schemes)
+
 block.discretise()
 #exit()
 # This creates the traditional algorithm

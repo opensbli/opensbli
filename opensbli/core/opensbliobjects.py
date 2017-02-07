@@ -156,6 +156,7 @@ class DataSetBase(IndexedBase):
         #ret = type(cls)(str(cls), **{'location': location})
         #return ret
 class DataSet(Indexed):
+    is_Atom = True
     dimensions = 0
     def __new__(cls, label, **kwargs):
         if 'location' in kwargs:
@@ -176,6 +177,14 @@ class DataSet(Indexed):
     @property
     def requires(cls):
         return list(cls.atoms(IndexedBase))[0]
+    def _args(cls):
+        return cls
+    @property
+    def nargs(cls):
+        return cls
+    @property
+    def free_symbols(cls):
+        return {cls}
 
 class ConstantIndexed(Indexed, Constant):
     def __new__(cls, label, indices, **kwargs):

@@ -80,15 +80,13 @@ class KD(Function):
         return indexed
     @property
     def value(self):
-        print "inside KD"
         if len(self.args) != 2:
             raise ValueError("Expected only two arguments in KD.")
         if Symbol(str(self.args[0])) == Symbol(str(self.args[1])):
             return 1
         else:
             return 0
-        for arg in self.args:
-            print arg, type(arg)
+        # for arg in self.args:
         # pprint(KroneckerDelta(*self.args))
         return KroneckerDelta(*self.args)
 
@@ -499,12 +497,13 @@ class WenoDerivative(Function, BasicDiscretisation):
         args = flatten([expr] + list(args))
         ret = super(WenoDerivative, cls).__new__(cls, *args, evaluate=False)
         ret.store = True # By default all the derivatives are stored
+        ret.reconstructions = []
         return ret
     @property
     def simple_name(cls):
         return "%s"%("WD")
 
-    def _discretise_derivative(cls, scheme):
+    def _discretise_derivative(cls, block, scheme=None):
         """This would return the descritised derivative of the
         local object depending on the order of accuracy specified
         Returns the formula for the derivative function, only first derivatives or homogeneous
@@ -516,21 +515,33 @@ class WenoDerivative(Function, BasicDiscretisation):
         """
         order = cls.order
         if (order > 1):
-            raise ValueError("")
-
-        form = cls.args[0]
+            raise ValueError("Weno Derivatives only defined for first order")
         dire = cls.get_direction[0]
-        expr = cls.args[0]
-        for req in (cls.required_datasets):
-            loc = req.location[:]
-            loc[dire] = loc[dire] -1
-            pprint([loc, req.location])
-            val = req.get_location_dataset(loc)
-            expr = expr.replace(req, val)
-        form = form - expr
-        if form == 0:
-            raise ValueError("Central derivative formula is zero for %s"%cls)
+        delta = block.deltas[dire]
+        loc = cls.reconstruction_work.location[:]
+        loc[dire] += -1
+        form = (cls.reconstruction_work - cls.reconstruction_work.get_location_dataset(loc)) / delta
+        pprint(form)
         return form
+
+    def add_reconstruction_classes(self, classes):
+        if isinstance(classes, list):
+            self.reconstructions += classes
+        else:
+            self.reconstructions += [classes]
+        return
+    def create_reconstruction_work_array(self, block):
+        self.reconstruction_work = block.work_array()
+        block.increase_work_index
+        self._discretise_derivative(block)
+        return
+    @property
+    def evaluate_reconstruction(self):
+
+        total = 0
+        for r in self.reconstructions:
+            total += r.reconstructed_symbol
+        return total
 
 
 class TemporalDerivative(Function, BasicDiscretisation):

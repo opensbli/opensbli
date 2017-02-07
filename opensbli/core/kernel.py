@@ -57,7 +57,12 @@ class Kernel(object):
         return
 
     def add_equation(self,equation):
-        self.equations += flatten([equation])
+        if isinstance(equation, list):
+            self.equations += flatten([equation])
+        elif isinstance(equation, Equality):
+            self.equations += [equation]
+        else:
+            raise ValueError("Error in kernel add equation.")
         return
 
     def set_grid_range(self, block):

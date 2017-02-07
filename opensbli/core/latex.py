@@ -124,7 +124,7 @@ class LatexWriter(LatexPrinter):
         return tex
     def _print_Pow(self, expr):
         base, exponent = expr.as_base_exp()
-        tex = '{%s}^{%s}'%(self._print(base),self._print(exponent))
+        tex = '\left(%s \\right)^{%s}'%(self._print(base),self._print(exponent))
         return tex
     def _print_EinsteinTerm(self, expr):
         return str(expr)
