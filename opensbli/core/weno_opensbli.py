@@ -486,8 +486,7 @@ class Characteristic(EigenSystem):
         reconstructed_work = [d.reconstruction_work for d in derivatives]
         post_process_equations += [Eq(x,y) for x,y in zip(reconstructed_work, reconstructed_flux)]
         kernel.add_equation(post_process_equations)
-        
-        return reconstructed_flux
+        return 
 
     def generate_left_reconstruction_variables(self, flux, derivatives):
         if isinstance(flux, Matrix):
