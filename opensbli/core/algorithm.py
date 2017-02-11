@@ -39,10 +39,10 @@ class MainPrg(Loop):
         return code
     @property
     def opsc_start(self):
-        return "Main Program Start \n {"
+        return "int main(int argc, char **argv) \n{"
     @property
     def opsc_end(self):
-        return "Main program end \n }"
+        return "//Main program end \n}"
 
 class DoLoop(Loop):
     def __init__(self, iterator):
@@ -138,7 +138,6 @@ class TraditionalAlgorithmRK(object):
     def add_block_names(self, blocks):
         for b in blocks:
             self.block_descriptions += [BlockDescription(b)]
-
         return
 
     def add_def_decs(self, defdecs):

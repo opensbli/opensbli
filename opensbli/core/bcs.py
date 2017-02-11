@@ -31,7 +31,7 @@ class ExchangeSelf(Exchange):
 
     def __init__(self, block, direction, side):
         ## Range of evaluation (i.e. the grid points, including the halo points, over which the computation should be performed).
-        self.computation_name = "EXCHANGE"
+        self.computation_name = "exchange"
         self.block_number = block.blocknumber
         self.direction = direction
         self.side = side_names[side]
@@ -133,25 +133,21 @@ class PeriodicBoundaryConditionBlock(BoundaryConditionBase):
 
         # Create a kernel this is a neater way to implement the transfers
         ker = Kernel(block)
-        halos = ker.get_max_halos(boundary_direction, side, block)
-        # Get the minimum for transfer from
-        #halos = [Min(*ha) for ha in halos]
-        #transfer_from = halos
-        #print transfer_from
+        halos = ker.get_plane_halos(block)
+        transfer_from = [halos[d][0] for d in range(block.ndim)]
+        transfer_to = [halos[d][0] for d in range(block.ndim)]
         if side == 0:
-            side_from = 1
+            transfer_from[boundary_direction] = block.Idxed_shape[boundary_direction].lower
+            transfer_to[boundary_direction] = block.Idxed_shape[boundary_direction].upper
         else:
-            side_from = 0
-        #transfer_from[boundary_direction] = block.ranges[boundary_direction][side_from]
-        transfer_from = block.ranges
-        #transfer_to = halos
-        #transfer_to[boundary_direction] = block.ranges[boundary_direction][side] + halos[boundary_direction]
-        transfer_to = block.ranges
+            transfer_from[boundary_direction] = block.Idxed_shape[boundary_direction].upper + halos[boundary_direction][0]
+            transfer_to[boundary_direction] = block.Idxed_shape[boundary_direction].lower + halos[boundary_direction][0]
         ex = ExchangeSelf(block, boundary_direction, side)
         ex.set_transfer_from(transfer_from)
         ex.set_transfer_to(transfer_to)
         ex.set_arrays(arrays)
         ex.number = ker.kernel_no
+        #exit()
         return ex
 
 class SymmetryBoundaryCondition(object):

@@ -42,15 +42,15 @@ class ConfigureWeno(object):
 
     @property
     def generate_symbolic_function_points(self):
-        ndim = DataSet.dimensions
-        DataSet.dimensions = 1
-        f = DataSet('f')
+        #ndim = DataSet.dimensions
+        #DataSet.dimensions = 1
+        f = IndexedBase('f')
         symbolic_functions = []
         symbolic_function_dictionary = {}
         for p in set(self.func_points):
-            symbolic_functions.append(f.get_location_dataset([p]))
+            symbolic_functions.append(f[p])
             symbolic_function_dictionary[p] = symbolic_functions[-1]
-        DataSet.dimensions = ndim
+        #DataSet.dimensions = ndim
         return symbolic_functions, symbolic_function_dictionary
 
     def generate_eno_coefficients(self, k):
@@ -266,6 +266,7 @@ class Weno(Scheme):
         self.schemetype = "Spatial"
         self.k = k
         self.halotype = WenoHalos(order)
+        self.required_constituent_relations_symbols = {}
         # Generate smoothness coefficients and store configurations for left and right reconstructions.
         smooth_coeffs = JS.smooth_coeffs
         self.reconstruction_classes = [LeftReconstructionVariable('left'), RightReconstructionVariable('right')]
@@ -276,7 +277,7 @@ class Weno(Scheme):
             rc.func_points = sorted(set(WenoConfig.func_points))
             rc.stencil_points, rc.function_stencil_dictionary = WenoConfig.generate_symbolic_function_points
             JS.generate_function_smoothness_indicators(rc)
-            
+
             self.generate_alphas(rc, WenoConfig)
             self.generate_omegas(rc, WenoConfig)
             self.generate_reconstruction(rc, WenoConfig)
@@ -299,7 +300,6 @@ class Weno(Scheme):
         # a.create_function_equations(self.reconstruction_classes[0])
         # exit()
         return
-
 
     def generate_alphas(self, fn, WenoConfig):
         for r in range(self.k):
@@ -335,6 +335,34 @@ class Weno(Scheme):
                 rv.update(original_rv)
                 rv.add_evaluations_to_kernel(kernel)
         return
+
+    def update_constituent_relation_symbols(self, sym, direction):
+        if isinstance(sym, Symbol):
+            sym = [sym]
+        elif isinstance(sym, list) or isinstance(sym, set):
+            pass
+        else:
+            raise ValueError("the symbol provided should be either a list or symbols")
+
+        for s in sym:
+            if s in self.required_constituent_relations_symbols.keys():
+                self.required_constituent_relations_symbols[s] += [direction]
+            else:
+                self.required_constituent_relations_symbols[s] = [direction]
+        return
+
+    def generate_constituent_relations_kernels(self, block):
+        crs = {}
+        for key in self.required_constituent_relations_symbols:
+            pprint([key, self.required_constituent_relations_symbols[key]])
+            kernel = Kernel(block, computation_name = "CR%s"%key)
+            kernel.set_grid_range(block)
+            for direction in self.required_constituent_relations_symbols[key]:
+                kernel.set_halo_range(direction, 0, self.halotype)
+                kernel.set_halo_range(direction, 1, self.halotype)
+            crs[DataSetBase(str(key))[DataSetBase.location()]] = kernel
+
+        return crs
 
 class EigenSystem(object):
     def __init__(self, eigenvalue, left_ev, right_ev):
@@ -397,19 +425,21 @@ class EigenSystem(object):
         Increments a dataset by the given increment in the direction passed to the characteristic routine.
         """
         for dset in expression.atoms(DataSet):
-            loc = dset.location[:]
+            loc = list(dset.indices)
             loc[direction] = loc[direction] + value
-            new_dset =  dset.get_location_dataset(loc)
+            new_dset =  dset.base[loc]
             expression = expression.replace(dset, new_dset)
         return expression
 
     def convert_symbolic_to_dataset(self, symbolics, location, direction):
 
         symbols = symbolics.atoms(Symbol)
-        dsets = [DataSet(s) for s in symbols]
-        loc = dsets[0].location[:]
+        dsets = [DataSetBase(s) for s in symbols]
+        print "YES"
+        loc = DataSetBase.location()
+        print loc
         loc[direction] = loc[direction] + location
-        location_datasets = [d.get_location_dataset(loc) for d in dsets]
+        location_datasets = [d[loc] for d in dsets]
         substitutions = dict(zip(symbols, location_datasets))
 
         return symbolics.subs(substitutions)
@@ -441,23 +471,24 @@ class Characteristic(EigenSystem):
         self.direction = direction
         pre_process_equations = []
         required_symbols = self.get_symbols_in_ev(direction).union(self.get_symbols_in_LEV(direction)).union(self.get_symbols_in_REV(direction))
+        self.update_constituent_relation_symbols(required_symbols, direction)
         averaged_suffix_name = 'AVG_%d' % direction
         self.averaged_suffix_name = averaged_suffix_name
         averaged_equations = self.average(required_symbols, direction, averaged_suffix_name)
         pre_process_equations += averaged_equations
         # Eigensystem based on averaged quantities
-        
+
         avg_LEV_values = self.convert_matrix_to_grid_variable(self.left_eigen_vector[direction], averaged_suffix_name)
         # Grid variables to store averaged eigensystems
         grid_LEV = self.generate_grid_variable_LEV(direction, averaged_suffix_name)
-               
+
         pre_process_equations += flatten(self.generate_equations_from_matrices(grid_LEV ,avg_LEV_values))
-        
+
         # Transform the flux vector and the solution vector to characteristic space
         characteristic_flux_vector, CF_matrix = self.flux_vector_to_characteristic(derivatives, direction, averaged_suffix_name)
         characteristic_solution_vector, CS_matrix = self.solution_vector_to_characteristic(solution_vector, direction, averaged_suffix_name)
         pre_process_equations += flatten(self.generate_equations_from_matrices(CF_matrix, characteristic_flux_vector))
-        pre_process_equations += flatten(self.generate_equations_from_matrices(CS_matrix, characteristic_solution_vector))     
+        pre_process_equations += flatten(self.generate_equations_from_matrices(CS_matrix, characteristic_solution_vector))
 
         if hasattr(self, 'flux_split') and self.flux_split:
             print ("Characteristic flux splitting scheme")
@@ -473,20 +504,20 @@ class Characteristic(EigenSystem):
             raise NotImplementedError("Only flux splitting is implemented in characteristic.")
         # self.pre_process_equations = pre_process_equations
         kernel.add_equation(pre_process_equations)
-        return 
+        return
 
     def post_process(self, derivatives, kernel):
         post_process_equations = []
         averaged_suffix_name = self.averaged_suffix_name
         avg_REV_values = self.convert_matrix_to_grid_variable(self.right_eigen_vector[self.direction], averaged_suffix_name)
-        grid_REV = self.generate_grid_variable_REV(self.direction, averaged_suffix_name) 
+        grid_REV = self.generate_grid_variable_REV(self.direction, averaged_suffix_name)
         post_process_equations += flatten(self.generate_equations_from_matrices(grid_REV ,avg_REV_values))
         reconstructed_characteristics = Matrix([d.evaluate_reconstruction for d in derivatives])
-        reconstructed_flux = grid_REV*reconstructed_characteristics 
+        reconstructed_flux = grid_REV*reconstructed_characteristics
         reconstructed_work = [d.reconstruction_work for d in derivatives]
         post_process_equations += [Eq(x,y) for x,y in zip(reconstructed_work, reconstructed_flux)]
         kernel.add_equation(post_process_equations)
-        return 
+        return
 
     def generate_left_reconstruction_variables(self, flux, derivatives):
         if isinstance(flux, Matrix):
@@ -506,11 +537,10 @@ class Characteristic(EigenSystem):
                 for p in sorted(set(self.reconstruction_classes[1].func_points)):
                     rv.function_stencil_dictionary[p] = flux[i,stencil.index(p)]
                 derivatives[i].add_reconstruction_classes([rv])
-        return 
+        return
 
     def solution_vector_to_characteristic(self, solution_vector, direction, name):
         stencil_points = sorted(list(set(self.reconstruction_classes[0].func_points + self.reconstruction_classes[1].func_points)))
-        print "stencil points are: ", stencil_points
         solution_vector_stencil = zeros(len(solution_vector), len(stencil_points))
         CS_matrix = zeros(len(solution_vector), len(stencil_points))
         for j, val in enumerate(stencil_points): # j in fv stencil matrix
@@ -588,36 +618,53 @@ class LLFCharacteristic(Characteristic, Weno):
         """
         #print "Here "
         from .opensbliequations import *
-        from .latex import *
 
-        fname = './weno.tex'
-        latex = LatexWriter()
-        latex.open('./weno.tex')
-        metadata = {"title": "Weno Flux equations", "author": "David", "institution": ""}
-        latex.write_header(metadata)
-    
         if isinstance(type_of_eq, SimulationEquations):
+            residual_kernel = Kernel(block, computation_name = "WenoResidual")
             eqs = flatten(type_of_eq.equations)
             grouped = self.group_by_direction(eqs)
+            all_derivatives_evaluated_locally = []
             for key, derivatives in grouped.iteritems():
-                pprint(key)
-                for deriv in derivatives:
+                all_derivatives_evaluated_locally += derivatives
+                for no,deriv in enumerate(derivatives):
+                    #dic = eqs[no].rhs.as_coefficients_dict()
+                    ##pprint(dic)
+                    #expr = eqs[no].rhs
+                    ##print expr.extract_multiplicatively(deriv)
+                    #print expr.extract_multiplicatively(deriv)
+                    ##pprint(eqs[no].rhs.as_coefficients_dict()[deriv])
+                    #exit()
+                    #pprint(eqs[no])
+                    #pprint(expr.coeff(deriv))
+                    #coeffs[deriv] = eqs[no].collect(deriv).coeff(deriv)
                     deriv.create_reconstruction_work_array(block)
-                weno_kernel = Kernel(block)
+                weno_kernel = Kernel(block, computation_name = "Weno_reconstruction_%d_direction"%(key))
+                weno_kernel.set_grid_range(block)
                 self.pre_process(key, derivatives, flatten(type_of_eq.time_advance_arrays), weno_kernel)
-                pprint(len(weno_kernel.equations))
                 self.interpolate_reconstruction_variables(derivatives, weno_kernel)
-                
-                reconstructed_flux = self.post_process(derivatives, weno_kernel)
-                if key == 0:
-                    weno_kernel.write_latex(latex)
-                # self.post_process(derivatives)
 
-            # pprint(type_of_eq.__dict__)
-            latex.write_footer()
-            latex.close()
-            exit()
-        return
+                #pprint(coeffs)
+                #exit()
+                reconstructed_flux = self.post_process(derivatives, weno_kernel)
+                type_of_eq.Kernels += [weno_kernel]
+            type_of_eq.Kernels += [self.evaluate_residuals(block, eqs, all_derivatives_evaluated_locally)]
+            constituent_relations = self.generate_constituent_relations_kernels(block)
+            return constituent_relations
+
+    def evaluate_residuals(self, block,eqns, local_ders):
+        residue_eq = []
+        for eq in eqns:
+            substitutions = {}
+            for d in eq.rhs.atoms(Function):
+                if d in local_ders:
+                    substitutions[d] = d._discretise_derivative(block)
+                else:
+                    substitutions[d] = 0
+            residue_eq += [Eq(eq.residual, eq.residual + eq.rhs.subs(substitutions))]
+        residue_kernel = Kernel(block, computation_name = "Weno Residual")
+        residue_kernel.set_grid_range(block)
+        residue_kernel.add_equation(residue_eq)
+        return residue_kernel
 
     def group_by_direction(self, eqs):
         all_WDS = []
@@ -636,6 +683,7 @@ class LLFCharacteristic(Characteristic, Weno):
 
 
 
+
 class SimpleAverage(object):
     def __init__(self, locations):
         self.locations = locations
@@ -650,13 +698,13 @@ class SimpleAverage(object):
         arg; name_suffix: Name to be appended to the functions. """
         avg_equations = []
         for f in functions:
-            d = DataSet(str(f))
-            loc = d.location[:]
+            d = DataSetBase(str(f))
+            loc = [0 for i in range(DataSetBase.block.ndim)]
             loc1 = loc[:]
             loc2 = loc[:]
             loc1[direction] = loc[direction] + self.locations[0]
             loc2[direction] = loc[direction] + self.locations[1]
-            a = d.get_location_dataset(loc1)
-            b = d.get_location_dataset(loc2)
+            a = d[loc1]
+            b = d[loc2]
             avg_equations += [Eq(GridVariable('%s_%s' % (name_suffix, str(f))), (a+b)/2)]
         return avg_equations

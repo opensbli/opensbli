@@ -114,13 +114,15 @@ class LatexWriter(LatexPrinter):
             env_str = self._settings['mode']
             output = r"\begin{%s}%s\end{%s}" % (env_str, tex, env_str)
         return output
-
+    def _print_DataSetBase(self, expr):
+        tex = "%s{_{B%s}}"%(self._print(expr.label), self._print(expr.blocknumber))
+        return tex
+    def _print_DataSet(self, expr):
+        ind = list(expr.indices)[:-1]
+        tex = '{%s}' % self._print(expr.base)+'[{%s}]' % ','.join(map(self._print, ind))
+        return tex
     def _print_Indexed(self, expr):
-        ind = list(set(expr.indices))
-        if len(ind) ==1 and ind[0] == 0:
-            tex = '{%s}' % self._print(expr.base)
-        else:
-            tex = '{%s}' % self._print(expr.base)+'[{%s}]' % ','.join(map(self._print, expr.indices))
+        tex = '{%s}' % self._print(expr.base)+'[{%s}]' % ','.join(map(self._print, expr.indices))
         return tex
     def _print_Pow(self, expr):
         base, exponent = expr.as_base_exp()

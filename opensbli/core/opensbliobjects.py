@@ -31,11 +31,16 @@ class EinsteinTerm(Symbol):
         # Is this a term that is constant in space and time (i.e. doesn't have any indices).
         self.is_constant = False
         self.is_coordinate = False
+        self.is_tensor = False
+        self.rank = 0
         #pprint([self, type(self)])
 
         # Extract the indices, which are always preceded by an underscore.
         indices = self.name.split('_')[1:]
         self.indices = [Idx(x) for x in indices]
+        if self.indices:
+            self.is_tensor = True
+            self.rank = len(self.indices)
         return self
 
     def get_indices(self):
@@ -65,6 +70,9 @@ class EinsteinTerm(Symbol):
         :rtype: str
         """
         return self.name.split('_')[0]
+    
+    #def __getitem__(self, idx, value):
+        #return
 
     def apply_index(self, idx, value):
         if idx in self.get_indices():
@@ -138,54 +146,84 @@ class DataObject(EinsteinTerm):
         ret = super(DataObject, cls).__new__(cls, label, **kw_args)
         #ret.location = [0]*cls.ndim
         return ret
+from sympy.core import Expr, Tuple, Symbol, sympify, S
+from sympy.core.compatibility import is_sequence, string_types, NotIterable, range
+
 class DataSetBase(IndexedBase):
-    #def modify_ranges(cls, direction_range, direction):
-        #cls.ranges[direction] = direction_range
-        #return
-    def __init__(self, label, **kwargs):
-        IndexedBase.__init__(label)
-        return
-    def set_ranges(self, range_is):
-        self._ranges = range_is
-        return
-    def modify_ranges(self, direction_range, direction):
-        self._ranges[direction] = direction_range
-        return
-    #def get_location_dataset(cls, location):
-        #print(Eq(cls, type(cls)(str(cls), **{'location': location})))
-        #ret = type(cls)(str(cls), **{'location': location})
-        #return ret
-class DataSet(Indexed):
+    is_commutative = True
+    is_Symbol = True
+    is_symbol = True
     is_Atom = True
-    dimensions = 0
-    def __new__(cls, label, **kwargs):
-        if 'location' in kwargs:
-            location = kwargs['location']
-        else:
-            location = [0]*cls.dimensions
-        base = DataSetBase(label)
-        ret = Indexed.__new__(cls, base , *location)
+    block = None
+    def __new__(cls, label, **kw_args):
+        if not cls.block:
+            raise ValueError("Set the block for DataSetBase")
+        #sym = Symbol("%s_B%d"%(label, cls.block.blocknumber))
+        shape = list(cls.block.shape) + [Idx(cls.block.blockname)]
+        #cls.label = label
+        ret = super(DataSetBase, cls).__new__(cls, label, shape, **kw_args)
+        ret.blockname = cls.block.blockname
+        ret.blocknumber = cls.block.blocknumber
         return ret
-    @property
-    def location(cls):
-        return list(cls.args[1:])
+    def __hash__(cls):
+        return hash(str(cls.label) + str(cls.blockname))
+    def __getitem__(cls, indices, **kw_args):
+        if len(indices) == len(cls.shape) and indices[-1] == Idx(cls.blockname):
+            pass
+        elif len(indices) == len(cls.shape) -1:
+            indices += [Idx(cls.blockname)]
+        elif len(indices) != len(cls.shape) -1:
+            raise IndexException("Rank mismatch.")
+        return DataSet(cls, *indices)
+    def _sympystr(self, p):
+        return "%s_B%s"%(str(self.label), str(self.blocknumber))
+    def simplelabel(self):
+        """Returns the abse label in case we need to add strings to the end of it 
+        e.g. Creating the old variables in Runge Kutta scheme
+        """
+        return "%s"%(str(self.label))
+    @staticmethod
+    def location():
+        return [0 for i in range(DataSetBase.block.ndim)]
 
-    def get_location_dataset(cls, location): ### Used for updating indices for weighting of points
-        base = cls.base
-        ret = type(cls)(str(base), **{'location': location})
+    #def _pretty(self, printer):
+        """Pretty Printing method. """
+        #from sympy.printing.pretty.stringpict import prettyForm 
+        #pforms = [printer._print("_B"), printer._print(str(self.blocknumber))]
+        ##expr = prettyForm(*printer.join("", pforms))
+        ##pform = prettyForm(printer._print(self.label))
+        ##b = pform.baseline
+        ##pform.baseline = pform.height() - 0.5
+        #pform =prettyForm(*pform.right(*printer.join("", pforms)))
+        ##pform.baseline = b
+        #return pform
+    
+    
+class DataSet(Indexed):
+    is_commutative = True
+    is_Indexed = True
+    is_Symbol = True
+    is_symbol = True
+    is_Atom = True
+    def __new__(cls, base, *indices, **kwargs):
+        if not isinstance(base, DataSetBase):
+            raise ValueError("Declare DatasetBase and instantiate a dataset")
+        ret = Indexed.__new__(cls, base, *indices)
         return ret
-    @property
-    def requires(cls):
-        return list(cls.atoms(IndexedBase))[0]
-    def _args(cls):
-        return cls
-    @property
-    def nargs(cls):
-        return cls
-    @property
-    def free_symbols(cls):
-        return {cls}
-
+    def _sympystr(self, p):
+        allinds = [i for i in self.indices if not isinstance(i,Idx)]
+        indices = list(map(p.doprint, allinds))
+        #return "%s[%s]" % (p.doprint(self.base), ", ".join(indices))
+        return "%s" % (p.doprint(self.base))
+    def _pretty(self, printer):
+        """Pretty Printing method. """
+        from sympy.printing.pretty.stringpict import prettyForm 
+        allinds = [i for i in self.indices if not isinstance(i,Idx)]
+        pforms = [printer._print(a) for a in allinds]
+        expr = prettyForm(*printer.join(",", pforms).parens(left="[", right="]"))
+        expr = prettyForm(*expr.left(printer._print(self.base)))
+        return expr
+            
 class ConstantIndexed(Indexed, Constant):
     def __new__(cls, label, indices, **kwargs):
         base = IndexedBase(label)

@@ -19,25 +19,10 @@
 #    along with OpenSBLI.  If not, see <http://www.gnu.org/licenses/>
 
 from sympy.tensor import IndexedBase, Idx
-from .opensbliobjects import DataSet
+from .opensbliobjects import DataSetBase
 
 from sympy.core import Symbol,S, symbols
 
-class DataType(object):
-    pass
-
-class Double(DataType):
-    def __init__(self):
-        return
-
-class Float(DataType):
-    def __init__(self):
-        return
-
-class UserDefined(DataType):
-    """ User defined datatype this is either float or double depending on input"""
-    def __init__(self):
-        return
 
 class GridVariable(Symbol):
 
@@ -46,7 +31,7 @@ class GridVariable(Symbol):
     def __new__(self, variable):
         self = Symbol.__xnew__(self, variable)
         self.is_constant = False
-        self.dtype = UserDefined()
+        self.dtype = None
         return self
 
 #from .opensbliobjects import DataSer
@@ -56,7 +41,7 @@ class WorkDataSet():
         self.work_name = 'wk%d'
         self.work_index = 0
         self.stored_index = 0
-        self.dtype = UserDefined()
+        self.dtype = None
         return
 
     def work_array(self, name = None, location=None):
@@ -72,10 +57,10 @@ class WorkDataSet():
         else:
             base = name
         # By default the range of the DataSet is the range of the grid
-        if location:
-            ret = DataSet(base, **{'location':location})
-        else:
-            ret = DataSet(base)
+        ret = DataSetBase(base)
+        if not location:
+            location = [0 for i in range(self.ndim)]
+        ret = ret[location]
         ##print([[S.Zero, self.shape[i]] for i,val in enumerate(self.shape)])
         #ret.set_ranges([[S.Zero, self.shape[i]] for i,val in enumerate(self.shape)])
         return ret
@@ -116,8 +101,8 @@ class Grid(WorkDataSet):
         WorkDataSet.__init__(self)
         inds = symbols('shape_0:%d'%self.ndim, integer=True)
         self.shape = symbols('block%dnp_0:%d'%(self.blocknumber, self.ndim), integer=True)
-        self.idx_shapes = [Idx(Symbol('i%d'%dim, integer = True),(0, self.shape[dim])) for dim in range(self.ndim)]
-        self.ranges = [[s.lower, s.upper] for s in self.idx_shapes]
+        self.Idxed_shape = [Idx(Symbol('i%d'%dim, integer = True),(0, self.shape[dim])) for dim in range(self.ndim)]
+        self.ranges = [[s.lower, s.upper] for s in self.Idxed_shape]
         self.deltas = [ConstantObject("Delta_%dblock_%d"%(dire,self.blocknumber)) for dire in range(self.ndim)]
         #self.shape = [Idx(i, (upper[no])) for no,i in enumerate(inds)]
         #print(self.shape[0].args)

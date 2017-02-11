@@ -24,12 +24,29 @@ import logging
 LOG = logging.getLogger(__name__)
 BUILD_DIR = os.getcwd()
 
+dataset_accs_dictionary = {}
 
+def get_min_max_halo_values(halos):
+    halo_m = []
+    halo_p = []
+    for direction in range(len(halos)):
+        max_halo_direction = []
+        if halos[direction][0]:
+            hal = [d.get_halos(0) for d in halos[direction][0]]
+            halo_m += [min(hal)]
+        else:
+            halo_m += [0]
+        if halos[direction][1]:
+            hal = [d.get_halos(1) for d in halos[direction][1]]
+            halo_p += [max(hal)]
+        else:
+            halo_p += [0]
+    return halo_m, halo_p
 class OPSCCodePrinter(CCodePrinter):
 
     """ Prints OPSC code. """
 
-    def __init__(self, Indexed_accs, constants):
+    def __init__(self, Indexed_accs):
         """ Initialise the code printer. """
 
         settings = {}
@@ -37,22 +54,13 @@ class OPSCCodePrinter(CCodePrinter):
 
         # Indexed access numbers are required in dictionary
         self.Indexed_accs = Indexed_accs
-        self.constants = constants
 
     def _print_ReductionVariable(self, expr):
         return '*%s' % str(expr)
 
     def _print_Rational(self, expr):
-        if self.constants is not None:
-            if expr in self.constants.keys():
-                return self.constants[expr]
-            else:
-                con = 'rc%d' % len(self.constants.keys())
-                self.constants[expr] = con
-                return self.constants[expr]
-        else:
-            p, q = int(expr.p), int(expr.q)
-            return '%d.0/%d.0' % (p, q)
+        p, q = int(expr.p), int(expr.q)
+        return '%d.0/%d.0' % (p, q)
 
     def _print_Mod(self, expr):
         args = map(ccode, expr.args)
@@ -86,7 +94,15 @@ class OPSCCodePrinter(CCodePrinter):
             return "MAX(MAX(MAX(%s,%s), MAX(%s,%s)), MAX(MAX(%s,%s),MAX(%s,%s)))"%(a,b,b,c,c,d,d,e)
         else:
             raise ValueError("Max for arguments %d is not defined in code printer or OPS"%nargs)
-
+    def _print_DataSet(self, expr):
+        if self.DataSet_accs:
+            base = expr.base
+            if dataset_accs_dictionary[base]:
+                out = ["%s[%s(%s)]"%(self._print(base.label), dataset_accs_dictionary[base] , ','.join([self._print(i) for i in expr.indices]))]
+            else:
+                pass
+                #out = "%s[%s]" % (self._print(base.label), ','.join([self._print(index) for index in indices if not isinstance(index, Idx) else 0]))
+        return
     def _print_Indexed(self, expr):
         """ Print out an Indexed object.
 
@@ -123,7 +139,7 @@ def pow_to_constant(expr, constants):
     return expr, constants
 
 
-def ccode(expr, Indexed_accs=None, constants=None):
+def ccode(expr, Indexed_accs=None):
     """ Create an OPSC code printer object and write out the expression as an OPSC code string.
 
     :arg expr: The expression to translate into OPSC code.
@@ -133,13 +149,11 @@ def ccode(expr, Indexed_accs=None, constants=None):
     :rtype: str
     """
     if isinstance(expr, Eq):
-        if constants:
-            expr, constants = pow_to_constant(expr, constants)
-        code_print = OPSCCodePrinter(Indexed_accs, constants)
+        code_print = OPSCCodePrinter(Indexed_accs)
         code = code_print.doprint(expr.lhs) \
-            + ' = ' + OPSCCodePrinter(Indexed_accs, constants).doprint(expr.rhs)
-        return code, code_print.constants
-    return OPSCCodePrinter(Indexed_accs, constants).doprint(expr)
+            + ' = ' + OPSCCodePrinter(Indexed_accs).doprint(expr.rhs)
+        return code
+    return OPSCCodePrinter(Indexed_accs).doprint(expr)
 
 from opensbli.core.kernel import Kernel
 from opensbli.core.algorithm import Loop
@@ -175,7 +189,10 @@ class WriteString(object):
     @property
     def opsc_code(self):
         return ['\n'.join(self.components)]
-
+class OPSAccess(object):
+    def __init__(self, no):
+        self.name = "OPS_ACC%d"%no
+        return
 
 class OPSC(object):
 
@@ -183,19 +200,65 @@ class OPSC(object):
         """ Generating an OPSC code from the algorithm"""
         if not algorithm.MultiBlock:
             self.MultiBlock = False
-            self.datasets_to_declare = []
-            self.Rational_constants = set()
-            self.constants = set()
-            self.stencils_to_declare = set()
             self.dtype = algorithm.dtype
             #self.generate_OPSC_dependants_sb(algorithm)
             def_decs = self.opsc_def_decs(algorithm)
-            algorithm.prg.components = def_decs + algorithm.prg.components
+            end = self.ops_exit()
+            algorithm.prg.components = def_decs + algorithm.prg.components + end
             code = algorithm.prg.opsc_code
+            code = self.before_main(algorithm) + code
             f = open('test.cpp', 'w')
             f.write('\n'.join(code))
             f.close()
+            self.write_kernels(algorithm)
         return
+    def convert_eq_to_indexed_accs(self, eqs):
+
+        return
+    def kernel_computation_opsc(self, kernel):
+        ins = kernel.rhs_datasets
+        outs = kernel.lhs_datasets
+        inouts = ins.intersection(outs)
+        ins = ins.difference(inouts)
+        outs = outs.difference(inouts)
+        eqs = kernel.equations
+        all_dataset_inps = list(ins) + list(outs) + list(inouts)
+        ops_accs = [OPSAccess(no) for no in range(len(all_dataset_inps))]
+        dataset_accs_dictionary = dict(zip(all_dataset_inps, ops_accs))
+        v = list(eqs[0].atoms(DataSet))[0]
+        #print str(v.base) +'[' + str(dataset_accs_dictionary[v.base].name) + '()' + ']'
+        #pprint(eqs)
+        #if self.DataSet_accs:
+        dsets = set()
+        for e in kernel.required_data_sets:
+            print e
+        #base = expr.base
+        #if dataset_accs_dictionary[base]:
+            #out = ["%s[%s(%s)]"%(self._print(base.label), dataset_accs_dictionary[base] , ','.join([self._print(i) for in expr.indices)])]
+        #else:
+            #out = "%s[%s]" % (self._print(base.label), ','.join([self._print(index) for index in indices if not isinstance(index, Idx) else 0]))
+
+        return
+    def write_kernels(self, algorithm):
+        kernels = self.loop_alg(algorithm, Kernel)
+        self.kernel_computation_opsc(kernels[0])
+        return
+
+    def ops_exit(self):
+        return [WriteString("ops_exit();")]
+
+    def before_main(self, algorithm):
+        out = ['#include <stdlib.h> \n#include <string.h> \n#include <math.h>']
+        for d in algorithm.defnitionsdeclarations.components:
+            if isinstance(d, Constant):
+                out += ["double %s;"%d]
+
+        for b in algorithm.block_descriptions:
+            out += ['#define OPS_%dD'%b.ndim]
+        out += ['#include ops_seq.h']
+        for b in algorithm.block_descriptions:
+            out += ['#include %s_kernels.h'%b.block_name]
+        return out
 
     def opsc_def_decs(self, algorithm):
         defs = []
@@ -203,6 +266,7 @@ class OPSC(object):
         # Add OPS_init to the declarations as it should be called before all ops
         decls += self.ops_init()
         # First process all the constants in the definitions
+        out = [WriteString("// Define and Declare OPS Block")]
         for d in algorithm.defnitionsdeclarations.components:
             if isinstance(d, Constant):
                 defs += [self.define_constants(d)]
@@ -213,24 +277,60 @@ class OPSC(object):
         decls = []
         # Define and declare blocks
         for b in algorithm.block_descriptions:
-            output += self.define_block(b)
+            #output += self.define_block(b)
             output += self.declare_block(b)
         #output += defs + decls
         # Define and declare datasets on each block
+        f = open('defdec_data_set.h', 'w')
+        datasets_dec = []
+        output += [WriteString("#include \"defdec_data_set.h\"")]
         for d in algorithm.defnitionsdeclarations.components:
             if isinstance(d, DataSetBase):
-                #output += self.define_dataset(d)
-                output += self.declare_dataset(d)
-        #output = output + defs + decls
-        # Define stencils
+                datasets_dec += self.declare_dataset(d)
+        f.write('\n'.join(flatten([d.opsc_code for d in datasets_dec])))
+        f.close()
         output += [WriteString("// Define and declare stencils")]
         # Loop through algorithm components to include any halo exchanges
         from opensbli.core.bcs import Exchange
         exchange_list = self.loop_alg(algorithm, Exchange)
-        for e in exchange_list:
-            call, code = self.bc_exchange_call_code(e)
-            output += [code]
+        if exchange_list:
+            f = open('bc_exchanges.h', 'w') # write BC_exchange code to a separate file
+            exchange_code = []
+            for e in exchange_list:
+                call, code = self.bc_exchange_call_code(e)
+                exchange_code += [code]
+            f.write('\n'.join(flatten(exchange_code)))
+            f.close()
+            output += [WriteString("#include \"bc_exchanges.h\"")] # Include statement in the code
+        output += self.ops_partition()
+
         return output
+
+    def ops_partition(self):
+        """ Initialise an OPS partition for the purpose of multi-block and/or MPI partitioning.
+
+        :returns: The partitioning code in OPSC format. Each line is a separate list element.
+        :rtype: list
+        """
+
+        return [WriteString('// Init OPS partition'), WriteString('ops_partition(\"\");\n')]
+
+    def ops_init(self, diagnostics_level=None):
+        """ The default diagnostics level is 1, which offers no diagnostic information and should be used for production runs.
+        Refer to OPS user manual for more information.
+
+        :arg int diagnostics_level: The diagnostics level. If None, the diagnostic level defaults to 1.
+        :returns: The call to ops_init.
+        :rtype: list
+        """
+        out = [WriteString('// Initializing OPS ')]
+        if diagnostics_level:
+            self.ops_diagnostics = True
+            return out + [WriteString('ops_init(argc,argv,%d);' % (diagnostics_level))]
+        else:
+            self.ops_diagnostics = False
+            return out + [WriteString('ops_init(argc,argv,%d);' % (1))]
+
 
     def Exchange_code(self, e):
         #out =
@@ -262,7 +362,7 @@ class OPSC(object):
         instance.call_name = 'ops_halo_transfer(%s)%s' % (name, ";")
         call = ['// Boundary condition exchange calls' , 'ops_halo_transfer(%s)%s' % (name, ";")]
         for no, c in enumerate(code):
-            code[no] = WriteString(c)
+            code[no] = WriteString(c).opsc_code
         return call, code
 
     def loop_alg(self, algorithm, type_of_component):
@@ -301,8 +401,9 @@ class OPSC(object):
 
     def declare_block(self, b):
         if not self.MultiBlock:
-            string = '%s = ops_decl_block(%d, \"%s\");' % (b.block_name, b.ndim, b.block_name)
-            return [WriteString(string)]
+            out = [WriteString("// Define and Declare OPS Block")]
+            out += [WriteString('ops_block %s = ops_decl_block(%d, \"%s\");' % (b.block_name, b.ndim, b.block_name))]
+            return out
         else:
             raise NotImplementedError("")
 
@@ -324,6 +425,7 @@ class OPSC(object):
         if isinstance(c, ConstantObject):
             return WriteString("ops_decl_const(\"%s\" , 1, \"%s\", &%s);"%(str(c), c.dtype, str(c)))
         return
+
     def declare_inline_array(self, dtype, name, values):
         return WriteString('%s %s[] = {%s};' % (dtype, name, ', '.join([str(s) for s in values])))
     def update_inline_array(self, name, values):

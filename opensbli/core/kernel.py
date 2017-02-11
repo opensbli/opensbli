@@ -1,6 +1,8 @@
 from sympy import flatten, Max
 from .latex import *
 from .opensbliobjects import DataSetBase, DataSet, ConstantIndexed, ConstantObject
+from .grid  import GridVariable
+#from .block import DataSetsToDeclare
 def dataset_attributes(dset):
     """
     Move to datasetbase? Should we??
@@ -55,12 +57,21 @@ class Kernel(object):
     def set_computation_name(self, name):
         self.computation_name = name
         return
+    def _sanitise_kernel(self, type_of_code):
+        """Sanitises the kernel equations by updating the datasetbase ranges in the 
+        DataSetsToDeclare class, finds the Rational constants, updates the constants 
+        and update the equations
+        # TODO 
+        """
+        return
 
     def add_equation(self,equation):
         if isinstance(equation, list):
             self.equations += flatten([equation])
         elif isinstance(equation, Equality):
             self.equations += [equation]
+        elif equation:
+            pass
         else:
             raise ValueError("Error in kernel add equation.")
         return
@@ -131,14 +142,6 @@ class Kernel(object):
 
         return
 
-    def set_kernel_evaluation_number(self, number, block):
-        """
-        This sets the evaluation number for the kernel so that they can be organised in
-        algorithm
-        """
-
-        return
-
     def check_and_merge_kernels(self, kernel):
         """
         We donot check the equations only halo range is checked and updated
@@ -185,7 +188,7 @@ class Kernel(object):
         for eq in self.equations:
             if isinstance(eq, Equality):
                 for at in eq.atoms(Pow):
-                    if _coeff_isneg(at.exp) and not at.base.atoms(Indexed):
+                    if _coeff_isneg(at.exp) and not (at.base.atoms(Indexed) or isinstance(at, GridVariable)):
                         inverse_terms.add(at)
         return inverse_terms
     @property
@@ -238,10 +241,18 @@ class Kernel(object):
         inouts = ins.intersection(outs)
         ins = ins.difference(inouts)
         outs = outs.difference(inouts)
-        iter_range = "Testing"
-        #print self.computation_name
+        from .codegeneration.opsc import get_min_max_halo_values
+        halo_m, halo_p = get_min_max_halo_values(self.halo_ranges)
+        range_of_eval = [[0,0] for r in range(self.ndim)]
+        #print self.computation_name, self.ranges, self.halo_ranges
+        for d in range(self.ndim):
+            range_of_eval[d][0] = self.ranges[d][0] + halo_m[d]
+            range_of_eval[d][1] = self.ranges[d][1] + halo_p[d]
+        dtype = 'int'
+        iter_name = "iteration_range_%d"%(self.kernel_no)
+        code = ['%s %s[] = {%s};' % (dtype, iter_name, ', '.join([str(s) for s in flatten(range_of_eval)]))]
         #pprint(self.stencil_names)
-        code = ['ops_par_loop(%s, \"%s\", %s, %s, %s' % (name, self.computation_name, block_name, self.ndim, iter_range)]
+        code += ['ops_par_loop(%s, \"%s\", %s, %s, %s' % (name, self.computation_name, block_name, self.ndim, iter_name)]
         for i in ins:
             code += ['ops_arg_dat(%s, %d, %s, \"%s\", %s)'%(i, 1, self.stencil_names[i], "double", self.opsc_access['ins'])]
         for o in outs:
@@ -274,7 +285,22 @@ class Kernel(object):
         """
         self.stencil_names = {}
         dsets = self.lhs_datasets.union(self.rhs_datasets)
+        from .block import DataSetsToDeclare
+        # New logic for the dataset delcarations across blocks
         for d in dsets:
+            if d in DataSetsToDeclare.datasetbases:
+                ind =  DataSetsToDeclare.datasetbases.index(d)
+                d1 = DataSetsToDeclare.datasetbases[ind]
+                for direction in range(len(d1.halo_ranges)):
+                    d1.halo_ranges[direction][0] = d1.halo_ranges[direction][0] | self.halo_ranges[direction][0]
+                    d1.halo_ranges[direction][1] = d1.halo_ranges[direction][1] | self.halo_ranges[direction][1]
+            else:
+                d = dataset_attributes(d)
+                d.size = block.shape
+                d.block_number = block.blocknumber
+                d.halo_ranges = self.halo_ranges
+                d.block_name = block.blockname
+                DataSetsToDeclare.datasetbases += [d]
             if str(d) in block.block_datasets.keys():
                 dset = block.block_datasets[str(d)]
                 for direction in range(len(dset.halo_ranges)):
@@ -296,14 +322,14 @@ class Kernel(object):
                 block.block_datasets[str(d)] = d
         # Update rational constant attributes
         rational_constants = self.Rational_constants.union(self.Inverse_constants)
-        if rational_constants:
-            for rc in rational_constants:
-                if rc not in block.Rational_constants.keys():
-                    next_rc = block.get_next_rational_constant
-                    next_rc = constant_attributes(next_rc)
-                    next_rc.is_input = False
-                    next_rc.value = rc
-                    block.Rational_constants[rc] = next_rc
+        #if rational_constants:
+            #for rc in rational_constants:
+                #if rc not in block.Rational_constants.keys():
+                    #next_rc = block.get_next_rational_constant
+                    #next_rc = constant_attributes(next_rc)
+                    #next_rc.is_input = False
+                    #next_rc.value = rc
+                    #block.Rational_constants[rc] = next_rc
 
         constants = self.constants
         if constants:

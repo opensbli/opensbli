@@ -1,5 +1,6 @@
 from .opensbliobjects import DataSet, ConstantObject
 from .opensblifunctions import *
+from .kernel import Kernel
 from sympy import flatten, preorder_traversal
 from sympy import Equality
 import copy
@@ -79,10 +80,24 @@ class Discretisation(object):
 
 
 class OpenSBLIEquation(Equality):
-    def __new__(cls, equation):
-        ret = super(OpenSBLIEquation, cls).__new__(cls, equation.lhs, equation.rhs)
+    is_Equality = True
+    def __new__(cls, lhs, rhs):
+        ret = super(OpenSBLIEquation, cls).__new__(cls, lhs, rhs)
         ret.is_vector = False
         return ret
+    #def _eval_subs(self, old, new):
+        #if self == old:
+            #return new
+        #elif old.is_Function and new.is_Function:
+            #if old == self.func:
+                #nargs = len(self.args)
+                #if (nargs == new.nargs or new.nargs is None or
+                        #(isinstance(new.nargs, tuple) and nargs in new.nargs)):
+                    #return new(*self.args)
+        ##newargs = [s.subs(old, new) for s in self.args]
+        #return self.func(*[s.subs(old, new) for s in self.args])
+    def _eval_evalf(self, prec):
+        return self.func(*[s._evalf(prec) for s in self.args])
     def set_vector(cls, component_number):
         cls.is_vector = True
         cls.vector_component = component_number
@@ -155,12 +170,12 @@ class SimulationEquations(Discretisation, Solution):
         if isinstance(equation, list):
             local = []
             for no, eq in enumerate(equation):
-                eq = OpenSBLIEquation(eq)
+                eq = OpenSBLIEquation(eq.lhs, eq.rhs)
                 eq.set_vector(no)
                 local += [eq]
             cls.equations += [local]
         else:
-            equation = OpenSBLIEquation(equation)
+            equation = OpenSBLIEquation(equation.lhs, equation.rhs)
             cls.equations += [equation]
         return
 
@@ -179,13 +194,20 @@ class SimulationEquations(Discretisation, Solution):
             output_dictionary[r.lhs] =  r.rhs
         return output_dictionary
 
-    def create_residual_arrays(cls):
+    def create_residual_arrays(cls, block):
         for no, eq in enumerate(flatten(cls.equations)):
             if not hasattr(eq, 'residual'):
-                eq.residual = DataSet('Residual%d'%no)
+                eq.residual = DataSetBase('Residual%d'%no)[[0 for i in range(block.ndim)]]
         return
-
-
+    def zero_residuals_kernel(cls, block):
+        """Evaluate all the residuals to zero
+        """
+        kernel = Kernel(block, computation_name= "Zeroing residuals")
+        eqs = [Eq(eq.residual, 0) for eq in flatten(cls.equations)]
+        kernel.add_equation(eqs)
+        kernel.set_grid_range(block)
+        cls.Kernels += [kernel]
+        return
     def spatial_discretisation(cls, schemes, block):
         """
         Discretisation will be done by
@@ -196,7 +218,8 @@ class SimulationEquations(Discretisation, Solution):
         # Instantiate the solution class
         (Solution,cls).__init__(cls)
         # Create the residual array for the equations
-        cls.create_residual_arrays()
+        cls.create_residual_arrays(block)
+        cls.zero_residuals_kernel(block)
 
         #cls.descritsed_equations = copy.copy(cls.equations)
         spatialschemes = []
@@ -334,11 +357,11 @@ class ConstituentRelations(Discretisation, Solution):
         equation = cls._sanitise_equations(equation)
         if isinstance(equation, list):
             for no, eq in enumerate(equation):
-                eq = OpenSBLIEquation(eq)
-                eq.set_vector(no)
+                eq = OpenSBLIEquation(eq.lhs, eq.rhs)
+                #eq.set_vector(no)
                 cls.equations += [eq]
         else:
-            equation = OpenSBLIEquation(equation)
+            equation = OpenSBLIEquation(equation.lhs, equation.rhs)
             cls.equations += [equation]
         return
 

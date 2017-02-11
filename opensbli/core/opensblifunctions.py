@@ -441,6 +441,7 @@ class CentralDerivative(Function, BasicDiscretisation):
         args = tuple(flatten([expr] + list(args)))
         ret = super(CentralDerivative, cls).__new__(cls, *args, evaluate=False)
         ret.store = True # By default all the derivatives are stored
+        ret.local_evaluation = True
         return ret
 
     def doit(cls):
@@ -470,15 +471,15 @@ class CentralDerivative(Function, BasicDiscretisation):
             for no, p in enumerate(scheme.points):
                 expr = cls.args[0]
                 for req in (cls.required_datasets):
-                    loc = req.location[:]
+                    loc = list(req.indices)
                     loc[dire] = loc[dire] + p
                     # pprint([loc, req.location])
-                    val = req.get_location_dataset(loc)
+                    val = req.base[loc]
                     # pprint(val)
                     expr = expr.replace(req, val)
                     # print(expr)
                 form = form + weights[no]*expr
-                # pprint(form)
+            #pprint([cls, form])
             if form == 0:
                 raise ValueError("Central derivative formula is zero for %s"%cls)
         else:
@@ -487,6 +488,9 @@ class CentralDerivative(Function, BasicDiscretisation):
     @property
     def simple_name(cls):
         return "%s"%("CD")
+    def _sympystr(self, p):
+        args = list(map(p.doprint, self.args))
+        return "%s(%s)"%(self.simple_name, ",".join(args))
 
 
 
@@ -498,6 +502,7 @@ class WenoDerivative(Function, BasicDiscretisation):
         ret = super(WenoDerivative, cls).__new__(cls, *args, evaluate=False)
         ret.store = True # By default all the derivatives are stored
         ret.reconstructions = []
+        ret.local_evaluation = True
         return ret
     @property
     def simple_name(cls):
@@ -518,10 +523,9 @@ class WenoDerivative(Function, BasicDiscretisation):
             raise ValueError("Weno Derivatives only defined for first order")
         dire = cls.get_direction[0]
         delta = block.deltas[dire]
-        loc = cls.reconstruction_work.location[:]
+        loc = list(cls.reconstruction_work.indices[:])
         loc[dire] += -1
-        form = (cls.reconstruction_work - cls.reconstruction_work.get_location_dataset(loc)) / delta
-        pprint(form)
+        form = (cls.reconstruction_work - cls.reconstruction_work.base[loc]) / delta
         return form
 
     def add_reconstruction_classes(self, classes):
@@ -533,7 +537,6 @@ class WenoDerivative(Function, BasicDiscretisation):
     def create_reconstruction_work_array(self, block):
         self.reconstruction_work = block.work_array()
         block.increase_work_index
-        self._discretise_derivative(block)
         return
     @property
     def evaluate_reconstruction(self):
@@ -550,6 +553,7 @@ class TemporalDerivative(Function, BasicDiscretisation):
         args = flatten([expr] + list(args))
         ret = super(TemporalDerivative, cls).__new__(cls, *args, evaluate=False)
         ret.store = True # By default all the derivatives are stored
+        ret.local_evaluation = True
         return ret
     @property
     def simple_name(cls):

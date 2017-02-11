@@ -24,8 +24,11 @@ from .grid import *
 from sympy.matrices import *
 from .bcs import BoundaryConditionTypes
 from .opensbliequations import SimulationEquations
-from .opensbliobjects import ConstantObject
-
+from .opensbliobjects import ConstantObject, DataObject, DataSetBase
+#from .opensbliobjects import 
+from sympy import flatten
+class DataSetsToDeclare(object):
+    datasetbases = []
 class KernelCounter():
     # Counter for the kernels
     def __init__(self):
@@ -77,6 +80,7 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes, RationalCount
         self.constants = {}
         self.Rational_constants = {}
         self.block_stencils = {}
+        DataSetBase.block = self
         return
 
     @property
@@ -93,7 +97,28 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes, RationalCount
     def set_block_boundary_halos(self, direction, side, types):
         self.boundary_halos[direction][side].add(types)
         return
-
+    
+    def dataobjects_to_datasets_on_block(self, eqs):
+        all_equations = flatten(eqs)[:]
+        
+        from sympy import *
+        for no, eq in enumerate(all_equations):
+            for d in eq.atoms(DataObject):
+                new = DataSetBase(d)[[0 for i in range(self.ndim)]]
+                eq = eq.subs({d: new})
+            all_equations[no] = eq
+        # Convert all equations into the format of input equations WARNING crude way
+        out = []
+        out_loc = 0
+        for no, e in enumerate(eqs):
+            if isinstance(e, list):
+                out += [all_equations[out_loc:out_loc+len(e)]]
+                out_loc += len(e)
+            else:
+                out += [all_equations[out_loc]]
+                out_loc += 1
+        return out
+    
     def discretise(self):
         """
         In this the discretisation of the schemes in the list of equations is applied
@@ -101,16 +126,22 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes, RationalCount
         Metric equations, diagnostic equations etc)
         : ar
         """
+        # set the block for the data sets
+        DataSetBase.block = self
+        # Convert the equations into block datasets
+        for eq in self.list_of_equation_classes:
+            block_eq = self.dataobjects_to_datasets_on_block(eq.equations)
+            eq.equations = block_eq
+        
         # perform the spatial discretisation of the equations using schemes
         for eq in self.list_of_equation_classes:
-            print "something", eq
             eq.spatial_discretisation(self.discretisation_schemes, self)
             eq.apply_boundary_conditions(self)
         # Get the classes for the constituent relations
         crs = self.get_constituent_equation_class
-        for clas in self.list_of_equation_classes:
-            if clas not in crs:
-                print clas, "Exitting"
+        #for clas in self.list_of_equation_classes:
+            #if clas not in crs:
+                #print clas, "Exitting"
                 #exit()
         # perform the temporal discretisation of the equations for all equation classes
         # Later move TD to equations.td

@@ -320,19 +320,6 @@ class Central(Scheme):
         return expr, kernel_dictionary
 
 
-
-class TwoWayDictionary:
-    def __init__(self):
-        self.d = {}
-    def add(self, k, v):
-        if k in self.keys or v in self.keys:
-            raise ValueError("Already existing key value pairs")
-        self.d[k] = v
-        self.d[v] = k
-    def remove(self, k):
-        self.d.pop(self.d.pop(k))
-    def get(self, k):
-        return self.d[k]
 from .opensbliobjects import ConstantIndexed, ConstantObject
 class TemproalSolution(object):
     def __init__(self):
@@ -452,7 +439,7 @@ class RungeKutta(Scheme):
         old_data_sets = []
         for no, eq in enumerate(flatten(equations)):
             fn = eq.time_advance_array
-            old_data_sets += [block.work_array('%s_old' % fn.base)]
+            old_data_sets += [block.work_array('%s_old' % fn.base.label)]
         return old_data_sets
 
     def generate_inner_loop(cls, kernels):

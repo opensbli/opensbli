@@ -415,7 +415,7 @@ class Equation(EinsteinStructure):
             constant_dictionary[con] = ConstantObject(con)
         local_dict = {'Der': Der, 'Conservative': Conservative, 'KD': KD, 'LC': LC, 'Skew': Skew, 'coordinate':coordinate_symbol,  'time':'t', 'Dot':Dot, 'MetricDer':MetricDer}
         local_dict.update(constant_dictionary)
-        pprint(self.original)
+        #pprint(self.original)
         # Parse the equation.
         self.parsed = parse_expr(self.original, local_dict, tuple([convert_coordinate])+standard_transformations, evaluate=False)
 
@@ -445,23 +445,19 @@ class Equation(EinsteinStructure):
                 pot.skip()
             else:
                 continue
-        print "Parsing"
-        pprint(self.parsed)
         lhs, lhs_indices = self._structure(self.parsed.lhs)
         rhs, rhs_indices = self._structure(self.parsed.rhs)
-        print "printing rhs"
-        pprint(rhs)
-        pprint(rhs_indices)
         lhs = self.substitute_indexed(lhs)
+        #pprint(lhs)
+        #exit()
         expanded_lhs = self.expand_summations(lhs, ndim)
-
         rhs = self.substitute_indexed(rhs)
         expanded_rhs = self.expand_summations(rhs, ndim)
         expanded_equation = Eq(expanded_lhs, expanded_rhs)
         if not lhs_indices and not rhs_indices:
             # THIS SHOULD BE MOVED TODO
             expanded_equation = self.apply_functions(expanded_equation)
-            expanded_equation = self.convert_to_data_sets(expanded_equation)
+            #expanded_equation = self.convert_to_data_sets(expanded_equation)
             # Converting to dataObjects
             #for at in expanded_equation.atoms(DataObject):
                 #obj = DataSet(str(at)) # By default the location of the dataset is node (0,0,0)
@@ -473,7 +469,7 @@ class Equation(EinsteinStructure):
             expanded_equations = expand_free_indices(expanded_equation, lhs_indices, ndim)
             for no, eq in enumerate(expanded_equations):
                 eq = self.apply_functions(eq)
-                eq = self.convert_to_data_sets(eq)
+                #eq = self.convert_to_data_sets(eq)
                 expanded_equations[no] = eq
             #type_ofeq.add_equations(expanded_equations)
         else:
