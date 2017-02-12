@@ -29,7 +29,6 @@ def copy_block_attributes(block, otherclass):
     otherclass.ndim = block.ndim
     otherclass.block_name = block.blockname
     return
-    ## similar define attributes for constant objects
 
 class StencilObject(object):
     def __init__(self, name, stencil):
@@ -322,6 +321,16 @@ class Kernel(object):
                 block.block_datasets[str(d)] = d
         # Update rational constant attributes
         rational_constants = self.Rational_constants.union(self.Inverse_constants)
+        if self.computation_name == 'Viscous residual':
+            pprint([self.computation_name, rational_constants])
+            for eq in self.equations:
+                #pprint(eq)
+                a = Wild('a')
+                b = Wild('b')
+                print eq.atoms(Pow)
+                print eq.atoms(Rational)
+                #print eq.match(a*b**-1)
+                #print eq.atoms()
         #if rational_constants:
             #for rc in rational_constants:
                 #if rc not in block.Rational_constants.keys():

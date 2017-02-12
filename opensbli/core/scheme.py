@@ -155,7 +155,7 @@ class Central(Scheme):
         viscous, convective = self.classify_equations_on_parameter(equations, classify_parameter)
         convective_grouped = self.group_by_direction(convective)
         # Create equations for evaluation of derivatives
-        for key, value in convective_grouped.iteritems():
+        for key, value in convective_grouped.iteritems():            
             for v in value:
                 v.update_work(block)
         local_evaluations_group = {}
@@ -285,6 +285,16 @@ class Central(Scheme):
                     containing_terms[number] = Add(containing_terms[number],expr)
                 else:
                     other_terms[number] =Add(other_terms[number], expr)
+        # Zero out any other derivatives in the containing terms and other terms
+        for no, eq in enumerate(other_terms):
+            fns = [fn for fn in eq.atoms(Function) if not isinstance(fn, CentralDerivative)]
+            substitutions = dict(zip(fns, [0]*len(fns)))
+            other_terms[no] = other_terms[no].subs(substitutions)
+
+        for no, eq in enumerate(containing_terms):
+            fns = [fn for fn in eq.atoms(Function) if not isinstance(fn, CentralDerivative)]
+            substitutions = dict(zip(fns, [0]*len(fns)))
+            containing_terms[no] = containing_terms[no].subs(substitutions)
         return containing_terms, other_terms
 
     def traverse(self, CD, kernel_dictionary, block):

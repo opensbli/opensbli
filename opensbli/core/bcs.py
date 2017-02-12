@@ -33,21 +33,18 @@ class ExchangeSelf(Exchange):
         ## Range of evaluation (i.e. the grid points, including the halo points, over which the computation should be performed).
         self.computation_name = "exchange"
         self.block_number = block.blocknumber
+        self.block_name = block.blockname
         self.direction = direction
         self.side = side_names[side]
         return
     @property
     def name(self):
         return "%s%d"%(self.computation_name, self.number)
-    def set_name(self, name):
-        self.computation_name = name
-        return
 
-    def set_number(self, number):
-        self.number = number
-        return
     def set_arrays(self, arrays):
         self.transfer_arrays = flatten(arrays)
+        self.from_arrays = flatten(arrays)
+        self.to_arrays = flatten(arrays)
         return
 
     def set_transfer_from(self, transfer):
@@ -56,6 +53,9 @@ class ExchangeSelf(Exchange):
 
     def set_transfer_to(self, transfer):
         self.transfer_to = transfer
+        return
+    def set_transfer_size(self, size):
+        self.transfer_size = size
         return
     @property
     def algorithm_node_name(self):
@@ -67,6 +67,9 @@ class ExchangeSelf(Exchange):
         return
     @property
     def opsc_code(self):
+        """The string for calling the boundary condition in OPSC is update while creating 
+        the code for exchanging data
+        """
         return [self.call_name]
 
     #def set
@@ -142,7 +145,11 @@ class PeriodicBoundaryConditionBlock(BoundaryConditionBase):
         else:
             transfer_from[boundary_direction] = block.Idxed_shape[boundary_direction].upper + halos[boundary_direction][0]
             transfer_to[boundary_direction] = block.Idxed_shape[boundary_direction].lower + halos[boundary_direction][0]
+        transfer_size = [block.Idxed_shape[dire].upper + block.Idxed_shape[dire].lower + abs(halos[dire][0]) + abs(halos[dire][1]) for dire in range(block.ndim)]
+        transfer_size[boundary_direction] = abs(halos[boundary_direction][side])
+        print transfer_size
         ex = ExchangeSelf(block, boundary_direction, side)
+        ex.set_transfer_size(transfer_size)
         ex.set_transfer_from(transfer_from)
         ex.set_transfer_to(transfer_to)
         ex.set_arrays(arrays)

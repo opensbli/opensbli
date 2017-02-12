@@ -185,7 +185,7 @@ class DataSetBase(IndexedBase):
     @staticmethod
     def location():
         return [0 for i in range(DataSetBase.block.ndim)]
-
+    
     #def _pretty(self, printer):
         """Pretty Printing method. """
         #from sympy.printing.pretty.stringpict import prettyForm 
@@ -223,6 +223,9 @@ class DataSet(Indexed):
         expr = prettyForm(*printer.join(",", pforms).parens(left="[", right="]"))
         expr = prettyForm(*expr.left(printer._print(self.base)))
         return expr
+    @property
+    def get_grid_indices(self):
+        return [i for i in self.indices if not isinstance(i, Idx)]
             
 class ConstantIndexed(Indexed, Constant):
     def __new__(cls, label, indices, **kwargs):

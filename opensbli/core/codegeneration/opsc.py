@@ -19,12 +19,11 @@
 #    along with OpenSBLI.  If not, see <http://www.gnu.org/licenses/>.
 
 from sympy.printing.ccode import CCodePrinter
+from sympy.core.relational import Equality
 import os
 import logging
 LOG = logging.getLogger(__name__)
 BUILD_DIR = os.getcwd()
-
-dataset_accs_dictionary = {}
 
 def get_min_max_halo_values(halos):
     halo_m = []
@@ -45,15 +44,13 @@ def get_min_max_halo_values(halos):
 class OPSCCodePrinter(CCodePrinter):
 
     """ Prints OPSC code. """
+    dataset_accs_dictionary = {}
 
-    def __init__(self, Indexed_accs):
+    def __init__(self):
         """ Initialise the code printer. """
 
         settings = {}
         CCodePrinter.__init__(self, settings)
-
-        # Indexed access numbers are required in dictionary
-        self.Indexed_accs = Indexed_accs
 
     def _print_ReductionVariable(self, expr):
         return '*%s' % str(expr)
@@ -68,6 +65,9 @@ class OPSCCodePrinter(CCodePrinter):
         result = ','.join(args)
         result = 'fmod(%s)' % result
         return result
+    
+    def _print_GridVariable(self, expr):
+        return str(expr)
 
     def _print_Max(self,expr):
         nargs = len(expr.args)
@@ -94,15 +94,19 @@ class OPSCCodePrinter(CCodePrinter):
             return "MAX(MAX(MAX(%s,%s), MAX(%s,%s)), MAX(MAX(%s,%s),MAX(%s,%s)))"%(a,b,b,c,c,d,d,e)
         else:
             raise ValueError("Max for arguments %d is not defined in code printer or OPS"%nargs)
+    def _print_DataSetBase(self, expr):
+        return str(expr)
     def _print_DataSet(self, expr):
-        if self.DataSet_accs:
-            base = expr.base
-            if dataset_accs_dictionary[base]:
-                out = ["%s[%s(%s)]"%(self._print(base.label), dataset_accs_dictionary[base] , ','.join([self._print(i) for i in expr.indices]))]
-            else:
-                pass
-                #out = "%s[%s]" % (self._print(base.label), ','.join([self._print(index) for index in indices if not isinstance(index, Idx) else 0]))
-        return
+        base = expr.base
+        #print base
+        #print self.dataset_accs_dictionary.keys()
+        if self.dataset_accs_dictionary[base]:
+            indices = expr.get_grid_indices
+            out = "%s[%s(%s)]"%(self._print(base), self.dataset_accs_dictionary[base].name , ','.join([self._print(i) for i in indices]))
+            return out
+        else:
+            raise ValueError("Did not find the OPS Access for %s "% expr.base)
+         
     def _print_Indexed(self, expr):
         """ Print out an Indexed object.
 
@@ -112,34 +116,15 @@ class OPSCCodePrinter(CCodePrinter):
         """
 
         # Replace the symbols in the indices that are not time with `zero'
-        indices = [ind for ind in expr.indices if ind != EinsteinTerm('t')]
+        indices = [ind for ind in expr.indices]
         for number, index in enumerate(indices):
             for sym in index.atoms(Symbol):
                 indices[number] = indices[number].subs({sym: 0})
-        if self.Indexed_accs:
-            if self.Indexed_accs[expr.base]:
-                out = "%s[%s(%s)]" % (self._print(expr.base.label), self.Indexed_accs[expr.base], ','.join([self._print(index) for index in indices]))
-            else:
-                out = "%s[%s]" % (self._print(expr.base.label), ','.join([self._print(index) for index in indices]))
-        else:
-            out = "%s[%s]" % (self._print(expr.base.label), ','.join([self._print(index) for index in indices]))
+        out = "%s[%s]" % (self._print(expr.base.label), ','.join([self._print(index) for index in indices]))
         return out
 
-
-def pow_to_constant(expr, constants):
-    from sympy.core.function import _coeff_isneg
-    # Only negative powers i.e they correspond to division and they are stored into constant arrays
-    inverse_terms = {}
-    for at in expr.atoms(Pow):
-        if _coeff_isneg(at.exp) and not at.base.atoms(Indexed) and not at.base.atoms(GridVariable):
-            if not at in constants.keys():
-                constants[at] = 'rinv%d' % len(constants.keys())
-            inverse_terms[at] = constants[at]
-    expr = expr.subs(inverse_terms)
-    return expr, constants
-
-
-def ccode(expr, Indexed_accs=None):
+from opensbli.core.grid import GridVariable
+def ccode(expr):
     """ Create an OPSC code printer object and write out the expression as an OPSC code string.
 
     :arg expr: The expression to translate into OPSC code.
@@ -149,30 +134,19 @@ def ccode(expr, Indexed_accs=None):
     :rtype: str
     """
     if isinstance(expr, Eq):
-        code_print = OPSCCodePrinter(Indexed_accs)
+        code_print = OPSCCodePrinter()
         code = code_print.doprint(expr.lhs) \
-            + ' = ' + OPSCCodePrinter(Indexed_accs).doprint(expr.rhs)
+            + ' = ' + OPSCCodePrinter().doprint(expr.rhs) + ' ;'
+        if isinstance(expr.lhs, GridVariable):
+            code = "double " + code
         return code
-    return OPSCCodePrinter(Indexed_accs).doprint(expr)
+    else:
+        return OPSCCodePrinter().doprint(expr) + ' ;'
 
 from opensbli.core.kernel import Kernel
 from opensbli.core.algorithm import Loop
 from opensbli.core.opensbliobjects import *
 
-class BeforeTimeOpsc():
-    def __init__(self):
-        self.components = []
-        return
-    def add_components(self):
-        if isinstance(components, list):
-            self.components += components
-        else:
-            self.components += [components]
-class DeclareDataset(object):
-    def __init__(self, dataset, blocknumber):
-        self.dataset = dataset
-        self.block_number = blocknumber
-        return
 class WriteString(object):
     def __init__(self, string):
         if isinstance(string, list):
@@ -195,7 +169,8 @@ class OPSAccess(object):
         return
 
 class OPSC(object):
-
+    
+    ops_headers = {'input': "const %s *%s",  'output': '%s *%s', 'inout': '%s *%s'}
     def __init__(self, algorithm):
         """ Generating an OPSC code from the algorithm"""
         if not algorithm.MultiBlock:
@@ -212,9 +187,14 @@ class OPSC(object):
             f.close()
             self.write_kernels(algorithm)
         return
-    def convert_eq_to_indexed_accs(self, eqs):
-
-        return
+    
+    def kernel_header(self, tuple_list):
+        code = []
+        dtype = "double"
+        for key, val in (tuple_list):
+            code += [self.ops_headers[val]%(dtype, key)]
+        code = ','.join(code) + ')' + '\n{'
+        return code
     def kernel_computation_opsc(self, kernel):
         ins = kernel.rhs_datasets
         outs = kernel.lhs_datasets
@@ -223,25 +203,28 @@ class OPSC(object):
         outs = outs.difference(inouts)
         eqs = kernel.equations
         all_dataset_inps = list(ins) + list(outs) + list(inouts)
+        all_dataset_types = ['input' for i in ins] + ['output' for o in outs ] + ['inout' for io in inouts]
+        # Use list of tuples as dictionary messes the order 
+        header_dictionary = zip(all_dataset_inps, all_dataset_types)
+        if kernel.IndexedConstants:
+            for i in kernel.IndexedConstants:
+                header_dictionary += [tuple([(i.base), 'input'])]
+            #print kernel.computation_name, kernel.IndexedConstants
+        #print header_dictionary
+        out = ["void %s("%kernel.kernelname + self.kernel_header(header_dictionary)]
+        #all_dataset_inps = [str(i) for i in all_dataset_inps]
         ops_accs = [OPSAccess(no) for no in range(len(all_dataset_inps))]
-        dataset_accs_dictionary = dict(zip(all_dataset_inps, ops_accs))
-        v = list(eqs[0].atoms(DataSet))[0]
-        #print str(v.base) +'[' + str(dataset_accs_dictionary[v.base].name) + '()' + ']'
-        #pprint(eqs)
-        #if self.DataSet_accs:
-        dsets = set()
-        for e in kernel.required_data_sets:
-            print e
-        #base = expr.base
-        #if dataset_accs_dictionary[base]:
-            #out = ["%s[%s(%s)]"%(self._print(base.label), dataset_accs_dictionary[base] , ','.join([self._print(i) for in expr.indices)])]
-        #else:
-            #out = "%s[%s]" % (self._print(base.label), ','.join([self._print(index) for index in indices if not isinstance(index, Idx) else 0]))
-
-        return
+        OPSCCodePrinter.dataset_accs_dictionary = dict(zip(all_dataset_inps, ops_accs))
+        out += [ccode(eq) for eq in kernel.equations if isinstance(eq, Equality)] + ['}']
+        OPSCCodePrinter.dataset_accs_dictionary = {}
+        return out
     def write_kernels(self, algorithm):
         kernels = self.loop_alg(algorithm, Kernel)
-        self.kernel_computation_opsc(kernels[0])
+        files = [open('%s_kernels.h'%b.block_name, 'w') for b in algorithm.block_descriptions]
+        for k in kernels:
+            out = self.kernel_computation_opsc(k) + ['\n']
+            files[k.block_number].write('\n'.join(out))
+        files = [f.close() for f in files]
         return
 
     def ops_exit(self):
@@ -338,22 +321,24 @@ class OPSC(object):
     def bc_exchange_call_code(self, instance):
         off = 0
         halo = 'halo'
-        instance.transfer_size = instance.transfer_from
+        #instance.transfer_size = instance.transfer_from
         # Name of the halo exchange
         name = instance.name
         #self.halo_exchange_number = self.halo_exchange_number + 1
-        code = ['// Boundary condition exchange code' ]
+        code = ['// Boundary condition exchange code on %s direction %s %s'%(instance.block_name,instance.direction, instance.side) ]
         code += ['ops_halo_group %s %s' % (name, ";")]
         code += ["{"]
         code += ['int halo_iter[] = {%s}%s' % (', '.join([str(s) for s in instance.transfer_size]), ";")]
         code += ['int from_base[] = {%s}%s' % (', '.join([str(s) for s in instance.transfer_from]), ";")]
         code += ['int to_base[] = {%s}%s' % (', '.join([str(s) for s in instance.transfer_to]), ";")]
-        # dir in OPSC. FIXME: Not sure what it is, but 1 to ndim works.
+        # dir in OPSC. WARNING: Not sure what it is, but 1 to ndim works.
         code += ['int dir[] = {%s}%s' % (', '.join([str(ind+1) for ind in range(len(instance.transfer_to))]), ";")]
         # Process the arrays
-        for arr in instance.transfer_arrays:
+        for no, arr in enumerate(instance.transfer_arrays):
+            from_array = instance.from_arrays[no]
+            to_array = instance.to_arrays[no]
             code += ['ops_halo %s%d = ops_decl_halo(%s, %s, halo_iter, from_base, to_base, dir, dir)%s'
-                     % (halo, off, arr.base, arr.base, ";")]
+                     % (halo, off, from_array.base, to_array.base, ";")]
             off = off+1
         code += ['ops_halo grp[] = {%s}%s' % (','.join([str('%s%s' % (halo, of)) for of in range(off)]), ";")]
         code += ['%s = ops_decl_halo_group(%d,grp)%s' % (name, off, ";")]
