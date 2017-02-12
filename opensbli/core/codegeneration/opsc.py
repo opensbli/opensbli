@@ -138,7 +138,7 @@ def ccode(expr):
         code = code_print.doprint(expr.lhs) \
             + ' = ' + OPSCCodePrinter().doprint(expr.rhs) + ' ;'
         if isinstance(expr.lhs, GridVariable):
-            code = "double " + code
+            code = "double " + code # WARNING dtype
         return code
     else:
         return OPSCCodePrinter().doprint(expr) + ' ;'
@@ -190,7 +190,7 @@ class OPSC(object):
     
     def kernel_header(self, tuple_list):
         code = []
-        dtype = "double"
+        dtype = "double" # WARNING dtype
         for key, val in (tuple_list):
             code += [self.ops_headers[val]%(dtype, key)]
         code = ','.join(code) + ')' + '\n{'
@@ -234,8 +234,7 @@ class OPSC(object):
         out = ['#include <stdlib.h> \n#include <string.h> \n#include <math.h>']
         for d in algorithm.defnitionsdeclarations.components:
             if isinstance(d, Constant):
-                out += ["double %s;"%d]
-
+                out += ["double %s;"%d] # WARNING dtype
         for b in algorithm.block_descriptions:
             out += ['#define OPS_%dD'%b.ndim]
         out += ['#include ops_seq.h']

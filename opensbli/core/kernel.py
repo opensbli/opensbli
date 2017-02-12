@@ -253,15 +253,15 @@ class Kernel(object):
         #pprint(self.stencil_names)
         code += ['ops_par_loop(%s, \"%s\", %s, %s, %s' % (name, self.computation_name, block_name, self.ndim, iter_name)]
         for i in ins:
-            code += ['ops_arg_dat(%s, %d, %s, \"%s\", %s)'%(i, 1, self.stencil_names[i], "double", self.opsc_access['ins'])]
+            code += ['ops_arg_dat(%s, %d, %s, \"%s\", %s)'%(i, 1, self.stencil_names[i], "double", self.opsc_access['ins'])] # WARNING dtype
         for o in outs:
-            code += ['ops_arg_dat(%s, %d, %s, \"%s\", %s)'%(o, 1, self.stencil_names[o], "double", self.opsc_access['outs'])]
+            code += ['ops_arg_dat(%s, %d, %s, \"%s\", %s)'%(o, 1, self.stencil_names[o], "double", self.opsc_access['outs'])] # WARNING dtype
         for io in inouts:
-            code += ['ops_arg_dat(%s, %d, %s, \"%s\", %s)'%(io, 1, self.stencil_names[io], "double", self.opsc_access['inouts'])]
+            code += ['ops_arg_dat(%s, %d, %s, \"%s\", %s)'%(io, 1, self.stencil_names[io], "double", self.opsc_access['inouts'])] # WARNING dtype
         if self.IndexedConstants:
             for c in self.IndexedConstants:
                 code += ["ops_arg_gbl(&%s, %d, \"%s\", %s)"%(c, 1, "double", self.opsc_access['ins'])]
-        code = [',\n'.join(code) + ');\n\n']
+        code = [',\n'.join(code) + ');\n\n'] # WARNING dtype
         return code
 
 
