@@ -209,6 +209,9 @@ class OPSC(object):
         if kernel.IndexedConstants:
             for i in kernel.IndexedConstants:
                 header_dictionary += [tuple([(i.base), 'input'])]
+        if kernel.computation_name == 'Weno_reconstruction_0_direction':
+            print ins, outs, inouts
+            #exit()
             #print kernel.computation_name, kernel.IndexedConstants
         #print header_dictionary
         out = ["void %s("%kernel.kernelname + self.kernel_header(header_dictionary)]

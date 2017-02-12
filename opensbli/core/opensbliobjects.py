@@ -151,22 +151,29 @@ from sympy.core.compatibility import is_sequence, string_types, NotIterable, ran
 
 class DataSetBase(IndexedBase):
     is_commutative = True
-    is_Symbol = True
-    is_symbol = True
+    #is_Symbol = True
+    #is_symbol = True
     is_Atom = True
     block = None
     def __new__(cls, label, **kw_args):
         if not cls.block:
             raise ValueError("Set the block for DataSetBase")
         #sym = Symbol("%s_B%d"%(label, cls.block.blocknumber))
+        sym = label
         shape = list(cls.block.shape) + [Idx(cls.block.blockname)]
         #cls.label = label
-        ret = super(DataSetBase, cls).__new__(cls, label, shape, **kw_args)
+        ret = super(DataSetBase, cls).__new__(cls, sym, shape, **kw_args)
         ret.blockname = cls.block.blockname
         ret.blocknumber = cls.block.blocknumber
         return ret
-    def __hash__(cls):
-        return hash(str(cls.label) + str(cls.blockname))
+    def __hash__(self):
+        h = hash(self._hashable_content())
+        self._mhash = h
+        return h
+    def _hashable_content(self):
+        #print "IN ", self._args
+        #exit()
+        return str(self.label) + self.blockname
     def __getitem__(cls, indices, **kw_args):
         if len(indices) == len(cls.shape) and indices[-1] == Idx(cls.blockname):
             pass
@@ -176,6 +183,7 @@ class DataSetBase(IndexedBase):
             raise IndexException("Rank mismatch.")
         return DataSet(cls, *indices)
     def _sympystr(self, p):
+        """ For clarity the block number is printed"""
         return "%s_B%s"%(str(self.label), str(self.blocknumber))
     def simplelabel(self):
         """Returns the abse label in case we need to add strings to the end of it 
@@ -185,6 +193,7 @@ class DataSetBase(IndexedBase):
     @staticmethod
     def location():
         return [0 for i in range(DataSetBase.block.ndim)]
+    #def __eq__(
     
     #def _pretty(self, printer):
         """Pretty Printing method. """
