@@ -66,6 +66,7 @@ eqns = eq.expand(momentum, ndim, coordinate_symbol, substitutions, constants)
 simulation_eq.add_equations(eqns)
 eqns = eq.expand(energy, ndim, coordinate_symbol, substitutions, constants)
 simulation_eq.add_equations(eqns)
+#exit()
 #OpenSBLIExpression(simulation_eq.equations[0].rhs)
 # Parse the constituent relations
 constituent = ConstituentRelations()
@@ -113,7 +114,7 @@ weno_order = 3
 weno = True
 Euler_eq = EulerEquations(ndim, weno)
 ev_dict, LEV_dict, REV_dict = Euler_eq.generate_eig_system() # Taking more time on my personal computer SPJ
-# 
+#
 Avg = SimpleAverage([0, 1])
 
 LLF = LLFCharacteristic(ev_dict, LEV_dict, REV_dict, weno_order, ndim, Avg)
@@ -128,13 +129,29 @@ schemes[LLF.name] = LLF
 block.sbli_rhs_discretisation = True
 boundaries = [PeriodicBoundaryConditionBlock()]*2*ndim
 block.set_block_boundaries(boundaries)
-block.set_equations([constituent,simulation_eq])
+block.set_equations([copy.deepcopy(constituent),copy.deepcopy(simulation_eq)])
 block.set_discretisation_schemes(schemes)
 
 block.discretise()
 #exit()
-# This creates the traditional algorithm
+#print 'block1 \n\n'
+#pprint(simulation_eq.equations[0])
+## This creates the traditional algorithm
+#block1 = SimulationBlock(ndim, block_number = 1)
+#block1.sbli_rhs_discretisation = True
+#boundaries = [PeriodicBoundaryConditionBlock()]*2*ndim
+#block1.set_block_boundaries(boundaries)
+#block1.set_equations([copy.deepcopy(constituent),copy.deepcopy(simulation_eq)])
+#block1.set_discretisation_schemes(schemes)
+#block1.discretise()
+#from .block import DataSetsToDeclare
+print DataSetsToDeclare.datasetbases
+#print block1.block_datasets
+#print block.block_datasets
+#for key in block.block_datasets:
+    #print key, bl  ock.block_datasets[key], block.block_datasets[key].__dict__
 alg = TraditionalAlgorithmRK(block)
+
 OPSC(alg)
 # Create a descritisation class where the equations are deepcopied using deepcopy
 #ex = copy.deepcopy(simulation_eq)
@@ -148,6 +165,15 @@ BC's, Simulatio_eq.spatial_kernels, Time_kernles], rkend, Diagnostics, output, t
 output, diagnostics, programend]
 
 """
+latex = LatexWriter()
+latex.open('./equations.tex')
+metadata = {"title": "Einstein Expansion of equations", "author": "Jammy", "institution": ""}
+latex.write_header(metadata)
+for index, eq in enumerate(flatten(simulation_eq.equations)):
+    if isinstance(eq, Equality):
+        latex.write_expression(eq)
+latex.write_footer()
+latex.close()
 
 
 #################
