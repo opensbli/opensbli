@@ -2,14 +2,14 @@ from sympy import *
 from .opensblifunctions import *
 from opensbli.core import *
 from .grid import GridVariable
+from .opensbliequations import *
 
 class Scheme(object):
     """ A numerical discretisation scheme. """
     def __init__(self, name, order):
         """ Initialise the scheme.
         :arg str name: The name of the scheme.
-        :arg int order: The order of the scheme.
-        """
+        :arg int order: The order of the scheme."""
         self.name = name
         self.order = order
         return
@@ -27,6 +27,9 @@ class WenoHalos(object):
 
 class ConfigureWeno(object):
     def __init__(self, k, side):
+        """ Object containing the parameters needed by the WENO reconstruction for a given side.
+        arg: int: k: WENO coefficient k, equal to scheme order = 2k - 1.
+        arg: int: side: Side of the WENO reconstruction, either -1 (left) or +1 (right)."""
         self.side = side
         if self.side == -1:
             self.name, self.short_name, self.shift = 'left', 'L', 1
@@ -42,15 +45,16 @@ class ConfigureWeno(object):
 
     @property
     def generate_symbolic_function_points(self):
-        #ndim = DataSet.dimensions
-        #DataSet.dimensions = 1
+        """ Creates a set of symbolic function points f[0], f[1], ... to be used in the 
+        WENO reconstruction, and a dictionary linking each function point to its index.
+        :returns list symbolic_functions: The symbolic function points.
+        :returns dict symbolic_function_dictionary: A dictionary of index:symbolic function pairs."""
         f = IndexedBase('f')
         symbolic_functions = []
         symbolic_function_dictionary = {}
         for p in set(self.func_points):
             symbolic_functions.append(f[p])
             symbolic_function_dictionary[p] = symbolic_functions[-1]
-        #DataSet.dimensions = ndim
         return symbolic_functions, symbolic_function_dictionary
 
     def generate_eno_coefficients(self, k):
@@ -58,10 +62,8 @@ class ConfigureWeno(object):
         of 'Essentially Non-Oscillatory and Weighted Essentially Non-Oscillatory Schemes
         for Hyperbolic Conservation Laws' by Shu(1997). Computation is of equation (2.21).
 
-        :arg int k: WENO coefficient k, equal to scheme order = 2k - 1.
-        :arg int side: Reconstruction side. -1 for left, 1 for right.
-        :returns: dict c_rj: Dictionary in the form (r,j) : ENO coefficient c_rj.
-        """
+        :arg int: k: WENO coefficient k, equal to scheme order = 2k - 1.
+        :returns: dict: c_rj: Dictionary in the form (r,j) : ENO coefficient c_rj."""
         if self.side == 1:
             d = 1
         elif self.side == -1:
@@ -86,8 +88,8 @@ class ConfigureWeno(object):
         return c_rj
 
     def generate_optimal_weights(self):
-      """
-      """
+      """ Creates the optimal weights d_r needed by the WENO scheme, as specified in Shu(1997).
+      :returns dict: coeff_dict: A dictionary of the optimal weights. """
       # Store reconstruction coefficients to form the sum
       k, c_rj, c2_rj = self.k, self.c_rj, self.c2_rj
       opt_weights = [Symbol('d_%d' % r) for r in range(k)]
@@ -107,10 +109,9 @@ class ConfigureWeno(object):
       return coeff_dict
 
     def generate_left_right_points(self):
-        """ Populate the function evaluation points for left and right reconstruction.
-        args: None
-        returns: list: fn_points
-        """
+        """ Evaluate the required function evaluation points for left and 
+        right WENO reconstructions.
+        returns: list: fn_points: A list of integers to index the function locations."""
         k = self.k
         if self.side == -1:
             c = 1
@@ -123,12 +124,16 @@ class ConfigureWeno(object):
 
 class JS_smoothness(object):
     def __init__(self, k):
+        """ An object to hold the Jiang-Shu smoothness coefficients. Listed as Eq(3.1) in 
+        'WENO coefficient k, equal to scheme order = 2k - 1.' Shu(1996)."""
         self.k = k
         self.smooth_coeffs = self.generate_smoothness_coefficients()
         return
 
     def generate_smoothness_coefficients(self):
-      """Extracts the JS smoothness coefficients."""
+      """Extracts the JS smoothness coefficients.
+      returns: dict: Dictionary of coefficients used in the generation of the smoothness indicators
+      calculated in the 'generate_function_smoothness_indicators' routine."""
       k = self.k
       smooth_coeffs = {}
       x, dx = Symbol('x'), Symbol('dx')
@@ -161,6 +166,9 @@ class JS_smoothness(object):
       return smooth_coeffs
 
     def generate_function_smoothness_indicators(self, fn):
+        """ Generates the standard Jiang-Shu smoothness indicators as polynomials in the
+        symbolic placeholder functions 'f'.
+        arg: object: fn: The reconstruction variable object to contain the smoothness indicators."""
         if isinstance(fn, LeftReconstructionVariable):
             shift = 1
         elif isinstance(fn, RightReconstructionVariable):
@@ -182,6 +190,8 @@ class JS_smoothness(object):
 
 class ReconstructionVariable(object):
     def __init__(self, name):
+        """ Reconstruction variable object to hold the quantities required for WENO.
+        arg: str: name: Name of the reconstruction, either left or right."""
         self.name = name
         self.smoothness_indicators = []
         self.smoothness_symbols = []
@@ -193,32 +203,11 @@ class ReconstructionVariable(object):
         self.reconstructed_expression = None
         self.reconstructed_symbol = GridVariable('%s_%s' % ('reconstruct', name))
         return
-    @property
-    def create_equations(self):
-        all_symbols = self.smoothness_symbols + self.alpha_symbols + self.omega_symbols
-        all_evaluations = self.smoothness_indicators + self.alpha_evaluated + self.omega_evaluated
 
-        all_equations = (zip(all_symbols, all_evaluations))
-        pprint(all_equations)
-        return all_equations
-
-    def create_function_equations(self, drv):
-        all_eqs = drv.create_equations
-        old_eq = all_eqs[:]
-        subs_dict = {}
-        for p in drv.func_points:
-            subs_dict[drv.function_stencil_dictionary[p]] = self.function_stencil_dictionary[p]
-        pprint(subs_dict)
-        for no, eq in enumerate(all_eqs):
-            all_eqs[no] = tuple([eq[0].subs(subs_dict), eq[1].subs(subs_dict)])
-        for no, eq in enumerate(all_eqs):
-            pprint(Eq(eq[0], eq[1]))
-            pprint(Eq(old_eq[no][0], old_eq[no][1]))
-        # pprint(all_eqs)
-        return
-
-    def update(self, original):
-        print self.name
+    def update_quantities(self, original):
+        """ Updates the quantities required by WENO in the reconstruction variable.
+        arg: object: original: Reconstruction object variable, either left or right reconstruction."""
+        print "Reconstruction variable: ", self.name
         self.smoothness_symbols += [GridVariable('%s%s' % (s, self.name)) for s in original.smoothness_symbols]
         self.alpha_symbols += [GridVariable('%s_%s' % (s, self.name)) for s in original.alpha_symbols]
         self.omega_symbols += [GridVariable('%s_%s' % (s, self.name)) for s in original.omega_symbols]
@@ -245,20 +234,24 @@ class ReconstructionVariable(object):
 
 class LeftReconstructionVariable(ReconstructionVariable):
     def __init__(self, name):
+        """ Reconstruction object for the left reconstruction.
+        arg: str: name: 'left' """
         ReconstructionVariable.__init__(self, name)
         return
 
 class RightReconstructionVariable(ReconstructionVariable):
     def __init__(self, name):
+        """ Reconstruction object for the right reconstruction.
+        arg: str: name: 'right' """
         ReconstructionVariable.__init__(self, name)
         return
 
 class Weno(Scheme):
-    """ Main WENO class."""
+    """ Main WENO class. Performs the Jiang-Shu WENO reconstruction procedure. Refer to the reference: 
+    'Essentially Non-Oscillatory and Weighted Essentially Non-Oscillatory schemes for Hyperbolic Conservation
+    laws. Shu (1997). The alpha & omega quantities follow the description from this paper."""
     def __init__(self, order, **kwargs):
-        """
-        :returns: None
-        """
+        """ :arg: int order: Numerical order of the WENO scheme (3,5,...). """
         Scheme.__init__(self, "WenoDerivative", order)
         self.eps = Symbol('epsilon')
         k = int(0.5*(order+1))
@@ -270,59 +263,54 @@ class Weno(Scheme):
         # Generate smoothness coefficients and store configurations for left and right reconstructions.
         smooth_coeffs = JS.smooth_coeffs
         self.reconstruction_classes = [LeftReconstructionVariable('left'), RightReconstructionVariable('right')]
+        # Populate the quantities required by WENO for the left and right reconstruction variable. 
         for no, side in enumerate([-1, 1]):
-
             WenoConfig = ConfigureWeno(self.k, side)
-            rc = self.reconstruction_classes[no]
-            rc.func_points = sorted(set(WenoConfig.func_points))
-            rc.stencil_points, rc.function_stencil_dictionary = WenoConfig.generate_symbolic_function_points
-            JS.generate_function_smoothness_indicators(rc)
-
-            self.generate_alphas(rc, WenoConfig)
-            self.generate_omegas(rc, WenoConfig)
-            self.generate_reconstruction(rc, WenoConfig)
-            self.reconstruction_classes[no] = rc
-
-        # a = LeftReconstructionVariable('test')
-        # a.function_stencil_dictionary = {}
-        # t = DataSet('e')
-        # fn = (DataSet('p')+DataSet('rhoE'))*DataSet('u0')
-        # fn = DataSet('rhoE')*DataSet('u0')
-        # for k in self.reconstruction_classes[0].func_points:
-        #     loc = t.location
-        #     loc[0] = loc[0] + k
-        #     local_dict = {}
-        #     for d in fn.atoms(DataSet):
-        #         local_dict[d] = d.get_location_dataset(loc)
-        #     a.function_stencil_dictionary[k] = fn.subs(local_dict)
-        # pprint(a.function_stencil_dictionary)
-        # self.reconstruction_classes[0].create_equations
-        # a.create_function_equations(self.reconstruction_classes[0])
-        # exit()
+            RV = self.reconstruction_classes[no]
+            RV.func_points = sorted(set(WenoConfig.func_points))
+            RV.stencil_points, RV.function_stencil_dictionary = WenoConfig.generate_symbolic_function_points
+            JS.generate_function_smoothness_indicators(RV)
+            self.generate_alphas(RV, WenoConfig)
+            self.generate_omegas(RV, WenoConfig)
+            self.generate_reconstruction(RV, WenoConfig)
+            self.reconstruction_classes[no] = RV
         return
 
-    def generate_alphas(self, fn, WenoConfig):
+    def generate_alphas(self, RV, WenoConfig):
+        """ Create the alpha terms for the non-linear WENO weights.
+        arg: object RV: The reconstruction variable object.
+        arg: object WenoConfig: Configuration settings for a reconstruction of either left or right."""
         for r in range(self.k):
-            fn.alpha_symbols += [Symbol('alpha_%d' % r)]
-            fn.alpha_evaluated.append(WenoConfig.opt_weights.get((0,r))/(self.eps+fn.smoothness_symbols[r])**2)
+            RV.alpha_symbols += [Symbol('alpha_%d' % r)]
+            RV.alpha_evaluated.append(WenoConfig.opt_weights.get((0,r))/(self.eps+RV.smoothness_symbols[r])**2)
         return
 
-    def generate_omegas(self, fn, WenoConfig):
+    def generate_omegas(self, RV, WenoConfig):
+        """ Create the omega terms for the non-linear WENO weights.
+        arg: object RV: The reconstruction variable object.
+        arg: object WenoConfig: Configuration settings for a reconstruction of either left or right."""
         for r in range(self.k):
-            fn.omega_symbols += [Symbol('omega_%d' % r)]
-            fn.omega_evaluated += [fn.alpha_symbols[r]/sum(fn.alpha_symbols)]
+            RV.omega_symbols += [Symbol('omega_%d' % r)]
+            RV.omega_evaluated += [RV.alpha_symbols[r]/sum(RV.alpha_symbols)]
         return
 
-    def generate_reconstruction(self, fn, WenoConfig):
+    def generate_reconstruction(self, RV, WenoConfig):
+        """ Create the final WENO stencil by summing the stencil points, ENO coefficients and WENO weights..
+        arg: object RV: The reconstruction variable object.
+        arg: object WenoConfig: Configuration settings for a reconstruction of either left or right."""
         stencil = 0
         k, c_rj = self.k, WenoConfig.c_rj
         for r in range(k):
-            eno_expansion = [c_rj.get((r,j))*fn.function_stencil_dictionary[WenoConfig.func_points[r*k+j]] for j in range(k)]
-            stencil += fn.omega_symbols[r]*sum(eno_expansion)
-        fn.reconstructed_expression = stencil
+            eno_expansion = [c_rj.get((r,j))*RV.function_stencil_dictionary[WenoConfig.func_points[r*k+j]] for j in range(k)]
+            stencil += RV.omega_symbols[r]*sum(eno_expansion)
+        RV.reconstructed_expression = stencil
         return
 
     def interpolate_reconstruction_variables(self, derivatives, kernel):
+        """ Perform the WENO interpolation on the reconstruction variables.
+        arg: list: derivatives: A list of the WENO derivatives to be computed.
+        arg: object: kernel: The current computational kernel. 
+        """
         for d in derivatives:
             pprint(d)
             for rv in d.reconstructions:
@@ -332,17 +320,21 @@ class Weno(Scheme):
                     original_rv = self.reconstruction_classes[0]
                 else:
                     raise ValueError ("Reconstruction must be left or right")
-                rv.update(original_rv)
+                rv.update_quantities(original_rv)
                 rv.add_evaluations_to_kernel(kernel)
         return
 
     def update_constituent_relation_symbols(self, sym, direction):
+        """ Function to take the set of required quantities from the constituent relations in symbolic form
+         and update the directions in which they are used.
+        arg: set: sym: Set of required symbols. 
+        arg: int: direction: The axis on which WENO is being applied to (x0, x1 ..)."""
         if isinstance(sym, Symbol):
             sym = [sym]
         elif isinstance(sym, list) or isinstance(sym, set):
             pass
         else:
-            raise ValueError("the symbol provided should be either a list or symbols")
+            raise ValueError("The symbol provided should be either a list or symbols")
 
         for s in sym:
             if s in self.required_constituent_relations_symbols.keys():
@@ -352,6 +344,8 @@ class Weno(Scheme):
         return
 
     def generate_constituent_relations_kernels(self, block):
+        """ Generates constituent relation kernels on the block. 
+        arg: object: block: The current block."""
         crs = {}
         for key in self.required_constituent_relations_symbols:
             pprint([key, self.required_constituent_relations_symbols[key]])
@@ -361,11 +355,15 @@ class Weno(Scheme):
                 kernel.set_halo_range(direction, 0, self.halotype)
                 kernel.set_halo_range(direction, 1, self.halotype)
             crs[DataSetBase(str(key))[DataSetBase.location()]] = kernel
-
         return crs
 
 class EigenSystem(object):
     def __init__(self, eigenvalue, left_ev, right_ev):
+        """ Class to hold the routines required by the characteristic decomposition of the Euler equations. The input
+        is the eigensystems used to diagonalise the Jacobian in each direction. 
+        arg: dict: eigenvalue: Dictionary of diagonal matrices containing the eigenvalues in each direction.
+        arg: dict: left_ev: Dictionary of matrices containing the left eigenvectors in each direction.
+        arg: dict: right_ev: Dictionary of matrices containing the right eigenvectors in each direction. """
         if not isinstance(left_ev, dict) or not isinstance(right_ev, dict) or not isinstance(eigenvalue, dict):
             raise ValueError("Eigen values and eigen vectors should be in dictionary format")
         self.eigen_value = eigenvalue
@@ -374,27 +372,34 @@ class EigenSystem(object):
         return
 
     def get_symbols_in_ev(self, direction):
+        """ Retrieve the unique symbols present in the eigenvalue matrix for a given direction."""
         return self.eigen_value[direction].atoms(Symbol)
 
     def get_symbols_in_LEV(self, direction):
+        """ Retrieve the unique symbols present in the left eigenvector matrix for a given direction."""
         return self.left_eigen_vector[direction].atoms(Symbol)
 
     def get_symbols_in_REV(self, direction):
+        """ Retrieve the unique symbols present in the right rigenvector matrix for a given direction."""
         return self.right_eigen_vector[direction].atoms(Symbol)
 
     def generate_grid_variable_ev(self, direction, name):
+        """ Create a matrix of eigenvalue GridVariable elements. """
         name = '%s_%d_lambda' % (name, direction)
         return self.symbol_matrix(self.eigen_value[direction].shape, name)
 
     def generate_grid_variable_REV(self, direction, name):
+        """ Create a matrix of right eigenvector GridVariable elements. """
         name = '%s_%d_REV' % (name, direction)
         return self.symbol_matrix(self.right_eigen_vector[direction].shape, name)
 
     def generate_grid_variable_LEV(self, direction, name):
+        """ Create a matrix of left eigenvector GridVariable elements. """
         name = '%s_%d_LEV' % (name, direction)
         return self.symbol_matrix(self.left_eigen_vector[direction].shape, name)
 
     def symbol_matrix(self, shape, name):
+        """ Generic function to populate a matrix of GridVariables for a given name and shape."""
         symbolic_matrix = zeros(*shape)
         for i in range(shape[0]):
             for j in range(shape[1]):
@@ -402,27 +407,35 @@ class EigenSystem(object):
         return symbolic_matrix
 
     def convert_matrix_to_grid_variable(self, mat, name):
-        """Converts the given matrix function to grid variable equivalent
-        """
+        """ Converts the given symbolic matrix to grid variable equivalent.
+        arg: Matrix: mat: Symbolic matrix to convert to GridVariable elements.
+        arg: str: name: Base name to use for the GridVariables
+        returns: mat: The matrix updated to contain GridVariables."""
         syms = list(mat.atoms(Symbol))
         new_syms = [GridVariable('%s_%s'%(name,str(sym))) for sym in syms]
         substitutions = dict(zip(syms, new_syms))
         mat = mat.subs(substitutions)
         return mat
 
-    def generate_equations_from_matrices(self, m1, m2):
-
-        if m1.shape != m2.shape:
+    def generate_equations_from_matrices(self, lhs_matrix, rhs_matrix):
+        """ Forms a matrix containing Sympy equations at each element, given two input matrices.
+        arg: Matrix: lhs_matrix: The elements of lhs_matrix form the LHS of the output equations.
+        arg: Matrix: rhs_matrix: The elements of rhs_matrix form the RHS of the output equations.
+        returns: Matrix: equations: A matrix containing an Eq(lhs, rhs) pair in each element."""
+        if lhs_matrix.shape != rhs_matrix.shape:
             raise ValueError("Matrices should have the same dimension.")
-        equations = zeros(*m1.shape)
-        for no, v in enumerate(m1):
-            if m2[no] != 0:
-                equations[no] = Eq(v, m2[no])
+        equations = zeros(*lhs_matrix.shape)
+        for no, v in enumerate(lhs_matrix):
+            if rhs_matrix[no] != 0:
+                equations[no] = Eq(v, rhs_matrix[no])
         return equations
 
     def increment_dataset(self, expression, direction, value):
-        """
-        Increments a dataset by the given increment in the direction passed to the characteristic routine.
+        """ Increments an expression containing datasets by the given increment and direction.
+        arg: object: expression: A SymPy expression containing datasets to have their indices updated.
+        arg: int: direction: The integer direction to apply the increment. (which DataSet axis to apply to)
+        arg: int: value: The positive or negative change to apply to the DataSet's index.
+        returns: object: expression: The original expression updated to the new DataSet location. 
         """
         for dset in expression.atoms(DataSet):
             loc = list(dset.indices)
@@ -432,25 +445,32 @@ class EigenSystem(object):
         return expression
 
     def convert_symbolic_to_dataset(self, symbolics, location, direction):
-
+        """ Converts symbolic terms to DataSets. 
+        arg: object: symbolics: Expression containing Symbols to be converted into DataSets.
+        arg: int: location: The integer location to apply to the DataSet.
+        arg: int: direction: The integer direction (axis) of the DataSet to apply the location to.
+        returns: object: symbolics: The original expression updated to be in terms of DataSets rather than Symbols."""
         symbols = symbolics.atoms(Symbol)
         dsets = [DataSetBase(s) for s in symbols]
-        print "YES"
         loc = DataSetBase.location()
-        print loc
         loc[direction] = loc[direction] + location
         location_datasets = [d[loc] for d in dsets]
         substitutions = dict(zip(symbols, location_datasets))
-
         return symbolics.subs(substitutions)
 
 class Characteristic(EigenSystem):
     def __init__(self,  eigenvalue, left_ev, right_ev):
-        """ This holds the logic for the reconstruction procedure"""
+        """ Class containing the routines required to perform the characteristic decomposition.
+        arg: dict: eigenvalue: Dictionary of diagonal matrices containing the eigenvalues in each direction.
+        arg: dict: left_ev: Dictionary of matrices containing the left eigenvectors in each direction.
+        arg: dict: right_ev: Dictionary of matrices containing the right eigenvectors in each direction. """
         EigenSystem.__init__(self, eigenvalue, left_ev, right_ev)
         return
 
     def group_by_direction(self, eqs):
+        """ Groups the input equations by the direction (x0, x1, ...) they depend upon.
+        arg: list: eqs: List of equations to group by direction.
+        returns: dict: grouped: Dictionary of {direction: equations} key, value pairs for equations grouped by direction."""
         all_WDS = []
         for eq in eqs:
             all_WDS += list(eq.atoms(WenoDerivative))
@@ -464,10 +484,13 @@ class Characteristic(EigenSystem):
                 grouped[direction] = [cd]
         return grouped
 
-
     def pre_process(self, direction, derivatives, solution_vector, kernel):
-        """
-        """
+        """ Performs the transformation of the derivatives into characteristic space using the eigensystems provided to Characteristic. Flux splitting is then applied
+        to the characteristic variables in preparation for the WENO interpolation. Required quantities are added to pre_process_equations. 
+        arg: int: direction: Integer direction to apply the characteristic decomposition and WENO (x0, x1, ...).
+        arg: list: derivatives: The derivatives to perform the characteristic decomposition and WENO on.
+        arg: list: solution_vector: Solution vector from the Euler equations (rho, rhou0, rhou1, rhou2, rhoE) in vector form.
+        arg: object: kernel: The current computational kernel."""
         self.direction = direction
         pre_process_equations = []
         required_symbols = self.get_symbols_in_ev(direction).union(self.get_symbols_in_LEV(direction)).union(self.get_symbols_in_REV(direction))
@@ -477,13 +500,10 @@ class Characteristic(EigenSystem):
         averaged_equations = self.average(required_symbols, direction, averaged_suffix_name)
         pre_process_equations += averaged_equations
         # Eigensystem based on averaged quantities
-
         avg_LEV_values = self.convert_matrix_to_grid_variable(self.left_eigen_vector[direction], averaged_suffix_name)
         # Grid variables to store averaged eigensystems
         grid_LEV = self.generate_grid_variable_LEV(direction, averaged_suffix_name)
-
         pre_process_equations += flatten(self.generate_equations_from_matrices(grid_LEV ,avg_LEV_values))
-
         # Transform the flux vector and the solution vector to characteristic space
         characteristic_flux_vector, CF_matrix = self.flux_vector_to_characteristic(derivatives, direction, averaged_suffix_name)
         characteristic_solution_vector, CS_matrix = self.solution_vector_to_characteristic(solution_vector, direction, averaged_suffix_name)
@@ -502,11 +522,14 @@ class Characteristic(EigenSystem):
             self.generate_left_reconstruction_variables(negative_flux, derivatives)
         else:
             raise NotImplementedError("Only flux splitting is implemented in characteristic.")
-        # self.pre_process_equations = pre_process_equations
         kernel.add_equation(pre_process_equations)
         return
 
     def post_process(self, derivatives, kernel):
+        """ Transforms the characteristic WENO interpolated fluxes back into real space by multiplying by the right
+        eigenvector matrix.
+        arg: list: derivatives: The derivatives to perform the characteristic decomposition and WENO on.
+        arg: object: kernel: The current computational kernel."""
         post_process_equations = []
         averaged_suffix_name = self.averaged_suffix_name
         avg_REV_values = self.convert_matrix_to_grid_variable(self.right_eigen_vector[self.direction], averaged_suffix_name)
@@ -573,8 +596,6 @@ class Characteristic(EigenSystem):
         return characteristic_flux_stencil, CF_matrix
 
 
-
-
 class LLFCharacteristic(Characteristic, Weno):
     """ This class contains the Local Lax-Fedrich scheme
     """
@@ -588,7 +609,6 @@ class LLFCharacteristic(Characteristic, Weno):
         self.ndim = ndim
         self.flux_split = True
         return
-
 
     def create_max_characteristic_wave_speed(self, pre_process_equations, direction):
         stencil_points = sorted(list(set(self.reconstruction_classes[0].func_points + self.reconstruction_classes[1].func_points)))
@@ -616,9 +636,6 @@ class LLFCharacteristic(Characteristic, Weno):
         Then WENO derivative class is instantiated with the flux at i+1/2 array --> Function in WENO scheme, called from in here
         Final derivatives are evaluated from Weno derivative class --> Using WD.discretise
         """
-        #print "Here "
-        from .opensbliequations import *
-
         if isinstance(type_of_eq, SimulationEquations):
             residual_kernel = Kernel(block, computation_name = "WenoResidual")
             eqs = flatten(type_of_eq.equations)
@@ -643,8 +660,6 @@ class LLFCharacteristic(Characteristic, Weno):
                 self.pre_process(key, derivatives, flatten(type_of_eq.time_advance_arrays), weno_kernel)
                 self.interpolate_reconstruction_variables(derivatives, weno_kernel)
 
-                #pprint(coeffs)
-                #exit()
                 reconstructed_flux = self.post_process(derivatives, weno_kernel)
                 type_of_eq.Kernels += [weno_kernel]
             type_of_eq.Kernels += [self.evaluate_residuals(block, eqs, all_derivatives_evaluated_locally)]
@@ -666,28 +681,9 @@ class LLFCharacteristic(Characteristic, Weno):
         residue_kernel.add_equation(residue_eq)
         return residue_kernel
 
-    def group_by_direction(self, eqs):
-        all_WDS = []
-        grouped = {}
-        for eq in eqs:
-            local_wds = list(eq.atoms(WenoDerivative))
-            all_WDS = list(eq.atoms(WenoDerivative))
-            for wd in all_WDS:
-                direction = wd.get_direction[0]
-                if direction in grouped.keys():
-                    grouped[direction] += [wd]
-                else:
-                    grouped[direction] = [wd]
-        return grouped
-
-
-
-
-
 class SimpleAverage(object):
     def __init__(self, locations):
         self.locations = locations
-
         return
 
     def average(self, functions, direction, name_suffix):
