@@ -85,7 +85,7 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes, RationalCount
 
     @property
     def blockname(self):
-        return 'OpenSBLIBlock%d' % self.blocknumber
+        return 'OpenSBLIBlock%02d' % self.blocknumber
 
     def set_block_number(self, number):
         self.blocknumber = number

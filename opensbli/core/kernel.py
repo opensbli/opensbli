@@ -72,7 +72,7 @@ class Kernel(object):
         copy_block_attributes(block,self)
         self.computation_name = computation_name
         self.kernel_no = block.kernel_counter
-        self.kernelname = self.block_name + "Kernel%d"%self.kernel_no
+        self.kernelname = self.block_name + "Kernel%03d"%self.kernel_no
         block.increase_kernel_counter
         self.equations = []
         self.halo_ranges = [[set(), set()] for d in range(block.ndim)]
@@ -281,7 +281,8 @@ class Kernel(object):
             range_of_eval[d][1] = self.ranges[d][1] + halo_p[d]
         dtype = 'int'
         iter_name = "iteration_range_%d"%(self.kernel_no)
-        code = ['%s %s[] = {%s};' % (dtype, iter_name, ', '.join([str(s) for s in flatten(range_of_eval)]))]
+        iter_name_code = ['%s %s[] = {%s};' % (dtype, iter_name, ', '.join([str(s) for s in flatten(range_of_eval)]))]
+        code = []
         #pprint(self.stencil_names)
         code += ['ops_par_loop(%s, \"%s\", %s, %s, %s' % (name, self.computation_name, block_name, self.ndim, iter_name)]
         for i in ins:
@@ -296,6 +297,7 @@ class Kernel(object):
         if self.grid_indices_used:
             code += ["ops_arg_idx()"]
         code = [',\n'.join(code) + ');\n\n'] # WARNING dtype
+        code  = iter_name_code +code
         return code
 
 

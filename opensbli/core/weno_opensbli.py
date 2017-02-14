@@ -662,7 +662,8 @@ class LLFCharacteristic(Characteristic, Weno):
 
                 reconstructed_flux = self.post_process(derivatives, weno_kernel)
                 type_of_eq.Kernels += [weno_kernel]
-            type_of_eq.Kernels += [self.evaluate_residuals(block, eqs, all_derivatives_evaluated_locally)]
+            if grouped:
+                type_of_eq.Kernels += [self.evaluate_residuals(block, eqs, all_derivatives_evaluated_locally)]
             constituent_relations = self.generate_constituent_relations_kernels(block)
             return constituent_relations
 
