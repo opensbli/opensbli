@@ -150,6 +150,7 @@ class TraditionalAlgorithmRK(object):
             defdecs.add_components(b.constants.values())
             defdecs.add_components(b.Rational_constants.values())
             defdecs.add_components(b.block_datasets.values())
+            defdecs.add_components(b.block_stencils.values())
         return defdecs
 
     def spatial_solution(self, blocks):
@@ -181,8 +182,10 @@ class TraditionalAlgorithmRK(object):
                         inner_temporal_advance_kernels += scheme.solution[key].kernels
                         bc_kernels = key.boundary_kernels
                         spatial_kernels = key.all_spatial_kernels
-                    else: # Add all other types of equations
+                    elif isinstance(key, NonSimulationEquations): # Add all other types of equations
                         print "No", type(key)
+                    else:
+                        print "NOT classified", type(key)
             sc = b.get_temporal_schemes[0]
             innerloop = sc.generate_inner_loop(bc_kernels + spatial_kernels + inner_temporal_advance_kernels)
             temporal_iteration = Idx("iter", Symbol('niter', integer =True))
