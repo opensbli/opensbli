@@ -92,7 +92,35 @@ latex.close()
 #exit()
 
 block= SimulationBlock(ndim, block_number = 0)
+# create Initial conditions
+from opensbli.initialisation import *
+initial = GridBasedInitialisation()
+# As of now this is a work around later the initial conditions will be written as strings
+xi = [GridVariable('x%d'%(i)) for i in range(block.ndim)] # 0 to ndim-1
+le = [block.grid_indexes[i]*block.deltas[i] for i in range(block.ndim)]
+xi += [GridVariable('u'), GridVariable('v')] # Add the grid symbols index ndim to 2.*ndim-1
+le += [sin(xi[0])*cos(xi[1]), -cos(xi[0])*sin(xi[1])]
+consts = [ConstantObject(r) for r in constants]
+print consts
+xi += [GridVariable('p')] # index in array 2*ndim
+le += [1.0/(consts[2]*consts[3]**2) + (1.0/16.0)* (cos(2.0*xi[0]))] # check this for 3d
+xi += [GridVariable('r')] # index in array 2*ndim+1
+le += [consts[2]*consts[3]**2*xi[2*ndim]]
 
+arrs = flatten(simulation_eq.time_advance_arrays)
+xi += [arrs[0]]; le += [xi[2*ndim+1]] # Density
+xi += [arrs[1]]; le += [xi[2*ndim+1] * xi[ndim]] # uvelocity
+xi += [arrs[2]]; le += [xi[2*ndim+1] * xi[ndim+1]] # vvelocity
+xi += [arrs[3]]; le += [xi[2*ndim]/(consts[2]-1) + (1.0/2.0)*xi[2*ndim+1] *(xi[ndim]**2 + xi[ndim+1]**2) ] # Energy
+eq1 = [Eq(x,y) for x,y in zip(xi, le)]
+# Equations for the constituent relations
+#arrs = flatten(simulation_eq.time_advance_arrays)[1:]
+#eq1 += [Eq(e, 0) for e in flatten(simulation_eq.time_advance_arrays)]
+initial.add_equations(eq1)
+#exit()
+print isinstance(initial, NonSimulationEquations)
+#copy.deepcopy(initial)
+#exit()
 ## Create eigensystem
 # Euler = EulerEquations(ndim)
 # ev_dict, LEV_dict, REV_dict = Euler.generate_eig_system()
@@ -129,7 +157,7 @@ schemes[LLF.name] = LLF
 block.sbli_rhs_discretisation = True
 boundaries = [PeriodicBoundaryConditionBlock()]*2*ndim
 block.set_block_boundaries(boundaries)
-block.set_equations([copy.deepcopy(constituent),copy.deepcopy(simulation_eq)])
+block.set_equations([copy.deepcopy(constituent),copy.deepcopy(simulation_eq), initial])
 block.set_discretisation_schemes(schemes)
 
 block.discretise()
@@ -151,13 +179,13 @@ print DataSetsToDeclare.datasetbases
 #for key in block.block_datasets:
     #print key, bl  ock.block_datasets[key], block.block_datasets[key].__dict__
 alg = TraditionalAlgorithmRK(block)
-
+SimulationDataType.set_datatype(Double)
 OPSC(alg)
 # Create a descritisation class where the equations are deepcopied using deepcopy
 #ex = copy.deepcopy(simulation_eq)
 # block= SimulationBlock(ndim, block_number = 0)
 
-
+print ConstantsToDeclare.constants
 """
 Here I can do the algorithm on my own
 [MainPrg, GridRead, Initialisation, Metriceq, Tloop, Start[Simulation_eq], RKloopst,

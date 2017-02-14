@@ -19,9 +19,10 @@
 #    along with OpenSBLI.  If not, see <http://www.gnu.org/licenses/>
 
 from sympy.tensor import IndexedBase, Idx
-from .opensbliobjects import DataSetBase
+from .opensbliobjects import DataSetBase, GridIndexedBase, ConstantObject
 
 from sympy.core import Symbol,S, symbols
+from .datatypes import *
 
 
 class GridVariable(Symbol):
@@ -34,7 +35,7 @@ class GridVariable(Symbol):
         self.dtype = None
         return self
 
-#from .opensbliobjects import DataSer
+
 class WorkDataSet():
 
     def __init__(self):
@@ -81,7 +82,6 @@ class WorkDataSet():
         self.work_index = self.stored_index
         return
 
-from .opensbliobjects import ConstantObject
 class Grid(WorkDataSet):
 
     """ The numerical grid of solution points on which to discretise the equations. """
@@ -100,10 +100,19 @@ class Grid(WorkDataSet):
         # Instantiate WorkDataSet
         WorkDataSet.__init__(self)
         inds = symbols('shape_0:%d'%self.ndim, integer=True)
-        self.shape = symbols('block%dnp_0:%d'%(self.blocknumber, self.ndim), integer=True)
+        shape = symbols('block%dnp_0:%d'%(self.blocknumber, self.ndim), integer=True)
+        self.shape = [ConstantObject("%s"%s, integer=True) for s in shape]
         self.Idxed_shape = [Idx(Symbol('i%d'%dim, integer = True),(0, self.shape[dim])) for dim in range(self.ndim)]
         self.ranges = [[s.lower, s.upper] for s in self.Idxed_shape]
         self.deltas = [ConstantObject("Delta_%dblock_%d"%(dire,self.blocknumber)) for dire in range(self.ndim)]
+        from .kernel import ConstantsToDeclare as CTD
+        for d in self.deltas:
+            CTD.add_constant(d)
+        for s in self.shape:
+            CTD.add_constant(s, dtype = Int())
+        # Name for the grid indices
+        g = GridIndexedBase('idx', self)
+        self.grid_indexes = [g[i] for i in range(self.ndim)]
         #self.shape = [Idx(i, (upper[no])) for no,i in enumerate(inds)]
         #print(self.shape[0].args)
         #self.shape[0].args[1] = tuple([self.shape[0].lower, upper[1]])

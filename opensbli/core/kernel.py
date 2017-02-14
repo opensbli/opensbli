@@ -1,7 +1,8 @@
 from sympy import flatten, Max
 from .latex import *
-from .opensbliobjects import DataSetBase, DataSet, ConstantIndexed, ConstantObject
-from .grid  import GridVariable
+from .opensbliobjects import *#DataSetBase, DataSet, ConstantIndexed, ConstantObject
+from .grid  import *
+from .datatypes import *
 #from .block import DataSetsToDeclare
 def dataset_attributes(dset):
     """
@@ -21,6 +22,30 @@ def constant_attributes(const):
     const.value = None
     return const
 
+class ConstantsToDeclare(object):
+    constants = []
+    @staticmethod
+    def add_constant(const, value = None, dtype = None):
+        if value and const not in ConstantsToDeclare.constants:
+            c = constant_attributes(const)
+            c.is_input = False
+            if dtype:
+                c.dtype = dtype
+            else:
+                c.dtype = SimulationDataType()
+            c.value = value
+            ConstantsToDeclare.constants += [c]
+        elif const not in ConstantsToDeclare.constants:
+            c = constant_attributes(const)
+            #c.is_input = False
+            if dtype:
+                c.dtype = dtype
+            else:
+                c.dtype = SimulationDataType()
+            ConstantsToDeclare.constants += [c]
+        #print c.__dict__
+        return
+
 def copy_block_attributes(block, otherclass):
     """
     Move this to block
@@ -36,7 +61,7 @@ class StencilObject(object):
         self.stencil = stencil
         self.ndim = ndim
         return
-    
+
 class Kernel(object):
 
     """ A computational kernel which will be executed over all the grid points and in parallel. """
@@ -58,10 +83,10 @@ class Kernel(object):
         self.computation_name = name
         return
     def _sanitise_kernel(self, type_of_code):
-        """Sanitises the kernel equations by updating the datasetbase ranges in the 
-        DataSetsToDeclare class, finds the Rational constants, updates the constants 
+        """Sanitises the kernel equations by updating the datasetbase ranges in the
+        DataSetsToDeclare class, finds the Rational constants, updates the constants
         and update the equations
-        # TODO 
+        # TODO
         """
         return
 
@@ -205,6 +230,12 @@ class Kernel(object):
             if isinstance(eq, Equality):
                 consts = consts.union(eq.atoms(ConstantIndexed))
         return consts
+    @property
+    def grid_indices_used(self):
+        for eq in self.equations:
+            if eq.atoms(GridIndexedBase):
+                return True
+        return False
 
     def get_stencils(self):
         """ Returns the stencils for the datasets used in the kernel
@@ -262,6 +293,8 @@ class Kernel(object):
         if self.IndexedConstants:
             for c in self.IndexedConstants:
                 code += ["ops_arg_gbl(&%s, %d, \"%s\", %s)"%(c, 1, "double", self.opsc_access['ins'])]
+        if self.grid_indices_used:
+            code += ["ops_arg_idx()"]
         code = [',\n'.join(code) + ');\n\n'] # WARNING dtype
         return code
 
@@ -341,13 +374,13 @@ class Kernel(object):
                     #next_rc.value = rc
                     #block.Rational_constants[rc] = next_rc
 
-        constants = self.constants
-        if constants:
-            for c in constants:
-                if str(c) not in block.constants:
-                    const_obj = constant_attributes(c)
-                    # pprint(const_obj.__dict__)
-                    block.constants[str(c)] = const_obj
+        #constants = self.constants
+        #if constants:
+            #for c in constants:
+                #if str(c) not in block.constants:
+                    #const_obj = constant_attributes(c)
+                    ## pprint(const_obj.__dict__)
+                    #block.constants[str(c)] = const_obj
             # pprint(block.constants)
         stens = self.get_stencils()
         for dset, stencil in stens.iteritems():

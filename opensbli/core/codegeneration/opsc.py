@@ -65,7 +65,7 @@ class OPSCCodePrinter(CCodePrinter):
         result = ','.join(args)
         result = 'fmod(%s)' % result
         return result
-    
+
     def _print_GridVariable(self, expr):
         return str(expr)
 
@@ -106,7 +106,7 @@ class OPSCCodePrinter(CCodePrinter):
             return out
         else:
             raise ValueError("Did not find the OPS Access for %s "% expr.base)
-         
+
     def _print_Indexed(self, expr):
         """ Print out an Indexed object.
 
@@ -143,9 +143,10 @@ def ccode(expr):
     else:
         return OPSCCodePrinter().doprint(expr) + ' ;'
 
-from opensbli.core.kernel import Kernel
+from opensbli.core.kernel import Kernel, ConstantsToDeclare as CTD
 from opensbli.core.algorithm import Loop
 from opensbli.core.opensbliobjects import *
+from opensbli.core.datatypes import *
 
 class WriteString(object):
     def __init__(self, string):
@@ -169,7 +170,7 @@ class OPSAccess(object):
         return
 
 class OPSC(object):
-    
+
     ops_headers = {'input': "const %s *%s",  'output': '%s *%s', 'inout': '%s *%s'}
     def __init__(self, algorithm):
         """ Generating an OPSC code from the algorithm"""
@@ -187,13 +188,13 @@ class OPSC(object):
             f.close()
             self.write_kernels(algorithm)
         return
-    
+
     def kernel_header(self, tuple_list):
         code = []
         dtype = "double" # WARNING dtype
         for key, val in (tuple_list):
             code += [self.ops_headers[val]%(dtype, key)]
-        code = ','.join(code) + ')' + '\n{'
+        code = ','.join(code)
         return code
     def kernel_computation_opsc(self, kernel):
         ins = kernel.rhs_datasets
@@ -204,17 +205,17 @@ class OPSC(object):
         eqs = kernel.equations
         all_dataset_inps = list(ins) + list(outs) + list(inouts)
         all_dataset_types = ['input' for i in ins] + ['output' for o in outs ] + ['inout' for io in inouts]
-        # Use list of tuples as dictionary messes the order 
+        # Use list of tuples as dictionary messes the order
         header_dictionary = zip(all_dataset_inps, all_dataset_types)
         if kernel.IndexedConstants:
             for i in kernel.IndexedConstants:
                 header_dictionary += [tuple([(i.base), 'input'])]
-        if kernel.computation_name == 'Weno_reconstruction_0_direction':
-            print ins, outs, inouts
-            #exit()
-            #print kernel.computation_name, kernel.IndexedConstants
+        if kernel.grid_indices_used:
+            kerel_index = ", const int *idx" #WARNING hard coded here
+        else:
+            kerel_index = ''
         #print header_dictionary
-        out = ["void %s("%kernel.kernelname + self.kernel_header(header_dictionary)]
+        out = ["void %s("%kernel.kernelname + self.kernel_header(header_dictionary) + kerel_index + ')' + '\n{']
         #all_dataset_inps = [str(i) for i in all_dataset_inps]
         ops_accs = [OPSAccess(no) for no in range(len(all_dataset_inps))]
         OPSCCodePrinter.dataset_accs_dictionary = dict(zip(all_dataset_inps, ops_accs))
@@ -224,9 +225,15 @@ class OPSC(object):
     def write_kernels(self, algorithm):
         kernels = self.loop_alg(algorithm, Kernel)
         files = [open('%s_kernels.h'%b.block_name, 'w') for b in algorithm.block_descriptions]
+        for f in files:
+            name = ('%s_kernel_H'%b.block_name).upper()
+            f.write('#ifndef %s\n'%name)
+            f.write('#define %s\n'%name)
         for k in kernels:
             out = self.kernel_computation_opsc(k) + ['\n']
             files[k.block_number].write('\n'.join(out))
+        for f in files:
+            f.write("#endif\n")
         files = [f.close() for f in files]
         return
 
@@ -235,9 +242,14 @@ class OPSC(object):
 
     def before_main(self, algorithm):
         out = ['#include <stdlib.h> \n#include <string.h> \n#include <math.h>']
-        for d in algorithm.defnitionsdeclarations.components:
-            if isinstance(d, Constant):
-                out += ["double %s;"%d] # WARNING dtype
+        for d in CTD.constants:
+            if isinstance(d, ConstantObject):
+                out += ["%s %s;"%(d.dtype.opsc(), d)]
+            elif isinstance(d, ConstantIndexed):
+                indices = ''
+                for s in d.shape:
+                    indices = indices + '[%d]'%s
+                out += ["%s %s%s;"%(d.dtype.opsc(), d.base.label, indices)]
         for b in algorithm.block_descriptions:
             out += ['#define OPS_%dD'%b.ndim]
         out += ['#include ops_seq.h']
@@ -252,10 +264,11 @@ class OPSC(object):
         decls += self.ops_init()
         # First process all the constants in the definitions
         out = [WriteString("// Define and Declare OPS Block")]
-        for d in algorithm.defnitionsdeclarations.components:
+        #from .kernel import ConstantsToDeclare as CTD
+        for d in CTD.constants:
             if isinstance(d, Constant):
-                defs += [self.define_constants(d)]
-                decls += [self.declare_ops_constants(d)]
+                defs += self.define_constants(d)
+                decls += self.declare_ops_constants(d)
         # Once the constants are done define and declare OPS dats
         output = defs + decls
         defs = []
@@ -408,12 +421,18 @@ class OPSC(object):
     def define_constants(self, c):
         if isinstance(c, ConstantObject):
             if c.value:
-                return WriteString("%s=%s;"%(str(c), ccode(c.value)))
+                return [WriteString("%s=%s;"%(str(c), ccode(c.value)))]
             else:
-                return WriteString("%s=%s;"%(str(c), "Input"))
+                return [WriteString("%s=%s;"%(str(c), "Input"))]
         elif isinstance(c, ConstantIndexed):
+            out = []
             if c.value:
-                raise NotImplementedError("")
+                if len(c.shape) == 1:
+                    for i in range(c.shape[0]):
+                        out += [WriteString("%s[%d]=%s;"%(str(c.base.label), i, ccode(c.value[i])))]
+                else:
+                    raise NotImplementedError("Indexed constant declaration is done for only one ")
+                return out
             else:
                 raise NotImplementedError("")
         else:
@@ -421,7 +440,9 @@ class OPSC(object):
             raise ValueError("")
     def declare_ops_constants(self, c):
         if isinstance(c, ConstantObject):
-            return WriteString("ops_decl_const(\"%s\" , 1, \"%s\", &%s);"%(str(c), c.dtype, str(c)))
+            return [WriteString("ops_decl_const(\"%s\" , 1, \"%s\", &%s);"%(str(c), c.dtype.opsc(), str(c)))]
+        elif isinstance(c, ConstantIndexed):
+            return []
         return
 
     def declare_inline_array(self, dtype, name, values):

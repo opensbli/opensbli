@@ -1,13 +1,19 @@
 
 class SimulationDataType(object):
-    pass
+    @staticmethod
+    def set_datatype(types):
+        SimulationDataType.dtype = types
+    @staticmethod
+    def opsc():
+        return SimulationDataType.dtype.opsc()
 
 class DataType(object):
     pass
 
 class Double(DataType):
-    def __init__(self):
-        return
+    @staticmethod
+    def opsc():
+        return "double"
 
 class Float(DataType):
     def __init__(self):
@@ -19,5 +25,6 @@ class UserDefined(DataType):
         return
 
 class Int(DataType):
-    def __init__(self):
-        return
+    @staticmethod
+    def opsc():
+        return "int"

@@ -243,7 +243,9 @@ class SimulationEquations(Discretisation, Solution):
                         cls.constituent_relations_kernels[key] = value
                         cls.constituent_relations_kernels[key].add_equation(cr_dictionary[key])
                 else:
+                    #raise ValueError("Constituent relation is not found for %s"%key)
                     cls.requires[key] = value
+            #exit()
         cls.process_kernels(block)
         return
     def process_kernels(cls, block):
@@ -403,7 +405,7 @@ class ConstituentRelations(Discretisation, Solution):
         pass
         return
 
-class NonSimulationEquations(Discretisation, Solution):
+class NonSimulationEquations():
     """ Dummy place holder for all the equations that are not simulated but needs to be evaluated
     e.g, metrics or diagnostics or Statistics, """
     pass

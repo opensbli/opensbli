@@ -6,6 +6,7 @@ from .kernel import *
 from .latex import *
 from .opensbliequations import *
 from .opensbliobjects import *
+from opensbli.initialisation.gridbasedinit import *
 
 class Loop(object):
     pass
@@ -172,6 +173,8 @@ class TraditionalAlgorithmRK(object):
             temporal_start = []
             temporal_end = []
             spatial_kernels = []
+            before_time = []
+            after_time = []
             for scheme in b.get_temporal_schemes:
                 for key, value in scheme.solution.iteritems():
                     if isinstance(key, SimulationEquations):
@@ -183,19 +186,31 @@ class TraditionalAlgorithmRK(object):
                         bc_kernels = key.boundary_kernels
                         spatial_kernels = key.all_spatial_kernels
                     elif isinstance(key, NonSimulationEquations): # Add all other types of equations
-                        print "No", type(key)
+                        for place in key.algorithm_place:
+                            if isinstance(place, BeforeSimulationStarts):
+                                before_time += key.Kernels
+                            elif isinstance(place, AfterSimulationEnds):
+                                after_time += key.Kernels
+                            else:
+                                raise NotImplementedError("In Nonsimulation equations")
+                        print "No", type(key), key.algorithm_place
                     else:
                         print "NOT classified", type(key)
             sc = b.get_temporal_schemes[0]
             innerloop = sc.generate_inner_loop(bc_kernels + spatial_kernels + inner_temporal_advance_kernels)
-            temporal_iteration = Idx("iter", Symbol('niter', integer =True))
+            temporal_iteration = Idx("iter", ConstantObject('niter', integer =True))
+            from .kernel import ConstantsToDeclare as CTD
+            from .datatypes import *
+            CTD.add_constant(ConstantObject('niter'), dtype = Int())
             tloop = DoLoop(temporal_iteration)
             tloop.add_components(temporal_start)
             tloop.add_components(innerloop)
             tloop.add_components(temporal_end)
             #tloop.write_latex(latex)
             # Process the initial conditions and Diagnostics if any here
+            self.prg.add_components(before_time)
             self.prg.add_components(tloop)
+            self.prg.add_components(after_time)
             self.prg.write_latex(latex)
         latex.write_footer()
         latex.close()

@@ -155,7 +155,7 @@ class Central(Scheme):
         viscous, convective = self.classify_equations_on_parameter(equations, classify_parameter)
         convective_grouped = self.group_by_direction(convective)
         # Create equations for evaluation of derivatives
-        for key, value in convective_grouped.iteritems():            
+        for key, value in convective_grouped.iteritems():
             for v in value:
                 v.update_work(block)
         local_evaluations_group = {}
@@ -353,6 +353,10 @@ class RungeKutta(Scheme):
         cls.stage = Idx('stage', order)
         cls.solution_coeffs = ConstantIndexed('rkold', cls.stage)
         cls.stage_coeffs = ConstantIndexed('rknew', cls.stage)
+        from .kernel import ConstantsToDeclare as CTD
+        coeffs = cls.get_coefficients
+        CTD.add_constant(cls.solution_coeffs, value = coeffs[cls.solution_coeffs])
+        CTD.add_constant(cls.stage_coeffs, value = coeffs[cls.stage_coeffs])
         cls.solution = {}
         if constant_dt:
             raise NotImplementedError("")
@@ -369,8 +373,8 @@ class RungeKutta(Scheme):
 
         if cls.order == 3:
             coeffs = {}
-            coeffs[cls.solution_coeffs.base] = [Rational(1.0, 4.0), Rational(3.0, 20), Rational(3.0, 5.0)]
-            coeffs[cls.stage_coeffs.base] = [Rational(2, 3), Rational(5, 12), Rational(3, 5)]
+            coeffs[cls.solution_coeffs] = [Rational(1.0, 4.0), Rational(3.0, 20), Rational(3.0, 5.0)]
+            coeffs[cls.stage_coeffs] = [Rational(2, 3), Rational(5, 12), Rational(3, 5)]
         return coeffs
 
     def __str__(cls):
@@ -429,6 +433,8 @@ class RungeKutta(Scheme):
 
     def constant_time_step_solution(cls,zipped):
         dt = ConstantObject("dt")
+        from .kernel import ConstantsToDeclare as CTD
+        CTD.add_constant(dt)
         old = []
         new = []
         for z in zipped:

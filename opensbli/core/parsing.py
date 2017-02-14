@@ -491,6 +491,18 @@ class Equation(EinsteinStructure):
             equation = equation.replace(at, obj)
         return equation
 
+class Reduction(AppliedUndef):
+    @property
+    def is_commutative(cls):
+        return False
+
+    def __new__(cls, *args, **kwargs):
+        args = set_args(*args, **kwargs)
+        ret = super(Reduction, cls).__new__(cls, *args)
+        ret.options = kwargs
+        return ret
+
+    pass
 
 
 from sympy.parsing.sympy_tokenize import \

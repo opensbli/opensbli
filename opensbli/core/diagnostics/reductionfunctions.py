@@ -16,24 +16,31 @@
 #    You should have received a copy of the GNU General Public License
 #    along with OpenSBLI.  If not, see <http://www.gnu.org/licenses/>.
 
-import logging
+from opensbli.core.opensblifunctions import Function, BasicDiscretisation
 
-LOG = logging.getLogger(__name__)
-_HANDLER = logging.StreamHandler()
-_FORMATTER = logging.Formatter(fmt="%(asctime)s : %(module)s : %(levelname)s : %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
-_HANDLER.setFormatter(_FORMATTER)
-LOG.addHandler(_HANDLER)
-del(_HANDLER)
-LOG.setLevel(logging.DEBUG)  # Default to DEBUG level.
+class BlockReduction(BasicDiscretisation):
+    pass
+    
+class BlockMax(Function, BasicDiscretisation):
+    def __new__(cls):
+        
+        return
 
-from .codegeneration import *
-from .parsing import *
-from .opensblifunctions import *
-from .opensbliobjects import *
-from .scheme import *
-from .opensbliequations import *
-from .block import *
-from .grid import *
-from .transformation import *
-from .algorithm import *
-from .diagnostics import *
+class BlockMin(Function, BasicDiscretisation):
+    def __new__(cls):
+        
+        return
+
+class BlockSum(Function, BasicDiscretisation):
+    """This contains the sum of the variable 
+    """
+    pass
+class BlockIntegral(Function, BasicDiscretisation):
+    def __new__(cls, expr, *args):
+        args = tuple(flatten([expr] + list(args)))
+        #ret = super(CentralDerivative, cls).__new__(cls, *args, evaluate=False)
+        ret.store = True # By default all the derivatives are stored
+        ret.local_evaluation = True
+        return ret
+    
+        return

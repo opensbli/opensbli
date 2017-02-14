@@ -70,7 +70,7 @@ class EinsteinTerm(Symbol):
         :rtype: str
         """
         return self.name.split('_')[0]
-    
+
     #def __getitem__(self, idx, value):
         #return
 
@@ -108,8 +108,8 @@ class Constant(object):
 
 class ConstantObject(EinsteinTerm, Constant):
     is_commutative = True
-    def __new__(cls, label):
-        ret = super(ConstantObject,cls).__new__(cls, label)
+    def __new__(cls, label, **kwargs):
+        ret = super(ConstantObject,cls).__new__(cls, label, **kwargs)
         ret.is_constant = True
         return ret
 
@@ -186,7 +186,7 @@ class DataSetBase(IndexedBase):
         """ For clarity the block number is printed"""
         return "%s_B%s"%(str(self.label), str(self.blocknumber))
     def simplelabel(self):
-        """Returns the abse label in case we need to add strings to the end of it 
+        """Returns the abse label in case we need to add strings to the end of it
         e.g. Creating the old variables in Runge Kutta scheme
         """
         return "%s"%(str(self.label))
@@ -194,10 +194,10 @@ class DataSetBase(IndexedBase):
     def location():
         return [0 for i in range(DataSetBase.block.ndim)]
     #def __eq__(
-    
+
     #def _pretty(self, printer):
         """Pretty Printing method. """
-        #from sympy.printing.pretty.stringpict import prettyForm 
+        #from sympy.printing.pretty.stringpict import prettyForm
         #pforms = [printer._print("_B"), printer._print(str(self.blocknumber))]
         ##expr = prettyForm(*printer.join("", pforms))
         ##pform = prettyForm(printer._print(self.label))
@@ -206,8 +206,8 @@ class DataSetBase(IndexedBase):
         #pform =prettyForm(*pform.right(*printer.join("", pforms)))
         ##pform.baseline = b
         #return pform
-    
-    
+
+
 class DataSet(Indexed):
     is_commutative = True
     is_Indexed = True
@@ -226,7 +226,7 @@ class DataSet(Indexed):
         return "%s" % (p.doprint(self.base))
     def _pretty(self, printer):
         """Pretty Printing method. """
-        from sympy.printing.pretty.stringpict import prettyForm 
+        from sympy.printing.pretty.stringpict import prettyForm
         allinds = [i for i in self.indices if not isinstance(i,Idx)]
         pforms = [printer._print(a) for a in allinds]
         expr = prettyForm(*printer.join(",", pforms).parens(left="[", right="]"))
@@ -235,7 +235,7 @@ class DataSet(Indexed):
     @property
     def get_grid_indices(self):
         return [i for i in self.indices if not isinstance(i, Idx)]
-            
+
 class ConstantIndexed(Indexed, Constant):
     def __new__(cls, label, indices, **kwargs):
         base = IndexedBase(label)
@@ -253,3 +253,43 @@ class ConstantIndexed(Indexed, Constant):
     @property
     def location(cls):
         return list(cls.args[1:])
+
+class GridIndex(Indexed):
+    is_commutative = True
+    is_Indexed = True
+    is_Symbol = True
+    is_symbol = True
+    is_Atom = True
+    def __new__(cls, base, *indices, **kwargs):
+        if not isinstance(base, GridIndexedBase):
+            raise ValueError("GridIndex base should be GridIndexedBase object")
+        ret = Indexed.__new__(cls, base, *indices)
+        return ret
+class GridIndexedBase(IndexedBase):
+    is_commutative = True
+    is_Symbol = True
+    is_symbol = True
+    is_Atom = True
+    def __new__(cls, label, block, **kw_args):
+        sym = label
+        shape = list(block.shape)
+        #cls.label = label
+        ret = super(GridIndexedBase, cls).__new__(cls, sym, [block.ndim], **kw_args) # Shape would be of size ndim
+        ret.blockname = block.blockname
+        ret.blocknumber = block.blocknumber
+        return ret
+    def __hash__(self):
+        h = hash(self._hashable_content())
+        self._mhash = h
+        return h
+    def _hashable_content(self):
+        return str(self.label) + self.blockname
+    def __getitem__(cls, indices, **kw_args):
+        if isinstance(indices, int):
+            indices = [indices]
+        if len(indices) != len(cls.shape):
+            raise IndexException("Rank mismatch.")
+        return GridIndex(cls, *indices)
+    def _sympystr(self, p):
+        """ For clarity the block number is printed"""
+        return "%s_B%s"%(str(self.label), str(self.blocknumber))

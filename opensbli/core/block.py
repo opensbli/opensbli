@@ -25,7 +25,7 @@ from sympy.matrices import *
 from .bcs import BoundaryConditionTypes
 from .opensbliequations import SimulationEquations
 from .opensbliobjects import ConstantObject, DataObject, DataSetBase
-#from .opensbliobjects import 
+#from .opensbliobjects import
 from sympy import flatten
 class DataSetsToDeclare(object):
     datasetbases = []
@@ -97,12 +97,14 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes, RationalCount
     def set_block_boundary_halos(self, direction, side, types):
         self.boundary_halos[direction][side].add(types)
         return
-    
+
     def dataobjects_to_datasets_on_block(self, eqs):
         all_equations = flatten(eqs)[:]
-        
+        consts = set()
+
         from sympy import *
         for no, eq in enumerate(all_equations):
+            consts = consts.union(eq.atoms(ConstantObject))
             for d in eq.atoms(DataObject):
                 new = DataSetBase(d)[[0 for i in range(self.ndim)]]
                 eq = eq.subs({d: new})
@@ -117,8 +119,12 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes, RationalCount
             else:
                 out += [all_equations[out_loc]]
                 out_loc += 1
+        # Add
+        from .kernel import ConstantsToDeclare as CTD
+        for c in consts:
+            CTD.add_constant(c)
         return out
-    
+
     def discretise(self):
         """
         In this the discretisation of the schemes in the list of equations is applied
@@ -132,7 +138,7 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes, RationalCount
         for eq in self.list_of_equation_classes:
             block_eq = self.dataobjects_to_datasets_on_block(eq.equations)
             eq.equations = block_eq
-        
+
         # perform the spatial discretisation of the equations using schemes
         for eq in self.list_of_equation_classes:
             eq.spatial_discretisation(self.discretisation_schemes, self)
