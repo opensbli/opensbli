@@ -275,6 +275,10 @@ class OPSC(object):
         f.write('\n'.join(flatten([d.opsc_code for d in datasets_dec])))
         f.close()
         output += [WriteString("// Define and declare stencils")]
+        from opensbli.core.kernel import StencilObject
+        for d in algorithm.defnitionsdeclarations.components:
+            if isinstance(d, StencilObject):
+                output += self.ops_stencils_declare(d)
         # Loop through algorithm components to include any halo exchanges
         from opensbli.core.bcs import Exchange
         exchange_list = self.loop_alg(algorithm, Exchange)
@@ -290,7 +294,14 @@ class OPSC(object):
         output += self.ops_partition()
 
         return output
-
+    def ops_stencils_declare(self, s):
+        out = []
+        dtype = 'int' #WARNING dtype
+        name = s.name + 'temp'
+        #from sympy.indexed import Idc
+        out = [self.declare_inline_array(dtype, name, [st for st in flatten(list(s.stencil)) if not isinstance(st, Idx)])]
+        out += [WriteString('ops_stencil %s = ops_decl_stencil(%d,%d,%s,\"%s\");'%(s.name, s.ndim, len(s.stencil), name, name))]
+        return out
     def ops_partition(self):
         """ Initialise an OPS partition for the purpose of multi-block and/or MPI partitioning.
 

@@ -31,11 +31,12 @@ def copy_block_attributes(block, otherclass):
     return
 
 class StencilObject(object):
-    def __init__(self, name, stencil):
+    def __init__(self, name, stencil, ndim):
         self.name = name
         self.stencil = stencil
+        self.ndim = ndim
         return
-
+    
 class Kernel(object):
 
     """ A computational kernel which will be executed over all the grid points and in parallel. """
@@ -351,9 +352,9 @@ class Kernel(object):
         stens = self.get_stencils()
         for dset, stencil in stens.iteritems():
             if stencil not in block.block_stencils.keys():
-                name = 'stencil_%d_%d' % (block.blocknumber, len(block.block_stencils.keys()))
+                name = 'stencil_%d_%02d' % (block.blocknumber, len(block.block_stencils.keys()))
 
-                block.block_stencils[stencil] = StencilObject(name, stencil)
+                block.block_stencils[stencil] = StencilObject(name, stencil, block.ndim)
             if dset not in self.stencil_names:
                 self.stencil_names[dset] = block.block_stencils[stencil].name
             else:
