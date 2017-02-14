@@ -252,9 +252,9 @@ class OPSC(object):
                 out += ["%s %s%s;"%(d.dtype.opsc(), d.base.label, indices)]
         for b in algorithm.block_descriptions:
             out += ['#define OPS_%dD'%b.ndim]
-        out += ['#include ops_seq.h']
+        out += ['#include \"ops_seq.h\"']
         for b in algorithm.block_descriptions:
-            out += ['#include %s_kernels.h'%b.block_name]
+            out += ['#include \"%s_kernels.h\"'%b.block_name]
         return out
 
     def opsc_def_decs(self, algorithm):
