@@ -295,7 +295,8 @@ class EulerEquations(object):
                         {Symbol('k0'): met_symbols[2,0], Symbol('k1'): met_symbols[2,1], Symbol('k2'): met_symbols[2,2], Symbol('k'): fact2, Symbol('gama'): Rational(7,5)}]
             # equations = [Eq(a,b) for a,b in subs_dict.items()]
             eq_directions = {}
-            for no,direction in enumerate(coordinates):
+            for no,coordinate in enumerate(coordinates):
+                direction = coordinate.direction
                 g = lambda x:x.subs(subs_list[no], evaluate=False)
                 ev_dict[direction] = diag(*list(ev.applyfunc(g)))
                 REV_dict[direction] = REV.applyfunc(g)
