@@ -472,20 +472,24 @@ class OPSC(object):
                 halo_p += [0]
         return halo_m, halo_p
     def declare_dataset(self, dset):
+        
         hm, hp = self.get_max_halos(dset.halo_ranges)
         halo_p = self.declare_inline_array("int", "halo_p", hp)
         halo_m = self.declare_inline_array("int", "halo_m", hm)
         sizes = self.declare_inline_array("int", "size", [str(s) for s in (dset.size)])
         base = self.declare_inline_array("int", "base", [0 for i in range(len(dset.size))])
+
+
         if dset.dtype:
             dtype = dset.dtype
         else:
             dtype = self.dtype
-        value = WriteString("%s value = NULL;"%dtype)
-        temp = 'ops_dat %s = ops_decl_dat(%s, 1, size, base, halo_m, halo_p, value, \"%s\", \"%s\");'%(dset,
+        value = WriteString("%s* value = NULL;"%dtype)
+        temp = '%s = ops_decl_dat(%s, 1, size, base, halo_m, halo_p, value, \"%s\", \"%s\");'%(dset,
                             dset.block_name, dtype, dset)
         temp = WriteString(temp)
-        out = [WriteString("{"), halo_p, halo_m, sizes, base, value, temp, WriteString("}")]
+        declaration = WriteString("ops_dat %s;" % dset)
+        out = [declaration, WriteString("{"), halo_p, halo_m, sizes, base, value, temp, WriteString("}")]
         return out
 
 

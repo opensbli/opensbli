@@ -185,7 +185,8 @@ class EulerEquations(object):
              {Symbol('un_0'): 0, Symbol('un_1'): 1}]
             equations = [Eq(a,b) for a,b in subs_dict.items()]
             eq_directions = {}
-            for no,direction in enumerate(coordinates):
+            for no,coordinate in enumerate(coordinates):
+                direction =coordinate.direction
                 g = lambda x:x.subs(subs_list[no]).simplify()
                 definitions[direction] = ev.applyfunc(g).atoms(Symbol).union(REV.applyfunc(g).atoms(Symbol)).union(LEV.applyfunc(g).atoms(Symbol))
                 ev_dict[direction] = diag(*list(ev.applyfunc(g)))
