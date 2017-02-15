@@ -21,12 +21,19 @@ sc2 = "**{\'scheme\':\'Central\'}"
 # Define the compresible Navier-Stokes equations in Einstein notation.
 a = "Conservative(rhou_j,x_j,%s)"%sc1
 b = "Conservative(rhou_j,x_j,%s)"%sc2
+# Skew formulation
+b = "Skew(rho*u_j,x_j,%s)"%sc2
+a = 0
 mass = "Eq(Der(rho,t), - %s -%s)"%(a,b)
 a = "Conservative(rhou_i*u_j + KD(_i,_j)*p,x_j , %s)"%sc1
 b = "Conservative(rhou_i*u_j + KD(_i,_j)*p,x_j , %s)"%sc2
-momentum = "Eq(Der(rhou_i,t) , -%s -%s  + Der(tau_i_j,x_j) )"%(a,b)
+# Skew formulation
+b = "-Skew(rhou_i*u_j, x_j, %s) - Conservative(p,x_i, %s) "%(sc2, sc2) #
+a = 0
+momentum = "Eq(Der(rhou_i,t) , -%s + %s  + Der(tau_i_j,x_j) )"%(a,b)
 a = "Conservative((p+rhoE)*u_j,x_j, %s)"%sc1
 b = "Conservative((p+rhoE)*u_j,x_j, %s)"%(sc2)
+a = 0
 energy = "Eq(Der(rhoE,t), - %s - %s + Der(q_j,x_j) + Der(u_i*tau_i_j ,x_j) )"%(a,b)
 ke = "Eq(ke, rho*(1/2)*Dot(u_j,u_j))"
 enstrophy = "Eq(enstrophy, (1/2)*rho*(LC(_i,_j,_k)*Der(u_k,x_j))**2)"
@@ -118,7 +125,7 @@ eq1 = [Eq(x,y) for x,y in zip(xi, le)]
 #eq1 += [Eq(e, 0) for e in flatten(simulation_eq.time_advance_arrays)]
 initial.add_equations(eq1)
 #exit()
-print isinstance(initial, NonSimulationEquations)
+#print isinstance(initial, NonSimulationEquations)
 #copy.deepcopy(initial)
 #exit()
 ## Create eigensystem

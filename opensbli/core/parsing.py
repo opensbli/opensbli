@@ -96,19 +96,19 @@ class Skew(AppliedUndef):
     def __new__(cls, *args, **kwargs):
         ret = super(Skew, cls).__new__(cls, *args)
         ret.options = kwargs
-        pprint(ret)
+        #pprint(ret)
         ret = ret.applys()
+        pprint(ret)
+        #exit()
         return ret
 
     def applys(cls):
-        #options = kwargs
+        """ TODO Any optional substitutions example (rho*u_j) to rhou_j, take as input from user
+        """
         args = cls.args
         kwargs = cls.options
         var = args[0]
-        #print var
         directions = args[1:]
-        #print directions
-        #print kwargs
         nvar = len(var.args)
         if nvar == 1:
             return Der(var, *directions)
@@ -140,10 +140,6 @@ class Der(AppliedUndef, ParsingSchemes):
     @property
     def is_commutative(cls):
         return True
-
-    def _print_Der(cls, expr):# NOT working WARNING
-        retu = "Derivative(%s)"%(','.join(str(expr.args[:-1])))
-        return retu
 
     def __new__(cls, *args, **kwargs):
         args = set_args(*args, **kwargs)
