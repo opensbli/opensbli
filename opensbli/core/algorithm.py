@@ -72,7 +72,7 @@ class DoLoop(Loop):
         return code
     @property
     def opsc_start(self):
-        return "for(int %s=%s; %s<%s; %s++)\n{"%(self.loop, str(self.loop.lower), self.loop, str(self.loop.upper), self.loop)
+        return "for(int %s=%s; %s<=%s; %s++)\n{"%(self.loop, str(self.loop.lower), self.loop, str(self.loop.upper), self.loop)
     @property
     def opsc_end(self):
         return "}"

@@ -183,7 +183,8 @@ class OPSC(object):
             algorithm.prg.components = def_decs + algorithm.prg.components + end
             code = algorithm.prg.opsc_code
             code = self.before_main(algorithm) + code
-            f = open('test.cpp', 'w')
+            self.name = 'taylor_green_vortex'
+            f = open('OpenSBLI.cpp' , 'w')
             f.write('\n'.join(code))
             f.close()
             self.write_kernels(algorithm)
@@ -291,6 +292,7 @@ class OPSC(object):
         from opensbli.core.kernel import StencilObject
         for d in algorithm.defnitionsdeclarations.components:
             if isinstance(d, StencilObject):
+                # pprint(d.__dict__)
                 output += self.ops_stencils_declare(d)
         # Loop through algorithm components to include any halo exchanges
         from opensbli.core.bcs import Exchange
@@ -311,9 +313,14 @@ class OPSC(object):
         out = []
         dtype = 'int' #WARNING dtype
         name = s.name + 'temp'
-        #from sympy.indexed import Idc
-        out = [self.declare_inline_array(dtype, name, [st for st in flatten(list(s.stencil)) if not isinstance(st, Idx)])]
+        sorted_stencil = s.sort_stencil_indices()
+        out = [self.declare_inline_array(dtype, name, [st for st in flatten(sorted_stencil) if not isinstance(st, Idx)])]
+        pprint(flatten(s.stencil))
+
         out += [WriteString('ops_stencil %s = ops_decl_stencil(%d,%d,%s,\"%s\");'%(s.name, s.ndim, len(s.stencil), name, name))]
+        pprint(out)
+        print "\n"
+        
         return out
     def ops_partition(self):
         """ Initialise an OPS partition for the purpose of multi-block and/or MPI partitioning.

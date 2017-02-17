@@ -61,6 +61,12 @@ class StencilObject(object):
         self.stencil = stencil
         self.ndim = ndim
         return
+    def sort_stencil_indices(self):
+        """ Helper function for relative_stencil. Sorts the relative stencil. """
+        index_set = self.stencil
+        dim = len(list(index_set)[0])
+        sorted_index_set = sorted(index_set, key=lambda tup: tuple(tup[i] for i in range(dim)))
+        return sorted_index_set
 
 class Kernel(object):
 
