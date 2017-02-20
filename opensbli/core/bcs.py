@@ -147,7 +147,6 @@ class PeriodicBoundaryConditionBlock(BoundaryConditionBase):
             transfer_to[boundary_direction] = block.Idxed_shape[boundary_direction].lower + halos[boundary_direction][0]
         transfer_size = [block.Idxed_shape[dire].upper + block.Idxed_shape[dire].lower + abs(halos[dire][0]) + abs(halos[dire][1]) for dire in range(block.ndim)]
         transfer_size[boundary_direction] = abs(halos[boundary_direction][side])
-        print transfer_size
         ex = ExchangeSelf(block, boundary_direction, side)
         ex.set_transfer_size(transfer_size)
         ex.set_transfer_from(transfer_from)
@@ -159,5 +158,81 @@ class PeriodicBoundaryConditionBlock(BoundaryConditionBase):
 
 class SymmetryBoundaryCondition(object):
     pass
+
+class LinearExtrapolateBoundaryConditionBlock(BoundaryConditionBase):
+    """
+    Applies zero gradient linear extrapolation boundary condition.
+    """
+    def __init__(self, plane=True):
+        BoundaryConditionBase.__init__(self, plane)
+        return
+    def halos(self):
+        return True
+    def apply(self, arrays, boundary_direction, side, block):
+        # Get the exchanges which form the computations.
+        print "\n\n\n"
+        k = self.get_kernel(arrays, boundary_direction,side, block)
+        print "\n\n"
+        # mk = self.get_kernel(arrays, boundary_direction, side+1, block)
+        # exit()
+        return k
+
+    def get_kernel(self, arrays, boundary_direction, side, block):
+        # Relative indices to update for the extrapolation based on side
+        dire = boundary_direction
+        ker = Kernel(block, computation_name="Extrapolate boundary dir%d side%d" % (dire, side))
+        halos = ker.get_plane_halos(block)
+        # print "side is: ", side
+        # print "halos are: ", halos
+        if side == 0:
+            base = 0
+            indices = [tuple([-t, t]) for t in range(1, abs(halos[dire][side]) + 1)]
+            range_of_evaluation = [tuple([0 + halos[dire][0], s + halos[dire][1]]) for s in block.shape]
+            range_of_evaluation[dire] = tuple([base, base+1])
+
+        elif side == 1:
+            base = block.shape[dire]  # The end point of the domain in the direction of the boundary
+            indices = [tuple([t, -t]) for t in range(1, abs(halos[dire][side]) + 1)]
+            range_of_evaluation = [tuple([0 + halos[dire][0], s + halos[dire][1]]) for s in block.shape]
+            range_of_evaluation[dire] = tuple([base-1, base])
+        # print "indices are: ", indices
+        # print "range of eval is: ", range_of_evaluation
+
+        equations = []
+        for no, dset in enumerate(flatten(arrays)):
+            array_equation = []
+            loc = dset.get_grid_indices
+            for idx in indices:
+                loc1, loc2 = loc[:], loc[:]
+                loc1[dire] += idx[0]
+                loc2[dire] += idx[1]
+                array_equation += [Eq(dset.base[loc1], dset.base[loc2])]
+            equations += array_equation
+        # print "equations are: \n", 
+        # pprint(equations)
+        ker.add_equation(equations)
+        ker.set_boundary_plane_range(block, dire, side)
+        # pprint(ker.ranges)
+        # pprint(ker.computation_name)
+        return ker
+
+class DirichletBoundaryConditionBlock(BoundaryConditionBase):
+    """Applies constant value Dirichlet boundary condition."""
+    def __init__(self, plane=True):
+        BoundaryConditionBase.__init__(self, plane)
+        return
+    def halos(self):
+        return True
+    def apply(self, arrays, boundary_direction, side, block):
+        # Get the exchanges which form the computations.
+        print "\n\n\n"
+        self.get_kernel(arrays, boundary_direction,side, block)
+        print "\n\n"
+        self.get_kernel(arrays, boundary_direction, side+1, block)
+        exit()
+        return
+    def get_kernel(self, arrays, boundary_direction, side, block):
+        return
+
 
 

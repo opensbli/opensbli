@@ -104,7 +104,7 @@ class Grid(WorkDataSet):
         self.shape = [ConstantObject("%s"%s, integer=True) for s in shape]
         self.Idxed_shape = [Idx(Symbol('i%d'%dim, integer = True),(0, self.shape[dim])) for dim in range(self.ndim)]
         self.ranges = [[s.lower, s.upper] for s in self.Idxed_shape]
-        self.deltas = [ConstantObject("Delta_%dblock_%d"%(dire,self.blocknumber)) for dire in range(self.ndim)]
+        self.deltas = [ConstantObject("Delta%dblock%d"%(dire,self.blocknumber)) for dire in range(self.ndim)]
         from .kernel import ConstantsToDeclare as CTD
         for d in self.deltas:
             CTD.add_constant(d)

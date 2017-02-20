@@ -184,7 +184,7 @@ class OPSC(object):
             code = algorithm.prg.opsc_code
             code = self.before_main(algorithm) + code
             self.name = 'taylor_green_vortex'
-            f = open('OpenSBLI.cpp' , 'w')
+            f = open('opensbli.cpp' , 'w')
             f.write('\n'.join(code))
             f.close()
             self.write_kernels(algorithm)

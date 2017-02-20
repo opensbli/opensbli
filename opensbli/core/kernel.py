@@ -152,7 +152,13 @@ class Kernel(object):
 
     def set_boundary_plane_range(self, block, direction, side):
         self.ranges = block.ranges[:]
-        self.ranges[direction] = block.ranges[direction][side]
+        if side == 0:
+            left = 0
+            right = 1
+        elif side == 1:
+            left = -1
+            right = 0
+        self.ranges[direction] = [block.ranges[direction][side]+left, block.ranges[direction][side]+right]
         return
 
     def set_range(self, ranges):
