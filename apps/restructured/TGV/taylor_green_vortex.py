@@ -7,6 +7,7 @@ from math import ceil
 from opensbli.core import *
 from opensbli.core.bcs import *
 from opensbli.physical_models.euler_eigensystem import *
+from opensbli.initialisation import *
 
 
 BUILD_DIR = os.getcwd()
@@ -68,50 +69,50 @@ eqns = eq.expand(temperature, ndim, coordinate_symbol, substitutions, constants)
 constituent.add_equations(eqns)
 
 
-latex = LatexWriter()
-latex.open('./equations.tex')
-metadata = {"title": "Einstein Expansion of new Taylor green vortex equations", "author": "David", "institution": ""}
-latex.write_header(metadata)
-latex.write_string("Simulation equations\n")
-for index, eq in enumerate(flatten(simulation_eq.equations)):
-    if isinstance(eq, Equality):
-        latex.write_expression(eq)
+# latex = LatexWriter()
+# latex.open('./equations.tex')
+# metadata = {"title": "Einstein Expansion of new Taylor green vortex equations", "author": "David", "institution": ""}
+# latex.write_header(metadata)
+# latex.write_string("Simulation equations\n")
+# for index, eq in enumerate(flatten(simulation_eq.equations)):
+#     if isinstance(eq, Equality):
+#         latex.write_expression(eq)
 
-latex.write_string("Constituent relations\n")
-for index, eq in enumerate(flatten(constituent.equations)):
-    if isinstance(eq, Equality):
-        latex.write_expression(eq)
-latex.write_footer()
-latex.close()
+# latex.write_string("Constituent relations\n")
+# for index, eq in enumerate(flatten(constituent.equations)):
+#     if isinstance(eq, Equality):
+#         latex.write_expression(eq)
+# latex.write_footer()
+# latex.close()
 
 
-block= SimulationBlock(ndim, block_number = 0)
-# create Initial conditions
-from opensbli.initialisation import *
+block = SimulationBlock(ndim, block_number = 0)
+
+local_dict = {"block" : block, "GridVariable" : GridVariable, "DataObject" : DataObject}
+
+x0 = "Eq(GridVariable(x0), block.deltas[0]*block.grid_indexes[0])"
+x1 = "Eq(GridVariable(x1), block.deltas[1]*block.grid_indexes[1])"
+x2 = "Eq(GridVariable(x2), block.deltas[2]*block.grid_indexes[2])"
+
+u0 = "Eq(GridVariable(u0),sin(x0)*cos(x1)*cos(x2))"
+u1 = "Eq(GridVariable(u1),-cos(x0)*sin(x1)*cos(x2))"
+u2 = "Eq(GridVariable(u2), 0.0)"
+p = "Eq(GridVariable(p), 1.0/(gama*Minf*Minf)+ (1.0/16.0) * (cos(2.0*x0)+cos(2.0*x1))*(2.0 + cos(2.0*x2)))"
+r = "Eq(GridVariable(r), gama*Minf*Minf*p)"
+
+rho = "Eq(DataObject(rho), r)"
+rhou0 = "Eq(DataObject(rhou0), r*u0)"
+rhou1 = "Eq(DataObject(rhou1), r*u1)"
+rhou2 = "Eq(DataObject(rhou2), r*u2)"
+rhoE = "Eq(DataObject(rhoE), p/(gama-1) + 0.5* r *(u0**2+ u1**2 + u2**2))"
+
+eqns = [x0, x1, x2, u0, u1, u2, p, r, rho, rhou0, rhou1, rhou2, rhoE]
+
+initial_equations = [parse_expr(eq, local_dict=local_dict) for eq in eqns]
+pprint(initial_equations)
 initial = GridBasedInitialisation()
-# As of now this is a work around later the initial conditions will be written as strings
-xi = [GridVariable('x%d'%(i)) for i in range(block.ndim)] # 0 to ndim-1
-le = [block.grid_indexes[i]*block.deltas[i] for i in range(block.ndim)]
-xi += [GridVariable('u'), GridVariable('v'), GridVariable('w')] # Add the grid symbols index ndim to 2.*ndim-1
-le += [sin(xi[0])*cos(xi[1])*cos(xi[2]), -cos(xi[0])*sin(xi[1])*cos(xi[2]), 0]
-consts = [ConstantObject(r) for r in constants]
-print consts
-xi += [GridVariable('p')] # index in array 2*ndim
-le += [1.0/(consts[2]*consts[3]**2) + (1.0/16.0)* ((cos(2.0*xi[0]) + cos(2.0*xi[1]))*(2.0 + cos(2.0*xi[2])))] # check this for 3d
-xi += [GridVariable('r')] # index in array 2*ndim+1
-le += [consts[2]*consts[3]**2*xi[2*ndim]]
+initial.add_equations(initial_equations)
 
-arrs = flatten(simulation_eq.time_advance_arrays)
-
-xi += [arrs[0]]; le += [xi[2*ndim+1]] # Density
-xi += [arrs[1]]; le += [xi[2*ndim+1] * xi[ndim]] # uvelocity
-xi += [arrs[2]]; le += [xi[2*ndim+1] * xi[ndim+1]] # vvelocity
-xi += [arrs[3]]; le += [xi[2*ndim+1] * xi[ndim+2]] # wvelocity
-xi += [arrs[4]]; le += [xi[2*ndim]/(consts[2]-1) + (1.0/2.0)*xi[2*ndim+1] *(xi[ndim]**2 + xi[ndim+1]**2 + xi[ndim+2]**2)  ] # Energy
-eq1 = [Eq(x,y) for x,y in zip(xi, le)]
-pprint(eq1)
-
-initial.add_equations(eq1)
 
 schemes = {}
 cent = Central(4)
@@ -120,7 +121,13 @@ rk = RungeKutta(3)
 schemes[rk.name] = rk
 
 block.sbli_rhs_discretisation = True
-boundaries = [PeriodicBoundaryConditionBlock()]*2*ndim
+
+boundaries = []
+# Create boundaries, one for each side per dimension
+for direction in range(ndim):
+	boundaries += [PeriodicBoundaryConditionBlock(direction, 0)]
+	boundaries += [PeriodicBoundaryConditionBlock(direction, 1)]
+
 block.set_block_boundaries(boundaries)
 block.set_equations([copy.deepcopy(constituent),copy.deepcopy(simulation_eq), initial])
 block.set_discretisation_schemes(schemes)
