@@ -170,7 +170,7 @@ class LinearExtrapolateBoundaryConditionBlock(BoundaryConditionBase):
     def apply(self, arrays, boundary_direction, side, block):
         dire = boundary_direction
         kernel = Kernel(block, computation_name="Extrapolate boundary dir%d side%d" % (dire, side))
-        halos = ker.get_plane_halos(block)
+        halos = kernel.get_plane_halos(block)
         # print "side is: ", side
         # print "halos are: ", halos
         # pprint(arrays[0].indices)
