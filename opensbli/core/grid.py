@@ -30,7 +30,7 @@ class GridVariable(Symbol):
     """ A symbolic variable defined on the Grid. """
 
     def __new__(self, variable):
-        self = Symbol.__xnew__(self, variable)
+        self = Symbol.__new__(self, variable)
         self.is_constant = False
         self.dtype = None
         return self
