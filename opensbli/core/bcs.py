@@ -107,22 +107,21 @@ class BoundaryConditionTypes(object):
         return
 class BoundaryConditionBase(object):
 
-    def __init__(self, plane):
+    def __init__(self, boundary_direction, side, plane):
         if plane:
             self.full_plane = True
         else:
             raise ValueError("")
-    def get_plane_range(self, block, direction, side):
-        halos = block.boundary_halos[direction][side]
-        #ranges =
-        return
+        self.direction = boundary_direction
+        self.side = side
+
 
 class PeriodicBoundaryConditionBlock(BoundaryConditionBase):
     """
     Applies periodic boundary condition
     """
-    def __init__(self, plane=True):
-        BoundaryConditionBase.__init__(self, plane)
+    def __init__(self, boundary_direction, side, plane=True):
+        BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
         return
     def halos(self):
         return True
@@ -163,27 +162,19 @@ class LinearExtrapolateBoundaryConditionBlock(BoundaryConditionBase):
     """
     Applies zero gradient linear extrapolation boundary condition.
     """
-    def __init__(self, plane=True):
-        BoundaryConditionBase.__init__(self, plane)
+    def __init__(self, boundary_direction, side, plane=True):
+        BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
         return
     def halos(self):
         return True
     def apply(self, arrays, boundary_direction, side, block):
-        # Get the exchanges which form the computations.
-        print "\n\n\n"
-        k = self.get_kernel(arrays, boundary_direction,side, block)
-        print "\n\n"
-        # mk = self.get_kernel(arrays, boundary_direction, side+1, block)
-        # exit()
-        return k
-
-    def get_kernel(self, arrays, boundary_direction, side, block):
-        # Relative indices to update for the extrapolation based on side
         dire = boundary_direction
-        ker = Kernel(block, computation_name="Extrapolate boundary dir%d side%d" % (dire, side))
+        kernel = Kernel(block, computation_name="Extrapolate boundary dir%d side%d" % (dire, side))
         halos = ker.get_plane_halos(block)
         # print "side is: ", side
         # print "halos are: ", halos
+        # pprint(arrays[0].indices)
+        # exit()
         if side == 0:
             base = 0
             indices = [tuple([-t, t]) for t in range(1, abs(halos[dire][side]) + 1)]
@@ -201,35 +192,30 @@ class LinearExtrapolateBoundaryConditionBlock(BoundaryConditionBase):
         equations = []
         for no, dset in enumerate(flatten(arrays)):
             array_equation = []
-            loc = dset.get_grid_indices
+            loc = list(dset.indices)
             for idx in indices:
                 loc1, loc2 = loc[:], loc[:]
                 loc1[dire] += idx[0]
                 loc2[dire] += idx[1]
                 array_equation += [Eq(dset.base[loc1], dset.base[loc2])]
             equations += array_equation
-        # print "equations are: \n", 
-        # pprint(equations)
-        ker.add_equation(equations)
-        ker.set_boundary_plane_range(block, dire, side)
-        # pprint(ker.ranges)
-        # pprint(ker.computation_name)
-        return ker
+        kernel.add_equation(equations)
+        kernel.set_boundary_plane_range(block, dire, side)        
+        return kernel
+
 
 class DirichletBoundaryConditionBlock(BoundaryConditionBase):
     """Applies constant value Dirichlet boundary condition."""
-    def __init__(self, plane=True):
-        BoundaryConditionBase.__init__(self, plane)
+    def __init__(self, boundary_direction, side , equations, plane=True):
+        BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
+        self.equations = equations
+
         return
     def halos(self):
         return True
     def apply(self, arrays, boundary_direction, side, block):
-        # Get the exchanges which form the computations.
-        print "\n\n\n"
         self.get_kernel(arrays, boundary_direction,side, block)
-        print "\n\n"
-        self.get_kernel(arrays, boundary_direction, side+1, block)
-        exit()
+
         return
     def get_kernel(self, arrays, boundary_direction, side, block):
         return
