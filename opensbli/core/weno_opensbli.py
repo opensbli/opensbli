@@ -253,7 +253,7 @@ class Weno(Scheme):
     def __init__(self, order, **kwargs):
         """ :arg: int order: Numerical order of the WENO scheme (3,5,...). """
         Scheme.__init__(self, "WenoDerivative", order)
-        self.eps = Symbol('epsilon')
+        self.eps = 1e-6
         k = int(0.5*(order+1))
         JS = JS_smoothness(k)
         self.schemetype = "Spatial"
@@ -373,15 +373,15 @@ class EigenSystem(object):
 
     def get_symbols_in_ev(self, direction):
         """ Retrieve the unique symbols present in the eigenvalue matrix for a given direction."""
-        return self.eigen_value[direction].atoms(Symbol)
+        return self.eigen_value[direction].atoms(EinsteinTerm).difference(self.eigen_value[direction].atoms(ConstantObject))
 
     def get_symbols_in_LEV(self, direction):
         """ Retrieve the unique symbols present in the left eigenvector matrix for a given direction."""
-        return self.left_eigen_vector[direction].atoms(Symbol)
+        return self.left_eigen_vector[direction].atoms(EinsteinTerm).difference(self.left_eigen_vector[direction].atoms(ConstantObject))
 
     def get_symbols_in_REV(self, direction):
         """ Retrieve the unique symbols present in the right rigenvector matrix for a given direction."""
-        return self.right_eigen_vector[direction].atoms(Symbol)
+        return self.right_eigen_vector[direction].atoms(EinsteinTerm).difference(self.right_eigen_vector[direction].atoms(ConstantObject))
 
     def generate_grid_variable_ev(self, direction, name):
         """ Create a matrix of eigenvalue GridVariable elements. """
@@ -411,7 +411,7 @@ class EigenSystem(object):
         arg: Matrix: mat: Symbolic matrix to convert to GridVariable elements.
         arg: str: name: Base name to use for the GridVariables
         returns: mat: The matrix updated to contain GridVariables."""
-        syms = list(mat.atoms(Symbol))
+        syms = list(mat.atoms(EinsteinTerm).difference(mat.atoms(ConstantObject)))
         new_syms = [GridVariable('%s_%s'%(name,str(sym))) for sym in syms]
         substitutions = dict(zip(syms, new_syms))
         mat = mat.subs(substitutions)
@@ -450,7 +450,7 @@ class EigenSystem(object):
         arg: int: location: The integer location to apply to the DataSet.
         arg: int: direction: The integer direction (axis) of the DataSet to apply the location to.
         returns: object: symbolics: The original expression updated to be in terms of DataSets rather than Symbols."""
-        symbols = symbolics.atoms(Symbol)
+        symbols = symbolics.atoms(EinsteinTerm).difference(symbolics.atoms(ConstantObject))
         dsets = [DataSetBase(s) for s in symbols]
         loc = DataSetBase.location()
         loc[direction] = loc[direction] + location
@@ -659,7 +659,8 @@ class LLFCharacteristic(Characteristic, Weno):
                 weno_kernel.set_grid_range(block)
                 self.pre_process(key, derivatives, flatten(type_of_eq.time_advance_arrays), weno_kernel)
                 self.interpolate_reconstruction_variables(derivatives, weno_kernel)
-
+                block.set_block_boundary_halos(key, 0, self.halotype)
+                block.set_block_boundary_halos(key, 1, self.halotype)
                 reconstructed_flux = self.post_process(derivatives, weno_kernel)
                 type_of_eq.Kernels += [weno_kernel]
             if grouped:

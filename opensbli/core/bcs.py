@@ -171,10 +171,7 @@ class LinearExtrapolateBoundaryConditionBlock(BoundaryConditionBase):
         dire = boundary_direction
         kernel = Kernel(block, computation_name="Extrapolate boundary dir%d side%d" % (dire, side))
         halos = kernel.get_plane_halos(block)
-        # print "side is: ", side
-        # print "halos are: ", halos
-        # pprint(arrays[0].indices)
-        # exit()
+
         if side == 0:
             base = 0
             indices = [tuple([-t, t]) for t in range(1, abs(halos[dire][side]) + 1)]
@@ -200,7 +197,8 @@ class LinearExtrapolateBoundaryConditionBlock(BoundaryConditionBase):
                 array_equation += [Eq(dset.base[loc1], dset.base[loc2])]
             equations += array_equation
         kernel.add_equation(equations)
-        kernel.set_boundary_plane_range(block, dire, side)        
+        kernel.set_boundary_plane_range(block, dire, side) 
+        kernel.update_block_datasets(block)
         return kernel
 
 

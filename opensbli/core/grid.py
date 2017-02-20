@@ -100,7 +100,7 @@ class Grid(WorkDataSet):
         # Instantiate WorkDataSet
         WorkDataSet.__init__(self)
         inds = symbols('shape_0:%d'%self.ndim, integer=True)
-        shape = symbols('block%dnp_0:%d'%(self.blocknumber, self.ndim), integer=True)
+        shape = symbols('block%dnp0:%d'%(self.blocknumber, self.ndim), integer=True)
         self.shape = [ConstantObject("%s"%s, integer=True) for s in shape]
         self.Idxed_shape = [Idx(Symbol('i%d'%dim, integer = True),(0, self.shape[dim])) for dim in range(self.ndim)]
         self.ranges = [[s.lower, s.upper] for s in self.Idxed_shape]

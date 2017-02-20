@@ -21,7 +21,7 @@
 from sympy.tensor.array import MutableDenseNDimArray, tensorcontraction
 from opensbli.core.opensbliobjects import *
 from sympy import *
-from opensbli.core.opensbliobjects import ConstantObject
+from opensbli.core.opensbliobjects import ConstantObject, EinsteinTerm
 from opensbli.core.opensblifunctions import CentralDerivative
 from opensbli.core.opensbliequations import OpenSBLIExpression
 from sympy.parsing.sympy_parser import parse_expr
@@ -111,7 +111,6 @@ class EulerEquations(object):
 
     def speed_of_sound(self,conservative= True):
         # asq = "Eq(asq, gama*(gama-1)*(rhoE/rho - (1/2)*(rhou_j*rhou_j/(rho*rho))))"
-        #WARNING: Added speed of sound with KD instead of two dummy as before, is this formula correct?
         asq = "Eq(asq, gama*(gama-1)*(rhoE/rho - (1/2)*(KD(_i,_j)*u_i*u_j)))"
         a = "Eq(a, sqrt(gama*(gama-1)*(rhoE/rho - (1/2)*(KD(_i,_j)*u_i*u_j))))"
         self.formulas = self.formulas + [asq]
@@ -157,19 +156,22 @@ class EulerEquations(object):
         #     met_symbols = block.FD_simple_symbols
         #     pprint(block.FD_eval_symbols
         met_symbols = eye(ndim)
+        local_dict = { 'Symbol': EinsteinTerm, 'gama': ConstantObject('gama')}
 
         if ndim == 1:
             matrix_symbols = ['H']
             matrix_formulae = ['a**2/(gama-1) + u0**2/2']
-            matrix_symbols = [parse_expr(l) for l in matrix_symbols]
-            matrix_formulae = [parse_expr(l) for l in matrix_formulae]
+            matrix_symbols = [parse_expr(l, local_dict=local_dict) for l in matrix_symbols]
+            matrix_formulae = [parse_expr(l, local_dict=local_dict) for l in matrix_formulae]
+
 
             ev = 'diag([u0-a, u0, u0+a])'
             REV = 'Matrix([[1,1,1], [u0-a,u0,u0+a], [H-u0*a,u0**2 /2,H+u0*a]])'
             LEV = 'Matrix([[ u0*(2*H + a*u0 - u0**2)/(2*a*(2*H - u0**2)), (-H - a*u0 + u0**2/2)/(a*(2*H - u0**2)),  1/(2*H - u0**2)],[2*(H - u0**2)/(2*H - u0**2),2*u0/(2*H - u0**2), 2/(-2*H + u0**2)],[u0*(-2*H + a*u0 + u0**2)/(2*a*(2*H - u0**2)),  (H - a*u0 - u0**2/2)/(a*(2*H - u0**2)),  1/(2*H - u0**2)]])'
-            ev = parse_expr(ev)
-            REV = parse_expr(REV)
-            LEV = parse_expr(LEV)
+            ev = parse_expr(ev, local_dict=local_dict)
+            REV = parse_expr(REV, local_dict=local_dict)
+            LEV = parse_expr(LEV, local_dict=local_dict)
+
 
             subs_dict = dict(zip(matrix_symbols, matrix_formulae))
             f = lambda x:x.subs(subs_dict)
@@ -181,14 +183,14 @@ class EulerEquations(object):
             LEV_dict = {}
             definitions ={}
 
-            subs_list = [{Symbol('un_0'): 1, Symbol('un_1'): 0},
-             {Symbol('un_0'): 0, Symbol('un_1'): 1}]
+            subs_list = [{EinsteinTerm('un_0'): 1, EinsteinTerm('un_1'): 0},
+             {EinsteinTerm('un_0'): 0, EinsteinTerm('un_1'): 1}]
             equations = [Eq(a,b) for a,b in subs_dict.items()]
             eq_directions = {}
             for no,coordinate in enumerate(coordinates):
                 direction =coordinate.direction
                 g = lambda x:x.subs(subs_list[no]).simplify()
-                definitions[direction] = ev.applyfunc(g).atoms(Symbol).union(REV.applyfunc(g).atoms(Symbol)).union(LEV.applyfunc(g).atoms(Symbol))
+                definitions[direction] = ev.applyfunc(g).atoms(EinsteinTerm).union(REV.applyfunc(g).atoms(EinsteinTerm)).union(LEV.applyfunc(g).atoms(EinsteinTerm))
                 ev_dict[direction] = diag(*list(ev.applyfunc(g)))
                 REV_dict[direction] = REV.applyfunc(g)
                 LEV_dict[direction] = LEV.applyfunc(g)

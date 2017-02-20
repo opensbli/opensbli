@@ -1,6 +1,7 @@
 import os
 from sympy import pprint
 import numpy as np
+from math import ceil
 
 def substitute_parameters(simulation_name, constants, values, dsets, hdf5=False):
     file_path = "./%s.cpp" % simulation_name
@@ -34,8 +35,6 @@ def substitute_parameters(simulation_name, constants, values, dsets, hdf5=False)
                     new_str += 'ops_fetch_dat_hdf5_file(%s_B0, "%s.h5");\n' % (dset, simulation_name)
                 new_str += ops_exit
 
-        
-
         s = s.replace(ops_exit, new_str)
         f.write(s)
     return
@@ -44,8 +43,8 @@ def substitute_parameters(simulation_name, constants, values, dsets, hdf5=False)
 
 
 if __name__ == "__main__":
-    constants = ['Re', 'gama', 'Minf', 'Pr', 'dt', 'niter', 'block0np_0', 'block0np_1', 'block0np_2', 'Delta_0block_0', 'Delta_1block_0', 'Delta_2block_0']
-    values = [1600.0, 1.4, 0.1, 0.71, 0.25*3.385*10**-3, 500, 256, 256, 256, 2*np.pi/256, 2*np.pi/256, 2*np.pi/256]
+    constants = ['gama', 'Minf','dt', 'niter', 'block0np0', 'Delta0block0']
+    values = [1.4, 0.1, 2e-4, ceil(1.8/2e-4), 1600, 10.0/1600]
     simulation_name = 'opensbli'
-    dsets = ['rho', 'rhou0', 'rhou1', 'rhou2', 'rhoE']
+    dsets = ['rho', 'rhou0', 'rhoE']
     substitute_parameters(simulation_name, constants, values, dsets, True)
