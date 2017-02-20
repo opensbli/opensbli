@@ -337,6 +337,8 @@ class Weno(Scheme):
             raise ValueError("The symbol provided should be either a list or symbols")
 
         for s in sym:
+            if isinstance(s, DataSetBase):
+                s = s.noblockname
             if s in self.required_constituent_relations_symbols.keys():
                 self.required_constituent_relations_symbols[s] += [direction]
             else:
@@ -474,7 +476,10 @@ class Characteristic(EigenSystem):
         all_WDS = []
         for eq in eqs:
             all_WDS += list(eq.atoms(WenoDerivative))
-        all_WDS = list(set(all_WDS))
+            # pprint([eq, eq.atoms(WenoDerivative)])
+        # all_WDS = list(set(all_WDS))
+        if len(all_WDS) != len(eqs):
+            raise ValueError("Number of WD in each equation should be one.")
         grouped = {}
         for cd in all_WDS:
             direction = cd.get_direction[0]
@@ -494,7 +499,6 @@ class Characteristic(EigenSystem):
         self.direction = direction
         pre_process_equations = []
         required_symbols = self.get_symbols_in_ev(direction).union(self.get_symbols_in_LEV(direction)).union(self.get_symbols_in_REV(direction))
-        self.update_constituent_relation_symbols(required_symbols, direction)
         averaged_suffix_name = 'AVG_%d' % direction
         self.averaged_suffix_name = averaged_suffix_name
         averaged_equations = self.average(required_symbols, direction, averaged_suffix_name)
@@ -509,6 +513,10 @@ class Characteristic(EigenSystem):
         characteristic_solution_vector, CS_matrix = self.solution_vector_to_characteristic(solution_vector, direction, averaged_suffix_name)
         pre_process_equations += flatten(self.generate_equations_from_matrices(CF_matrix, characteristic_flux_vector))
         pre_process_equations += flatten(self.generate_equations_from_matrices(CS_matrix, characteristic_solution_vector))
+
+        for d in derivatives:
+            required_symbols = required_symbols.union(d.atoms(DataSetBase))
+        self.update_constituent_relation_symbols(required_symbols, direction)
 
         if hasattr(self, 'flux_split') and self.flux_split:
             print ("Characteristic flux splitting scheme")

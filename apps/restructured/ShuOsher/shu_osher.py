@@ -60,8 +60,8 @@ eqns = eq.expand(pressure, ndim, coordinate_symbol, substitutions, constants)
 constituent.add_equations(eqns)
 
 eqns = eq.expand(speed_of_sound, ndim, coordinate_symbol, substitutions, constants)
-# constituent.add_equations(eqns)
-pprint(srepr(eqns))
+constituent.add_equations(eqns)
+# pprint(srepr(eqns))
 # exit()
 
 
