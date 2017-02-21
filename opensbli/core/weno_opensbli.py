@@ -15,12 +15,15 @@ class Scheme(object):
         return
 
 class WenoHalos(object):
-    def __init__(self, order):
+    def __init__(self, order, reconstruction=None):
         # Check for the boundary types in the blocks and set the halo points
         #self.halos = [[-scheme.order, scheme.order] for dim in range(block.ndim)]
         k = int(0.5*(order+1))
         # self.halos = [(-k, k+1)for dim in range(ndim)]
-        self.halos = [-k, k+1]
+        if not reconstruction:
+            self.halos = [-k, k+1]
+        else:
+            self.halos = [-1, 1]
         return
     def get_halos(self, side):
         return self.halos[side]
@@ -258,6 +261,7 @@ class Weno(Scheme):
         JS = JS_smoothness(k)
         self.schemetype = "Spatial"
         self.k = k
+        self.order = order
         self.halotype = WenoHalos(order)
         self.required_constituent_relations_symbols = {}
         # Generate smoothness coefficients and store configurations for left and right reconstructions.
@@ -649,6 +653,7 @@ class LLFCharacteristic(Characteristic, Weno):
             eqs = flatten(type_of_eq.equations)
             grouped = self.group_by_direction(eqs)
             all_derivatives_evaluated_locally = []
+            reconstruction_halos = WenoHalos(self.order, reconstruction=True)
             for key, derivatives in grouped.iteritems():
                 all_derivatives_evaluated_locally += derivatives
                 for no,deriv in enumerate(derivatives):
@@ -665,6 +670,9 @@ class LLFCharacteristic(Characteristic, Weno):
                     deriv.create_reconstruction_work_array(block)
                 weno_kernel = Kernel(block, computation_name = "Weno_reconstruction_%d_direction"%(key))
                 weno_kernel.set_grid_range(block)
+                # WENO reconstruction should be evaluated for extra point on each side 
+                weno_kernel.set_halo_range(key, 0, reconstruction_halos)
+                weno_kernel.set_halo_range(key, 1, reconstruction_halos)
                 self.pre_process(key, derivatives, flatten(type_of_eq.time_advance_arrays), weno_kernel)
                 self.interpolate_reconstruction_variables(derivatives, weno_kernel)
                 block.set_block_boundary_halos(key, 0, self.halotype)

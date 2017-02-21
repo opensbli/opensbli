@@ -114,6 +114,7 @@ class BoundaryConditionBase(object):
             raise ValueError("")
         self.direction = boundary_direction
         self.side = side
+        self.equations = None
 
 
 class PeriodicBoundaryConditionBlock(BoundaryConditionBase):
@@ -207,16 +208,40 @@ class DirichletBoundaryConditionBlock(BoundaryConditionBase):
     def __init__(self, boundary_direction, side , equations, plane=True):
         BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
         self.equations = equations
-
         return
     def halos(self):
         return True
     def apply(self, arrays, boundary_direction, side, block):
-        self.get_kernel(arrays, boundary_direction,side, block)
+        kernel = Kernel(block, computation_name="Dirichlet boundary dir%d side%d" % (boundary_direction, side))
+        kernel.set_boundary_plane_range(block, boundary_direction, side)
+        kernel.ranges[boundary_direction][side] = block.ranges[boundary_direction][side]
+        # kernel.set_boundary_plane_range(block, boundary_direction, side) 
+        print kernel.ranges, "string"
+        # exit()
+        kernel.set_halo_range(boundary_direction, side, block.boundary_halos[boundary_direction][side])
+        # print kernel.ranges
+        # print "halos are: ", halos
+        # exit()
+        # if side == 0:
+        #     base = 0  # Left side starting index
+        #     range_of_evaluation = [tuple([0 + halos[dire][0], s + halos[dire][1]]) for s in block.shape]
+        #     range_of_evaluation[dire] = tuple([halos[dire][0], base])
+        #     print "side is: ", side
+        #     print "range is: ", range_of_evaluation
+        #     print "\n"
+        # elif side == 1:
+        #     base = block.shape[dire]
+        #     range_of_evaluation = [tuple([0 + halos[dire][0], s + halos[dire][1]]) for s in block.shape]
+        #     range_of_evaluation[dire] = tuple([base, base + halos[dire][1]])
+        #     print "side is: ", side
+        #     print "range is: ", range_of_evaluation
+        #     print "\n"
+        # # eqns = [Eq(x,y) for x,y in zip(flatten(arrays), self.equations)]
+        kernel.add_equation(self.equations)
+        # kernel.set_boundary_plane_range(block, dire, side) 
+        kernel.update_block_datasets(block)
+        return kernel
 
-        return
-    def get_kernel(self, arrays, boundary_direction, side, block):
-        return
 
 
 

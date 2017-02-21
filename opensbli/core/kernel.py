@@ -108,7 +108,26 @@ class Kernel(object):
         return
 
     def set_grid_range(self, block):
+        # self.ranges = []
+        # for d in range(block.ndim):
+        #     local_range = []
+        #     local_range += [0,0]
+        #     self.ranges += [local_range]
         self.ranges = block.ranges
+        return
+
+    def set_grid_range_to_zero(self, block):
+        self.ranges = []
+        for d in range(block.ndim):
+            local_range = []
+            local_range += [0,0]
+            self.ranges += [local_range]
+        return
+
+    def set_grid_range_for_halo_loop(self, direction, side, block):
+        self.set_grid_range_to_zero(block)
+        self.ranges[direction] = [block.ranges[direction][side]]*2
+        print self.ranges, "setting halo loop"
         return
 
     #def get_max_halos(self, direction, side, block):
@@ -169,7 +188,11 @@ class Kernel(object):
         #if not self.halo_ranges[direction][side]:
             #self.halo_ranges[direction][side] = set([types])
         #else:
-        self.halo_ranges[direction][side].add(types)
+        if isinstance(types, set):
+            for s in types:
+                self.halo_ranges[direction][side].add(s)
+        else:
+            self.halo_ranges[direction][side].add(types)
         return
 
     def merge_halo_range(self, halo_range):

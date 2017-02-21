@@ -93,6 +93,16 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes, RationalCount
 
     def set_block_boundaries(self, bclist):
         self.set_boundary_types(bclist)
+        # Convert the equations into block datasets
+        for b in flatten(self.boundary_types):
+            if b.equations:
+                b.equations = self.dataobjects_to_datasets_on_block(b.equations)
+                # print srepr(b.equations[0].lhs)
+        # for b in bcli
+        # for eq in self.list_of_equation_classes:
+        #     block_eq = self.dataobjects_to_datasets_on_block(eq.equations)
+        #     eq.equations = block_eq
+        return
 
     def set_block_boundary_halos(self, direction, side, types):
         self.boundary_halos[direction][side].add(types)
@@ -132,12 +142,12 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes, RationalCount
         Metric equations, diagnostic equations etc)
         : ar
         """
-        # set the block for the data sets
-        DataSetBase.block = self
-        # Convert the equations into block datasets
-        for eq in self.list_of_equation_classes:
-            block_eq = self.dataobjects_to_datasets_on_block(eq.equations)
-            eq.equations = block_eq
+        # # set the block for the data sets
+        # DataSetBase.block = self
+        # # Convert the equations into block datasets
+        # for eq in self.list_of_equation_classes:
+        #     block_eq = self.dataobjects_to_datasets_on_block(eq.equations)
+        #     eq.equations = block_eq
 
         # perform the spatial discretisation of the equations using schemes
         for eq in self.list_of_equation_classes:
@@ -170,6 +180,11 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes, RationalCount
 
     def set_equations(self, list_of_equations):
         self.list_of_equation_classes = list_of_equations
+        DataSetBase.block = self
+        # Convert the equations into block datasets
+        for eq in self.list_of_equation_classes:
+            block_eq = self.dataobjects_to_datasets_on_block(eq.equations)
+            eq.equations = block_eq
         return
 
     def set_discretisation_schemes(self, schemes):
