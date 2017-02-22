@@ -40,9 +40,6 @@ class EulerEquations(object):
         self.ndim = ndim
         coordinate_symbol = "x"
 
-        # self.expanded_equations = problem.get_expanded(problem.equations)
-        # self.expanded_formulas = problem.get_expanded(problem.formulas)
-        # self.problem = problem
         self.time_derivative_symbol = CoordinateObject('t')
         cart = CoordinateObject('%s_i'%(coordinate_symbol))
         self.space_derivative_symbols = [cart.apply_index(cart.indices[0], dim) for dim in range(self.ndim)]
@@ -202,19 +199,19 @@ class EulerEquations(object):
             matrix_symbols_2 = ['k0_t','k1_t', 'theta_t', 'U']
             matrix_formulae_2 = ['k0/k', 'k1/k', 'k0_t*u0 + k1_t*u1', 'k0*u0+k1*u1']
 
-            matrix_symbols = [parse_expr(l,evaluate=False) for l in matrix_symbols]
-            matrix_formulae = [parse_expr(l, evaluate=False) for l in matrix_formulae]
-            matrix_symbols_2 = [parse_expr(l, evaluate=False) for l in matrix_symbols_2]
-            matrix_formulae_2 = [parse_expr(l, evaluate=False) for l in matrix_formulae_2]
+            matrix_symbols = [parse_expr(l, local_dict=local_dict) for l in matrix_symbols]
+            matrix_formulae = [parse_expr(l, local_dict=local_dict) for l in matrix_formulae]
+            matrix_symbols_2 = [parse_expr(l, local_dict=local_dict) for l in matrix_symbols_2]
+            matrix_formulae_2 = [parse_expr(l, local_dict=local_dict) for l in matrix_formulae_2]
             subs_dict = dict(zip(matrix_symbols, matrix_formulae))
             subs_dict2 = dict(zip(matrix_symbols_2, matrix_formulae_2))
 
             ev = 'diag([U, U, U+a*k, U-a*k])'
-            ev = parse_expr(ev, evaluate=False)
             REV = 'Matrix([[1,0,alpha,alpha], [u0,k1_t*rho,alpha*(u0+k0_t*a),alpha*(u0-k0_t*a)], [u1,-k0_t*rho,alpha*(u1+k1_t*a),alpha*(u1-k1_t*a)], [phi_sq/(gama-1),rho*(k1_t*u0-k0_t*u1),alpha*((phi_sq+a**2)/(gama-1) + a*theta_t),alpha*((phi_sq+a**2)/(gama-1) - a*theta_t)]])'
-            REV = parse_expr(REV, evaluate=False)
             LEV = 'Matrix([[1-phi_sq/a**2,(gama-1)*u0/a**2,(gama-1)*u1/a**2,-(gama-1)/a**2], [-(k1_t*u0-k0_t*u1)/rho,k1_t/rho,-k0_t/rho,0], [bta*(phi_sq-a*theta_t),bta*(k0_t*a-(gama-1)*u0),bta*(k1_t*a-(gama-1)*u1),bta*(gama-1)], [bta*(phi_sq+a*theta_t),-bta*(k0_t*a+(gama-1)*u0),-bta*(k1_t*a+(gama-1)*u1),bta*(gama-1)]])'
-            LEV = parse_expr(LEV, evaluate=False)
+            ev = parse_expr(ev, local_dict=local_dict)
+            REV = parse_expr(REV, local_dict=local_dict)
+            LEV = parse_expr(LEV, local_dict=local_dict)
 
             # Apply the sub
             f = lambda x:x.subs(subs_dict, evaluate=False)
@@ -238,8 +235,8 @@ class EulerEquations(object):
             if metric_transformations:
                 fact1 = ((met_symbols[0,0])**2 + (met_symbols[0,1])**2)**(Rational(1,2))
                 fact2 = ((met_symbols[1,0])**2 + (met_symbols[1,1])**2)**(Rational(1,2))
-            subs_list = [{Symbol('k0'): met_symbols[0,0], Symbol('k1'): met_symbols[0,1], Symbol('k'): fact1, Symbol('gama'): Rational(7,5)},
-                        {Symbol('k0'): met_symbols[1,0], Symbol('k1'): met_symbols[1,1], Symbol('k'): fact2, Symbol('gama'): Rational(7,5)}]
+            subs_list = [{EinsteinTerm('k0'): met_symbols[0,0], EinsteinTerm('k1'): met_symbols[0,1], EinsteinTerm('k'): fact1},
+                        {EinsteinTerm('k0'): met_symbols[1,0], EinsteinTerm('k1'): met_symbols[1,1], EinsteinTerm('k'): fact2}]
             # equations = [Eq(a,b) for a,b in subs_dict.items()]
             eq_directions = {}
             for no,coordinate in enumerate(coordinates):
@@ -255,19 +252,19 @@ class EulerEquations(object):
             matrix_symbols_2 = ['k0_t','k1_t', 'k2_t', 'theta_t', 'U']
             matrix_formulae_2 = ['k0/k', 'k1/k', 'k2/k', 'k0_t*u0 + k1_t*u1 + k2_t*u2', 'k0*u0+k1*u1+k2*u2']
 
-            matrix_symbols = [parse_expr(l,evaluate=False) for l in matrix_symbols]
-            matrix_formulae = [parse_expr(l, evaluate=False) for l in matrix_formulae]
-            matrix_symbols_2 = [parse_expr(l, evaluate=False) for l in matrix_symbols_2]
-            matrix_formulae_2 = [parse_expr(l, evaluate=False) for l in matrix_formulae_2]
+            matrix_symbols = [parse_expr(l, local_dict=local_dict) for l in matrix_symbols]
+            matrix_formulae = [parse_expr(l, local_dict=local_dict) for l in matrix_formulae]
+            matrix_symbols_2 = [parse_expr(l, local_dict=local_dict) for l in matrix_symbols_2]
+            matrix_formulae_2 = [parse_expr(l, local_dict=local_dict) for l in matrix_formulae_2]
             subs_dict = dict(zip(matrix_symbols, matrix_formulae))
             subs_dict2 = dict(zip(matrix_symbols_2, matrix_formulae_2))
 
             ev = 'diag([U, U, U, U+a*k, U-a*k])'
-            ev = parse_expr(ev, evaluate=False)
             REV = 'Matrix([[k0_t,k1_t,k2_t,alpha,alpha], [k0_t*u0,k1_t*u0-k2_t*rho,k2_t*u0+k1_t*rho,alpha*(u0+k0_t*a),alpha*(u0-k0_t*a)], [k0_t*u1+k2_t*rho,k1_t*u1,k2_t*u1-k0_t*rho,alpha*(u1+k1_t*a),alpha*(u1-k1_t*a)], [k0_t*u2-k1_t*rho,k1_t*u2+k0_t*rho,k2_t*u2,alpha*(u2+k2_t*a),alpha*(u2-k2_t*a)], [k0_t*phi_sq/(gama-1) + rho*(k2_t*u1-k1_t*u2),k1_t*phi_sq/(gama-1) + rho*(k0_t*u2-k2_t*u0),k2_t*phi_sq/(gama-1) + rho*(k1_t*u0-k0_t*u1),alpha*((phi_sq+a**2)/(gama-1) + theta_t*a),alpha*((phi_sq+a**2)/(gama-1) - theta_t*a)]])'
-            REV = parse_expr(REV, evaluate=False)
             LEV = 'Matrix([[k0_t*(1-phi_sq/a**2)-(k2_t*u1-k1_t*u2)/rho,k0_t*(gama-1)*u0/a**2,k0_t*(gama-1)*u1/a**2 + k2_t/rho,k0_t*(gama-1)*u2/a**2 - k1_t/rho,-k0_t*(gama-1)/a**2], [k1_t*(1-phi_sq/a**2)-(k0_t*u2-k2_t*u0)/rho,k1_t*(gama-1)*u0/a**2 - k2_t/rho,k1_t*(gama-1)*u1/a**2,k1_t*(gama-1)*u2/a**2 + k0_t/rho,-k1_t*(gama-1)/a**2], [k2_t*(1-phi_sq/a**2) - (k1_t*u0-k0_t*u1)/rho,k2_t*(gama-1)*u0/a**2 + k1_t/rho,k2_t*(gama-1)*u1/a**2 - k0_t/rho,k2_t*(gama-1)*u2/a**2,-k2_t*(gama-1)/a**2], [bta*(phi_sq-theta_t*a),-bta*((gama-1)*u0-k0_t*a),-bta*((gama-1)*u1-k1_t*a),-bta*((gama-1)*u2 - k2_t*a),bta*(gama-1)], [bta*(phi_sq+theta_t*a),-bta*((gama-1)*u0+k0_t*a),-bta*((gama-1)*u1+k1_t*a),-bta*((gama-1)*u2+k2_t*a),bta*(gama-1)]])'
-            LEV = parse_expr(LEV, evaluate=False)
+            ev = parse_expr(ev, local_dict=local_dict)
+            REV = parse_expr(REV, local_dict=local_dict)
+            LEV = parse_expr(LEV, local_dict=local_dict)
 
             # Apply the sub
             f = lambda x:x.subs(subs_dict, evaluate=False)

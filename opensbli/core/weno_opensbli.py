@@ -392,24 +392,26 @@ class EigenSystem(object):
     def generate_grid_variable_ev(self, direction, name):
         """ Create a matrix of eigenvalue GridVariable elements. """
         name = '%s_%d_lambda' % (name, direction)
-        return self.symbol_matrix(self.eigen_value[direction].shape, name)
+        return self.symbol_matrix(self.eigen_value[direction], name)
 
     def generate_grid_variable_REV(self, direction, name):
         """ Create a matrix of right eigenvector GridVariable elements. """
         name = '%s_%d_REV' % (name, direction)
-        return self.symbol_matrix(self.right_eigen_vector[direction].shape, name)
+        return self.symbol_matrix(self.right_eigen_vector[direction], name)
 
     def generate_grid_variable_LEV(self, direction, name):
         """ Create a matrix of left eigenvector GridVariable elements. """
         name = '%s_%d_LEV' % (name, direction)
-        return self.symbol_matrix(self.left_eigen_vector[direction].shape, name)
+        return self.symbol_matrix(self.left_eigen_vector[direction], name)
 
-    def symbol_matrix(self, shape, name):
+    def symbol_matrix(self, mat, name):
         """ Generic function to populate a matrix of GridVariables for a given name and shape."""
+        shape = mat.shape
         symbolic_matrix = zeros(*shape)
         for i in range(shape[0]):
             for j in range(shape[1]):
-                symbolic_matrix[i,j] = GridVariable('%s_%d%d'%(name,i,j))
+                if mat[i,j]:
+                    symbolic_matrix[i,j] = GridVariable('%s_%d%d'%(name,i,j))
         return symbolic_matrix
 
     def convert_matrix_to_grid_variable(self, mat, name):
@@ -482,8 +484,9 @@ class Characteristic(EigenSystem):
             all_WDS += list(eq.atoms(WenoDerivative))
             # pprint([eq, eq.atoms(WenoDerivative)])
         # all_WDS = list(set(all_WDS))
-        if len(all_WDS) != len(eqs):
-            raise ValueError("Number of WD in each equation should be one.")
+        # pprint(all_WDS)
+        # if len(all_WDS) != len(eqs):
+        #     raise ValueError("Number of WD in each equation should be one.")
         grouped = {}
         for cd in all_WDS:
             direction = cd.get_direction[0]
@@ -491,6 +494,7 @@ class Characteristic(EigenSystem):
                 grouped[direction] += [cd]
             else:
                 grouped[direction] = [cd]
+        #TODO: check for size of grouped items
         return grouped
 
     def pre_process(self, direction, derivatives, solution_vector, kernel):

@@ -89,6 +89,7 @@ class BoundaryConditionTypes(object):
     def set_boundary_types(self, types):
         """ Adds the boundary types of the grid """
         # convert the list of types into a list of tuples
+        types = flatten(types)
         self.check_boundarysizes_ndim_match(types)
         it = iter(types)
         self.boundary_types = zip(it, it)
@@ -115,6 +116,7 @@ class BoundaryConditionBase(object):
         self.direction = boundary_direction
         self.side = side
         self.equations = None
+        return
 
 
 class PeriodicBoundaryConditionBlock(BoundaryConditionBase):
@@ -169,36 +171,30 @@ class LinearExtrapolateBoundaryConditionBlock(BoundaryConditionBase):
     def halos(self):
         return True
     def apply(self, arrays, boundary_direction, side, block):
-        dire = boundary_direction
-        kernel = Kernel(block, computation_name="Extrapolate boundary dir%d side%d" % (dire, side))
+
+        kernel = Kernel(block, computation_name="Extrapolation boundary dir%d side%d" % (boundary_direction, side))
+        kernel.set_boundary_plane_range(block, boundary_direction, side)
         halos = kernel.get_plane_halos(block)
-
+        base = block.ranges[boundary_direction][side]
         if side == 0:
-            base = 0
-            indices = [tuple([-t, t]) for t in range(1, abs(halos[dire][side]) + 1)]
-            range_of_evaluation = [tuple([0 + halos[dire][0], s + halos[dire][1]]) for s in block.shape]
-            range_of_evaluation[dire] = tuple([base, base+1])
-
+            from_side_factor = -1
+            to_side_factor = 1
         elif side == 1:
-            base = block.shape[dire]  # The end point of the domain in the direction of the boundary
-            indices = [tuple([t, -t]) for t in range(1, abs(halos[dire][side]) + 1)]
-            range_of_evaluation = [tuple([0 + halos[dire][0], s + halos[dire][1]]) for s in block.shape]
-            range_of_evaluation[dire] = tuple([base-1, base])
-        # print "indices are: ", indices
-        # print "range of eval is: ", range_of_evaluation
-
+            from_side_factor = 1
+            to_side_factor = -1       
+        indices = [tuple([from_side_factor*t, to_side_factor*t]) for t in range(1, abs(halos[boundary_direction][side]) + 1)]
         equations = []
         for no, dset in enumerate(flatten(arrays)):
             array_equation = []
             loc = list(dset.indices)
-            for idx in indices:
+            for index in indices:
                 loc1, loc2 = loc[:], loc[:]
-                loc1[dire] += idx[0]
-                loc2[dire] += idx[1]
+                loc1[boundary_direction] += index[0]
+                loc2[boundary_direction] += index[1]
                 array_equation += [Eq(dset.base[loc1], dset.base[loc2])]
             equations += array_equation
         kernel.add_equation(equations)
-        kernel.set_boundary_plane_range(block, dire, side) 
+        kernel.set_boundary_plane_range(block, boundary_direction, side) 
         kernel.update_block_datasets(block)
         return kernel
 
@@ -215,33 +211,74 @@ class DirichletBoundaryConditionBlock(BoundaryConditionBase):
         kernel = Kernel(block, computation_name="Dirichlet boundary dir%d side%d" % (boundary_direction, side))
         kernel.set_boundary_plane_range(block, boundary_direction, side)
         kernel.ranges[boundary_direction][side] = block.ranges[boundary_direction][side]
-        # kernel.set_boundary_plane_range(block, boundary_direction, side) 
-        print kernel.ranges, "string"
-        # exit()
         kernel.set_halo_range(boundary_direction, side, block.boundary_halos[boundary_direction][side])
-        # print kernel.ranges
-        # print "halos are: ", halos
-        # exit()
-        # if side == 0:
-        #     base = 0  # Left side starting index
-        #     range_of_evaluation = [tuple([0 + halos[dire][0], s + halos[dire][1]]) for s in block.shape]
-        #     range_of_evaluation[dire] = tuple([halos[dire][0], base])
-        #     print "side is: ", side
-        #     print "range is: ", range_of_evaluation
-        #     print "\n"
-        # elif side == 1:
-        #     base = block.shape[dire]
-        #     range_of_evaluation = [tuple([0 + halos[dire][0], s + halos[dire][1]]) for s in block.shape]
-        #     range_of_evaluation[dire] = tuple([base, base + halos[dire][1]])
-        #     print "side is: ", side
-        #     print "range is: ", range_of_evaluation
-        #     print "\n"
-        # # eqns = [Eq(x,y) for x,y in zip(flatten(arrays), self.equations)]
         kernel.add_equation(self.equations)
-        # kernel.set_boundary_plane_range(block, dire, side) 
         kernel.update_block_datasets(block)
         return kernel
 
+class SymmetryBoundaryConditionBlock(BoundaryConditionBase):
+
+    def __init__(self, boundary_direction, side, plane=True):
+        BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
+        return
+
+    def apply(self, arrays, boundary_direction, side, block):
+        metric = zeros(block.ndim)
+        for i in range(block.ndim):
+            metric[i,i] = DataObject('D%d%d' % (i,i))
+        for row in range(block.ndim):
+            total = []
+            expr = metric[row, :]
+            for item in expr:
+                total += [item**2]
+            metric[row, :] = metric[row, :] / sqrt(sum(total))
+
+        lhs_eqns = flatten(arrays)
+        rhs_eqns = []
+        for ar in arrays:
+            if isinstance(ar, list):
+                transformed_vector = metric*Matrix(ar)
+                transformed_vector[boundary_direction] = -1*transformed_vector[boundary_direction]
+                rhs_eqns += flatten(transformed_vector)
+            else:
+                rhs_eqns += [ar]
+
+        kernel = Kernel(block, computation_name="Symmetry boundary dir%d side%d" % (boundary_direction, side))
+        kernel.set_boundary_plane_range(block, boundary_direction, side)
+        halos = kernel.get_plane_halos(block)      
+        base = block.ranges[boundary_direction][side]
+       
+        if side == 0:
+            from_side_factor = -1
+            to_side_factor = 1
+        elif side == 1:
+            from_side_factor = 1
+            to_side_factor = -1
+                    
+        transfer_indices = [tuple([from_side_factor*t, to_side_factor*t]) for t in range(1, abs(halos[boundary_direction][side]) + 1)]
+        loc = list(lhs_eqns[0].indices)
+        final_equations = []
+        for index in transfer_indices:
+            array_equations = []
+            loc_lhs, loc_rhs = loc[:], loc[:]
+            loc_lhs[boundary_direction] += index[0]
+            loc_rhs[boundary_direction] += index[1]
+            for left, right in zip(lhs_eqns, rhs_eqns):
+                left = self.convert_dataset_base_expr_to_datasets(left, loc_lhs)
+                right = self.convert_dataset_base_expr_to_datasets(right, loc_rhs)
+                array_equations += [Eq(left, right, evaluate=False)]
+            pprint(array_equations)
+            final_equations += array_equations
+        kernel.add_equation(final_equations)
+        kernel.update_block_datasets(block)
+
+        return kernel
+
+    def convert_dataset_base_expr_to_datasets(self, expression, index):
+        for a in expression.atoms(DataSet):
+            b = a.base
+            expression = expression.xreplace({a: b[index]})
+        return expression
 
 
 
