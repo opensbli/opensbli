@@ -10,11 +10,10 @@ from opensbli.physical_models.euler_eigensystem import *
 from sympy import *
 from opensbli.initialisation import *
 
-
 ndim = 2
 weno_order = 5
 weno = True
-Euler_eq = EulerEquations(ndim, weno)
+Euler_eq = EulerEquations(ndim)
 ev_dict, LEV_dict, REV_dict = Euler_eq.generate_eig_system()
 Avg = SimpleAverage([0, 1])
 LLF = LLFCharacteristic(ev_dict, LEV_dict, REV_dict, weno_order, ndim, Avg)

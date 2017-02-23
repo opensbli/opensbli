@@ -14,7 +14,7 @@ from opensbli.initialisation import *
 ndim = 1
 weno_order = 5
 weno = True
-Euler_eq = EulerEquations(ndim, weno)
+Euler_eq = EulerEquations(ndim)
 ev_dict, LEV_dict, REV_dict = Euler_eq.generate_eig_system()
 Avg = SimpleAverage([0, 1])
 LLF = LLFCharacteristic(ev_dict, LEV_dict, REV_dict, weno_order, ndim, Avg)
@@ -61,9 +61,6 @@ constituent.add_equations(eqns)
 
 eqns = eq.expand(speed_of_sound, ndim, coordinate_symbol, substitutions, constants)
 constituent.add_equations(eqns)
-# pprint(srepr(eqns))
-# exit()
-
 
 schemes = {}
 schemes[LLF.name] = LLF
@@ -95,27 +92,13 @@ initial.add_equations(initial_equations)
 # # Shu Osher boundary condition values left side
 arrays = flatten(simulation_eq.time_advance_arrays)
 subs_dict = {Symbol('x0'):0}
-# rho = "Eq(DataObject(rho), d)"
-# rhou0 = "Eq(DataObject(rhou0), d*u0)"
-# rhoE = "Eq(DataObject(rhoE), p/(gama-1) + 0.5* d *(u0**2))"
-# left_eq = [rho, rhou0, rhoE]
-# # left_init = [parse_expr(eq, local_dict=local_dict) for eq in left_eq]
 left_eqns = [eq.subs(subs_dict) for eq in initial_equations]
-# left_eqns = [Eq(x,y.rhs) for x, y in zip(arrays, left_init)]
-# left_eqns = initial_equations[:]
-
 pprint(left_eqns)
-# exit()
-# right side 
+
 subs_dict = {Symbol('x0'):10.0}
-# rho = "Eq(DataObject(rho), d)"
-# rhou0 = "Eq(DataObject(rhou0), d*u0)"
-# rhoE = "Eq(DataObject(rhoE), p/(gama-1) + 0.5* d *(u0**2))"
-# right_eq = [rho, rhou0, rhoE]
-# right_init = [parse_expr(eq, local_dict=local_dict) for eq in right_eq]
+
 right_eqns = [eq.subs(subs_dict) for eq in initial_equations]
-# right_eqns = [Eq(x,y.rhs) for x, y in zip(arrays, right_init)]
-# right_eqns = initial_equations[:]
+
 pprint(right_eqns)
 
 boundaries = []
