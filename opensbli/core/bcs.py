@@ -281,4 +281,106 @@ class SymmetryBoundaryConditionBlock(BoundaryConditionBase):
         return expression
 
 
+class Carpenter(object):
+    def __init__(self, block):
+        self.block = block
+
+        self.bc4_coefficients = self.carp4_coefficients()
+        self.bc4_symbols = self.carp4_symbols()
+        self.bc4_2_symbols = self.second_der_symbols()
+        self.bc4_2_coefficients = self.second_der_coefficients()
+
+
+        return
+
+    def function_points(self, fn, direction, side):
+        f_matrix = zeros(6,6)
+        loc = list(fn.indices)
+        for shift in range(6):
+            func_points = []
+            for index in range(6):
+                new_loc = loc[:]
+                new_loc[direction] += index - shift
+                func_points.append([fn.base[new_loc]])
+            f_matrix[:,shift] = func_points
+        if side == 0:
+            f_matrix = f_matrix[:,0:4]
+        elif side == 1:
+            print "this should be negative or modified according to sbli, check"
+            f_matrix = f_matrix.transpose()[:,0:4]
+        else: 
+            raise NotImplementedError("Side must be 0 or 1")
+        return f_matrix
+
+    def weight_function_points(self, func_points, direction, order, char_BC=False):
+        # WARNING side == 1, take negative h value? Check SBLI
+
+        if order == 1:
+            h = (self.block.deltas[direction])**(-1)
+            if char_BC:
+                weighted = h*(self.bc4_symbols[0,:]*func_points)
+            else:
+                weighted = zeros(4,1)
+                for i in range(4):
+                    weighted[i] = h*(self.bc4_coefficients[i,:]*func_points[:,i])
+            pprint(weighted)
+        elif order == 2:
+            h_sq = (self.block.deltas[direction])**(-2)
+            weighted = zeros(2,1)
+            for i in range(2):
+                weighted[i] = h_sq*(self.bc4_2_coefficients[i,:]*func_points[0:5,i])
+            pprint(weighted)
+            exit()
+        else: 
+            raise NotImplementedError("Only 1st and 2nd derivatives implemented")
+        return weighted
+
+    def carp4_symbols(self):
+        """ 
+        Function to return symbolic bc4 matrix for testing
+        """
+        bc4 = MatrixSymbol('BC', 4, 6)
+        bc4 = Matrix(bc4)
+        return bc4
+
+    def second_der_symbols(self):
+        bc4_2 = MatrixSymbol('BCC', 2, 5)
+        bc4_2 = Matrix(bc4_2)
+        return bc4_2
+
+    def second_der_coefficients(self):
+        bc4_2 = Matrix([[35.0, -104.0, 114.0, -56.0, 11.0], [11.0, -20.0, 6.0, 4.0, -1.0]])/12.0
+        for i in range(bc4_2.shape[0]):
+            for j in range(bc4_2.shape[1]):
+                bc4_2[i,j] = nsimplify(bc4_2[i,j])
+        return bc4_2
+
+    def carp4_coefficients(self):
+        """
+        Function to return the bc4 matrix containing coefficients for the Carpenter wall boundary treatment. 
+        """
+        R1 = -(2177.0*sqrt(295369.0)-1166427.0)/25488.0
+        R2 = (66195.0*sqrt(53.0)*sqrt(5573.0)-35909375.0)/101952.0
+
+        al4_0 = [-(216.0*R2+2160.0*R1-2125.0)/12960.0, (81.0*R2+675.0*R1+415.0)/540.0, -(72.0*R2+720.0*R1+445.0)/1440.0, -(108.0*R2+756.0*R1+421.0)/1296.0]
+        al4_1 = [(81.0*R2+675.0*R1+415.0)/540.0, -(4104.0*R2+32400.0*R1+11225.0)/4320.0, (1836.0*R2+14580.0*R1+7295.0)/2160.0, -(216.0*R2+2160.0*R1+655.0)/4320.0]
+        al4_2 = [-(72.0*R2+720.0*R1+445.0)/1440.0, (1836.0*R2+14580.0*R1+7295.0)/2160.0, -(4104.0*R2+32400.0*R1+12785.0)/4320.0, (81.0*R2+675.0*R1+335.0)/540.0]
+        al4_3 = [-(108.0*R2+756.0*R1+421.0)/1296.0, -(216.0*R2+2160.0*R1+655.0)/4320.0, (81.0*R2+675.0*R1+335.0)/540.0, -(216.0*R2+2160.0*R1-12085.0)/12960.0]
+
+        al4 = Matrix([al4_0,al4_1,al4_2,al4_3])
+
+        ar4_0 = [(-1.0)/2.0, -(864.0*R2+6480.0*R1+305.0)/4320.0, (216.0*R2+1620.0*R1+725.0)/540.0,-(864.0*R2+6480.0*R1+3335.0)/4320.0, 0.0, 0.0]
+        ar4_1 = [(864.0*R2+6480.0*R1+305.0)/4320.0, 0.0, -(864.0*R2+6480.0*R1+2315.0)/1440.0, (108.0*R2+810.0*R1+415.0)/270.0, 0.0, 0.0]
+        ar4_2 = [-(216.0*R2+1620.0*R1+725.0)/540.0, (864.0*R2+6480.0*R1+2315.0)/1440.0, 0.0, -(864.0*R2+6480.0*R1+785.0)/4320.0, -1.0/12.0, 0.0]
+        ar4_3 = [(864.0*R2+6480.0*R1+3335.0)/4320.0, -(108.0*R2+810.0*R1+415.0)/270.0, (864.0*R2+6480.0*R1+785.0)/4320.0, 0.0, 8.0/12.0, -1.0/12.0]
+        ar4 = Matrix([ar4_0, ar4_1, ar4_2, ar4_3])
+
+        # Form inverse and convert to rational
+        al4_inv = al4.inv()
+        bc4 = al4_inv*ar4
+        for i in range(bc4.shape[0]):
+            for j in range(bc4.shape[1]):
+                bc4[i,j] = nsimplify(bc4[i,j])
+        return bc4
+
 
