@@ -55,11 +55,13 @@ class EinsteinTerm(Symbol):
         if len(self.get_indices()) >0:
             st = IndexedBase("%s"%str(self.get_base()))
             st = st[self.get_indices()]
+            #st.is_commutative= False
             st.expression = self
             self.indexed_object = st
             return st
         else:
             st = self
+            #st.is_commutative= False
             st.expression = st
             self.indexed_object = st
             return st
@@ -114,6 +116,8 @@ class ConstantObject(EinsteinTerm, Constant):
         return ret
 
 class CoordinateObject(EinsteinTerm):
+    is_commutative = True
+    is_Atom = True
     def __new__(cls, label, **kwargs):
         ret = super(CoordinateObject,cls).__new__(cls, label)
         if 'time' in kwargs:
@@ -142,19 +146,23 @@ class MetricObject(EinsteinTerm):
 
 class DataObject(EinsteinTerm):
     """ This represents the objects this constitutes one of the basic terms if the OpenSBLI objects"""
+    is_commutative = True
+    #is_commutative = True
+    is_Atom = True
     def __new__(cls, label, **kw_args):
         ret = super(DataObject, cls).__new__(cls, label, **kw_args)
         #ret.location = [0]*cls.ndim
         return ret
 from sympy.core import Expr, Tuple, Symbol, sympify, S
 from sympy.core.compatibility import is_sequence, string_types, NotIterable, range
-
+from sympy.core.cache import cacheit
 class DataSetBase(IndexedBase):
     is_commutative = True
     #is_Symbol = True
     #is_symbol = True
     is_Atom = True
     block = None
+    @cacheit
     def __new__(cls, label, **kw_args):
         if not cls.block:
             raise ValueError("Set the block for DataSetBase")
@@ -166,6 +174,8 @@ class DataSetBase(IndexedBase):
         ret.noblockname = Symbol(str(label))
         ret.blockname = cls.block.blockname
         ret.blocknumber = cls.block.blocknumber
+        #ret.HDF5out = False
+        #ret.HDF5inp = False
         return ret
     def __hash__(self):
         h = hash(self._hashable_content())
@@ -191,6 +201,8 @@ class DataSetBase(IndexedBase):
         e.g. Creating the old variables in Runge Kutta scheme
         """
         return "%s"%(str(self.label))
+    #__xnew_cached_ = staticmethod(
+        #cacheit(__new_stage2__))  
     @staticmethod
     def location():
         return [0 for i in range(DataSetBase.block.ndim)]

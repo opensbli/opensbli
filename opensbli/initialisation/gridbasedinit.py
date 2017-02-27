@@ -18,25 +18,7 @@
 
 from opensbli.core.opensbliequations import NonSimulationEquations, Discretisation, Solution, OpenSBLIEquation
 from opensbli.core.kernel import Kernel
-class BeforeSimulationStarts(object):
-    def __init__(self):
-        self.number = 0
-        return
-
-class AfterSimulationEnds(object):
-    """Place holder for the non simulation equations that are to be solved after the time loop
-    example, Output to HDF5, any diagnostics
-    """
-    def __init__(self):
-        self.number = 0
-        return
-class InTheSimulation(object):
-    """Place holder for the non simulation equations that are to be solved with in the time loop
-    example, Output to HDF5, any diagnostics
-    """
-    def __init__(self):
-        self.number = 0
-        return
+from .common import *
 
 class GridBasedInitialisation(Discretisation, NonSimulationEquations):
     def __new__(cls, order = None, **kwargs):
@@ -47,7 +29,7 @@ class GridBasedInitialisation(Discretisation, NonSimulationEquations):
             ret.order = 0
         ret.equations = []
         ret.kwargs = kwargs
-        """A control paramaeter is needed for where to put these equations in the algorithm
+        """A control parameter is needed for where to put these equations in the algorithm
         """
         ret.algorithm_place = [BeforeSimulationStarts()]
         return ret

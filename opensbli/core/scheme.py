@@ -95,13 +95,26 @@ class Central(Scheme):
         self.set_halos(block)
         from .opensbliequations import *
         if isinstance(type_of_eq, SimulationEquations):
-            if block.sbli_rhs_discretisation:
-                self.sbli_rhs_discretisation(type_of_eq, block)
-                return self.required_constituent_relations
+            """ Simulation equations are always solved as sbli_rhs_discretisation as of now"""
+            #if block.sbli_rhs_discretisation:
+            self.sbli_rhs_discretisation(type_of_eq, block)
+            return self.required_constituent_relations
         else:
             local_kernels, discretised_eq = self.genral_discretisation(type_of_eq.equations, block)
             if discretised_eq:
-                raise ValueError("")
+                for ker in local_kernels:
+                    eval_ker = local_kernels[ker]
+                    eval_ker.set_computation_name("%s "%(ker))
+                    eval_ker.update_block_datasets(block)
+                    type_of_eq.Kernels += [eval_ker]
+
+                discretisation_kernel = Kernel(block, computation_name="%s evaluation"%type_of_eq.__class__.__name__)
+                discretisation_kernel.set_grid_range(block)
+                for eq in discretised_eq:
+                    discretisation_kernel.add_equation(eq)
+                discretisation_kernel.update_block_datasets(block)
+                type_of_eq.Kernels +=  [discretisation_kernel]
+                return self.required_constituent_relations
             else:
                 pass
             return self.required_constituent_relations
@@ -128,7 +141,6 @@ class Central(Scheme):
         return grouped
 
     def update_range_of_constituent_relations(self, CD, block):
-        #pprint([CD, CD.get_direction[0], CD.required_datasets])
         direction = CD.get_direction[0]
 
         if CD.required_datasets:
@@ -150,6 +162,8 @@ class Central(Scheme):
         formulation
         """
         equations =  flatten(type_of_eq.equations)
+        residual_arrays = [eq.residual for eq in equations]
+        equations = [e._sanitise_equation for e in equations]
         classify_parameter = ConstantObject("Re")
         self.required_constituent_relations = {}
         viscous, convective = self.classify_equations_on_parameter(equations, classify_parameter)
@@ -183,7 +197,7 @@ class Central(Scheme):
                 else:
                     v1 = v
                 expr = Eq(v.work, v1._discretise_derivative(self, block))
-                pprint(expr)
+                #pprint(expr)
                 ker = Kernel(block)
                 ker.add_equation(expr)
                 ker.set_computation_name("Convective %s "%(v))
@@ -202,8 +216,7 @@ class Central(Scheme):
         for key, value in local_evaluations_group.iteritems():
             kernels += value + function_expressions_group[key]
         # Create convective residual
-        residual_arrays = [eq.residual for eq in equations]
-
+        
         convective_descritised = convective[:]
 
         for no, c in enumerate(convective_descritised):

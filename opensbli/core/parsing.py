@@ -251,6 +251,9 @@ class MetricDer(AppliedUndef, ParsingSchemes):
         args = set_args(*args, **kwargs)
         ret = super(MetricDer, cls).__new__(cls, *args)
         ret.options = kwargs
+        cls.dummy_index = 0
+        cls.metricobject = MetricObject('xi_dummy%d'%cls.dummy_index)
+        cls.dummy_index = cls.dummy_index +1
         return ret
 
     def differentiate(cls, Metric):
@@ -258,10 +261,7 @@ class MetricDer(AppliedUndef, ParsingSchemes):
         notdiff = (ConstantObject, CoordinateObject)
         function_deps  = list(cls.args)[1:-1]
         functions = []
-        cls.dummy_index = 0
-        mobj = MetricObject('xi_%d'%cls.dummy_index)
-        cls.dummy_index = cls.dummy_index +1
-        cls.metricobject = mobj
+        mobj = cls.metricobject
         order = len(cls.atoms(MetricDer))
         if order > 2:
             raise ValueError("Metrics greter than second order derivatives are not tested please uncomment this line and verify metric yourselves")
@@ -316,6 +316,7 @@ class MetricDer(AppliedUndef, ParsingSchemes):
         expr = cls.remove_fn(expr)
         expr = cls.remove_fn(expr)
         expr = cls.set_schemes(expr)
+        #pprint(expr)
         return expr
 
     def convert_to_functions(cls, expr):
@@ -385,6 +386,39 @@ class MetricDer(AppliedUndef, ParsingSchemes):
             expression = expression.subs(work, work1)
         return expression
 
+    def metric_derivatives(cls):
+        coordinates = cls.args[1:-1]
+        order = len(coordinates)
+        if order == 1:
+            expr = (cls.metricobject(coordinates[0]))
+            expr = expr.diff(*cls.args[1:-1])
+            expr = cls.remove_fn(expr)
+            expr = cls.remove_fn(expr)
+            expr = cls.set_schemes(expr)
+            pprint(expr)
+            #t = Eq(expr, 0)
+            expr, free_indices = Equation()._structure(expr)
+            expr = Equation().substitute_indexed(expr)
+            expanded_lhs = Equation().expand_summations(expr, 3)
+            if free_indices:
+                expanded_equations = expand_free_indices(expanded_lhs, free_indices, 3)
+            pprint(srepr(expanded_equations[0]))
+            #new = coordinates[0](cls.metricobject)
+            #new = new.diff(cls.metricobject)
+            #new = cls.remove_fn(new)
+            #new = cls.remove_fn(new)
+            #new = cls.set_schemes(new)
+            #new, free_indices = Equation()._structure(new)
+            #new = Equation().substitute_indexed(new)
+            #expanded_lhs = Equation().expand_summations(new, 3)
+            #if free_indices:
+                #expanded_equations = expand_free_indices(expanded_lhs, free_indices, 3)
+            ##pprint(new)
+            #pprint(srepr(expanded_equations[0]))
+        elif order == 2:
+            pass
+        return expr
+
 
 #from .opensbliequations import *
 class Equation(EinsteinStructure):
@@ -414,13 +448,11 @@ class Equation(EinsteinStructure):
         #pprint(self.original)
         # Parse the equation.
         self.parsed = parse_expr(self.original, local_dict, tuple([convert_coordinate])+standard_transformations, evaluate=False)
-
         # Perform substitutions, if any.
         if substitutions:
             for sub in substitutions:
                 temp = parse_expr(sub, local_dict, tuple([convert_coordinate])+standard_transformations, evaluate=False)
-                self.parsed = self.parsed.subs({temp.lhs: temp.rhs})
-
+                self.parsed = self.parsed.xreplace({temp.lhs: temp.rhs})
         pot = preorder_traversal(self.parsed)
         local = (Der, Conservative)
         for p in pot:
@@ -430,7 +462,6 @@ class Equation(EinsteinStructure):
                 pot.skip()
             else:
                 continue
-
         # Handle metric derivatives as special functions
         pot = preorder_traversal(self.parsed)
         local = (MetricDer)
@@ -444,8 +475,6 @@ class Equation(EinsteinStructure):
         lhs, lhs_indices = self._structure(self.parsed.lhs)
         rhs, rhs_indices = self._structure(self.parsed.rhs)
         lhs = self.substitute_indexed(lhs)
-        #pprint(lhs)
-        #exit()
         expanded_lhs = self.expand_summations(lhs, ndim)
         rhs = self.substitute_indexed(rhs)
         expanded_rhs = self.expand_summations(rhs, ndim)
@@ -479,7 +508,11 @@ class Equation(EinsteinStructure):
     def apply_functions(self,equation):
         for at in (equation.atoms(Function)):
             if (hasattr(at, 'value')):
-                equation= equation.subs(at, at.value)
+                #pprint([at, at.value])
+                #if at.value == 0:
+                    equation= equation.subs(at, at.value)
+                #else:
+                    #equation= equation.subs(at, at.value, evaluate=False)
         return equation
     def convert_to_data_sets(self, equation):
         for at in equation.atoms(DataObject):

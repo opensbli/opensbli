@@ -448,6 +448,8 @@ class CentralDerivative(Function, BasicDiscretisation):
         #print [arg==S.Zero for arg in cls.args]
         if any(arg == S.Zero for arg in cls.args):
             return S.Zero
+        elif len(set(cls.args)) == 1:
+            return S.One
         else:
             return cls
 
@@ -483,7 +485,7 @@ class CentralDerivative(Function, BasicDiscretisation):
             if form == 0:
                 raise ValueError("Central derivative formula is zero for %s"%cls)
         else:
-            raise ValueError("")
+            raise ValueError("The provided derivative is not homogeneous, %s"%cls)
         return form
     @property
     def simple_name(cls):
@@ -491,10 +493,18 @@ class CentralDerivative(Function, BasicDiscretisation):
     def _sympystr(self, p):
         args = list(map(p.doprint, self.args))
         return "%s %s"%(self.simple_name, " ".join(args))
-
-
-
-
+    
+    def classical_strong_differentiabilty_transformation(cls, metric):
+        direction = cls.get_direction
+        if cls.order == 1:
+            metric_der = metric.classical_strong_differentiabilty_transformation[direction[0]]
+            transformed_der = metric_der.subs(metric.general_function, cls.args[0])
+        elif cls.order == 2:
+            metric_der = metric.classical_strong_differentiabilty_transformation_sd[tuple(cls.get_direction)]
+            transformed_der = metric_der.subs(metric.general_function, cls.args[0])
+        
+        return transformed_der
+    
 class WenoDerivative(Function, BasicDiscretisation):
 
     def __new__(cls, expr, *args):
@@ -548,6 +558,17 @@ class WenoDerivative(Function, BasicDiscretisation):
     def _sympystr(self, p):
         args = list(map(p.doprint, self.args))
         return "%s %s"%(self.simple_name, " ".join(args))
+    
+    def classical_strong_differentiabilty_transformation(cls, metric):
+        direction = cls.get_direction
+        if cls.order == 1:
+            metric_der = metric.classical_strong_differentiabilty_transformation[direction[0]]
+        elif cls.order == 2:
+            raise NotImplementedError("")
+        for at in metric_der.atoms(Function):
+            local_at = type(cls)(at.args[0].subs(metric.general_function, cls.args[0]), at.args[1:])
+            metric_der = metric_der.subs(at, local_at)
+        return metric_der
 
 
 class TemporalDerivative(Function, BasicDiscretisation):
@@ -564,6 +585,9 @@ class TemporalDerivative(Function, BasicDiscretisation):
     @property
     def time_advance_array(cls):
         return cls.args[0]
+    def classical_strong_differentiabilty_transformation(cls, metric):
+        # No change to the class
+        return cls
 
 class OpenSBLIexpression(Equality, EinsteinStructure):
 

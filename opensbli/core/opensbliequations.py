@@ -4,6 +4,7 @@ from .kernel import Kernel
 from sympy import flatten, preorder_traversal
 from sympy import Equality
 import copy
+from sympy.tensor.array import MutableDenseNDimArray
 class Discretisation(object):
     """
     This should contain the following
@@ -77,7 +78,19 @@ class Discretisation(object):
         else:
             equation = equation.xreplace(replacements)
         return equation
-
+    
+    def apply_metrics(cls, metriceqclass):
+        out = []
+        for eq in cls.equations:
+            if isinstance(eq, list):
+                out_inner = []
+                for eq1 in eq:
+                    out_inner += [metriceqclass.apply_transformation(eq1)]
+                out += [out_inner]
+            else:
+                out += [metriceqclass.apply_transformation(eq)]
+        cls.equations = out
+        return
 
 class OpenSBLIEquation(Equality):
     is_Equality = True
@@ -85,24 +98,24 @@ class OpenSBLIEquation(Equality):
         ret = super(OpenSBLIEquation, cls).__new__(cls, lhs, rhs)
         ret.is_vector = False
         return ret
-    #def _eval_subs(self, old, new):
-        #if self == old:
-            #return new
-        #elif old.is_Function and new.is_Function:
-            #if old == self.func:
-                #nargs = len(self.args)
-                #if (nargs == new.nargs or new.nargs is None or
-                        #(isinstance(new.nargs, tuple) and nargs in new.nargs)):
-                    #return new(*self.args)
-        ##newargs = [s.subs(old, new) for s in self.args]
-        #return self.func(*[s.subs(old, new) for s in self.args])
     def _eval_evalf(self, prec):
         return self.func(*[s._evalf(prec) for s in self.args])
     def set_vector(cls, component_number):
         cls.is_vector = True
         cls.vector_component = component_number
         return
-
+    @property
+    def _sanitise_equation(cls):
+        fns = []
+        replacements ={}
+        fns += list(cls.atoms(Function))
+        
+        for fn in fns:
+            if not fn.is_homogeneous:
+                replacements[fn] = fn._sanitise
+        eq = cls
+        return eq.xreplace(replacements)
+    
 class Solution(object):
     def __init__(self):
         # Kernels would be spatial kernels
@@ -166,7 +179,7 @@ class SimulationEquations(Discretisation, Solution):
         return ret
 
     def add_equations(cls, equation):
-        equation = cls._sanitise_equations(equation)
+        #equation = cls._sanitise_equations(equation)
         if isinstance(equation, list):
             local = []
             for no, eq in enumerate(equation):
@@ -235,6 +248,7 @@ class SimulationEquations(Discretisation, Solution):
         cls.requires = {}
         for no,sc in enumerate(spatialschemes):
             cls.constituent_evaluations[sc] = schemes[sc].discretise(cls, block)
+            pprint([cls.constituent_evaluations[sc], cls])
             for key, value in cls.constituent_evaluations[sc].iteritems():
                 if key in cr_dictionary.keys():
                     if key in cls.constituent_relations_kernels:
@@ -356,7 +370,7 @@ class ConstituentRelations(Discretisation, Solution):
         return ret
 
     def add_equations(cls, equation):
-        equation = cls._sanitise_equations(equation)
+        #equation = cls._sanitise_equations(equation)
         if isinstance(equation, list):
             for no, eq in enumerate(equation):
                 eq = OpenSBLIEquation(eq.lhs, eq.rhs)
@@ -415,299 +429,4 @@ class DiagnosticsEquations(NonSimulationEquations):
 
     def __new__(cls):
         # The order for this would be >100
-        return
-from .parsing import Equation
-class MetricsEquation(Discretisation):
-
-    def __new__(cls, ndim, coordinate_symbol, parameters, max_order):
-        ret = super(MetricsEquation,cls).__new__(cls)
-        ret.ndim = ndim
-        ret.stretching_metric = [param[0] for param in parameters] # Get whether true or false fr streching
-        ret.curvilinear_metric = [param[1] for param in parameters] # Get T/F for curvilinear
-        cart = CoordinateObject('%s_i'%(coordinate_symbol))
-        curv = CoordinateObject('%s_i'%('xi'))
-        cartesian_coordinates = [cart.apply_index(cart.indices[0], dim) for dim in range(ndim)]
-        curvilinear_coordinates = [curv.apply_index(cart.indices[0], dim) for dim in range(ndim)]
-        ret.curvilinear_coordinates = curvilinear_coordinates
-        ret.cartesian_coordinates = cartesian_coordinates
-        ret.cart_to_curvilinear_functions = Matrix(ndim, ndim,lambda i,j:curvilinear_coordinates)
-        ret.curvilinear_to_cart_functions = Matrix(ndim, ndim,lambda i,j:cartesian_coordinates)
-        ret.update_curvilinear_function(ret.curvilinear_metric)
-        ret.update_stretching_function(ret.stretching_metric)
-        ret.update_functions()
-        pprint(ret.curvilinear_metric)
-        pprint(ret.stretching_metric)
-
-        #pprint(ret.cart_to_curvilinear_functions)
-        #pprint(ret.curvilinear_to_cart_functions)
-        #ret.generate_FD(coordinate_symbol)
-        ret.generate_jacobians(coordinate_symbol, max_order)
-        ret.order = -1 # This is before the time loop in the algorithm
-        return ret
-
-    def update_functions(cls):
-        for d in range(cls.ndim):
-            for d1 in range(cls.ndim):
-                list1 = cls.cart_to_curvilinear_functions[d,d1]
-                if not any(list1):
-                    if d==d1:
-                        #cls.cart_to_curvilinear_functions[d,d1] = cls.curvilinear_coordinates[d]
-                        cls.cart_to_curvilinear_functions[d,d1] = 1
-                    else:
-                        cls.cart_to_curvilinear_functions[d,d1] = 0
-                else:
-                    inds = [ind for ind,val in enumerate(list1) if not val]
-                    list1 = [v for i, v in enumerate(list1) if i not in inds]
-                    #cls.cart_to_curvilinear_functions[d,d1] = cls.cartesian_coordinates[d](*list1)
-                    cls.cart_to_curvilinear_functions[d,d1] = 1
-                #  curvilinear to cartesian
-                list1 = cls.curvilinear_to_cart_functions[d,d1]
-                if not any(list1):
-                    if d==d1:
-                        #cls.curvilinear_to_cart_functions[d,d1] = cls.cartesian_coordinates[d]
-                        cls.curvilinear_to_cart_functions[d,d1] = 1
-                    else:
-                        cls.curvilinear_to_cart_functions[d,d1] = 0
-                else:
-                    inds = [ind for ind,val in enumerate(list1) if not val]
-                    list1 = [v for i, v in enumerate(list1) if i not in inds]
-                    #cls.curvilinear_to_cart_functions[d,d1] = cls.curvilinear_coordinates[d](*list1)
-                    #cls.curvilinear_to_cart_functions[d,d1] = cls.curvilinear_coordinates[d]
-                    cls.curvilinear_to_cart_functions[d,d1] = 1
-                    cls.curvilinear_to_cart_functions[d,d1] = 1
-        return
-
-    def generate_jacobians(cls, coordinate_symbol, order):
-        from sympy.tensor.array import MutableDenseNDimArray
-        eq = Equation()
-        jacobians = "Eq(Jac_i_j, Der(xi_i,x_j))"
-        jacobians = eq.expand(jacobians , cls.ndim, coordinate_symbol, substitutions=[], constants=[], Metric=None)
-        fdfn = jacobians[:]
-        SD = "Eq(sd_i_j_k , Conservative(xi_i,x_j,xi_k))"
-        #sdfn = eq.expand(SD , cls.ndim, "x", substitutions=[], constants=[], Metric=None)
-        fd_i_j = Matrix(cls.ndim,cls.ndim, lambda i,j:0)
-        sd_ijk = MutableDenseNDimArray.zeros(cls.ndim, cls.ndim, cls.ndim)
-        sdfn = MutableDenseNDimArray.zeros(cls.ndim, cls.ndim, cls.ndim)
-        for i, curv in enumerate(cls.curvilinear_metric):
-            for j,stretch in enumerate(cls.stretching_metric):
-                if curv and stretch:
-                    # IF curvilinear and stretched
-                    fd_i_j[i,j] = 1
-                    linear_index = i*cls.ndim+j
-                    fdfn[linear_index] = Eq(fdfn[linear_index].rhs, fd_i_j[i,j]*fdfn[linear_index].lhs, evaluate=False)
-                elif stretch:
-                    # if stretched only
-                    fd_i_j[j,j] = 1
-                    linear_index = i*cls.ndim+j
-                    fdfn[linear_index] = Eq(fdfn[linear_index].rhs, fd_i_j[i,j]*fdfn[linear_index].lhs, evaluate=False)
-                else:
-                    if i==j:
-                        linear_index = i*cls.ndim+j
-                        fdfn[linear_index] = Eq(fdfn[linear_index].rhs, 1)
-                    else:
-                        linear_index = i*cls.ndim+j
-                        fdfn[linear_index] = Eq(fdfn[linear_index].rhs, 0)
-                for k in range(cls.ndim):
-                    linear_index = i*cls.ndim+j*cls.ndim + k
-                    cur = cls.curvilinear_metric[i]
-                    stret = cls.stretching_metric[j]
-                    stret1 =cls.curvilinear_metric[k]
-                    linear_index = i*cls.ndim*cls.ndim+j*cls.ndim + k
-                    if curv and stret and stret1:
-                        print i,j,k, "CSS"
-                        sd_ijk[i,j,k] = DataObject("SDxi%dx%dxi%d"%(i,j,k))
-                        sdfn[i,j,k] = CentralDerivative(DataObject("xi%d"%i),CoordinateObject("x%d"%j) ,DataObject("xi%d"%k))
-                        #sdfn[linear_index] = Eq(sdfn[linear_index].lhs, sd_ijk[i,j,k])
-                    elif curv and stret:
-
-                        print i,j,k, "CSN"
-                        sd_ijk[i,j,k] = DataObject("SDxi%dx%dxi%d"%(i,j,k))
-                        sdfn[i,j,k] = CentralDerivative(DataObject("xi%d"%i),CoordinateObject("x%d"%j) ,DataObject("xi%d"%k))
-                    elif stret and stret1:
-                        print i,j,k, "SS"
-                        sd_ijk[k,k,k] = DataObject("SDxi%dx%dxi%d"%(i,j,k))
-                        #sdfn[linear_index] = Eq(sdfn[linear_index].lhs, sd_ijk[i,j,k])
-                        sdfn[k,k,k] = CentralDerivative(DataObject("xi%d"%i),CoordinateObject("x%d"%j) ,DataObject("xi%d"%k))
-                    else:
-                        print i,j,k, "NO"
-                        sd_ijk[i,j,k] = 0
-                        sdfn[i,j,k] = CentralDerivative(DataObject("xi%d"%i),CoordinateObject("x%d"%j) ,DataObject("xi%d"%k))
-                        #print sdfn[linear_index], linear_index, i,j,k
-                    #sdfn[linear_index] = Eq(sdfn[linear_index].rhs, sd_ijk[i,j,k]*sdfn[linear_index].lhs)
-                    #pprint(sdfn[linear_index])
-
-        #sdfn = MutableDenseNDimArray(sdfn,(cls.ndim, cls.ndim, cls.ndim))
-        fdfn_subs = cls.convert_to_dictionary(fdfn)
-        first_derivative = cls.generate_FD(coordinate_symbol)
-        #first_derivative = [f.xreplace(fdfn_subs) for f in first_derivative]
-        sd_subs = dict(zip(flatten(sdfn.tolist()), flatten(sd_ijk.tolist())))
-        sd = cls.generate_SD(coordinate_symbol)
-        #sd = [f.xreplace(fdfn_subs) for f in sd]
-        #sd = [f.xreplace(sd_subs) for f in sd]
-        #sd = cls.convert_dataobjects(sd)
-        #pprint(srepr(sd[0]))
-        #pprint(srepr(flatten(sdfn.tolist())[0]))
-        #pprint(sd_subs)
-        #pprint(sd_ijk)
-        import itertools
-        # First derivative
-        s = [cls.curvilinear_metric, cls.stretching_metric]
-        metric_list = list(itertools.product(*s))
-        s1 = [[0,1,2], [0,1,2]]
-        indices = list(itertools.product(*s1))
-        fd_fns = indices[:]
-        s1 = [cls.curvilinear_coordinates, cls.cartesian_coordinates]
-        fder_fns = (list(itertools.product(*s1)))
-        for no,m in enumerate(metric_list):
-            #print(der_fns[no], type(der_fns[no]))
-            string = ''.join([str(s) for s in flatten(list(fder_fns[no]))])
-            fder_fns[no] = CentralDerivative(*fder_fns[no])
-            if all(m):
-                fd_fns[no] = DataObject("D%s"%string)
-            elif m[1] and len(set(indices[no]))==1:
-                fd_fns[no] = DataObject("D%s"%string)
-            #elif all(not element for element in m):
-                #fd_fns[no] = 1
-            else:
-                fd_fns[no] = 0
-
-        fd_subs = dict(zip(fder_fns, fd_fns))
-
-        # Second derivative
-        s = [cls.curvilinear_metric, cls.stretching_metric, cls.curvilinear_metric]
-        metric_list = list(itertools.product(*s))
-        s1 = [[0,1,2], [0,1,2], [0,1,2]]
-        indices = list(itertools.product(*s1))
-        sd_fns = indices[:]
-        s1 = [cls.curvilinear_coordinates, cls.cartesian_coordinates, cls.curvilinear_coordinates]
-        der_fns = (list(itertools.product(*s1)))
-        for no,m in enumerate(metric_list):
-            #print(der_fns[no], type(der_fns[no]))
-            string = ''.join([str(s) for s in flatten(list(der_fns[no]))])
-            print m
-            der_fns[no] = CentralDerivative(*der_fns[no])
-            if all(m):
-                sd_fns[no] = DataObject("SD%s"%string)
-            elif m[1] and len(set(indices[no]))==1:
-                sd_fns[no] = DataObject("SD%s"%string)
-            #elif all(not element for element in m):
-                #sd_fns[no] = 0
-            else:
-                sd_fns[no] = 0
-        #pprint(der_fns)
-        #pprint(sd_fns)
-        sd_subs = dict(zip(der_fns, sd_fns))
-        #pprint(sd[-1])
-        sd = [f.xreplace(fd_subs) for f in sd]
-        sd = [f.xreplace(sd_subs) for f in sd]
-        #pprint(srepr(der_fns[0]))
-        #pprint(first_derivative[0])
-        #pprint(srepr(first_derivative[0]))
-        #print [(d, d.get_direction) for  d in first_derivative[0].atoms(CentralDerivative)]
-        #print [(d, d.direction) for d in cls.curvilinear_coordinates]
-        """IT is simple to apply the transformations based on the metric parameters
-        what to do is, below everything is a differnt function
-        a. generate the differential of the first derivative for an arbitarary function
-        b. Genrate the first derivative transformation matrices
-        c. apply the first derivative transformation matrices
-        d. All the above will be wrapped with the helo of a calling function
-        e. A function to transform the given derivative
-        f. Similar procedure for the second derivatives
-        """
-        #exit()
-        from .latex import *
-        latex = LatexWriter()
-        latex.open('./kernels3d.tex')
-        metadata = {"title": "Transformations", "author": "Jammy", "institution": ""}
-        latex.write_header(metadata)
-        latex.write_expression(sd)
-        #temp = flatten(sdfn.tolist())
-        #temp2 = flatten(sd_ijk.tolist())
-        #temp1 = [Eq(x,y, evaluate=False) for x,y in zip(temp2, temp)]
-        #latex.write_expression(temp1)
-        latex.write_footer()
-        latex.close()
-        #k = sd_subs.keys()[0]
-        #pprint(srepr(k))
-        exit()
-        return
-
-
-    def convert_dataobjects(cls, list_of_eq):
-        out = []
-        #for e in list_of_eq:
-
-        return
-
-    def dot_prodcut(cls, m1, m2):
-        out = []
-        for no, m in enumerate(m1):
-            out += [m*m2[no]]
-        out = (type(m1)(out).reshape(*m1.shape))
-        return out
-
-    def convert_to_dictionary(cls, list_of_eq):
-        dictionary = {}
-        for e in list_of_eq:
-            dictionary[e.lhs] = e.rhs
-        return dictionary
-
-    def generate_FD(cls, coordinate_symbol):
-        eq = Equation()
-        fd_fn = "Eq(fn_i, MetricDer(f,x_i))"
-        fdfn = eq.expand(fd_fn, cls.ndim, coordinate_symbol, substitutions=[], constants=[], Metric=None)
-        return fdfn
-
-    def generate_SD(cls, coordinate_symbol):
-        eq = Equation()
-        sd_fn = "Eq(Der(f, x_i,x_j), MetricDer(MetricDer(f,x_i), x_j))"
-        sdfn = eq.expand(sd_fn, cls.ndim, coordinate_symbol, substitutions=[], constants=[], Metric=None)
-        return sdfn
-
-
-
-    def update_stretching_function(cls, stretch):
-        for ind, val in enumerate(stretch):
-            if val:
-                list1 = cls.cart_to_curvilinear_functions[ind,ind]
-                list1[ind] = cls.curvilinear_coordinates[ind]
-                list2 = cls.curvilinear_to_cart_functions[ind,ind]
-                list2[ind] = cls.cartesian_coordinates[ind]
-            else:
-                list1 = cls.cart_to_curvilinear_functions[ind,ind]
-                list1[ind] = False
-                list2 = cls.curvilinear_to_cart_functions[ind,ind]
-                list2[ind] = False
-        return
-
-    def update_curvilinear_function(cls, curv):
-        for ind, val in enumerate(curv):
-            if not val:
-                for d in range(cls.ndim):
-                    list1 = cls.cart_to_curvilinear_functions[ind,d]
-                    list2 = cls.cart_to_curvilinear_functions[d,ind]
-                    list3 = cls.curvilinear_to_cart_functions[ind,d]
-                    list4 = cls.curvilinear_to_cart_functions[d,ind]
-                    if d==ind:
-                        for dim in range(cls.ndim):
-                            list1[dim] = False
-                            list2[dim] = False
-                            list3[dim] = False
-                            list4[dim] = False
-                    else:
-                        for dim in range(cls.ndim):
-                            list1[dim] = False
-                            list2[dim] = False
-                            list3[dim] = False
-                            list4[dim] = False
-                    for d1 in range(cls.ndim):
-                        list1 = cls.cart_to_curvilinear_functions[d,d1]
-                        list1[ind] = False
-                        list3 = cls.curvilinear_to_cart_functions[d,d1]
-                        list3[ind] = False
-        return
-
-
-    def add_fd_metric_eq(cls, fdmetric):
-        cls.FD = fdmetric
         return

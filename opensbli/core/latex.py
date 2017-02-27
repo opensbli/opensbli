@@ -55,7 +55,7 @@ class LatexWriter(LatexPrinter):
         :arg str s: a user-provided string.
         :returns: None
         """
-        self.f.write(s)
+        self.f.write("\\noindent %s\\\\"%s)
         return
 
     def write_header(self, metadata):
@@ -132,7 +132,8 @@ class LatexWriter(LatexPrinter):
         return str(expr)
 
     def _print_CentralDerivative(self, expr):
-        return r'\left. %s \right|_{{%s }}' % (self._print(Derivative(*expr.args)), "Central")
+        #return r'\left. %s \right|_{{%s }}' % (self._print(Derivative(*expr.args)), "Central")
+        return r'%s' % (self._print(Derivative(*expr.args)))
     def _print_MetricDerivative(self, expr):
         return r'\left. %s \right|_{{%s }}' % (self._print(Derivative(*expr.args)), "Metric")
     def _print_TemporalDerivative(self, expr):

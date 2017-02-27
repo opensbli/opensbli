@@ -81,6 +81,7 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes, RationalCount
         self.Rational_constants = {}
         self.block_stencils = {}
         DataSetBase.block = self
+        self.InputOutput = []
         return
 
     @property
@@ -142,12 +143,6 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes, RationalCount
         Metric equations, diagnostic equations etc)
         : ar
         """
-        # # set the block for the data sets
-        # DataSetBase.block = self
-        # # Convert the equations into block datasets
-        # for eq in self.list_of_equation_classes:
-        #     block_eq = self.dataobjects_to_datasets_on_block(eq.equations)
-        #     eq.equations = block_eq
 
         # perform the spatial discretisation of the equations using schemes
         for eq in self.list_of_equation_classes:
@@ -218,25 +213,20 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes, RationalCount
                     print 'NOPE' # Just checking
         return all_kernels
 
-    def grid_generation(self):
-
+    def setio(self, list_of_ios):
+        self.add_io(list_of_ios)
         return
 
-    def initial_conditions(self):
-
+    def add_io(self, list_of_ios):
+        if isinstance(list_of_ios, list):
+            self.InputOutput += list_of_ios
+        else:
+            self.InputOutput += [list_of_ios]
+        for io in self.InputOutput:
+            io.arrays = self.dataobjects_to_datasets_on_block(io.arrays)
         return
-
-    def io(self):
-        return
-
-    def pre_process_eq(self, eq_class):
-        """
-        These are type non Simulation equations
-        """
-        return
-
-    def post_process_eq(self, eq_class_list):
-
+    def add_metric(self, metric_params):
+        self.metric_transformations = metriceq
         return
 
 def sort_constants(constants_dictionary):

@@ -104,7 +104,7 @@ class DefDecs(object):
             elif isinstance(c, DataSetBase):
                 code += ["DefDec dataset %s"%(str(c))]
         return code
-
+#class If
 class BlockDescription(object):
     def __init__(self, block):
         copy_block_attributes(block, self)
@@ -186,6 +186,7 @@ class TraditionalAlgorithmRK(object):
                         bc_kernels = key.boundary_kernels
                         spatial_kernels = key.all_spatial_kernels
                     elif isinstance(key, NonSimulationEquations): # Add all other types of equations
+                        pprint(key)
                         for place in key.algorithm_place:
                             if isinstance(place, BeforeSimulationStarts):
                                 before_time += key.Kernels
@@ -196,6 +197,9 @@ class TraditionalAlgorithmRK(object):
                         print "No", type(key), key.algorithm_place
                     else:
                         print "NOT classified", type(key)
+            for io in b.InputOutput:
+                for place in io.algorithm_place:
+                    pprint(place)
             sc = b.get_temporal_schemes[0]
             innerloop = sc.generate_inner_loop(bc_kernels + spatial_kernels + inner_temporal_advance_kernels)
             temporal_iteration = Idx("iter", ConstantObject('niter', integer =True))

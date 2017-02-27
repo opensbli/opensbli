@@ -26,7 +26,5 @@ LOG.addHandler(_HANDLER)
 del(_HANDLER)
 LOG.setLevel(logging.DEBUG)  # Default to DEBUG level.
 
-#from sympy.printing
-from .gridbasedinit   import *
-from .io import *
-#from .common import *
+
+from .metric import *
