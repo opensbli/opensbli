@@ -326,7 +326,7 @@ class Carpenter(object):
             else:
                 weighted = zeros(4,1)
                 for i in range(4):
-                    weighted[i] = h*(self.bc4_symbols[i,:]*func_points[:,i])
+                    weighted[i] = h*(self.bc4_coefficients[i,:]*func_points[:,i])
         elif order == 2:
             h_sq = (block.deltas[direction])**(-2)
             weighted = zeros(2,1)
