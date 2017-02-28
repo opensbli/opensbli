@@ -207,7 +207,8 @@ class Central(Scheme):
                 local += [ker]
                 subs_conv[v] = v.work
             #pprint(ev_ker.__dict__)
-            local_evaluations_group[key] += [ev_ker]
+            if ev_ker.equations:
+                local_evaluations_group[key] += [ev_ker]
             function_expressions_group[key] = local
             block.reset_work_to_stored
         # To do evaluate the convective residuals
