@@ -572,7 +572,7 @@ def convert_coordinate(tokens, local_dict, global_dict):
                     (OP, '('),
                     (NAME, (name)),
                     (OP, ')'),])
-            elif ("_" in name):
+            elif ("_" in name) and name not in local_dict:
                 if name.split("_")[0]:
                     local_dict['DataObject'] = DataObject
                     result.extend([
