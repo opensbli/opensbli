@@ -202,7 +202,7 @@ class DataSetBase(IndexedBase):
         """
         return "%s"%(str(self.label))
     #__xnew_cached_ = staticmethod(
-        #cacheit(__new_stage2__))  
+        #cacheit(__new_stage2__))
     @staticmethod
     def location():
         return [0 for i in range(DataSetBase.block.ndim)]
@@ -278,6 +278,8 @@ class GridIndex(Indexed):
             raise ValueError("GridIndex base should be GridIndexedBase object")
         ret = Indexed.__new__(cls, base, *indices)
         return ret
+    def free_symbols(self):
+        return self
 class GridIndexedBase(IndexedBase):
     is_commutative = True
     is_Symbol = True

@@ -12,6 +12,8 @@ from sympy import *
 from sympy.tensor import *
 from sympy.tensor.index_methods import _remove_repeated
 from .opensbliobjects import *
+from sympy.functions.elementary.piecewise import ExprCondPair
+from .bcs import apply_modify_derivative
 from numpy import ndindex as mutidimindex
 
 #ndim = 2 # Testing change this
@@ -475,17 +477,25 @@ class CentralDerivative(Function, BasicDiscretisation):
                 for req in (cls.required_datasets):
                     loc = list(req.indices)
                     loc[dire] = loc[dire] + p
-                    # pprint([loc, req.location])
                     val = req.base[loc]
-                    # pprint(val)
                     expr = expr.replace(req, val)
-                    # print(expr)
                 form = form + weights[no]*expr
-            #pprint([cls, form])
             if form == 0:
                 raise ValueError("Central derivative formula is zero for %s"%cls)
         else:
             raise ValueError("The provided derivative is not homogeneous, %s"%cls)
+        # Apply the boundary modifications
+        modifications = block.check_modify_central()
+        if dire in modifications:
+            #print "YES", dire, cls
+            boundary_mods = [k for k in modifications[dire] if k]
+            expression_condition_paris = []
+            pprint(cls.args[0])
+            for b in boundary_mods:
+                expression_condition_paris += b.modification_scheme.expr_cond_pairs(cls.args[0], b.direction, b.side, order, block)
+            expression_condition_paris += [ExprCondPair(form, True)]
+            form  = Piecewise(*expression_condition_paris, **{'evaluate':False})
+
         return form
     @property
     def simple_name(cls):
@@ -493,7 +503,7 @@ class CentralDerivative(Function, BasicDiscretisation):
     def _sympystr(self, p):
         args = list(map(p.doprint, self.args))
         return "%s %s"%(self.simple_name, " ".join(args))
-    
+
     def classical_strong_differentiabilty_transformation(cls, metric):
         direction = cls.get_direction
         if cls.order == 1:
@@ -502,9 +512,9 @@ class CentralDerivative(Function, BasicDiscretisation):
         elif cls.order == 2:
             metric_der = metric.classical_strong_differentiabilty_transformation_sd[tuple(cls.get_direction)]
             transformed_der = metric_der.subs(metric.general_function, cls.args[0])
-        
+
         return transformed_der
-    
+
 class WenoDerivative(Function, BasicDiscretisation):
 
     def __new__(cls, expr, *args):
@@ -558,7 +568,7 @@ class WenoDerivative(Function, BasicDiscretisation):
     def _sympystr(self, p):
         args = list(map(p.doprint, self.args))
         return "%s %s"%(self.simple_name, " ".join(args))
-    
+
     def classical_strong_differentiabilty_transformation(cls, metric):
         direction = cls.get_direction
         if cls.order == 1:

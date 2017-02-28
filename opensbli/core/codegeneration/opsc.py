@@ -96,6 +96,8 @@ class OPSCCodePrinter(CCodePrinter):
             raise ValueError("Max for arguments %d is not defined in code printer or OPS"%nargs)
     def _print_DataSetBase(self, expr):
         return str(expr)
+    def _print_Equality(self, expr):
+        return "%s == %s"%(self._print(expr.lhs),self._print(expr.rhs))
     def _print_DataSet(self, expr):
         base = expr.base
         #print base
@@ -320,7 +322,7 @@ class OPSC(object):
         out += [WriteString('ops_stencil %s = ops_decl_stencil(%d,%d,%s,\"%s\");'%(s.name, s.ndim, len(s.stencil), name, name))]
         pprint(out)
         print "\n"
-        
+
         return out
     def ops_partition(self):
         """ Initialise an OPS partition for the purpose of multi-block and/or MPI partitioning.
@@ -479,7 +481,7 @@ class OPSC(object):
                 halo_p += [0]
         return halo_m, halo_p
     def declare_dataset(self, dset):
-        
+
         hm, hp = self.get_max_halos(dset.halo_ranges)
         halo_p = self.declare_inline_array("int", "halo_p", hp)
         halo_m = self.declare_inline_array("int", "halo_m", hm)

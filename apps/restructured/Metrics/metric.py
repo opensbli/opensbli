@@ -43,7 +43,7 @@ original = flatten(simulation_eq.equations)
 latex.open('./equation_transformations.tex')
 metadata = {"title": "Transformations of the equations in OpenSBLI framework", "author": "Satya P Jammy", "institution": "University of Southampton"}
 latex.write_header(metadata)
-simulation_eq.apply_metrics(metriceq)
+#simulation_eq.apply_metrics(metriceq)
 for no, eq in enumerate(flatten(simulation_eq.equations)):
     latex.write_expression(original[no])
     latex.write_string(srepr(original[no]))
@@ -71,6 +71,9 @@ boundaries = []
 for direction in range(ndim):
     boundaries += [PeriodicBoundaryConditionBlock(direction, 0)]
     boundaries += [PeriodicBoundaryConditionBlock(direction, 1)]
+# Set the boundary conditions in the x1 direction to adiabatic wall and carpenter by default
+boundaries[2] = AdiabaticWall(1,0)
+boundaries[3] = AdiabaticWall(1,1)
 # Set the boundary conditions of the block
 block.set_block_boundaries(boundaries)
 
@@ -96,17 +99,14 @@ rhou2 = "Eq(DataObject(rhou2), r*u2)"
 rhoE = "Eq(DataObject(rhoE), p/(gama-1) + 0.5* r *(u0**2+ u1**2 + u2**2))"
 
 eqns = [x0, x1, x2, u0, u1, u2, p, r, rho, rhou0, rhou1, rhou2, rhoE]
-
 #initial_equations = [parse_expr(eq, local_dict=local_dict) for eq in eqns]
 # Add the equations to the initialisation object
 #initial.add_equations(initial_equations)
 
 # set the equations to be solved on the block;
 # We deepcopy the equations so that the original equations can be reused across the blocks
-print 'here'
 metric = copy.deepcopy(metriceq); simulation = copy.deepcopy(simulation_eq); CR = copy.deepcopy(constituent)
 block.set_equations([simulation , CR, metric])
-
 # Set the discretisation schemes for the block (A dictionary)
 schemes = {}
 cent = Central(4)

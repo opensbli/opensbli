@@ -67,7 +67,7 @@ class ExchangeSelf(Exchange):
         return
     @property
     def opsc_code(self):
-        """The string for calling the boundary condition in OPSC is update while creating 
+        """The string for calling the boundary condition in OPSC is update while creating
         the code for exchanging data
         """
         return [self.call_name]
@@ -100,14 +100,22 @@ class BoundaryConditionTypes(object):
             raise ValueError("Boundaries provided should match the number of dimension")
         return
 
-    def checkwallboundary(self):
-        wallbcs = []
-        for no, val in self.boundary_types:
-            if isinstance(val, Wall):
-                wallbcs += [no]
-        return
+    def check_modify_central(self):
+        modify = {}
+        for no, val in enumerate(self.boundary_types):
+            left = val[0]; right = val[1]
+            if isinstance(left, ModifyCentralDerivative):
+                if no in modify:
+                    modify[no][0] = left
+                else:
+                    modify[no] = [left, None]
+            if isinstance(right, ModifyCentralDerivative):
+                if no in modify:
+                    modify[no][1] = right
+                else:
+                    modify[no] = [None, right]
+        return modify
 class BoundaryConditionBase(object):
-
     def __init__(self, boundary_direction, side, plane):
         if plane:
             self.full_plane = True
@@ -181,7 +189,7 @@ class LinearExtrapolateBoundaryConditionBlock(BoundaryConditionBase):
             to_side_factor = 1
         elif side == 1:
             from_side_factor = 1
-            to_side_factor = -1       
+            to_side_factor = -1
         indices = [tuple([from_side_factor*t, to_side_factor*t]) for t in range(1, abs(halos[boundary_direction][side]) + 1)]
         equations = []
         for no, dset in enumerate(flatten(arrays)):
@@ -194,7 +202,7 @@ class LinearExtrapolateBoundaryConditionBlock(BoundaryConditionBase):
                 array_equation += [Eq(dset.base[loc1], dset.base[loc2])]
             equations += array_equation
         kernel.add_equation(equations)
-        kernel.set_boundary_plane_range(block, boundary_direction, side) 
+        kernel.set_boundary_plane_range(block, boundary_direction, side)
         kernel.update_block_datasets(block)
         return kernel
 
@@ -217,7 +225,6 @@ class DirichletBoundaryConditionBlock(BoundaryConditionBase):
         return kernel
 
 class SymmetryBoundaryConditionBlock(BoundaryConditionBase):
-
     def __init__(self, boundary_direction, side, plane=True):
         BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
         return
@@ -245,16 +252,16 @@ class SymmetryBoundaryConditionBlock(BoundaryConditionBase):
 
         kernel = Kernel(block, computation_name="Symmetry boundary dir%d side%d" % (boundary_direction, side))
         kernel.set_boundary_plane_range(block, boundary_direction, side)
-        halos = kernel.get_plane_halos(block)      
+        halos = kernel.get_plane_halos(block)
         base = block.ranges[boundary_direction][side]
-       
+
         if side == 0:
             from_side_factor = -1
             to_side_factor = 1
         elif side == 1:
             from_side_factor = 1
             to_side_factor = -1
-                    
+
         transfer_indices = [tuple([from_side_factor*t, to_side_factor*t]) for t in range(1, abs(halos[boundary_direction][side]) + 1)]
         loc = list(lhs_eqns[0].indices)
         final_equations = []
@@ -280,17 +287,14 @@ class SymmetryBoundaryConditionBlock(BoundaryConditionBase):
             expression = expression.xreplace({a: b[index]})
         return expression
 
-
+from sympy.functions.elementary.piecewise import ExprCondPair
 class Carpenter(object):
-    def __init__(self, block):
-        self.block = block
+    def __init__(self):
 
         self.bc4_coefficients = self.carp4_coefficients()
         self.bc4_symbols = self.carp4_symbols()
         self.bc4_2_symbols = self.second_der_symbols()
         self.bc4_2_coefficients = self.second_der_coefficients()
-
-
         return
 
     def function_points(self, fn, direction, side):
@@ -308,35 +312,48 @@ class Carpenter(object):
         elif side == 1:
             print "this should be negative or modified according to sbli, check"
             f_matrix = f_matrix.transpose()[:,0:4]
-        else: 
+        else:
             raise NotImplementedError("Side must be 0 or 1")
         return f_matrix
 
-    def weight_function_points(self, func_points, direction, order, char_BC=False):
+    def weight_function_points(self, func_points, direction, order, block, char_BC=False):
         # WARNING side == 1, take negative h value? Check SBLI
 
         if order == 1:
-            h = (self.block.deltas[direction])**(-1)
+            h = (block.deltas[direction])**(-1)
             if char_BC:
                 weighted = h*(self.bc4_symbols[0,:]*func_points)
             else:
                 weighted = zeros(4,1)
                 for i in range(4):
-                    weighted[i] = h*(self.bc4_coefficients[i,:]*func_points[:,i])
-            pprint(weighted)
+                    weighted[i] = h*(self.bc4_symbols[i,:]*func_points[:,i])
         elif order == 2:
-            h_sq = (self.block.deltas[direction])**(-2)
+            h_sq = (block.deltas[direction])**(-2)
             weighted = zeros(2,1)
             for i in range(2):
                 weighted[i] = h_sq*(self.bc4_2_coefficients[i,:]*func_points[0:5,i])
-            pprint(weighted)
-            exit()
-        else: 
+        else:
             raise NotImplementedError("Only 1st and 2nd derivatives implemented")
         return weighted
 
+    def expr_cond_pairs(self, fn, direction, side, order, block):
+        fn_pts = self.function_points(fn, direction, side)
+        derivatives = self.weight_function_points(fn_pts, direction, order, block)
+        idx = block.grid_indexes[direction]
+        if side == 0:
+            mul_factor = 1
+            start = block.ranges[direction][side]
+        else:
+            mul_factor = -1
+            start = block.ranges[direction][side] - 1
+        ecs = []
+        for no,d in enumerate(derivatives):
+            loc = start + mul_factor*no
+            ecs += [ExprCondPair(d, Equality(idx,loc))]
+        return ecs
+
     def carp4_symbols(self):
-        """ 
+        """
         Function to return symbolic bc4 matrix for testing
         """
         bc4 = MatrixSymbol('BC', 4, 6)
@@ -357,7 +374,7 @@ class Carpenter(object):
 
     def carp4_coefficients(self):
         """
-        Function to return the bc4 matrix containing coefficients for the Carpenter wall boundary treatment. 
+        Function to return the bc4 matrix containing coefficients for the Carpenter wall boundary treatment.
         """
         R1 = -(2177.0*sqrt(295369.0)-1166427.0)/25488.0
         R2 = (66195.0*sqrt(53.0)*sqrt(5573.0)-35909375.0)/101952.0
@@ -383,4 +400,25 @@ class Carpenter(object):
                 bc4[i,j] = nsimplify(bc4[i,j])
         return bc4
 
+class ModifyCentralDerivative(object):
+    """ A place holder for the boundary conditions on which the central derivative should be modified"""
+    pass
 
+class AdiabaticWall(ModifyCentralDerivative, BoundaryConditionBase):
+    def __init__(self, boundary_direction, side, scheme = None,plane=True):
+        BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
+        if not scheme:
+            self.modification_scheme = Carpenter()
+        else:
+            self.modification_scheme = scheme
+        return
+    def apply(self,  arrays, boundary_direction, side, block):
+
+        print "Implement the scheme for adiabatic wall boundary condition"
+        # Testing the boundary condition with a linear extrapolation
+        kernel = LinearExtrapolateBoundaryConditionBlock(boundary_direction, side, plane=True).apply(arrays, boundary_direction, side, block)
+        return kernel
+
+def apply_modify_derivative(order, fn, bcs, block, value):
+
+    return
