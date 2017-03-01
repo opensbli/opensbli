@@ -297,15 +297,17 @@ class Carpenter(object):
         self.bc4_2_coefficients = self.second_der_coefficients()
         return
 
-    def function_points(self, fn, direction, side):
+    def function_points(self, expression, direction, side):
         f_matrix = zeros(6,6)
-        loc = list(fn.indices)
+        loc = list(list(expression.atoms(DataSet))[0].indices)
         for shift in range(6):
             func_points = []
             for index in range(6):
                 new_loc = loc[:]
                 new_loc[direction] += index - shift
-                func_points.append([fn.base[new_loc]])
+                for dset in expression.atoms(DataSet):
+                    expression = expression.replace(dset, dset.base[new_loc])
+                func_points.append(expression)
             f_matrix[:,shift] = func_points
         if side == 0:
             f_matrix = f_matrix[:,0:4]
