@@ -97,6 +97,9 @@ class OPSCCodePrinter(CCodePrinter):
     def _print_DataSetBase(self, expr):
         return str(expr)
     def _print_Equality(self, expr):
+        #print "In equality"
+        #pprint(expr.lhs)
+        #pprint(self._print(expr.lhs))
         return "%s == %s"%(self._print(expr.lhs),self._print(expr.rhs))
     def _print_DataSet(self, expr):
         base = expr.base
@@ -138,12 +141,12 @@ def ccode(expr):
     if isinstance(expr, Eq):
         code_print = OPSCCodePrinter()
         code = code_print.doprint(expr.lhs) \
-            + ' = ' + OPSCCodePrinter().doprint(expr.rhs) + ' ;'
+            + ' = ' + OPSCCodePrinter().doprint(expr.rhs)
         if isinstance(expr.lhs, GridVariable):
             code = "double " + code # WARNING dtype
         return code
     else:
-        return OPSCCodePrinter().doprint(expr) + ' ;'
+        return OPSCCodePrinter().doprint(expr)
 
 from opensbli.core.kernel import Kernel, ConstantsToDeclare as CTD
 from opensbli.core.algorithm import Loop
@@ -222,7 +225,7 @@ class OPSC(object):
         #all_dataset_inps = [str(i) for i in all_dataset_inps]
         ops_accs = [OPSAccess(no) for no in range(len(all_dataset_inps))]
         OPSCCodePrinter.dataset_accs_dictionary = dict(zip(all_dataset_inps, ops_accs))
-        out += [ccode(eq) for eq in kernel.equations if isinstance(eq, Equality)] + ['}']
+        out += [ccode(eq)+ ';'  for eq in kernel.equations if isinstance(eq, Equality)] + ['}']
         OPSCCodePrinter.dataset_accs_dictionary = {}
         return out
     def write_kernels(self, algorithm):

@@ -61,3 +61,38 @@ class iohdf5(opensbliIO):
     def add_arrays(cls, arrays):
         cls.arrays = flatten(arrays)
         return
+
+    def write_latex(cls, latex):
+        string = ["HDF5 IO type %s on arrays"%(cls.kwargs['iotype'])]
+        string += ["%s"%(d) for d in cls.arrays]
+        latex.write_string(' '.join(string))
+        return
+    @property
+    def opsc_code(cls):
+        code = []
+        if cls.kwargs['iotype'] == "write":
+            code += cls.hdf5write_opsc_code()
+        elif cls.kwargs['iotype'] == "read":
+            code += cls.hdf5read_opsc_code()
+        else:
+            raise ValueError("Cant classify HDF5io")
+        return code
+    def hdf5write_opsc_code(cls):
+        name = "opensbli_output"
+        code = ['char name[80];']
+        # generate file name
+        code += ['sprintf(name, \"opensbli_output_%d.h5\", iter);']
+        dataset_write = []
+        for ar in cls.arrays:
+            block_name = ar.base.blockname
+            dataset_write += ['ops_fetch_dat_hdf5_file(%s, name);' % (ar)]
+
+        # generate the block name
+        code += ['ops_fetch_block_hdf5_file(%s,name);'%(block_name)] + dataset_write
+        return code
+    def hdf5read_opsc_code(cls):
+
+        return
+
+class IoGroup():
+    pass

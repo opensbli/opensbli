@@ -1,3 +1,7 @@
+"""Place holders for various algorithm locations
+"""
+
+
 class BeforeSimulationStarts(object):
     def __init__(self):
         self.number = 0

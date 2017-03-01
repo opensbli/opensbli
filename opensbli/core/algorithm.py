@@ -44,6 +44,38 @@ class MainPrg(Loop):
     @property
     def opsc_end(self):
         return "//Main program end \n}"
+class Condition(object):
+    def __init__(self, condition):
+        self.condition = condition
+        self.components = []
+        return
+    def add_components(self, components):
+        if isinstance(components, list):
+            self.components += components
+        else:
+            self.components += [components]
+    def write_latex(self, latex):
+        latex.write_string("Condition %s"%(self.condition))
+        for c in self.components:
+            c.write_latex(latex)
+        latex.write_string("Ending condition loop %s")
+        return
+    @property
+    def opsc_code(self):
+        code = self.opsc_condition_start
+        for c in self.components:
+            code += c.opsc_code
+        code += self.opsc_condition_end
+        return code
+    @property
+    def opsc_condition_start(self):
+        from .codegeneration.opsc import OPSCCodePrinter
+        code = OPSCCodePrinter().doprint(self.condition)
+        code = 'if (' + code + '){'
+        return [code]
+    @property
+    def opsc_condition_end(self):
+        return ['}']
 
 class DoLoop(Loop):
     def __init__(self, iterator):
@@ -104,6 +136,7 @@ class DefDecs(object):
             elif isinstance(c, DataSetBase):
                 code += ["DefDec dataset %s"%(str(c))]
         return code
+
 #class If
 class BlockDescription(object):
     def __init__(self, block):
@@ -175,10 +208,10 @@ class TraditionalAlgorithmRK(object):
             spatial_kernels = []
             before_time = []
             after_time = []
+            in_time = []
             for scheme in b.get_temporal_schemes:
                 for key, value in scheme.solution.iteritems():
                     if isinstance(key, SimulationEquations):
-                        print "Yes"
                         # Solution advancement kernels
                         temporal_start += scheme.solution[key].start_kernels
                         temporal_end += scheme.solution[key].end_kernels
@@ -186,7 +219,6 @@ class TraditionalAlgorithmRK(object):
                         bc_kernels = key.boundary_kernels
                         spatial_kernels = key.all_spatial_kernels
                     elif isinstance(key, NonSimulationEquations): # Add all other types of equations
-                        pprint(key)
                         for place in key.algorithm_place:
                             if isinstance(place, BeforeSimulationStarts):
                                 before_time += key.Kernels
@@ -194,21 +226,32 @@ class TraditionalAlgorithmRK(object):
                                 after_time += key.Kernels
                             else:
                                 raise NotImplementedError("In Nonsimulation equations")
-                        print "No", type(key), key.algorithm_place
                     else:
                         print "NOT classified", type(key)
-            for io in b.InputOutput:
-                for place in io.algorithm_place:
-                    pprint(place)
             sc = b.get_temporal_schemes[0]
             innerloop = sc.generate_inner_loop(bc_kernels + spatial_kernels + inner_temporal_advance_kernels)
             temporal_iteration = Idx("iter", ConstantObject('niter', integer =True))
             from .kernel import ConstantsToDeclare as CTD
             from .datatypes import *
+            start_io = []; end_io = []; time_io = []
+            for io in b.InputOutput:
+                for place in io.algorithm_place:
+                    if isinstance(place, BeforeSimulationStarts):
+                        before_time += [io]
+                    elif isinstance(place, AfterSimulationEnds):
+                        after_time += [io]
+                    elif isinstance(place, InTheSimulation):
+                        t = (Equality(temporal_iteration%place.frequency, 0))
+                        cond = Condition(t)
+                        cond.add_components(io)
+                        in_time += [cond]
+                    else:
+                        raise NotImplementedError("In Nonsimulation equations")
             CTD.add_constant(ConstantObject('niter'), dtype = Int())
             tloop = DoLoop(temporal_iteration)
             tloop.add_components(temporal_start)
             tloop.add_components(innerloop)
+            tloop.add_components(in_time)
             tloop.add_components(temporal_end)
             #tloop.write_latex(latex)
             # Process the initial conditions and Diagnostics if any here
@@ -219,6 +262,11 @@ class TraditionalAlgorithmRK(object):
         latex.write_footer()
         latex.close()
         return
+
+    #def get_io(self, blocks):
+        #for b in blocks:
+
+        #return
 
     def check_temporal_scheme(self, blocks):
         """
