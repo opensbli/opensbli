@@ -249,35 +249,47 @@ class RightReconstructionVariable(ReconstructionVariable):
         ReconstructionVariable.__init__(self, name)
         return
 
-class Weno(Scheme):
-    """ Main WENO class. Performs the Jiang-Shu WENO reconstruction procedure. Refer to the reference: 
-    'Essentially Non-Oscillatory and Weighted Essentially Non-Oscillatory schemes for Hyperbolic Conservation
-    laws. Shu (1997). The alpha & omega quantities follow the description from this paper."""
-    def __init__(self, order, **kwargs):
-        """ :arg: int order: Numerical order of the WENO scheme (3,5,...). """
-        Scheme.__init__(self, "WenoDerivative", order)
-        self.eps = 1e-6
-        k = int(0.5*(order+1))
-        JS = JS_smoothness(k)
-        self.schemetype = "Spatial"
+class WenoZ(object):
+    def __init__(self, k):
         self.k = k
-        self.order = order
-        self.halotype = WenoHalos(order)
-        self.required_constituent_relations_symbols = {}
-        # Generate smoothness coefficients and store configurations for left and right reconstructions.
-        smooth_coeffs = JS.smooth_coeffs
-        self.reconstruction_classes = [LeftReconstructionVariable('left'), RightReconstructionVariable('right')]
-        # Populate the quantities required by WENO for the left and right reconstruction variable. 
-        for no, side in enumerate([-1, 1]):
-            WenoConfig = ConfigureWeno(self.k, side)
-            RV = self.reconstruction_classes[no]
-            RV.func_points = sorted(set(WenoConfig.func_points))
-            RV.stencil_points, RV.function_stencil_dictionary = WenoConfig.generate_symbolic_function_points
-            JS.generate_function_smoothness_indicators(RV)
-            self.generate_alphas(RV, WenoConfig)
-            self.generate_omegas(RV, WenoConfig)
-            self.generate_reconstruction(RV, WenoConfig)
-            self.reconstruction_classes[no] = RV
+        self.eps = 1e-40
+        return
+
+    def generate_alphas(self, RV, WenoConfig):
+        """ Create the alpha terms for the non-linear WENO weights.
+        arg: object RV: The reconstruction variable object.
+        arg: object WenoConfig: Configuration settings for a reconstruction of either left or right."""
+        tau_5 = Abs(RV.smoothness_symbols[0] - RV.smoothness_symbols[-1])
+        for r in range(self.k):
+            RV.alpha_symbols += [Symbol('alpha_%d' % r)]
+            RV.alpha_evaluated.append(WenoConfig.opt_weights.get((0,r))*(1.0 + tau_5/(self.eps + RV.smoothness_symbols[r])))
+        return
+
+    def generate_omegas(self, RV, WenoConfig):
+        """ Create the omega terms for the non-linear WENO weights.
+        arg: object RV: The reconstruction variable object.
+        arg: object WenoConfig: Configuration settings for a reconstruction of either left or right."""
+        for r in range(self.k):
+            RV.omega_symbols += [Symbol('omega_%d' % r)]
+            RV.omega_evaluated += [RV.alpha_symbols[r]/sum(RV.alpha_symbols)]
+        return
+
+    def generate_reconstruction(self, RV, WenoConfig):
+        """ Create the final WENO stencil by summing the stencil points, ENO coefficients and WENO weights..
+        arg: object RV: The reconstruction variable object.
+        arg: object WenoConfig: Configuration settings for a reconstruction of either left or right."""
+        stencil = 0
+        k, c_rj = self.k, WenoConfig.c_rj
+        for r in range(k):
+            eno_expansion = [c_rj.get((r,j))*RV.function_stencil_dictionary[WenoConfig.func_points[r*k+j]] for j in range(k)]
+            stencil += RV.omega_symbols[r]*sum(eno_expansion)
+        RV.reconstructed_expression = stencil
+        return
+
+class WenoJS(object):
+    def __init__(self, k):
+        self.k = k
+        self.eps = 1e-6
         return
 
     def generate_alphas(self, RV, WenoConfig):
@@ -308,6 +320,42 @@ class Weno(Scheme):
             eno_expansion = [c_rj.get((r,j))*RV.function_stencil_dictionary[WenoConfig.func_points[r*k+j]] for j in range(k)]
             stencil += RV.omega_symbols[r]*sum(eno_expansion)
         RV.reconstructed_expression = stencil
+        return
+
+class Weno(Scheme):
+    """ Main WENO class. Performs the Jiang-Shu WENO reconstruction procedure. Refer to the reference: 
+    'Essentially Non-Oscillatory and Weighted Essentially Non-Oscillatory schemes for Hyperbolic Conservation
+    laws. Shu (1997). The alpha & omega quantities follow the description from this paper."""
+    def __init__(self, order, **kwargs):
+        """ :arg: int order: Numerical order of the WENO scheme (3,5,...). """
+        Scheme.__init__(self, "WenoDerivative", order)
+        self.schemetype = "Spatial"
+        if order == '5Z':
+            # WenoZ only defined for fifth order
+            self.k = 3
+            self.order = 5
+            WT = WenoZ(self.k)
+        else:
+            self.k = int(0.5*(order+1))
+            self.order = order
+            WT = WenoJS(self.k)
+        JS = JS_smoothness(self.k)
+        self.halotype = WenoHalos(self.order)
+        self.required_constituent_relations_symbols = {}
+        # Generate smoothness coefficients and store configurations for left and right reconstructions.
+        smooth_coeffs = JS.smooth_coeffs
+        self.reconstruction_classes = [LeftReconstructionVariable('left'), RightReconstructionVariable('right')]
+        # Populate the quantities required by WENO for the left and right reconstruction variable. 
+        for no, side in enumerate([-1, 1]):
+            WenoConfig = ConfigureWeno(self.k, side)
+            RV = self.reconstruction_classes[no]
+            RV.func_points = sorted(set(WenoConfig.func_points))
+            RV.stencil_points, RV.function_stencil_dictionary = WenoConfig.generate_symbolic_function_points
+            JS.generate_function_smoothness_indicators(RV)
+            WT.generate_alphas(RV, WenoConfig)
+            WT.generate_omegas(RV, WenoConfig)
+            WT.generate_reconstruction(RV, WenoConfig)
+            self.reconstruction_classes[no] = RV
         return
 
     def interpolate_reconstruction_variables(self, derivatives, kernel):
