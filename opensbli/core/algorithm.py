@@ -257,7 +257,7 @@ class TraditionalAlgorithmRK(object):
             # Process the initial conditions and Diagnostics if any here
             self.prg.add_components(before_time)
             self.prg.add_components(tloop)
-            self.prg.add_components(after_time)
+            self.prg.add_components(bc_kernels + after_time)
             self.prg.write_latex(latex)
         latex.write_footer()
         latex.close()
