@@ -166,9 +166,6 @@ class PeriodicBoundaryConditionBlock(BoundaryConditionBase):
         #exit()
         return ex
 
-class SymmetryBoundaryCondition(object):
-    pass
-
 class LinearExtrapolateBoundaryConditionBlock(BoundaryConditionBase):
     """
     Applies zero gradient linear extrapolation boundary condition.
@@ -183,6 +180,10 @@ class LinearExtrapolateBoundaryConditionBlock(BoundaryConditionBase):
         kernel = Kernel(block, computation_name="Extrapolation boundary dir%d side%d" % (boundary_direction, side))
         kernel.set_boundary_plane_range(block, boundary_direction, side)
         halos = kernel.get_plane_halos(block)
+        # Add the halos to the kernel in directions not equal to boundary direction
+        for i in [x for x in range(block.ndim) if x != boundary_direction]:
+            kernel.halo_ranges[i][0] = block.boundary_halos[i][0]
+            kernel.halo_ranges[i][1] = block.boundary_halos[i][1]
         base = block.ranges[boundary_direction][side]
         if side == 0:
             from_side_factor = -1
@@ -202,7 +203,6 @@ class LinearExtrapolateBoundaryConditionBlock(BoundaryConditionBase):
                 array_equation += [Eq(dset.base[loc1], dset.base[loc2])]
             equations += array_equation
         kernel.add_equation(equations)
-        kernel.set_boundary_plane_range(block, boundary_direction, side)
         kernel.update_block_datasets(block)
         return kernel
 
@@ -219,7 +219,13 @@ class DirichletBoundaryConditionBlock(BoundaryConditionBase):
         kernel = Kernel(block, computation_name="Dirichlet boundary dir%d side%d" % (boundary_direction, side))
         kernel.set_boundary_plane_range(block, boundary_direction, side)
         kernel.ranges[boundary_direction][side] = block.ranges[boundary_direction][side]
-        kernel.set_halo_range(boundary_direction, side, block.boundary_halos[boundary_direction][side])
+        halos = kernel.get_plane_halos(block)
+        # Add the halos to the kernel in directions not equal to boundary direction
+        for i in [x for x in range(block.ndim) if x != boundary_direction]:
+            kernel.halo_ranges[i][0] = block.boundary_halos[i][0]
+            kernel.halo_ranges[i][1] = block.boundary_halos[i][1]
+        # Add halos across the boundary side only
+        kernel.halo_ranges[boundary_direction][side] = block.boundary_halos[boundary_direction][side]
         kernel.add_equation(self.equations)
         kernel.update_block_datasets(block)
         return kernel
@@ -239,6 +245,8 @@ class SymmetryBoundaryConditionBlock(BoundaryConditionBase):
             for item in expr:
                 total += [item**2]
             metric[row, :] = metric[row, :] / sqrt(sum(total))
+        #WARNING: remove this when metrics are working
+        metric = eye(block.ndim)
 
         lhs_eqns = flatten(arrays)
         rhs_eqns = []
@@ -253,6 +261,10 @@ class SymmetryBoundaryConditionBlock(BoundaryConditionBase):
         kernel = Kernel(block, computation_name="Symmetry boundary dir%d side%d" % (boundary_direction, side))
         kernel.set_boundary_plane_range(block, boundary_direction, side)
         halos = kernel.get_plane_halos(block)
+        # Add the halos to the kernel in directions not equal to boundary direction
+        for i in [x for x in range(block.ndim) if x != boundary_direction]:
+            kernel.halo_ranges[i][0] = block.boundary_halos[i][0]
+            kernel.halo_ranges[i][1] = block.boundary_halos[i][1]
         base = block.ranges[boundary_direction][side]
 
         if side == 0:
@@ -274,7 +286,6 @@ class SymmetryBoundaryConditionBlock(BoundaryConditionBase):
                 left = self.convert_dataset_base_expr_to_datasets(left, loc_lhs)
                 right = self.convert_dataset_base_expr_to_datasets(right, loc_rhs)
                 array_equations += [Eq(left, right, evaluate=False)]
-            pprint(array_equations)
             final_equations += array_equations
         kernel.add_equation(final_equations)
         kernel.update_block_datasets(block)
