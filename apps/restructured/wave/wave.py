@@ -53,7 +53,7 @@ block.set_block_boundaries(boundaries)
 
 # Initial conditions
 local_dict = {"block" : block, "GridVariable" : GridVariable, "DataObject" : DataObject}
-phi = parse_expr("Eq(DataObject(phi), sin(2.0*M_PI*(block.grid_indexes[0])*block.deltas[0]))", local_dict = local_dict)
+phi = parse_expr("Eq(DataObject(phi), sin(2.0*pi*(block.grid_indexes[0])*block.deltas[0]))", local_dict = local_dict)
 initial = GridBasedInitialisation()
 initial.add_equations([phi])
 
