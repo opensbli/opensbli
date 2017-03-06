@@ -240,8 +240,9 @@ class MetricsEquation(NonSimulationEquations,Discretisation, Solution):
         for no,sc in enumerate(spatialschemes):
             # TODO discretise the First derivatives and then apply BC's then discretise Second derivatives
             a = schemes[sc].discretise(cls, block)
-            for key, val in a.iteritems():
-                cls.requires[key] = val
+            if a:
+                for key, val in a.iteritems():
+                    cls.requires[key] = val
         #pprint(cls.requires)
         pprint([k.equations for k in cls.Kernels])
         cls.process_kernels(block)
