@@ -23,6 +23,13 @@
 from sympy import *
 from .kernel import *
 side_names  = {0:'left', 1:'right'}
+
+def convert_dataset_base_expr_to_datasets(expression, index):
+        for a in expression.atoms(DataSet):
+            b = a.base
+            expression = expression.xreplace({a: b[index]})
+        return expression
+
 class Exchange(object):
     pass
 class ExchangeSelf(Exchange):
@@ -283,20 +290,13 @@ class SymmetryBoundaryConditionBlock(BoundaryConditionBase):
             loc_lhs[boundary_direction] += index[0]
             loc_rhs[boundary_direction] += index[1]
             for left, right in zip(lhs_eqns, rhs_eqns):
-                left = self.convert_dataset_base_expr_to_datasets(left, loc_lhs)
-                right = self.convert_dataset_base_expr_to_datasets(right, loc_rhs)
+                left = convert_dataset_base_expr_to_datasets(left, loc_lhs)
+                right = convert_dataset_base_expr_to_datasets(right, loc_rhs)
                 array_equations += [Eq(left, right, evaluate=False)]
             final_equations += array_equations
         kernel.add_equation(final_equations)
         kernel.update_block_datasets(block)
-
         return kernel
-
-    def convert_dataset_base_expr_to_datasets(self, expression, index):
-        for a in expression.atoms(DataSet):
-            b = a.base
-            expression = expression.xreplace({a: b[index]})
-        return expression
 
 from sympy.functions.elementary.piecewise import ExprCondPair
 class Carpenter(object):
@@ -408,30 +408,104 @@ class Carpenter(object):
         # Form inverse and convert to rational
         al4_inv = al4.inv()
         bc4 = al4_inv*ar4
-        for i in range(bc4.shape[0]):
-            for j in range(bc4.shape[1]):
-                bc4[i,j] = nsimplify(bc4[i,j])
+        # for i in range(bc4.shape[0]):
+        #     for j in range(bc4.shape[1]):
+        #         bc4[i,j] = nsimplify(bc4[i,j])
         return bc4
 
 class ModifyCentralDerivative(object):
     """ A place holder for the boundary conditions on which the central derivative should be modified"""
     pass
 
-class AdiabaticWall(ModifyCentralDerivative, BoundaryConditionBase):
-    def __init__(self, boundary_direction, side, scheme = None,plane=True):
+class AdiabaticWallBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionBase):
+    def __init__(self, boundary_direction, side, equations, scheme = None,plane=True):
         BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
+        self.equations = equations
         if not scheme:
             self.modification_scheme = Carpenter()
         else:
             self.modification_scheme = scheme
         return
-    def apply(self,  arrays, boundary_direction, side, block):
+    def apply(self, arrays, boundary_direction, side, block):
+        return
 
-        print "Implement the scheme for adiabatic wall boundary condition"
-        # Testing the boundary condition with a linear extrapolation
-        kernel = LinearExtrapolateBoundaryConditionBlock(boundary_direction, side, plane=True).apply(arrays, boundary_direction, side, block)
-        return kernel
+
+
 
 def apply_modify_derivative(order, fn, bcs, block, value):
 
     return
+
+class IsothermalWallBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionBase):
+    def __init__(self, boundary_direction, side, equations, scheme = None,plane=True):
+        BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
+
+        self.equations = equations
+        if not scheme:
+            self.modification_scheme = Carpenter()
+        else:
+            self.modification_scheme = scheme
+        return
+    def apply(self, arrays, boundary_direction, side, block):
+
+        kernel = Kernel(block, computation_name="Isothermal wall boundary dir%d side%d" % (boundary_direction, side))
+        kernel.set_boundary_plane_range(block, boundary_direction, side)
+        halos = kernel.get_plane_halos(block)
+        # Add the halos to the kernel in directions not equal to boundary direction
+        for i in [x for x in range(block.ndim) if x != boundary_direction]:
+            kernel.halo_ranges[i][0] = block.boundary_halos[i][0]
+            kernel.halo_ranges[i][1] = block.boundary_halos[i][1]
+        base = block.ranges[boundary_direction][side]
+
+        metric = eye(block.ndim)
+        # Set equations for the wall condition and halo points
+        lhs_eqns = flatten(arrays)
+
+        # Set wall conditions:
+        wall_eqns = []
+        for ar in arrays:
+            if isinstance(ar, list):
+                rhs = [0 for i in range(len(ar))]
+                wall_eqns += [Eq(x,y) for (x,y) in zip(ar, rhs)]
+        rhoE_wall = self.equations[:]
+        wall_eqns += rhoE_wall
+        kernel.add_equation(wall_eqns)
+
+        loc = list(lhs_eqns[0].indices)
+        new_loc = loc[:]
+
+        if side == 0:
+            from_side_factor = -1
+            to_side_factor = 1
+        elif side == 1:
+            from_side_factor = 1
+            to_side_factor = -1
+
+        new_loc[boundary_direction] += to_side_factor
+        rhs_eqns = []
+        for ar in arrays:
+            if isinstance(ar, list):
+                transformed_vector = metric*Matrix(ar)
+                transformed_vector = -1*transformed_vector
+                rhs_eqns += flatten(transformed_vector)
+            else:
+                rhs_eqns += [ar]
+
+        transfer_indices = [tuple([from_side_factor*t, to_side_factor*t]) for t in range(1, abs(halos[boundary_direction][side]) + 1)]
+
+        final_equations = []
+        for index in transfer_indices:
+            array_equations = []
+            loc_lhs, loc_rhs = loc[:], loc[:]
+            loc_lhs[boundary_direction] += index[0]
+            loc_rhs[boundary_direction] += index[1]
+            for left, right in zip(lhs_eqns, rhs_eqns):
+                left = convert_dataset_base_expr_to_datasets(left, loc_lhs)
+                right = convert_dataset_base_expr_to_datasets(right, loc_rhs)
+                array_equations += [Eq(left, right, evaluate=False)]
+            final_equations += array_equations
+
+        kernel.add_equation(final_equations)
+        pprint(kernel.equations)
+        kernel.update_block_datasets(block)
+        return kernel
