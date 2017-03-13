@@ -85,8 +85,6 @@ x2 = "Eq(GridVariable(x2), block.deltas[2]*block.grid_indexes[2])"
 # xl = 4.0*pi
 # yl = 2.0*pi
 # zl = 2.0
-
-#cos(4.0*pi*x1/(2*pi))
 x0l = "Eq(GridVariable(x0l), 4.0*pi)"
 x1l = "Eq(GridVariable(x1l), 2.0)"
 x2l = "Eq(GridVariable(x2l), 2.0*pi)"
@@ -102,14 +100,17 @@ x1wall = "Eq(GridVariable(x1wall), abs(1.0 - abs(x1-1.0)) )"
 
 vonkar = "Eq(GridVariable(vonkar), 2.5)"
 b = "Eq(GridVariable(b), 5.5)"
-visc = "Eq(GridVariable(visc), 1.0/3300.0)"
+visc = "Eq(GridVariable(visc), 1.0/180.0)"
 amp = "Eq(GridVariable(amp), 0.1*(vonkar*log(1.0/visc)+b))"
 
 ubar = "Eq(GridVariable(ubar), Piecewise((x1wall/visc, x1wall/visc < 10.0), (vonkar*log(x1wall/visc)+b, True)) )"
 
-u0 = "Eq(GridVariable(u0), ubar+amp*x0l/2.0*cx0*sx2*sx1)"
-u1 = "Eq(GridVariable(u1), -amp*sx0*sx2*cx1)"
-u2 = "Eq(GridVariable(u2), -amp*x2l/2.0*sx0*cx2*sx1)"
+#u0 = "Eq(GridVariable(u0), amp*x0l/2.0*cx0*sx2*sx1)"
+#u1 = "Eq(GridVariable(u1), -amp*sx0*sx2*cx1)"
+#u2 = "Eq(GridVariable(u2), -amp*x2l/2.0*sx0*cx2*sx1)"
+u0 = "Eq(GridVariable(u0), 0)"
+u1 = "Eq(GridVariable(u1), 0)"
+u2 = "Eq(GridVariable(u2), 0)"
 p = "Eq(GridVariable(p), 1.0/(gama*Minf*Minf))"
 r = "Eq(GridVariable(r), gama*Minf*Minf*p)"
 
@@ -117,8 +118,8 @@ rho = "Eq(DataObject(rho), r)"
 rhou0 = "Eq(DataObject(rhou0), r*u0)"
 rhou1 = "Eq(DataObject(rhou1), r*u1)"
 rhou2 = "Eq(DataObject(rhou2), r*u2)"
-rhoE = "Eq(DataObject(rhoE), p/(gama-1) + 0.5* r *(u0**2+ u1**2 + u2**2))"
-c0 = "Eq(DataObject(c0), -1.0)"
+rhoE = "Eq(DataObject(rhoE), p/(gama-1) + 0.5* r*(u0**2 + u1**2 + u2**2))"
+c0 = "Eq(DataObject(c0), 0.0)"
 c1 = "Eq(DataObject(c1), 0.0)"
 c2 = "Eq(DataObject(c2), 0.0)"
 eqns = [c0, c1, c2, x0, x1, x2, x0l, x1l, x2l, sx0, sx1, sx2, cx0, cx1, cx2, x1wall, vonkar, b, visc, amp, ubar, u0, u1, u2, p, r, rho, rhou0, rhou1, rhou2, rhoE]
@@ -136,19 +137,37 @@ rk = RungeKutta(3)
 schemes[rk.name] = rk
 
 boundaries = []
-# Periodic boundaries in x and y
-for direction in [0,2]:
-	boundaries += [PeriodicBoundaryConditionBlock(direction, 0)]
-	boundaries += [PeriodicBoundaryConditionBlock(direction, 1)]
+# Periodic boundaries in x
+direction = 0
+boundaries += [PeriodicBoundaryConditionBlock(direction, 0)]
+boundaries += [PeriodicBoundaryConditionBlock(direction, 1)]
 
 
-subs_dict = {Symbol('x1'):0}
-left_eq = [eq.subs(subs_dict) for eq in initial_equations]
-subs_dict = {Symbol('x1'):0}
-right_eq = [eq.subs(subs_dict) for eq in initial_equations]
+# y direction
+direction = 1
+u0d = "Eq(DataObject(rhou0), 0.0)"
+u1d = "Eq(DataObject(rhou1), 0.0)"
+u2d = "Eq(DataObject(rhou2), 0.0)"
+rhoEd = "Eq(DataObject(rhoE), 178.571428571)"
+rhod = "Eq(DataObject(rho), 1.0)"
+u0d = parse_expr(u0d, local_dict=local_dict)
+u1d = parse_expr(u1d, local_dict=local_dict)
+u2d = parse_expr(u2d, local_dict=local_dict)
+rhoEd = parse_expr(rhoEd, local_dict=local_dict)
+rhod = parse_expr(rhod, local_dict=local_dict)
+upper_wall_eq = [u0d, u1d, u2d, rhoEd, rhod]
+lower_wall_eq = [u0d, u1d, u2d, rhoEd, rhod]
+boundaries += [DirichletBoundaryConditionBlock(direction, 0, upper_wall_eq)]
+boundaries += [DirichletBoundaryConditionBlock(direction, 1, lower_wall_eq)]
+#boundaries += [PeriodicBoundaryConditionBlock(direction, 0)]
+#boundaries += [PeriodicBoundaryConditionBlock(direction, 1)]
 
-boundaries += [DirichletBoundaryConditionBlock(1, 0, left_eq)]
-boundaries += [DirichletBoundaryConditionBlock(1, 1, right_eq)]
+
+
+# z direction
+direction = 2
+boundaries += [PeriodicBoundaryConditionBlock(direction, 0)]
+boundaries += [PeriodicBoundaryConditionBlock(direction, 1)]
 
 block.set_block_boundaries(boundaries)
 block.set_equations([copy.deepcopy(constituent),copy.deepcopy(simulation_eq), initial])
