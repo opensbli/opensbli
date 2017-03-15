@@ -43,8 +43,8 @@ def substitute_parameters(simulation_name, constants, values, dsets, hdf5=False)
 
 
 if __name__ == "__main__":
-    constants = ['gama', 'Minf','dt', 'niter', 'block0np0', 'block0np1', 'Delta0block0', 'Delta1block0']
-    values = [1.4, 2.0, 1e-2, 25000, 457, 255, 350.0/456, 115.0/254]
+    constants = ['gama', 'Minf', 'Twall', 'dt', 'niter', 'block0np0', 'block0np1', 'Delta0block0', 'Delta1block0', 'Lx1', 'stretchfactor']
+    values = [1.4, 2.0, 1.67619431, 1e-1, 5000, 457, 255, 350.0/456, 115.0/254, 115.0, 5.0]
     simulation_name = 'opensbli'
-    dsets = ['rho', 'rhou0', 'rhou1', 'rhoE']
+    dsets = ['rho', 'rhou0', 'rhou1', 'rhoE', 'x0', 'x1']
     substitute_parameters(simulation_name, constants, values, dsets, True)

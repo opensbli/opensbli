@@ -293,6 +293,19 @@ class Kernel(object):
 
     def write_latex(self, latex):
         latex.write_string('The kernel is %s'%self.computation_name)
+        from .codegeneration.opsc import get_min_max_halo_values
+        halo_m, halo_p = get_min_max_halo_values(self.halo_ranges)
+        range_of_eval = [[0,0] for r in range(self.ndim)]
+        #print self.computation_name, self.ranges, self.halo_ranges
+        for d in range(self.ndim):
+            range_of_eval[d][0] = self.ranges[d][0] + halo_m[d]
+            range_of_eval[d][1] = self.ranges[d][1] + halo_p[d]
+        if self.computation_name == 'Dirichlet boundary dir1 side1':
+            pprint(self.halo_ranges)
+            pprint([halo_m, halo_p])
+            pprint(self.ranges)
+            # exit()
+        latex.write_string('The ranges are %s' % (','.join([str(d) for d in flatten(range_of_eval)])))
         #latex.write_string('. The range of evaluation is  %s \\ \n\n the halo ranges are %s'%(self.ranges, self.halo_ranges))
         for index, eq in enumerate(self.equations):
             if isinstance(eq, Equality):

@@ -13,7 +13,7 @@ from sympy.tensor import *
 from sympy.tensor.index_methods import _remove_repeated
 from .opensbliobjects import *
 from sympy.functions.elementary.piecewise import ExprCondPair
-from .bcs import apply_modify_derivative
+# from .bcs import apply_modify_derivative
 from numpy import ndindex as mutidimindex
 
 #ndim = 2 # Testing change this

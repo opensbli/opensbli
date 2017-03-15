@@ -63,3 +63,7 @@ class GridBasedInitialisation(Discretisation, NonSimulationEquations):
         """
         return
 
+
+# class GridGeneration(Discretisation, NonSimulationEquations):
+#     def __new__(cls, )
+

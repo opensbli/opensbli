@@ -222,10 +222,11 @@ class Central(Scheme):
 
         for no, c in enumerate(convective_descritised):
             convective_descritised[no] = convective_descritised[no].subs(subs_conv)
-
-        conv_residual_kernel = self.create_residual_kernel(residual_arrays,convective_descritised, block)
-        conv_residual_kernel.set_computation_name("Convective residual ")
-        kernels += [conv_residual_kernel]
+        if convective_descritised:
+            
+            conv_residual_kernel = self.create_residual_kernel(residual_arrays,convective_descritised, block)
+            conv_residual_kernel.set_computation_name("Convective residual ")
+            kernels += [conv_residual_kernel]
         # reset the work index of blocks
         block.reset_work_index
         # Discretise the viscous fluxes. This is straight forward as we need not modify anything

@@ -11,8 +11,7 @@ from sympy import *
 from opensbli.initialisation import *
 
 ndim = 2
-weno_order = 5
-weno = True
+weno_order = '5Z'
 Euler_eq = EulerEquations(ndim)
 ev_dict, LEV_dict, REV_dict = Euler_eq.generate_eig_system()
 Avg = SimpleAverage([0, 1])
@@ -61,13 +60,12 @@ constituent.add_equations(eqns)
 eqns = eq.expand(speed_of_sound, ndim, coordinate_symbol, substitutions, constants)
 constituent.add_equations(eqns)
 
-
 schemes = {}
 schemes[LLF.name] = LLF
 rk = RungeKutta(3)
 schemes[rk.name] = rk
 
-block= SimulationBlock(ndim, block_number = 0)
+block = SimulationBlock(ndim, block_number = 0)
 block.sbli_rhs_discretisation = True
 
 local_dict = {"block" : block, "GridVariable" : GridVariable, "DataObject" : DataObject}

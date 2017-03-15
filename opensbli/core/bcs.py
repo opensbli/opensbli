@@ -19,7 +19,7 @@
 #    along with OpenSBLI.  If not, see <http://www.gnu.org/licenses/>
 
 # @author: New structure implemented by Satya P Jammy (October, 2016)
-
+from opensbli.physical_models.euler_eigensystem import EulerEquations
 from sympy import *
 from .kernel import *
 side_names  = {0:'left', 1:'right'}
@@ -232,7 +232,18 @@ class DirichletBoundaryConditionBlock(BoundaryConditionBase):
             kernel.halo_ranges[i][0] = block.boundary_halos[i][0]
             kernel.halo_ranges[i][1] = block.boundary_halos[i][1]
         # Add halos across the boundary side only
+        # if boundary_direction == 1:
+        # pprint(kernel.halo_ranges)
+        # elif boundary_direction == 0:
+        #     pprint("doing 0")
+            # exit()
+        # pprint(direction)
         kernel.halo_ranges[boundary_direction][side] = block.boundary_halos[boundary_direction][side]
+        # if boundary_direction == 1:
+        pprint(boundary_direction)
+        pprint(kernel.halo_ranges)
+        pprint(kernel.ranges)
+
         kernel.add_equation(self.equations)
         kernel.update_block_datasets(block)
         return kernel
@@ -509,3 +520,170 @@ class IsothermalWallBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCond
         pprint(kernel.equations)
         kernel.update_block_datasets(block)
         return kernel
+
+
+class CharacteristicBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionBase, EulerEquations):
+    def __init__(self, boundary_direction, side, characteristic_scheme, scheme = None,plane=True):
+        BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
+        self.CS = characteristic_scheme
+
+        # pprint(self.eigen_value)
+        # exit()
+
+
+
+        # self.ndim = 3
+        # length = [10]*self.ndim
+        # np = [40, 40,40]
+        # deltas = [length[i]/(np[i]) for i in range(len(length))]
+        # metric = [(True,True),(True,True), (False, False)]
+
+        # grid = Grid(self.ndim,{'delta':deltas, 'number_of_points':np}, metrics = metric)
+        # self.euler_eq = EulerEquations(self.ndim)
+        # ev_dict, LEV_dict, REV_dict = self.euler_eq.generate_eig_system(grid)
+        # pprint(ev_dict)
+
+        # EigenSystem.__init__(self, ev_dict, LEV_dict, REV_dict)
+        # # Generate symbolic left and right eigenvector matrices
+        # self.symbolic_left_right_eigen_vectors()
+        # self.n_ev = self.ndim+2
+        # direction = grid.coordinates[0] 
+        # self.direction = direction
+
+        # self.generate_symbolic_arrays(direction)
+        # self.Carpenter = Carpenter()
+        # self.generate_derivatives(side=1, order=1)
+        # conditions = self.zero_out_characteristics()
+        # self.create_conditionals(conditions)
+        return
+
+    def apply(self, arrays, boundary_direction, side, block):
+        self.ndim = block.ndim
+        print "in charBC"
+        pprint(self.ndim)
+        self.ev_dict = self.CS.ev_store
+        self.LEV_dict = self.CS.LEV_store
+        self.REV_dict = self.CS.REV_store
+        pprint(self.LEV_dict)
+        pprint(self.REV_dict)
+        exit()
+
+
+
+    def create_conditionals(self, conditions):
+        # Get velocity to check in conditional
+        ## CHECK IF NEED ABS velocity
+        a = Symbol('a')
+        u_norm = self.ev_sym[0,0]
+        dQ = []
+        for i, REV in enumerate(conditions):
+            equations = [Eq(Symbol('dW%d' % j), eq) for j, eq in enumerate(REV*self.dW_store)]
+            dQ.append(equations)
+            pprint(dQ[-1])
+
+        # Side 0 inlet
+        conds_0 = Piecewise((dQ[0], And(u_norm < 0, a < u_norm)),(dQ[1], And(u_norm >= 0, a < u_norm)), (dQ[2], And(u_norm >= 0, a > u_norm)), (0 , True))
+        # Side 1 outlet
+        conds_1 = Piecewise((dQ[3], And(u_norm >= 0, a < u_norm)),(dQ[4], And(u_norm < 0, a > u_norm)), (dQ[5], And(u_norm < 0, a < u_norm)), (0 , True))
+
+        # Side 0 inlet
+        conds_0 = Piecewise(('condition_%d' % 0, And(u_norm < 0, a < u_norm)),('condition_%d' % 1, And(u_norm >= 0, a < u_norm)), ('condition_%d' % 2, And(u_norm >= 0, a > u_norm)), (0 , True))
+        # Side 1 outlet
+        conds_1 = Piecewise(('condition_%d' % 3, And(u_norm >= 0, a < u_norm)),('condition_%d' % 4, And(u_norm < 0, a > u_norm)), ('condition_%d' % 5, And(u_norm < 0, a < u_norm)), (0 , True))
+        pprint(conds_0)
+        pprint(conds_1)
+        return
+        
+    def generate_derivatives(self, side, order):
+        t = self.euler_eq.time_derivative
+        Q = self.euler_eq.vector_notation.get(t)
+        dQ = zeros(self.n_ev,1)
+        wrt = self.direction
+
+        for i, eq in enumerate(Q):
+            func_points = self.Carpenter.generate_function_points(eq, wrt, side, char_BC=True)
+            dQ[i] = self.Carpenter.compute_derivatives(func_points, wrt, order, char_BC=True)
+        return
+
+
+    def generate_symbolic_arrays(self, direction):
+        # Create symbolic evs
+        # self.symbolic_eigen_values("ev")
+        # Store ev values and placeholders
+        self.ev = self.eigen_value[direction]
+        self.ev_sym = self.eigenvalues_symbolic
+        pprint(self.ev)
+        pprint(self.ev_sym)
+        exit()
+        self.ev_values = self.eigen_value_evaluation_eq(self.ev, "ev")
+        self.dQ = Matrix(symbols('dQ0:%d' % self.n_ev))
+        # Store LEV values and placeholders
+        self.LEV = self.left_eigen_vector[direction]
+        self.LEV_sym = self.left_eigen_vector_symbolic 
+        self.LEV_values = self.left_eigen_vectors_evaluation_eq(self.LEV)
+        # Store REV values and placeholders
+        self.REV = self.right_eigen_vector[direction]
+        self.REV_sym = self.right_eigen_vector_symbolic
+        self.REV_values = self.right_eigen_vectors_evaluation_eq(self.REV)
+
+        dW = zeros(self.n_ev,1)
+        for i in range(self.n_ev):
+            dW[i] = self.ev_sym[i,i]*self.LEV_sym[i,:]*self.dQ
+        self.dW_store = dW
+        return
+
+    def zero_out_characteristics(self):
+        n_ev = self.n_ev
+        # Left cases:
+        # u_neg_lt_a: u negative, subsonic, u+a zeroed out.
+        REV = self.REV_sym.copy()
+        REV.row_del(n_ev-2)
+        m_u_neg_lt_a = REV.row_insert(n_ev-2, zeros(1, n_ev))
+        # u_pos_lt_a: u positive, subsonic, u, u, u, u+a zeroed out.
+        REV = self.REV_sym.copy()
+        m_u_pos_lt_a = zeros(n_ev-1, n_ev)
+        m_u_pos_lt_a = m_u_pos_lt_a.row_insert(n_ev-1, REV[n_ev-1, :])
+        # u_pos_gt_a: u positive, supersonic, u, u, u, u+a, u-a zeroed out.
+        m_u_pos_gt_a = zeros(n_ev, n_ev)
+
+        # Right cases:
+        # u_pos_lt_a: u positive, subsonic, u-a zeroed out.
+        REV = self.REV_sym.copy()
+        REV.row_del(n_ev-1)
+        p_u_pos_lt_a = REV.row_insert(n_ev-1, zeros(1,n_ev))
+        # u_neg_gt_a: u negative, supersonic, u, u, u, u+a, u-a zeroed out.
+        p_u_neg_gt_a = zeros(n_ev, n_ev)
+        # u_neg_lt_a : u negative, subsonic, u, u, u, u+a zeroed out.
+        REV = self.REV_sym.copy()
+        p_u_neg_lt_a = zeros(n_ev-1, n_ev)
+        p_u_neg_lt_a = p_u_neg_lt_a.row_insert(n_ev-2, REV[n_ev-1, :])
+        conditions = [m_u_neg_lt_a, m_u_pos_lt_a, m_u_pos_gt_a, p_u_pos_lt_a, p_u_neg_gt_a, p_u_neg_lt_a]
+
+        return conditions
+
+
+    def return_to_conservative(self):
+        self.Q = self.REV*self.W
+        pprint(self.Q)
+        pprint(self.REV)
+        return
+
+    def test_eigvalues(self, ev, ndim):
+        if ndim == 1:
+            subs_list = {Symbol('a'): 3.5 ,Symbol('u0'): -0.5}
+        elif ndim == 2:
+            subs_list = {Symbol('a'): 3.5, Symbol('u0'): -0.5, Symbol('u1'): -0.25}
+        elif ndim == 3:
+            subs_list = {Symbol('a'): 3.5, Symbol('u0'): -0.5, Symbol('u1'): -0.25, Symbol('u2'): -0.05}
+
+        g = lambda x:x.subs(subs_list, evaluate=False)
+        return ev.applyfunc(g)
+    def evaluate_derivatives(self, direction):
+        t = self.euler_eq.time_derivative
+        Q = Matrix(self.euler_eq.vector_notation.get(t))
+        F = Matrix(self.euler_eq.vector_notation.get(direction))
+        dQ = Q.diff(direction)
+        dF = F.diff(direction)
+        pprint(dQ)
+        pprint(dF)
+        return

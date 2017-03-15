@@ -521,6 +521,9 @@ class Characteristic(EigenSystem):
         arg: dict: left_ev: Dictionary of matrices containing the left eigenvectors in each direction.
         arg: dict: right_ev: Dictionary of matrices containing the right eigenvectors in each direction. """
         EigenSystem.__init__(self, eigenvalue, left_ev, right_ev)
+        self.ev_store = {}
+        self.LEV_store = {}
+        self.REV_store  = {}
         return
 
     def group_by_direction(self, eqs):
@@ -563,6 +566,8 @@ class Characteristic(EigenSystem):
         avg_LEV_values = self.convert_matrix_to_grid_variable(self.left_eigen_vector[direction], averaged_suffix_name)
         # Grid variables to store averaged eigensystems
         grid_LEV = self.generate_grid_variable_LEV(direction, averaged_suffix_name)
+        # Store the grid LEV variables for the characteristic boundary condition
+        self.LEV_store[direction] = grid_LEV
         pre_process_equations += flatten(self.generate_equations_from_matrices(grid_LEV ,avg_LEV_values))
         # Transform the flux vector and the solution vector to characteristic space
         characteristic_flux_vector, CF_matrix = self.flux_vector_to_characteristic(derivatives, direction, averaged_suffix_name)
@@ -598,6 +603,7 @@ class Characteristic(EigenSystem):
         averaged_suffix_name = self.averaged_suffix_name
         avg_REV_values = self.convert_matrix_to_grid_variable(self.right_eigen_vector[self.direction], averaged_suffix_name)
         grid_REV = self.generate_grid_variable_REV(self.direction, averaged_suffix_name)
+        self.REV_store[self.direction] = grid_REV
         post_process_equations += flatten(self.generate_equations_from_matrices(grid_REV ,avg_REV_values))
         reconstructed_characteristics = Matrix([d.evaluate_reconstruction for d in derivatives])
         reconstructed_flux = grid_REV*reconstructed_characteristics
