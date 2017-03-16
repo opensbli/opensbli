@@ -522,11 +522,12 @@ class IsothermalWallBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCond
         return kernel
 
 
-class CharacteristicBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionBase, EulerEquations):
-    def __init__(self, boundary_direction, side, characteristic_scheme, scheme = None,plane=True):
+class CharacteristicBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionBase):
+    def __init__(self, boundary_direction, side, scheme = None,plane=True, Eigensystem = None):
         BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
-        self.CS = characteristic_scheme
-
+        if not Eigensystem:
+            raise ValueError("Needs Eigen system")
+        self.Eigensystem = Eigensystem
         # pprint(self.eigen_value)
         # exit()
 
@@ -547,7 +548,7 @@ class CharacteristicBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCond
         # # Generate symbolic left and right eigenvector matrices
         # self.symbolic_left_right_eigen_vectors()
         # self.n_ev = self.ndim+2
-        # direction = grid.coordinates[0] 
+        # direction = grid.coordinates[0]
         # self.direction = direction
 
         # self.generate_symbolic_arrays(direction)
@@ -593,7 +594,7 @@ class CharacteristicBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCond
         pprint(conds_0)
         pprint(conds_1)
         return
-        
+
     def generate_derivatives(self, side, order):
         t = self.euler_eq.time_derivative
         Q = self.euler_eq.vector_notation.get(t)
@@ -619,7 +620,7 @@ class CharacteristicBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCond
         self.dQ = Matrix(symbols('dQ0:%d' % self.n_ev))
         # Store LEV values and placeholders
         self.LEV = self.left_eigen_vector[direction]
-        self.LEV_sym = self.left_eigen_vector_symbolic 
+        self.LEV_sym = self.left_eigen_vector_symbolic
         self.LEV_values = self.left_eigen_vectors_evaluation_eq(self.LEV)
         # Store REV values and placeholders
         self.REV = self.right_eigen_vector[direction]
