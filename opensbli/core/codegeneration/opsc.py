@@ -20,6 +20,11 @@
 
 from sympy.printing.ccode import CCodePrinter
 from sympy.core.relational import Equality
+from opensbli.core.opensbliobjects import ConstantObject
+from opensbli.core.kernel import Kernel, ConstantsToDeclare as CTD
+from opensbli.core.algorithm import Loop
+from opensbli.core.opensbliobjects import *
+from opensbli.core.datatypes import *
 import os
 import logging
 LOG = logging.getLogger(__name__)
@@ -41,23 +46,54 @@ def get_min_max_halo_values(halos):
         else:
             halo_p += [0]
     return halo_m, halo_p
+
+class RationalCounter():
+    # Counter for the kernels
+    def __init__(self):
+        self.name = 'rc%d'
+        self.rational_counter = 0
+        self.existing = {}
+    @property
+    def increase_rational_counter(self):
+        self.rational_counter = self.rational_counter +1
+        return
+    def get_next_rational_constant(self, numerical_value):
+        name = self.name % self.rational_counter
+        self.increase_rational_counter
+        ret = ConstantObject(name)
+        self.existing[numerical_value] = ret
+        CTD.add_constant(ret, value = numerical_value)
+        return ret
+rc = RationalCounter()
+#rational_to_declare = []
+
 class OPSCCodePrinter(CCodePrinter):
 
     """ Prints OPSC code. """
     dataset_accs_dictionary = {}
+    settings_opsc = {'rational':False}
 
-    def __init__(self):
+    def __init__(self, settings={}):
         """ Initialise the code printer. """
-
-        settings = {}
-        CCodePrinter.__init__(self, settings)
+        if 'rational' in settings.keys():
+            self.settings_opsc = settings
+        else:
+            self.settings_opsc['rational'] = False
+        CCodePrinter.__init__(self, settings ={})
 
     def _print_ReductionVariable(self, expr):
         return '*%s' % str(expr)
 
     def _print_Rational(self, expr):
-        p, q = int(expr.p), int(expr.q)
-        return '%d.0/%d.0' % (p, q)
+        if self.settings_opsc.get('rational', True):
+            p, q = int(expr.p), int(expr.q)
+            return '%d.0/%d.0' % (p, q)
+        else:
+            if expr in rc.existing:
+                return self._print(rc.existing[expr])
+            else:
+                return self._print(rc.get_next_rational_constant(expr))
+
 
     def _print_Mod(self, expr):
         args = map(ccode, expr.args)
@@ -129,7 +165,7 @@ class OPSCCodePrinter(CCodePrinter):
         return out
 
 from opensbli.core.grid import GridVariable
-def ccode(expr):
+def ccode(expr, settings = {}):
     """ Create an OPSC code printer object and write out the expression as an OPSC code string.
 
     :arg expr: The expression to translate into OPSC code.
@@ -139,19 +175,15 @@ def ccode(expr):
     :rtype: str
     """
     if isinstance(expr, Eq):
-        code_print = OPSCCodePrinter()
+        code_print = OPSCCodePrinter(settings)
         code = code_print.doprint(expr.lhs) \
-            + ' = ' + OPSCCodePrinter().doprint(expr.rhs)
+            + ' = ' + OPSCCodePrinter(settings).doprint(expr.rhs)
         if isinstance(expr.lhs, GridVariable):
             code = "double " + code # WARNING dtype
         return code
     else:
-        return OPSCCodePrinter().doprint(expr)
+        return OPSCCodePrinter(settings).doprint(expr)
 
-from opensbli.core.kernel import Kernel, ConstantsToDeclare as CTD
-from opensbli.core.algorithm import Loop
-from opensbli.core.opensbliobjects import *
-from opensbli.core.datatypes import *
 
 class WriteString(object):
     def __init__(self, string):
@@ -182,7 +214,8 @@ class OPSC(object):
         if not algorithm.MultiBlock:
             self.MultiBlock = False
             self.dtype = algorithm.dtype
-            #self.generate_OPSC_dependants_sb(algorithm)
+            # First write the kernels, with this we will have the Rational constants to declare
+            self.write_kernels(algorithm)
             def_decs = self.opsc_def_decs(algorithm)
             end = self.ops_exit()
             algorithm.prg.components = def_decs + algorithm.prg.components + end
@@ -192,7 +225,6 @@ class OPSC(object):
             f = open('opensbli.cpp' , 'w')
             f.write('\n'.join(code))
             f.close()
-            self.write_kernels(algorithm)
         return
 
     def kernel_header(self, tuple_list):
@@ -320,7 +352,7 @@ class OPSC(object):
         name = s.name + 'temp'
         sorted_stencil = s.sort_stencil_indices()
         out = [self.declare_inline_array(dtype, name, [st for st in flatten(sorted_stencil) if not isinstance(st, Idx)])]
-        pprint(flatten(s.stencil))
+        #pprint(flatten(s.stencil))
 
         out += [WriteString('ops_stencil %s = ops_decl_stencil(%d,%d,%s,\"%s\");'%(s.name, s.ndim, len(s.stencil), name, name))]
         pprint(out)
@@ -433,7 +465,7 @@ class OPSC(object):
     def define_constants(self, c):
         if isinstance(c, ConstantObject):
             if c.value:
-                return [WriteString("%s=%s;"%(str(c), ccode(c.value)))]
+                return [WriteString("%s=%s;"%(str(c), ccode(c.value, settings = {'rational':True})))]
             else:
                 return [WriteString("%s=%s;"%(str(c), "Input"))]
         elif isinstance(c, ConstantIndexed):
@@ -441,7 +473,7 @@ class OPSC(object):
             if c.value:
                 if len(c.shape) == 1:
                     for i in range(c.shape[0]):
-                        out += [WriteString("%s[%d]=%s;"%(str(c.base.label), i, ccode(c.value[i])))]
+                        out += [WriteString("%s[%d]=%s;"%(str(c.base.label), i, ccode(c.value[i], settings = {'rational':True})))]
                 else:
                     raise NotImplementedError("Indexed constant declaration is done for only one ")
                 return out

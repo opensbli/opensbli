@@ -114,28 +114,6 @@ class LC(Function):
         raise NotImplementedError("")
         return
 
-class Dot(Function):
-
-    def __new__(cls, arg1, arg2):
-        ret = super(Dot, cls).__new__(cls, arg1, arg2)
-        return ret
-    def structure(cls):
-        """
-        This function is not dependant on _strcture
-        """
-        indices = flatten([p.get_indices() for p in cls.args if p.get_indices])
-        hashs = str(hash((type(cls).__name__,) + cls.args + tuple(cls.der_struct)))
-        indexed = IndexedBase("%s%s"%(cls.__class__.__name__, hashs))
-        # Do the summation notation
-        raise NotImplementedError("")
-        indexed.expression = cls
-        return
-    @property
-    def value(self):
-        pprint(["MUl",Mul(*self.args), srepr(Mul(*self.args))])
-        raise NotImplementedError("")
-        return
-
 class EinsteinStructure(object):
     def apply_contraction(cls, contraction_dictionary, expr, reversesubs):
         outer = []
@@ -176,10 +154,8 @@ class EinsteinStructure(object):
         reversesubs = {}
         for p in pot:
             if isinstance(p, localfuncs):
-                #print(p, type(p))
                 if p.structure():
                     substits[p] = p.structure()
-                    #pprint([substits[p], p])
                     expr = expr.xreplace({p: substits[p]})
                 else:
                     pass
@@ -408,6 +384,27 @@ class BasicDiscretisation(EinsteinStructure):
         indexedobj.expression = final_expr
         #pprint(["EXPRESSION", cls,indexedobj, indexedobj.expression ])
         return indexedobj
+
+class Dot(Function, BasicDiscretisation):
+
+    def __new__(cls, arg1, arg2):
+        ret = super(Dot, cls).__new__(cls, arg1, arg2)
+        return ret
+    #def structure(cls):
+        #"""
+        #This function is not dependant on _strcture
+        #"""
+        #indices = flatten([p.get_indices() for p in cls.args if p.get_indices])
+        #hashs = str(hash((type(cls).__name__,) + cls.args ))
+        #indexed = IndexedBase("%s%s"%(cls.__class__.__name__, hashs))
+        #indexed.expression = cls
+        #return
+    @property
+    def simple_name(self):
+        return "Dot"
+    @property
+    def value(self):
+        return Mul(*self.args)
 
 """
 The structure for einstein expansion would be the following,

@@ -50,22 +50,8 @@ class KernelCounter():
         self.kernel_counter = self.stored_counter
         return
 
-class RationalCounter():
-    # Counter for the kernels
-    def __init__(self):
-        self.name = 'rc%d'
-        self.rational_counter = 0
-    @property
-    def increase_rational_counter(self):
-        self.rational_counter = self.rational_counter +1
-        return
-    @property
-    def get_next_rational_constant(self):
-        name = self.name % self.rational_counter
-        self.increase_rational_counter
-        ret = ConstantObject(name)
-        return ret
-class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes, RationalCounter): # BoundaryConditionTypes add this later
+
+class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes): # BoundaryConditionTypes add this later
     def __init__(self, ndim, block_number = None):
         if block_number:
             self.blocknumber = block_number
@@ -74,7 +60,7 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes, RationalCount
         self.ndim = ndim
         KernelCounter.__init__(self)
         Grid.__init__(self)
-        RationalCounter.__init__(self)
+        #RationalCounter.__init__(self)
         self.boundary_halos = [[set(), set()] for d in range(self.ndim)]
         self.block_datasets = {}
         self.constants = {}
