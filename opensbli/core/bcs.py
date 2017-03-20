@@ -528,46 +528,67 @@ class CharacteristicBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCond
         if not Eigensystem:
             raise ValueError("Needs Eigen system")
         self.Eigensystem = Eigensystem
-        # pprint(self.eigen_value)
-        # exit()
-
-
-
-        # self.ndim = 3
-        # length = [10]*self.ndim
-        # np = [40, 40,40]
-        # deltas = [length[i]/(np[i]) for i in range(len(length))]
-        # metric = [(True,True),(True,True), (False, False)]
-
-        # grid = Grid(self.ndim,{'delta':deltas, 'number_of_points':np}, metrics = metric)
-        # self.euler_eq = EulerEquations(self.ndim)
-        # ev_dict, LEV_dict, REV_dict = self.euler_eq.generate_eig_system(grid)
-        # pprint(ev_dict)
-
-        # EigenSystem.__init__(self, ev_dict, LEV_dict, REV_dict)
-        # # Generate symbolic left and right eigenvector matrices
-        # self.symbolic_left_right_eigen_vectors()
-        # self.n_ev = self.ndim+2
-        # direction = grid.coordinates[0]
-        # self.direction = direction
-
-        # self.generate_symbolic_arrays(direction)
-        # self.Carpenter = Carpenter()
-        # self.generate_derivatives(side=1, order=1)
-        # conditions = self.zero_out_characteristics()
-        # self.create_conditionals(conditions)
         return
 
     def apply(self, arrays, boundary_direction, side, block):
+        # Remove the store in weno opensbli
+        # Things in """ """ should be removed
+        """
         self.ndim = block.ndim
         print "in charBC"
         pprint(self.ndim)
+        
+        
         self.ev_dict = self.CS.ev_store
         self.LEV_dict = self.CS.LEV_store
         self.REV_dict = self.CS.REV_store
+        
         pprint(self.LEV_dict)
         pprint(self.REV_dict)
-        exit()
+        exit()"""
+        """Explanation 
+        Steps for performing characteristic boundary conditions are 
+        
+        1. Evaluate LEV as GridVariable
+        2. Evaluate lambda as grid variables
+        I think 1 and 2 you can do it
+        3. REV should be evaluated as piecewise
+        
+        """
+        self.create_REV_conditions()
+        return
+    
+    def create_REV_conditions(self):
+        
+        # create REV symbolic matrix, similar to WENO
+        suffix_name = 'Char_BC'
+        # Before this we need to evaluate char_bc_u, and soon
+        # convert the REV into grid variables
+        rev_in_grid =self.Eigensystem.convert_matrix_to_grid_variable(self.Eigensystem.right_eigen_vector[self.direction] ,  suffix_name)
+        # These are used as the LHS symbols for the equations
+        rev = self.Eigensystem.generate_grid_variable_REV(self.direction, suffix_name)
+        pprint(rev)
+        pprint(rev.shape)
+        # Create the RHS, making a piecewise function, you can create an empty piecewise function but that fails while printing
+        rhs_rev = zeros(*rev.shape)
+        for i in range(rhs_rev.shape[0]):
+            for j in range(rhs_rev.shape[1]):
+                rhs_rev[i,j] = Piecewise((rev[i,j], True))
+        # Create eigen values as local variables if required
+        ev = self.Eigensystem.generate_grid_variable_ev(self.direction, suffix_name)
+        # Create expression condition pairs, for example  let's say EV[2] <0 then zero out characteristic
+        # zero out row, CHECK this for matrix indices WARNING
+        # Making up some pairs
+        #p = (Piecewise())
+        for s in range(rhs_rev.shape[0]):
+            condition_par = list(rhs_rev[s,2].atoms(ExprCondPair)) + [ExprCondPair(0, ev[s,s] <0)]
+            rhs_rev[s,2] = Piecewise(*condition_par)
+            condition_par = list(rhs_rev[s,0].atoms(ExprCondPair)) + [ExprCondPair(1, ev[s,s] >0)]
+            rhs_rev[s,1] = Piecewise(*condition_par)
+        pprint(rhs_rev)
+        
+            
+        return
 
 
 
