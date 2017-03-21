@@ -16,8 +16,7 @@ ndim = 3
 # Define the compresible Navier-Stokes equations in Einstein notation.
 mass = "Eq(Der(rho, t), - Skew(rho*u_j, x_j))"
 momentum = "Eq(Der(rhou_i, t), - Skew(rhou_i*u_j, x_j) - Der(p, x_i) + Der(tau_i_j, x_j) + KD(_i,_j)*c_j )"
-energy = "Eq(Der(rhoE, t), - Skew(rhoE*u_j, x_j) - Conservative(p*u_j, x_j) - KD(_k, _j)*Der(c_j*u_j, x_k) + Der(q_j, x_j) + Der(u_i*tau_i_j, x_j) )"
-#energy = "Eq(Der(rhoE, t), - Skew(rhoE*u_j, x_j) - Conservative(p*u_j, x_j) + Der(q_j, x_j) + Der(u_i*tau_i_j, x_j) )"
+energy = "Eq(Der(rhoE, t), - Skew(rhoE*u_j, x_j) - Conservative(p*u_j, x_j) - Dot(c_j, u_j) + Der(q_j, x_j) + Der(u_i*tau_i_j, x_j) )"
 ke = "Eq(ke, rho*(1/2)*Dot(u_j, u_j))"
 enstrophy = "Eq(enstrophy, (1/2)*rho*(LC(_i,_j,_k)*Der(u_k, x_j))**2)"
 rhomean = "Eq(rhomean, rho)"
@@ -58,8 +57,6 @@ simulation_eq.add_equations(eqns)
 #    latex.write_expression(eq)
 #latex.write_footer()
 #latex.close()
-
-
 
 constituent = ConstituentRelations()
 eqns = eq.expand(velocity, ndim, coordinate_symbol, substitutions, constants)
@@ -106,9 +103,6 @@ ubar = "Eq(GridVariable(ubar), Piecewise((x1wall/visc, x1wall/visc < 10.0), (von
 u0 = "Eq(GridVariable(u0), (ubar+amp*x0l/2.0*cx0*sx2*sx1)/ubar)"
 u1 = "Eq(GridVariable(u1), -amp*sx0*sx2*cx1/ubar)"
 u2 = "Eq(GridVariable(u2), -amp*x2l/2.0*sx0*cx2*sx1/ubar)"
-#u0 = "Eq(GridVariable(u0), 0.5)"
-#u1 = "Eq(GridVariable(u1), 0)"
-#u2 = "Eq(GridVariable(u2), 0)"
 p = "Eq(GridVariable(p), 1.0/(gama*Minf*Minf))"
 r = "Eq(GridVariable(r), gama*Minf*Minf*p)"
 
@@ -150,8 +144,6 @@ rhod = "Eq(DataObject(rho), 1.0)"
 rhod = parse_expr(rhod, local_dict=local_dict)
 upper_wall_eq = [rhou0d, rhou1d, rhou2d, rhoEd, rhod]
 lower_wall_eq = [rhou0d, rhou1d, rhou2d, rhoEd, rhod]
-#boundaries += [IsothermalWallBoundaryConditionBlock(direction, 0, upper_wall_eq)]
-#boundaries += [IsothermalWallBoundaryConditionBlock(direction, 1, lower_wall_eq)]
 boundaries += [DirichletBoundaryConditionBlock(direction, 0, upper_wall_eq)]
 boundaries += [DirichletBoundaryConditionBlock(direction, 1, lower_wall_eq)]
 
