@@ -711,7 +711,8 @@ class LLFCharacteristic(Characteristic, Weno):
             eqs = flatten(type_of_eq.equations)
             grouped = self.group_by_direction(eqs)
             all_derivatives_evaluated_locally = []
-            reconstruction_halos = WenoHalos(self.order, reconstruction=True)
+            # For the residual kernel it should be on the grid we should not update the residue in the halos
+            #reconstruction_halos = WenoHalos(self.order, reconstruction=True)
             for key, derivatives in grouped.iteritems():
                 all_derivatives_evaluated_locally += derivatives
                 for no,deriv in enumerate(derivatives):
