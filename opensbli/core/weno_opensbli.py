@@ -707,12 +707,12 @@ class LLFCharacteristic(Characteristic, Weno):
         Final derivatives are evaluated from Weno derivative class --> Using WD.discretise
         """
         if isinstance(type_of_eq, SimulationEquations):
-            residual_kernel = Kernel(block, computation_name = "WenoResidual")
+            #residual_kernel = Kernel(block, computation_name = "WenoResidual")
             eqs = flatten(type_of_eq.equations)
             grouped = self.group_by_direction(eqs)
             all_derivatives_evaluated_locally = []
-            # For the residual kernel it should be on the grid we should not update the residue in the halos
-            #reconstruction_halos = WenoHalos(self.order, reconstruction=True)
+
+            reconstruction_halos = WenoHalos(self.order, reconstruction=True)
             for key, derivatives in grouped.iteritems():
                 all_derivatives_evaluated_locally += derivatives
                 for no,deriv in enumerate(derivatives):
