@@ -131,7 +131,7 @@ direction = 0
 boundaries += [PeriodicBoundaryConditionBlock(direction, 0)]
 boundaries += [PeriodicBoundaryConditionBlock(direction, 1)]
 
-#direction = 1
+direction = 1
 rhou0d = "Eq(DataObject(rhou0), 0.0)"
 rhou1d = "Eq(DataObject(rhou1), 0.0)"
 rhou2d = "Eq(DataObject(rhou2), 0.0)"
