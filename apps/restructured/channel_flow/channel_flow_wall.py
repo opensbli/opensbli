@@ -131,30 +131,14 @@ direction = 0
 boundaries += [PeriodicBoundaryConditionBlock(direction, 0)]
 boundaries += [PeriodicBoundaryConditionBlock(direction, 1)]
 
-#direction = 1
-rhou0d = "Eq(DataObject(rhou0), 0.0)"
-rhou1d = "Eq(DataObject(rhou1), 0.0)"
-rhou2d = "Eq(DataObject(rhou2), 0.0)"
-rhou0d = parse_expr(rhou0d, local_dict=local_dict)
-rhou1d = parse_expr(rhou1d, local_dict=local_dict)
-rhou2d = parse_expr(rhou2d, local_dict=local_dict)
+# Isothermal wall in y direction
+direction = 1
 rhoEd = "Eq(DataObject(rhoE), 1.0/((gama-1)*gama*Minf*Minf))"
 rhoEd = parse_expr(rhoEd, local_dict=local_dict)
-rhod = "Eq(DataObject(rho), 1.0)"
-rhod = parse_expr(rhod, local_dict=local_dict)
-upper_wall_eq = [rhou0d, rhou1d, rhou2d, rhoEd, rhod]
-lower_wall_eq = [rhou0d, rhou1d, rhou2d, rhoEd, rhod]
-boundaries += [DirichletBoundaryConditionBlock(direction, 0, upper_wall_eq)]
-boundaries += [DirichletBoundaryConditionBlock(direction, 1, lower_wall_eq)]
-
-# Isothermal wall in y direction
-#direction = 1
-#rhoEd = "Eq(DataObject(rhoE), 1.0/((gama-1)*gama*Minf*Minf))"
-#rhoEd = parse_expr(rhoEd, local_dict=local_dict)
-#upper_wall_eq = [rhoEd]
-#lower_wall_eq = [rhoEd]
-#boundaries += [IsothermalWallBoundaryConditionBlock(direction, 0, upper_wall_eq)]
-#boundaries += [IsothermalWallBoundaryConditionBlock(direction, 1, lower_wall_eq)]
+upper_wall_eq = [rhoEd]
+lower_wall_eq = [rhoEd]
+boundaries += [IsothermalWallBoundaryConditionBlock(direction, 0, upper_wall_eq)]
+boundaries += [IsothermalWallBoundaryConditionBlock(direction, 1, lower_wall_eq)]
 
 # Periodic boundaries in z direction
 direction = 2
