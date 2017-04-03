@@ -69,7 +69,7 @@ class LatexWriter(LatexPrinter):
         header.append('\\documentclass{article}')
         header.append('\\title{%s}\n\\author{%s\\\\ %s}' % (metadata["title"], metadata["author"], metadata["institution"]))
         header.append('\\date{\\today}')
-        header.append('\\usepackage{color}\n\\usepackage{breqn}')
+        header.append('\\usepackage{color}\n\\usepackage{amsmath}\n\\usepackage{breqn}')
         header.append('\\begin{document}')
         header.append('\\maketitle')
         header.append('')
