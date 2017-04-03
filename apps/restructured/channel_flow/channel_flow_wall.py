@@ -133,7 +133,7 @@ boundaries += [PeriodicBoundaryConditionBlock(direction, 1)]
 
 # Isothermal wall in y direction
 direction = 1
-rhoEd = "Eq(DataObject(rhoE), 1.0/((gama-1)*gama*Minf*Minf))"
+rhoEd = "Eq(DataObject(rhoE), DataObject(rho)/((gama-1)*gama*Minf*Minf))"
 rhoEd = parse_expr(rhoEd, local_dict=local_dict)
 upper_wall_eq = [rhoEd]
 lower_wall_eq = [rhoEd]
