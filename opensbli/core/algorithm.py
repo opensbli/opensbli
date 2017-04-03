@@ -229,7 +229,9 @@ class TraditionalAlgorithmRK(object):
                     else:
                         print "NOT classified", type(key)
             sc = b.get_temporal_schemes[0]
-            innerloop = sc.generate_inner_loop(bc_kernels + spatial_kernels + inner_temporal_advance_kernels)
+            innerloop = sc.generate_inner_loop(spatial_kernels + inner_temporal_advance_kernels + bc_kernels)
+            # Add BC kernels to temporal start
+            temporal_start += [bc_kernels]
             temporal_iteration = Idx("iter", ConstantObject('niter', integer =True))
             from .kernel import ConstantsToDeclare as CTD
             from .datatypes import *
@@ -257,7 +259,7 @@ class TraditionalAlgorithmRK(object):
             # Process the initial conditions and Diagnostics if any here
             self.prg.add_components(before_time)
             self.prg.add_components(tloop)
-            self.prg.add_components(bc_kernels + after_time)
+            self.prg.add_components(after_time)
             self.prg.write_latex(latex)
         latex.write_footer()
         latex.close()
