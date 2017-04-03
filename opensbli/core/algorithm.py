@@ -231,7 +231,7 @@ class TraditionalAlgorithmRK(object):
             sc = b.get_temporal_schemes[0]
             innerloop = sc.generate_inner_loop(spatial_kernels + inner_temporal_advance_kernels + bc_kernels)
             # Add BC kernels to temporal start
-            temporal_start += [bc_kernels]
+            temporal_start = bc_kernels + temporal_start
             temporal_iteration = Idx("iter", ConstantObject('niter', integer =True))
             from .kernel import ConstantsToDeclare as CTD
             from .datatypes import *
