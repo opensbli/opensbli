@@ -425,7 +425,10 @@ class OPSC(object):
         def _generate(components, type_list):
             for component1 in components:
                 if isinstance(component1, type_of_component):
-                    type_list += [component1]
+                    if component1 in type_list:
+                        pass
+                    else:
+                        type_list += [component1]
                 elif isinstance(component1, Loop):
                     return _generate(component1.components, type_list)
 
