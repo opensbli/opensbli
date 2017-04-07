@@ -532,7 +532,13 @@ class OPSC(object):
         else:
             dtype = self.dtype
         value = WriteString("%s* value = NULL;"%dtype)
-        temp = '%s = ops_decl_dat(%s, 1, size, base, halo_m, halo_p, value, \"%s\", \"%s\");'%(dset,
+
+        fname = 'data.h5'
+        if dset.read_from_hdf5:
+            temp = '%s = ops_decl_dat_hdf5(%s, 1, \"%s\", \"%s\", \"%s\");'%(dset,
+                            dset.block_name, dtype, dset, fname)
+        else:
+            temp = '%s = ops_decl_dat(%s, 1, size, base, halo_m, halo_p, value, \"%s\", \"%s\");'%(dset,
                             dset.block_name, dtype, dset)
         temp = WriteString(temp)
         declaration = WriteString("ops_dat %s;" % dset)
