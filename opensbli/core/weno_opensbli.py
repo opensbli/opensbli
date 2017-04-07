@@ -3,6 +3,7 @@ from .opensblifunctions import *
 from opensbli.core import *
 from .grid import GridVariable
 from .opensbliequations import *
+from opensbli.utilities.helperfunctions import increment_dataset
 
 class Scheme(object):
     """ A numerical discretisation scheme. """
@@ -486,20 +487,6 @@ class EigenSystem(object):
                 equations[no] = Eq(v, rhs_matrix[no])
         return equations
 
-    def increment_dataset(self, expression, direction, value):
-        """ Increments an expression containing datasets by the given increment and direction.
-        arg: object: expression: A SymPy expression containing datasets to have their indices updated.
-        arg: int: direction: The integer direction to apply the increment. (which DataSet axis to apply to)
-        arg: int: value: The positive or negative change to apply to the DataSet's index.
-        returns: object: expression: The original expression updated to the new DataSet location. 
-        """
-        for dset in expression.atoms(DataSet):
-            loc = list(dset.indices)
-            loc[direction] = loc[direction] + value
-            new_dset =  dset.base[loc]
-            expression = expression.replace(dset, new_dset)
-        return expression
-
     def convert_symbolic_to_dataset(self, symbolics, location, direction):
         """ Converts symbolic terms to DataSets. 
         arg: object: symbolics: Expression containing Symbols to be converted into DataSets.
@@ -638,7 +625,7 @@ class Characteristic(EigenSystem):
         CS_matrix = zeros(len(solution_vector), len(stencil_points))
         for j, val in enumerate(stencil_points): # j in fv stencil matrix
             for i, flux in enumerate(solution_vector):
-                solution_vector_stencil[i,j] = self.increment_dataset(flux, direction, val)
+                solution_vector_stencil[i,j] = increment_dataset(flux, direction, val)
                 CS_matrix[i,j] = GridVariable('CS_%d%d' %(i,j))
         grid_LEV = self.generate_grid_variable_LEV(direction, name)
         characteristic_solution_stencil = grid_LEV*solution_vector_stencil
@@ -657,7 +644,7 @@ class Characteristic(EigenSystem):
         CF_matrix = zeros(len(fv), len(stencil_points))
         for j, val in enumerate(stencil_points): # j in fv stencil matrix
             for i, flux in enumerate(fv):
-                flux_stencil[i,j] = self.increment_dataset(flux, direction, val)
+                flux_stencil[i,j] = increment_dataset(flux, direction, val)
                 CF_matrix[i,j] = GridVariable('CF_%d%d' % (i,j))
         grid_LEV = self.generate_grid_variable_LEV(direction, name)
         characteristic_flux_stencil = grid_LEV*flux_stencil
