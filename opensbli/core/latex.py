@@ -88,7 +88,7 @@ class LatexWriter(LatexPrinter):
         self.f.write(footer)
         return
 
-    def latexify_expression(self, expression):
+    def latexify_expression(self, expression, mode):
         """ Format a SymPy expression as LaTeX.
 
         :arg expression: The SymPy expression to format.
@@ -96,7 +96,7 @@ class LatexWriter(LatexPrinter):
         :rtype: str
         """
 
-        self._settings['mode'] = "dmath"
+        self._settings['mode'] = mode
         self._settings['long_frac_ratio'] = 3
         self._settings['mul_symbol_latex'] = r" \,.\, "
         #self._settings['mul_symbol_latex'] = \
@@ -105,7 +105,7 @@ class LatexWriter(LatexPrinter):
         tex = Printer.doprint(self, expression)
 
         if self._settings['mode'] == 'plain':
-            output = tex
+            output = r"\noindent$%s$\\"%tex
         elif self._settings['mode'] == 'inline':
             output = r"$%s$" % tex
         elif self._settings['itex']:
@@ -141,7 +141,7 @@ class LatexWriter(LatexPrinter):
     def _print_WenoDerivative(self, expr):
         return r'\left. %s \right|_{{%s }}' % (self._print(Derivative(*expr.args)), "Weno")
 
-    def write_expression(self, expression, substitutions={}):
+    def write_expression(self, expression, mode = None, substitutions={}):
         """ Convert a single expression or list of expressions to LaTeX format and then write it/them to file.
 
         :arg expression: a single SymPy expression of list of SymPy expressions to format and write.
@@ -149,12 +149,14 @@ class LatexWriter(LatexPrinter):
         """
 
         output = []
+        if not mode:
+            mode = "dmath"
 
         if isinstance(expression, list):
             for e in expression:
-                output.append(self.latexify_expression(e))
+                output.append(self.latexify_expression(e, mode))
         else:
-            output.append(self.latexify_expression(expression))
+            output.append(self.latexify_expression(expression, mode))
 
         # Perform any user-defined LaTeX substitutions
         for key, value in substitutions.iteritems():
