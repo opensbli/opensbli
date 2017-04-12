@@ -136,6 +136,57 @@ class DefDecs(object):
             elif isinstance(c, DataSetBase):
                 code += ["DefDec dataset %s"%(str(c))]
         return code
+class Timers(object):
+    def __init__(self, number):
+        self.components = []
+        self.number = number
+        return
+    @property
+    def start_variables(self):
+        return ["cpu_start%d"%(self.number), "elapsed_start%d"%(self.number)]
+    @property
+    def end_variables(self):
+        return ["cpu_end%d"%(self.number), "elapsed_end%d"%(self.number)]
+
+    def add_components(self, components):
+        if isinstance(components, list):
+            self.components += components
+        else:
+            self.components += [components]
+        return
+    def write_latex(self, latex):
+        latex.write_string("Initialising timers\\\\\n")
+        for c in self.components:
+            c.write_latex(latex)
+        latex.write_string("Ending timers\\\\\n")
+        return
+    @property
+    def opsc_code(self):
+        code = []
+        code += self.opsc_start_timer
+        for c in self.components:
+            code += c.opsc_code
+        code += self.opsc_end_timer
+        return code
+    @property
+    def opsc_start_timer(self):
+        start = self.start_variables
+        timer_start = ["double %s, %s;" % (start[0], start[1])] + ["ops_timers(&%s, &%s);" % (start[0], start[1])]
+        return timer_start
+    @property
+    def opsc_end_timer(self):
+        end = self.end_variables
+        code = []
+        code += ["double %s, %s;" % (end[0], end[1])] + ["ops_timers(&%s, &%s);" % (end[0], end[1])]
+        code += self.timing_result_opsc
+        return code
+    @property
+    def timing_result_opsc(self):
+        code = []
+        code += ["ops_printf(\"\\nTimings are:\\n\");" ]
+        code += ["ops_printf(\"-----------------------------------------\\n\");"]
+        code += ["ops_printf(\"Total Wall time %%lf\\n\",%s-%s);" % (self.end_variables[1], self.start_variables[1])]
+        return code
 
 #class If
 class BlockDescription(object):
@@ -150,6 +201,7 @@ class TraditionalAlgorithmRK(object):
     """
     def __init__(self, blocks, dtype=None):
         self.block_descriptions = []
+        self.ntimers = 0
         if isinstance(blocks, SB):
             self.MultiBlock = False
             blocks = [blocks]
@@ -257,13 +309,19 @@ class TraditionalAlgorithmRK(object):
             tloop.add_components(temporal_end)
             #tloop.write_latex(latex)
             # Process the initial conditions and Diagnostics if any here
+            timed_tloop = self.add_timers(tloop)
             self.prg.add_components(before_time)
-            self.prg.add_components(tloop)
+            self.prg.add_components(timed_tloop)
             self.prg.add_components(after_time)
             self.prg.write_latex(latex)
         latex.write_footer()
         latex.close()
         return
+    def add_timers(self, components):
+        timer = Timers(self.ntimers)
+        self.ntimers += 1
+        timer.add_components(components)
+        return timer
 
     #def get_io(self, blocks):
         #for b in blocks:
