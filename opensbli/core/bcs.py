@@ -134,7 +134,7 @@ class BoundaryConditionBase(object):
         # Add the halos to the kernel in directions not equal to boundary direction
         for i in [x for x in range(block.ndim) if x != direction]:
             kernel.halo_ranges[i][0] = block.boundary_halos[i][0]
-            kernel.halo_ranges[i][1] = block.boundary_halos[i][1]    
+            kernel.halo_ranges[i][1] = block.boundary_halos[i][1]
         return halos, kernel
 
     def create_boundary_equations(self, direction, left_arrays, right_arrays, transfer_indices):
@@ -307,17 +307,16 @@ class Carpenter(object):
         if side == 0:
             f_matrix = f_matrix[:,0:4]
         elif side == 1:
-            print "this should be negative or modified according to sbli, check"
             f_matrix = f_matrix.transpose()[:,0:4]
         else:
             raise NotImplementedError("Side must be 0 or 1")
         return f_matrix
 
-    def weight_function_points(self, func_points, direction, order, block, char_BC=False):
-        # WARNING side == 1, take negative h value? Check SBLI
-
+    def weight_function_points(self, func_points, direction, order, block, side, char_BC=False):
         if order == 1:
             h = (block.deltas[direction])**(-1)
+            if side == 1:
+                h = -S.One*h # Modify the first derivatives for side ==1
             if char_BC:
                 weighted = h*(self.bc4_symbols[0,:]*func_points)
             else:
@@ -335,7 +334,7 @@ class Carpenter(object):
 
     def expr_cond_pairs(self, fn, direction, side, order, block):
         fn_pts = self.function_points(fn, direction, side)
-        derivatives = self.weight_function_points(fn_pts, direction, order, block)
+        derivatives = self.weight_function_points(fn_pts, direction, order, block, side)
         idx = block.grid_indexes[direction]
         if side == 0:
             mul_factor = 1
@@ -511,7 +510,7 @@ class IsothermalWallBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCond
         pprint(kernel.equations)
         kernel.update_block_datasets(block)
         return kernel
-    
+
 class InletTransferBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionBase):
     """This is boundary condition should not be used until the user knows what he is doing. This is used for testing OpenSBLI
     """
@@ -526,7 +525,7 @@ class InletTransferBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCondi
         if side != 0:
             raise ValueError("Only implemented this BC for inlet side 0.")
         return
-    
+
     def apply(self, arrays, boundary_direction, side, block):
         halos, kernel = self.generate_boundary_kernel(boundary_direction, side, block, self.bc_name)
         cons_vars = flatten(arrays)
@@ -548,7 +547,7 @@ class InletPressureExtrapolateBoundaryConditionBlock(ModifyCentralDerivative, Bo
         if side != 0:
             raise ValueError("Only implemented this BC for inlet side 0.")
         return
-    
+
     def apply(self, arrays, boundary_direction, side, block):
         halos, kernel = self.generate_boundary_kernel(boundary_direction, side, block, self.bc_name)
         crs = block.list_of_equation_classes[1].equations
@@ -608,7 +607,7 @@ class InletPressureExtrapolateBoundaryConditionBlock(ModifyCentralDerivative, Bo
 #         if side != 1:
 #             raise ValueError("Only implemented this BC for inlet side 1.")
 #         return
-    
+
 #     def apply(self, arrays, boundary_direction, side, block):
 #         halos, kernel = self.generate_boundary_kernel(boundary_direction, side, block, self.bc_name)
 #         cons_vars = flatten(arrays)
@@ -632,29 +631,29 @@ class InletPressureExtrapolateBoundaryConditionBlock(ModifyCentralDerivative, Bo
 #         self.ndim = block.ndim
 #         print "in charBC"
 #         pprint(self.ndim)
-        
-        
+
+
 #         self.ev_dict = self.CS.ev_store
 #         self.LEV_dict = self.CS.LEV_store
 #         self.REV_dict = self.CS.REV_store
-        
+
 #         pprint(self.LEV_dict)
 #         pprint(self.REV_dict)
 #         exit()"""
-#         """Explanation 
-#         Steps for performing characteristic boundary conditions are 
-        
+#         """Explanation
+#         Steps for performing characteristic boundary conditions are
+
 #         1. Evaluate LEV as GridVariable
 #         2. Evaluate lambda as grid variables
 #         I think 1 and 2 you can do it
 #         3. REV should be evaluated as piecewise
-        
+
 #         """
 #         self.create_REV_conditions()
 #         return
-    
+
 #     def create_REV_conditions(self):
-        
+
 #         # create REV symbolic matrix, similar to WENO
 #         suffix_name = 'ChBC'
 #         # Before this we need to evaluate char_bc_u, and soon
@@ -693,8 +692,8 @@ class InletPressureExtrapolateBoundaryConditionBlock(ModifyCentralDerivative, Bo
 #             condition_par = list(rhs_rev[s,0].atoms(ExprCondPair)) + [ExprCondPair(1, ev[s,s] >0)]
 #             rhs_rev[s,1] = Piecewise(*condition_par)
 #         pprint(rhs_rev)
-        
-            
+
+
 #         return
 
 
