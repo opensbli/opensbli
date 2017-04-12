@@ -253,7 +253,7 @@ class RightReconstructionVariable(ReconstructionVariable):
 class WenoZ(object):
     def __init__(self, k):
         self.k = k
-        self.eps = 1e-40
+        self.eps = 1e-16
         return
 
     def generate_alphas(self, RV, WenoConfig):
