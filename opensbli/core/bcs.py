@@ -27,6 +27,12 @@ side_names  = {0:'left', 1:'right'}
 
 class Exchange(object):
     pass
+
+class ModifyCentralDerivative(object):
+    """ A place holder for the boundary conditions on which the central derivative should be modified"""
+    pass
+
+
 class ExchangeSelf(Exchange):
 
     """ Defines data exchange on the same block. """
@@ -229,12 +235,16 @@ class LinearExtrapolateBoundaryConditionBlock(BoundaryConditionBase):
         kernel.update_block_datasets(block)
         return kernel
 
-class DirichletBoundaryConditionBlock(BoundaryConditionBase):
+class DirichletBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionBase):
     """Applies constant value Dirichlet boundary condition."""
-    def __init__(self, boundary_direction, side , equations, plane=True):
+    def __init__(self, boundary_direction, side , equations, scheme= None, plane=True):
         BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
         self.bc_name = 'Dirichlet'
         self.equations = equations
+        if not scheme:
+            self.modification_scheme = Carpenter()
+        else:
+            self.modification_scheme = scheme
         return
     def halos(self):
         return True
@@ -395,10 +405,6 @@ class Carpenter(object):
         #     for j in range(bc4.shape[1]):
         #         bc4[i,j] = nsimplify(bc4[i,j])
         return bc4
-
-class ModifyCentralDerivative(object):
-    """ A place holder for the boundary conditions on which the central derivative should be modified"""
-    pass
 
 class AdiabaticWallBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionBase):
     def __init__(self, boundary_direction, side, equations=None, scheme = None,plane=True):
