@@ -478,8 +478,21 @@ class IsothermalWallBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCond
         wall_eqns += rhoE_wall
         kernel.add_equation(wall_eqns)
 
+        n_halos = abs(halos[boundary_direction][side])
+        p0 = GridVariable('p0')
+        gama, Minf = ConstantObject('gama'), ConstantObject('Minf')
+        vel_comps = [i**2 for i in flatten(arrays[1])]
+        p0_rhs = (gama-1.0)*(lhs_eqns[-1] - 0.5*sum(vel_comps)/lhs_eqns[0])
+        kernel.add_equation(Eq(p0, p0_rhs))
+
         loc = list(lhs_eqns[0].indices)
-        new_loc = loc[:]
+
+        for i in range(1, n_halos+1):
+            new_loc = loc[:]
+            new_loc[boundary_direction] += i
+            T = (lhs_eqns[-1] - 0.5*(sum(vel_comps)/lhs_eqns[0]))*(gama*(gama-1.0)*Minf**2) / lhs_eqns[0]
+            T = self.convert_dataset_base_expr_to_datasets(T,new_loc)
+            kernel.add_equation(Eq(GridVariable('T%d' % i), T))
 
         if side == 0:
             from_side_factor = -1
@@ -498,14 +511,18 @@ class IsothermalWallBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCond
             else:
                 rhs_eqns += [ar]
 
-        transfer_indices = [tuple([from_side_factor*t, to_side_factor*t]) for t in range(1, abs(halos[boundary_direction][side]) + 1)]
+        transfer_indices = [tuple([from_side_factor*t, to_side_factor*t]) for t in range(1, n_halos + 1)]
 
         final_equations = []
-        for index in transfer_indices:
+        for i, index in enumerate(transfer_indices):
             array_equations = []
             loc_lhs, loc_rhs = loc[:], loc[:]
             loc_lhs[boundary_direction] += index[0]
             loc_rhs[boundary_direction] += index[1]
+            # Set rho RHS
+            rhs_eqns[0] = p0*gama*Minf**2 / GridVariable('T%d' % (i+1))
+            # Set rhoE RHS
+            rhs_eqns[-1] = p0/(gama-1.0) + 0.5*sum(vel_comps)/lhs_eqns[0]
             for left, right in zip(lhs_eqns, rhs_eqns):
                 left = self.convert_dataset_base_expr_to_datasets(left, loc_lhs)
                 right = self.convert_dataset_base_expr_to_datasets(right, loc_rhs)
@@ -513,7 +530,6 @@ class IsothermalWallBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCond
             final_equations += array_equations
 
         kernel.add_equation(final_equations)
-        pprint(kernel.equations)
         kernel.update_block_datasets(block)
         return kernel
 
