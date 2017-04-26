@@ -205,6 +205,8 @@ class Central(Scheme):
                 #pprint(ker.__dict__)
                 #expr.work = v.work
                 local += [ker]
+                # create any Boundary modification kernels
+                local += v1.apply_boundary_derivative_modification(block, self, v.work)
                 subs_conv[v] = v.work
             #pprint(ev_ker.__dict__)
             if ev_ker.equations:
@@ -229,12 +231,14 @@ class Central(Scheme):
         # reset the work index of blocks
         block.reset_work_index
         # Discretise the viscous fluxes. This is straight forward as we need not modify anything
-        viscous_kernels, viscous_discretised = self.genral_discretisation(viscous, block)
+        viscous_kernels, viscous_discretised = self.genral_discretisation(viscous, block, name="Viscous")
         if viscous_kernels:
             for ker in viscous_kernels:
                 eval_ker = viscous_kernels[ker]
-                eval_ker.set_computation_name("Viscous %s "%(ker))
-                kernels += [eval_ker]
+                #eval_ker.set_computation_name("Viscous %s "%(ker))
+                kernels += eval_ker
+                #pprint(['Viscous things going', ker])
+                #kernels += ker.apply_boundary_derivative_modification(block, self, ker.work)
         if viscous_discretised:
             visc_residual_kernel = self.create_residual_kernel(residual_arrays, viscous_discretised, block)
             visc_residual_kernel.set_computation_name("Viscous residual")
@@ -243,6 +247,13 @@ class Central(Scheme):
         # Add the kernels to the solutions
         type_of_eq.Kernels += kernels
         return
+    def set_halo_range_kernel(self, kernel, direction, sides=None):
+        if not sides:
+            kernel.set_halo_range(direction, 0, self.halotype)
+            kernel.set_halo_range(direction, 1, self.halotype)
+            return kernel
+        else:
+            raise NotImplementedError("")
     def create_residual_kernel(self, residual_arrays, discretised_eq, block):
         if len(residual_arrays) != len(discretised_eq):
             raise ValueError("")
@@ -252,7 +263,7 @@ class Central(Scheme):
             residue_kernel.add_equation(expr)
         residue_kernel.set_grid_range(block)
         return residue_kernel
-    def genral_discretisation(self, equations, block):
+    def genral_discretisation(self, equations, block, name=None):
         """
         This discretises the central derivatives, without any special treatment to
         group the derivatives or any thing
@@ -264,7 +275,10 @@ class Central(Scheme):
             if block.store_derivatives:
                 for der in cds:
                     der.update_work(block)
-                    local_kernels[der] = Kernel(block)
+                    ker = Kernel(block)
+                    if name:
+                        ker.set_computation_name("%s %s "%(name, der))
+                    local_kernels[der] = [ker] # A list to store the kernels for a particular derivative
             # create a dictionary of works and kernels
             #local_kernels = {}
             work_arry_subs = {}
@@ -273,15 +287,18 @@ class Central(Scheme):
                 expr, local_kernels = self.traverse(der, local_kernels, block)
                 expr_discretised = Eq(der.work, expr._discretise_derivative(self, block))
                 work_arry_subs[expr] = der.work
-                local_kernels[der].add_equation(expr_discretised)
-                local_kernels[der].set_grid_range(block)
+                local_kernels[der][0].add_equation(expr_discretised)
+                local_kernels[der][0].set_grid_range(block)
+                print "applying bcs for %s"%(expr)
+                local_kernels[der] += expr.apply_boundary_derivative_modification(block, self, der.work) # Applys the boundary kernel modifications if any
+            #Apply any Boundary conditions
             #pprint(work_arry_subs)
             for no, c in enumerate(descritised_equations):
                 descritised_equations[no] = descritised_equations[no].subs(work_arry_subs)
             return local_kernels, descritised_equations
         else:
             return None, None
-
+    
     def classify_equations_on_parameter(self, equations, parameter):
         from sympy import S
         containing_terms = [S.Zero for eq in equations]
@@ -331,13 +348,16 @@ class Central(Scheme):
                     # update the kernel ranges for inner cds
                     dires = inner_cds[np+1].get_direction
                     for direction in dires:
-                        kernel_dictionary[cd].set_halo_range(direction, 0, self.halotype)
-                        kernel_dictionary[cd].set_halo_range(direction, 1, self.halotype)
+                        kernel_dictionary[cd][0].set_halo_range(direction, 0, self.halotype)
+                        kernel_dictionary[cd][0].set_halo_range(direction, 1, self.halotype)
+                    print "applying bcs for %s"%(cd)
+                    kernel_dictionary[cd] += cd.apply_boundary_derivative_modification(block, self, cd.work) # Applys the boundary kernel modifications if any
                 elif cd.is_store:
                     # THIS raises an error when the CD(u0,x0) is not there in all derivatives ,
                     # while evaluating CD(CD(u0,x0),x1)
                     raise ValueError("NOT IMPLEMENTED THIS")
                 elif not cd.is_store:# Donot store derivatives
+                    raise ValueError("This dependency sgould be validated for Carpenter BC")
                     expr = expr.subs(cd, cd._discretise_derivative(self, block))
                 else:
                     raise ValueError("Could not classify this")

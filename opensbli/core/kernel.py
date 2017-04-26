@@ -113,7 +113,8 @@ class Kernel(object):
         #     local_range = []
         #     local_range += [0,0]
         #     self.ranges += [local_range]
-        self.ranges = block.ranges
+        import copy
+        self.ranges = copy.deepcopy(block.ranges)
         return
 
     def set_grid_range_to_zero(self, block):

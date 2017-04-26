@@ -353,10 +353,24 @@ class Carpenter(object):
             mul_factor = -1
             start = block.ranges[direction][side] - 1
         ecs = []
+        ranges = []
         for no,d in enumerate(derivatives):
             loc = start + mul_factor*no
+            ranges += [loc]
             ecs += [ExprCondPair(d, Equality(idx,loc))]
-        return ecs
+        if side != 0:
+            ranges = list(reversed(ranges))
+        return ecs, ranges
+
+    def expr_cond_pair_kernel(self, fn, direction, side, order,block):
+        ker = Kernel(block)
+        ker.add_equation(expr)
+        ker.set_computation_name("Carpenter scheme %s "%(fn))
+        ker.set_grid_range(block)
+        # modify the range to the number of points 
+        ecs, ranges = self,expr_cond_pairs(fn, direction, side, order, block)
+        ker.ranges[direction] = [ranges[0], ranges[-1]]
+        return ker, ecs
 
     def carp4_symbols(self):
         """

@@ -482,18 +482,43 @@ class CentralDerivative(Function, BasicDiscretisation):
         else:
             raise ValueError("The provided derivative is not homogeneous, %s"%cls)
         # Apply the boundary modifications
+        #modifications = block.check_modify_central()
+        #if dire in modifications:
+            ##print "YES", dire, cls
+            #boundary_mods = [k for k in modifications[dire] if k]
+            #expression_condition_pairs = []
+            #pprint(cls.args[0])
+            #for b in boundary_mods:
+                #expression_condition_pairs += b.modification_scheme.expr_cond_pairs(cls.args[0], b.direction, b.side, order, block)
+            #expression_condition_pairs += [ExprCondPair(form, True)]
+            #form  = Piecewise(*expression_condition_pairs, **{'evaluate':False})
+        return form
+    def apply_boundary_derivative_modification(cls, block, scheme, work):
+        """Apply the boundary modifications this returns a list of kernels if modification 
+        is required else returns an empty list"""
+        from opensbli.core.kernel import Kernel
+        dire = cls.get_direction[0]
+        order = cls.order
         modifications = block.check_modify_central()
+        kernels = []
         if dire in modifications:
             #print "YES", dire, cls
             boundary_mods = [k for k in modifications[dire] if k]
-            expression_condition_paris = []
             pprint(cls.args[0])
             for b in boundary_mods:
-                expression_condition_paris += b.modification_scheme.expr_cond_pairs(cls.args[0], b.direction, b.side, order, block)
-            expression_condition_paris += [ExprCondPair(form, True)]
-            form  = Piecewise(*expression_condition_paris, **{'evaluate':False})
-
-        return form
+                ker = Kernel(block)
+                ker.add_equation(expr)
+                ker.set_computation_name("Carpenter scheme %s "%(str(cls)))
+                ker.set_grid_range(block)
+                # modify the range to the number of points 
+                expression_condition_pairs, ranges = b.modification_scheme.expr_cond_pairs(cls.args[0], b.direction, b.side, order, block)
+                ker.ranges[dire] = [ranges[0], ranges[-1]+1]
+                #expression_condition_pairs += b.modification_scheme.expr_cond_pairs(cls.args[0], b.direction, b.side, order, block)
+                expression_condition_pairs += [ExprCondPair(0, True)]
+                form  = Piecewise(*expression_condition_pairs, **{'evaluate':False})
+                ker.add_equation(Eq(work, form))
+                kernels += [ker]
+        return kernels
     @property
     def simple_name(cls):
         return "%s"%("CD")
