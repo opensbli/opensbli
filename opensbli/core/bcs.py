@@ -23,6 +23,7 @@ from opensbli.physical_models.euler_eigensystem import EulerEquations
 from sympy import *
 from .kernel import *
 from opensbli.utilities.helperfunctions import increment_dataset
+from opensbli.core.opensbliequations import ConstituentRelations
 side_names  = {0:'left', 1:'right'}
 
 class Exchange(object):
@@ -586,7 +587,11 @@ class InletPressureExtrapolateBoundaryConditionBlock(ModifyCentralDerivative, Bo
 
     def apply(self, arrays, boundary_direction, side, block):
         halos, kernel = self.generate_boundary_kernel(boundary_direction, side, block, self.bc_name)
-        crs = block.list_of_equation_classes[1].equations
+        crs = []
+        for eq_class in block.list_of_equation_classes:
+            if isinstance(eq_class, ConstituentRelations):
+                crs += eq_class.equations
+        #crs = block.list_of_equation_classes[1].equations
         cr_dict = {}
         gama = ConstantObject('gama')
         for eqn in crs:

@@ -100,13 +100,13 @@ class Central(Scheme):
             self.sbli_rhs_discretisation(type_of_eq, block)
             return self.required_constituent_relations
         else:
-            local_kernels, discretised_eq = self.genral_discretisation(type_of_eq.equations, block)
+            local_kernels, discretised_eq = self.genral_discretisation(type_of_eq.equations, block, name =  type_of_eq.__class__.__name__)
             if discretised_eq:
                 for ker in local_kernels:
                     eval_ker = local_kernels[ker]
-                    eval_ker.set_computation_name("%s "%(ker))
-                    eval_ker.update_block_datasets(block)
-                    type_of_eq.Kernels += [eval_ker]
+                    #eval_ker.set_computation_name("%s "%(ker))
+                    #eval_ker.update_block_datasets(block)
+                    type_of_eq.Kernels += eval_ker
 
                 discretisation_kernel = Kernel(block, computation_name="%s evaluation"%type_of_eq.__class__.__name__)
                 discretisation_kernel.set_grid_range(block)
@@ -289,7 +289,7 @@ class Central(Scheme):
                 work_arry_subs[expr] = der.work
                 local_kernels[der][0].add_equation(expr_discretised)
                 local_kernels[der][0].set_grid_range(block)
-                print "applying bcs for %s"%(expr)
+                #print "applying bcs for %s"%(expr)
                 local_kernels[der] += expr.apply_boundary_derivative_modification(block, self, der.work) # Applys the boundary kernel modifications if any
             #Apply any Boundary conditions
             #pprint(work_arry_subs)
@@ -350,7 +350,7 @@ class Central(Scheme):
                     for direction in dires:
                         kernel_dictionary[cd][0].set_halo_range(direction, 0, self.halotype)
                         kernel_dictionary[cd][0].set_halo_range(direction, 1, self.halotype)
-                    print "applying bcs for %s"%(cd)
+                    #print "applying bcs for %s"%(cd)
                     kernel_dictionary[cd] += cd.apply_boundary_derivative_modification(block, self, cd.work) # Applys the boundary kernel modifications if any
                 elif cd.is_store:
                     # THIS raises an error when the CD(u0,x0) is not there in all derivatives ,
