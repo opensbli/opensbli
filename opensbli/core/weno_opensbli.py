@@ -261,9 +261,10 @@ class WenoZ(object):
         arg: object RV: The reconstruction variable object.
         arg: object WenoConfig: Configuration settings for a reconstruction of either left or right."""
         tau_5 = Abs(RV.smoothness_symbols[0] - RV.smoothness_symbols[-1])
+        p = 2
         for r in range(self.k):
             RV.alpha_symbols += [Symbol('alpha_%d' % r)]
-            RV.alpha_evaluated.append(WenoConfig.opt_weights.get((0,r))*(1.0 + tau_5/(self.eps + RV.smoothness_symbols[r])))
+            RV.alpha_evaluated.append(WenoConfig.opt_weights.get((0,r))*(1.0 + (tau_5/(self.eps + RV.smoothness_symbols[r]))**p))
         return
 
     def generate_omegas(self, RV, WenoConfig):

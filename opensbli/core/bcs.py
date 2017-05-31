@@ -634,28 +634,30 @@ class InletPressureExtrapolateBoundaryConditionBlock(ModifyCentralDerivative, Bo
         return kernel
 
 
-# class OutletPressureExtrapolateBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionBase):
-#     """This is boundary condition should not be used until the user knows what he is doing. This is used for testing OpenSBLI
-#     """
-#     def __init__(self, boundary_direction, side, equations = None, scheme = None,plane=True):
-#         BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
-#         self.bc_name = 'OutletPressureExtrapolate'
-#         self.equations = equations
-#         if not scheme:
-#             self.modification_scheme = Carpenter()
-#         else:
-#             self.modification_scheme = scheme
-#         if side != 1:
-#             raise ValueError("Only implemented this BC for inlet side 1.")
-#         return
+class OutletTransferBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionBase):
+    """This is boundary condition should not be used until the user knows what he is doing. This is used for testing OpenSBLI
+    """
+    def __init__(self, boundary_direction, side, equations = None, scheme = None,plane=True):
+        BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
+        self.bc_name = 'InletTransfer'
+        self.equations = equations
+        if not scheme:
+            self.modification_scheme = Carpenter()
+        else:
+            self.modification_scheme = scheme
+        if side != 1:
+            raise ValueError("Only implemented this BC for inlet side 1.")
+        return
 
-#     def apply(self, arrays, boundary_direction, side, block):
-#         halos, kernel = self.generate_boundary_kernel(boundary_direction, side, block, self.bc_name)
-#         cons_vars = flatten(arrays)
-#         equations = self.create_boundary_equations(boundary_direction, cons_vars, cons_vars, [(0,-1)])
-#         kernel.add_equation(equations)
-#         kernel.update_block_datasets(block)
-#         return kernel
+    def apply(self, arrays, boundary_direction, side, block):
+        halos, kernel = self.generate_boundary_kernel(boundary_direction, side, block, self.bc_name)
+        cons_vars = flatten(arrays)
+        n_halos = abs(halos[boundary_direction][side])
+        for i in range(n_halos+1):
+            equations = self.create_boundary_equations(boundary_direction, cons_vars, cons_vars, [(i,-1)])
+            kernel.add_equation(equations)
+        kernel.update_block_datasets(block)
+        return kernel
 
 # class CharacteristicBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionBase):
 #     def __init__(self, boundary_direction, side, scheme = None,plane=True, Eigensystem = None):
