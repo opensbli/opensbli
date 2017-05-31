@@ -108,11 +108,6 @@ class Kernel(object):
         return
 
     def set_grid_range(self, block):
-        # self.ranges = []
-        # for d in range(block.ndim):
-        #     local_range = []
-        #     local_range += [0,0]
-        #     self.ranges += [local_range]
         import copy
         self.ranges = copy.deepcopy(block.ranges)
         return

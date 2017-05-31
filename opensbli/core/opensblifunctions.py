@@ -482,20 +482,22 @@ class CentralDerivative(Function, BasicDiscretisation):
         else:
             raise ValueError("The provided derivative is not homogeneous, %s"%cls)
         # Apply the boundary modifications
-        #modifications = block.check_modify_central()
-        #if dire in modifications:
-            ##print "YES", dire, cls
-            #boundary_mods = [k for k in modifications[dire] if k]
-            #expression_condition_pairs = []
-            #pprint(cls.args[0])
-            #for b in boundary_mods:
-                #expression_condition_pairs += b.modification_scheme.expr_cond_pairs(cls.args[0], b.direction, b.side, order, block)
-            #expression_condition_pairs += [ExprCondPair(form, True)]
-            #form  = Piecewise(*expression_condition_pairs, **{'evaluate':False})
+        modifications = block.check_modify_central()
+        if dire in modifications:
+            #print "YES", dire, cls
+            boundary_mods = [k for k in modifications[dire] if k]
+            expression_condition_pairs = []
+            pprint(cls.args[0])
+            for b in boundary_mods:
+                expression_condition_pairs += b.modification_scheme.expr_cond_pairs(cls.args[0], b.direction, b.side, order, block)
+            expression_condition_pairs += [ExprCondPair(form, True)]
+            form  = Piecewise(*expression_condition_pairs, **{'evaluate':False})
         return form
     def apply_boundary_derivative_modification(cls, block, scheme, work):
         """Apply the boundary modifications this returns a list of kernels if modification 
-        is required else returns an empty list"""
+        is required else returns an empty list
+        WARNING This is not working but keeping it while reverting back
+        """
         from opensbli.core.kernel import Kernel
         dire = cls.get_direction[0]
         order = cls.order

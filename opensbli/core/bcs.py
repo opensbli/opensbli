@@ -354,16 +354,21 @@ class Carpenter(object):
             mul_factor = -1
             start = block.ranges[direction][side] - 1
         ecs = []
-        ranges = []
+        # Commenting out creating different kernels for the Carpenter bc's
+        #ranges = []
         for no,d in enumerate(derivatives):
             loc = start + mul_factor*no
-            ranges += [loc]
+            #ranges += [loc] # Commenting out creating different kernels for the Carpenter bc's
             ecs += [ExprCondPair(d, Equality(idx,loc))]
-        if side != 0:
-            ranges = list(reversed(ranges))
-        return ecs, ranges
+        # Commenting out creating different kernels for the Carpenter bc's
+        """if side != 0:
+            ranges = list(reversed(ranges))""" 
+        return ecs
 
     def expr_cond_pair_kernel(self, fn, direction, side, order,block):
+        """This was written for creating different carpenter kernels but keeping it as it cna be used
+        later
+        """
         ker = Kernel(block)
         ker.add_equation(expr)
         ker.set_computation_name("Carpenter scheme %s "%(fn))
