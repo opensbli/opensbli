@@ -153,6 +153,12 @@ class DataObject(EinsteinTerm):
         ret = super(DataObject, cls).__new__(cls, label, **kw_args)
         #ret.location = [0]*cls.ndim
         return ret
+    def copy(self):
+        return self
+    @property
+    def free_symbols(self):
+        return {self}
+
 from sympy.core import Expr, Tuple, Symbol, sympify, S
 from sympy.core.compatibility import is_sequence, string_types, NotIterable, range
 from sympy.core.cache import cacheit

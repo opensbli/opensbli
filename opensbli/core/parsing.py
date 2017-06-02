@@ -472,37 +472,44 @@ class Equation(EinsteinStructure):
                 pot.skip()
             else:
                 continue
-        lhs, lhs_indices = self._structure(self.parsed.lhs)
-        rhs, rhs_indices = self._structure(self.parsed.rhs)
-        lhs = self.substitute_indexed(lhs)
-        expanded_lhs = self.expand_summations(lhs, ndim)
-        rhs = self.substitute_indexed(rhs)
-        expanded_rhs = self.expand_summations(rhs, ndim)
-        expanded_equation = Eq(expanded_lhs, expanded_rhs)
-        if not lhs_indices and not rhs_indices:
-            # THIS SHOULD BE MOVED TODO
-            expanded_equation = self.apply_functions(expanded_equation)
-            #expanded_equation = self.convert_to_data_sets(expanded_equation)
-            # Converting to dataObjects
-            #for at in expanded_equation.atoms(DataObject):
-                #obj = DataSet(str(at)) # By default the location of the dataset is node (0,0,0)
-                #expanded_equation = expanded_equation.replace(at, obj)
-            ##type_ofeq.add_equations(expanded_equation)
-            expanded_equations = expanded_equation
+        if isinstance(self.parsed, Equality):
+            lhs, lhs_indices = self._structure(self.parsed.lhs)
+            rhs, rhs_indices = self._structure(self.parsed.rhs)
+            lhs = self.substitute_indexed(lhs)
+            expanded_lhs = self.expand_summations(lhs, ndim)
+            rhs = self.substitute_indexed(rhs)
+            expanded_rhs = self.expand_summations(rhs, ndim)
+            expanded_equation = Eq(expanded_lhs, expanded_rhs)
+            if not lhs_indices and not rhs_indices:
+                # THIS SHOULD BE MOVED TODO
+                expanded_equation = self.apply_functions(expanded_equation)
+                #expanded_equation = self.convert_to_data_sets(expanded_equation)
+                # Converting to dataObjects
+                #for at in expanded_equation.atoms(DataObject):
+                    #obj = DataSet(str(at)) # By default the location of the dataset is node (0,0,0)
+                    #expanded_equation = expanded_equation.replace(at, obj)
+                ##type_ofeq.add_equations(expanded_equation)
+                expanded_equations = expanded_equation
 
-        elif lhs_indices == rhs_indices:
-            expanded_equations = expand_free_indices(expanded_equation, lhs_indices, ndim)
-            for no, eq in enumerate(expanded_equations):
-                eq = self.apply_functions(eq)
-                #eq = self.convert_to_data_sets(eq)
-                expanded_equations[no] = eq
-            #type_ofeq.add_equations(expanded_equations)
+            elif lhs_indices == rhs_indices:
+                expanded_equations = expand_free_indices(expanded_equation, lhs_indices, ndim)
+                for no, eq in enumerate(expanded_equations):
+                    eq = self.apply_functions(eq)
+                    #eq = self.convert_to_data_sets(eq)
+                    expanded_equations[no] = eq
+                #type_ofeq.add_equations(expanded_equations)
+            else:
+                pprint(lhs_indices)
+                pprint(rhs_indices)
+                #pprint(expanded_equation)
+                raise ValueError("LHS indices and rhs indices are not consistent")
+            return expanded_equations
         else:
-            pprint(lhs_indices)
-            pprint(rhs_indices)
-            #pprint(expanded_equation)
-            raise ValueError("LHS indices and rhs indices are not consistent")
-        return expanded_equations
+            lhs, lhs_indices = self._structure(self.parsed)
+            lhs = self.substitute_indexed(lhs)
+            expanded_lhs = self.expand_summations(lhs, ndim)
+            expanded_equations = expand_free_indices(expanded_lhs, lhs_indices, ndim)
+            return expanded_equations
 
 
     def apply_functions(self,equation):
