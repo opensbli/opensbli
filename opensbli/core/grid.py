@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #    OpenSBLI: An automatic code generator for solving differential equations.
-#    Copyright (C) 2016 Satya P. Jammy, Christian T. Jacobs
+#    Copyright (C) 2016 Satya P. Jammy
 
 #    This file is part of OpenSBLI.
 
@@ -27,7 +27,30 @@ from .datatypes import *
 
 class GridVariable(Symbol):
 
-    """ A symbolic variable defined on the Grid. """
+    """ Defines a new symbolic variable on the Grid.
+        This should be used to create thread or process local variables in a kernel.
+        dtype (datatype) and is_constant arguments are set to None and False initially.
+        Attributes
+        ==========
+        ``dtype`` : data type of the variable, defaults to None
+        ``is_constant`` : weather the variable is a constant or not.
+        Notes
+        ==========
+        Grid variable cannot be a constant but used to fit in the abstraction.
+        Later one can use this to define variables in Fortran subroutine for example
+        For various dtypes used in OpenSBLI see ``datatypes.py``
+        Parameter:
+        ==========
+        arg: string: variable: Name of the variable.
+        :returns  variable defined on the grid.
+        Examples:
+        ==========
+        >>> a = GridVariable("variable1")
+        >>> srepr(variable1)
+        GridVariable('variable1')
+        >>> a.__dict__
+        {dtype: None, is_constant: False}
+        """
 
     def __new__(self, variable):
         self = Symbol.__new__(self, str(variable))
@@ -37,7 +60,10 @@ class GridVariable(Symbol):
 
 
 class WorkDataSet():
-
+    """ Base object for using work arrays contains differnt attributes to control the flow of work arrays
+    in the opensbli framework. This should be used in conjunction with a Simulation block
+    see ``SimulationBlock`` in ``block.py``
+    """
     def __init__(self):
         self.work_name = 'wk%d'
         self.work_index = 0
@@ -46,45 +72,87 @@ class WorkDataSet():
         return
 
     def work_array(self, name = None, location=None):
-        """ Sets up a work array indexed by the Grid directions.
-        No shape information will be provided, since the shape of the arrays might change based on the computations (including halos or excluding halos).
-
+        """ Sets up a opensbli DataSet, indexed by the relative location.
+        By default the range of the data set is that of the the block
+        Parameters
+        ==========
         :arg str name: The desired name of the work array.
-        :returns: The Indexed object representing the work array defined on the Grid.
-        :rtype: sympy.Indexed
+        :arg location: List of relative indexing for the array
+        :returns: Opensbli Dataset defined on the grid
+        :rtype: opensbli.DataSet
+        Notes
+        ==========
+        If multiple work arrays are required then the work_index should be incremented
+        before calling this function. If required optionally the user can store the
+        work index in their routine and reset the work index at the end of their routine
+        if all the computations to be performed and the evaluated work arrays are not
+        used any more. This helps in reducing the total memory foot print of the generated
+        code.
+        Example
+        ==========
+        >>> block = SimulationBlock(2, blocknumber=1)
+        >>> b.work_array()
+        wk0_B1[0,0]
+        >>> b.increase_work_index
+        >>> b.work_array()
+        wk1_B1[0,0]
+        >>> b.reset_work_index
+        >>> b.work_array()
+        wk0_B1[0,0]
+        >>> b.increase_work_index
+        >>> b.store_work_index
+        >>> b.work_array()
+        wk1_B1[0,0]
+        >>> b.increase_work_index
+        >>> b.work_array()
+        wk2_B1[0,0]
+        >>> b.increase_work_index
+        >>> b.work_array()
+        wk3_B1[0,0]
+        >>> b.reset_work_to_stored
+        >>> b.work_array()
+        wk1_B1[0,0]
         """
         if not name:
             base = self.work_name%self.work_index
         else:
             base = name
-        # By default the range of the DataSet is the range of the grid
         ret = DataSetBase(base)
         if not location:
+            # Default location to the current grid location
             location = [0 for i in range(self.ndim)]
         ret = ret[location]
-        ##print([[S.Zero, self.shape[i]] for i,val in enumerate(self.shape)])
-        #ret.set_ranges([[S.Zero, self.shape[i]] for i,val in enumerate(self.shape)])
         return ret
     @property
     def reset_work_index(self):
+        """Resets the work index to zero. Used when we want to re-use work arrays
+        in the discretisation
+        """
         self.work_index = 0
         return
     @property
     def increase_work_index(self):
+        """Increments the work array index by 1. This helps in setting up the next work array
+        index
+        """
         self.work_index = self.work_index +1
         return
     @property
     def store_work_index(self):
+        """Stores the current work array index and can be used to reset the index to this
+        """
         self.stored_index = self.work_index
         return
     @property
     def reset_work_to_stored(self):
+        """Resets the work array index to the index when the last ``store_work_index`` is called
+        """
         self.work_index = self.stored_index
         return
 
 class Grid(WorkDataSet):
 
-    """ The numerical grid of solution points on which to discretise the equations. """
+    """ The numerical grid for a block and contains grid parameters"""
 
     def __init__(self):
         """ Initialise the grid of dimension ndim, and number of points nx0 x nx1 x nx2 (for the case of ndim = 3).
