@@ -26,6 +26,7 @@ class CentralHalos(object):
     def __init__(self, order):
         # Check for the boundary types in the blocks and set the halo points
         #self.halos = [[-scheme.order, scheme.order] for dim in range(block.ndim)]
+        #self.halos = [-5, 5]
         self.halos = [-order/2, order/2]
         return
     def get_halos(self, side):

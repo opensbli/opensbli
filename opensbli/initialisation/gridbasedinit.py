@@ -33,6 +33,12 @@ class GridBasedInitialisation(Discretisation, NonSimulationEquations):
         """
         ret.algorithm_place = [BeforeSimulationStarts()]
         return ret
+    def __hash__(self):
+        h = hash(self._hashable_content())
+        self._mhash = h
+        return h
+    def _hashable_content(self):
+        return "GridBasedInitialisation"
     def add_equations(cls, equation):
         #equation = cls._sanitise_equations(equation)
         if isinstance(equation, list):
@@ -46,16 +52,28 @@ class GridBasedInitialisation(Discretisation, NonSimulationEquations):
         return
 
     def spatial_discretisation(cls, schemes, block):
-        kernel = Kernel(block, computation_name = "Grid_based_initialisation%d"%cls.order)
-        kernel.set_grid_range(block)
+        kernel1 = Kernel(block, computation_name = "Grid_based_initialisation%d"%cls.order)
+        kernel1.set_grid_range(block)
+        # Checking
+        #for eq in block.list_of_equation_classes:
+            #from opensbli.core.metrics import *
+            #if isinstance(eq, MetricsEquation):
+                #for k in eq.Kernels:
+                    #print k.computation_name, k.halo_ranges, k.ranges
         for d in range(block.ndim):
             for sc in schemes:
                 if schemes[sc].schemetype == "Spatial":
-                    kernel.set_halo_range(d, 0, schemes[sc].halotype)
-                    kernel.set_halo_range(d, 1, schemes[sc].halotype)
-        kernel.add_equation(cls.equations)
-        kernel.update_block_datasets(block)
-        cls.Kernels = [kernel]
+                    kernel1.set_halo_range(d, 0, schemes[sc].halotype)
+                    kernel1.set_halo_range(d, 1, schemes[sc].halotype)
+        kernel1.add_equation(cls.equations)
+        kernel1.update_stencils(block)
+        cls.Kernels = [kernel1]
+        # Checking
+        #for eq in block.list_of_equation_classes:
+            #from opensbli.core.metrics import *
+            #if isinstance(eq, MetricsEquation):
+                #for k in eq.Kernels:
+                    #print k.computation_name, k.halo_ranges, k.ranges
         return
 
     def apply_boundary_conditions(cls, block):

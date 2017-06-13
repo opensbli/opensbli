@@ -95,6 +95,14 @@ class Kernel(object):
         # TODO
         """
         return
+    def __hash__(self):
+        h = hash(self._hashable_content())
+        self._mhash = h
+        return h
+    def _hashable_content(self):
+        #print "IN ", self._args
+        #exit()
+        return str(self.kernelname)
 
     def add_equation(self,equation):
         if isinstance(equation, list):
@@ -446,4 +454,17 @@ class Kernel(object):
         #     print key, value, stens[key], block.block_stencils[stens[key]].name
         # pprint([self.stencil_names])
         # pprint(stens)
+        return
+    def update_stencils(self, block):
+        self.stencil_names = {}
+        stens = self.get_stencils()
+        for dset, stencil in stens.iteritems():
+            if stencil not in block.block_stencils.keys():
+                name = 'stencil_%d_%02d' % (block.blocknumber, len(block.block_stencils.keys()))
+
+                block.block_stencils[stencil] = StencilObject(name, stencil, block.ndim)
+            if dset not in self.stencil_names:
+                self.stencil_names[dset] = block.block_stencils[stencil].name
+            else:
+                self.stencil_names[dset].add(block.block_stencils[stencil].name)
         return

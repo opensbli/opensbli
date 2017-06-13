@@ -78,7 +78,7 @@ class Discretisation(object):
         else:
             equation = equation.xreplace(replacements)
         return equation
-    
+
     def apply_metrics(cls, metriceqclass):
         out = []
         for eq in cls.equations:
@@ -109,13 +109,13 @@ class OpenSBLIEquation(Equality):
         fns = []
         replacements ={}
         fns += list(cls.atoms(Function))
-        
+
         for fn in fns:
             if not fn.is_homogeneous:
                 replacements[fn] = fn._sanitise
         eq = cls
         return eq.xreplace(replacements)
-    
+
 class Solution(object):
     def __init__(self):
         # Kernels would be spatial kernels
@@ -248,7 +248,7 @@ class SimulationEquations(Discretisation, Solution):
         cls.requires = {}
         for no,sc in enumerate(spatialschemes):
             cls.constituent_evaluations[sc] = schemes[sc].discretise(cls, block)
-            pprint([cls.constituent_evaluations[sc], cls])
+            #pprint([cls.constituent_evaluations[sc], cls])
             for key, value in cls.constituent_evaluations[sc].iteritems():
                 if key in cr_dictionary.keys():
                     if key in cls.constituent_relations_kernels:
@@ -259,7 +259,6 @@ class SimulationEquations(Discretisation, Solution):
                 else:
                     #raise ValueError("Constituent relation is not found for %s"%key)
                     cls.requires[key] = value
-            #exit()
         cls.process_kernels(block)
         return
     def process_kernels(cls, block):

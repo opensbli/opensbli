@@ -20,7 +20,13 @@ class MetricsEquation(NonSimulationEquations,Discretisation, Solution):
         ret.kwargs = {'strong_differentiability':True}
         ret.algorithm_place = [BeforeSimulationStarts()]
         return ret
-    
+    def __hash__(self):
+        h = hash(self._hashable_content())
+        self._mhash = h
+        return h
+    def _hashable_content(self):
+        return "MetricsEquation"
+
     def genreate_transformations(cls, ndim, coordinate_symbol, parameters, max_order):
         cls.ndim = ndim
         cls.transformation_eq = [0 for i in range(max_order)]
@@ -32,29 +38,29 @@ class MetricsEquation(NonSimulationEquations,Discretisation, Solution):
         curvilinear_coordinates = [curv.apply_index(cart.indices[0], dim) for dim in range(ndim)]
         cls.curvilinear_coordinates = curvilinear_coordinates
         cls.cartesian_coordinates = cartesian_coordinates
+        cls.latex_debug_start()
         fd_subs, fd_fns = cls.transform_first_derivative(coordinate_symbol)
         cls.transform_second_derivative(coordinate_symbol, fd_subs, fd_fns)
-        #pprint(SD)
-        #pprint(sd_subs)
-        latex = LatexWriter()
-        latex.open('./metric_transformations.tex')
+        cls.latex_debug_end()
+        return
+
+    def latex_debug_start(self):
+        self.latex_file = LatexWriter()
+        latex = self.latex_file
+        latex.open('./debug/metric_transformations.tex')
         metadata = {"title": "Transformations of the equations in OpenSBLI framework", "author": "Satya P Jammy", "institution": "University of Southampton"}
         latex.write_header(metadata)
-        # write the coordinate system
-        transformed_fders = [0 for i in range(cls.ndim)]
-        latex.write_string("The Cartesian coordinates system is (%s)"%(','.join([str(s) for s in cls.cartesian_coordinates])))
-        latex.write_string("The Curvilinear coordinate system is vector is (%s)"%(','.join([str(s) for s in cls.curvilinear_coordinates])))
-        if any(cls.curvilinear_metric):
-            latex.write_string("The transformation parameters provided are %s"%(','.join(["curvilinear in "+ str(cls.cartesian_coordinates[no]) for no,s in enumerate(cls.curvilinear_metric) if s])))
-        latex.write_string("The transformation parameters provided are %s"%(','.join(["stretched in "+ str(cls.cartesian_coordinates[no]) for no,s in enumerate(cls.stretching_metric) if s])))
-        latex.write_string("The transformation of the first order derivatives are:")
-        latex.write_string("The Evaluation of the Jacobians")
-        #for eq in jacobian_equation:
-            #if isinstance(eq, Equality):
-                #latex.write_expression(eq)
+        latex.write_string("The Cartesian coordinates system is (%s)"%(','.join([str(s) for s in self.cartesian_coordinates])))
+        latex.write_string("The Curvilinear coordinate system is vector is (%s)"%(','.join([str(s) for s in self.curvilinear_coordinates])))
+        if any(self.curvilinear_metric):
+            latex.write_string("The transformation parameters provided are %s"%(','.join(["curvilinear in "+ str(self.cartesian_coordinates[no]) for no,s in enumerate(self.curvilinear_metric) if s])))
+        latex.write_string("The transformation parameters provided are %s"%(','.join(["stretched in "+ str(self.cartesian_coordinates[no]) for no,s in enumerate(self.stretching_metric) if s])))
+        return
+
+    def latex_debug_end(self):
+        latex = self.latex_file
         latex.write_footer()
         latex.close()
-        #exit()
         return
 
     def transform_first_derivative(cls, coordinate_symbol):
@@ -63,6 +69,7 @@ class MetricsEquation(NonSimulationEquations,Discretisation, Solution):
         M2 = Matrix(cls.ndim, cls.ndim,lambda i,j:0)
         # Full 3D curvilinear expansion of the first derivatives
         fds = cls.full3D_FD_transformation(coordinate_symbol)
+        cls.detJ = DataObject("detJ")
         fd_subs = {}
         fd_symbols = {}
         fd_metric_eqs = []
@@ -106,17 +113,27 @@ class MetricsEquation(NonSimulationEquations,Discretisation, Solution):
             d = (f.lhs.get_direction)[0]
             f = f.subs(fd_subs)
             fd_transformed[d] = f.rhs
-            
+
         cls.FD_transformation_equations = fd_transformed
         cls.transformation_eq[0] = fd_transformed
         cls.FD_metrics = fd_jacobians
         cls.generate_fd_metrics_equations(Cartesian_curvilinear_derivatives)
-        
+
         cls.classical_strong_differentiabilty_transformation = []
         for d in fd_transformed:
-            cls.classical_strong_differentiabilty_transformation += [cls.convert_der(d)]
+            # Donot convert the convective derivatives
+            #cls.classical_strong_differentiabilty_transformation += [cls.convert_der(d)]
+            cls.classical_strong_differentiabilty_transformation += [d]
+        # Write latex file for easy debugging
+        latex = cls.latex_file
+        for i in range(cls.ndim):
+            cd = CentralDerivative(cls.general_function, cls.cartesian_coordinates[i])
+            latex.write_expression(Eq(cd, cls.classical_strong_differentiabilty_transformation[i]))
+        #latex.write_expression(cls.FD_metrics)
+        #latex.write_expression(Cartesian_curvilinear_derivatives.adjugate())
+        #latex.write_expression(M2)
         return fd_subs, M2
-    
+
     def convert_der(self, expr):
         """ Converts any function v*D(f,x) to D(v*f,x) - f*D(v,x)
         Below substitution, returns equation F-31 of http://cfl3d.larc.nasa.gov/Cfl3dv6/V5Manual/GenCoor.pdf
@@ -138,20 +155,19 @@ class MetricsEquation(NonSimulationEquations,Discretisation, Solution):
         #expr = self.detJ*expr.subs(dict(zip(terms, term_subs))) # substitute
         term_subs = [CentralDerivative(a.args[0]*b*self.detJ , a.args[1:])  for a in l for b in l1]
         expr = expr.subs(dict(zip(terms, term_subs)))/self.detJ # substitute
-        # WARNING check this expression 
+        # WARNING check this expression
         return expr
 
     def generate_fd_metrics_equations(cls, Cartesian_curvilinear_derivatives):
         adjointJ = Cartesian_curvilinear_derivatives.adjugate(); detJ = Cartesian_curvilinear_derivatives.det()
-        cls.detJ = DataObject("detJ")
         evaluation = adjointJ/detJ
         eqns = []
         # TODO add if condition on the arguments if this is required
         eqns = [Eq(cls.detJ, detJ)]
         eqns += [Eq(x,y) for (x,y) in zip(cls.FD_metrics, evaluation)]
         eqns = [e for e in eqns if isinstance(e, Equality)]
-        cls.equations += eqns
-        return
+        cls.fdequations = eqns
+        return eqns
 
     def transform_second_derivative(cls, coordinate_symbol, fd_subs, M2):
         # Second derivative substitutions
@@ -161,9 +177,12 @@ class MetricsEquation(NonSimulationEquations,Discretisation, Solution):
         SD_evaluations =  MutableDenseNDimArray([0 for i in range(cls.ndim) for j in range(cls.ndim) for k in range(cls.ndim)], (cls.ndim, cls.ndim, cls.ndim))
         SD_jacobians = MutableDenseNDimArray([0 for i in range(cls.ndim) for j in range(cls.ndim) for k in range(cls.ndim)],
                    (cls.ndim, cls.ndim, cls.ndim))
+        latex = cls.latex_file
         for i in range(M2.shape[0]):
             for j in range(M2.shape[0]):
-                if M2[i,j] == 0 or M2[i,j] in cls.curvilinear_coordinates:
+                #if M2[i,j] == 0:
+                    #pass
+                if M2[i,j] in cls.curvilinear_coordinates:
                     pass
                 else:
                     # Apply the metrics
@@ -172,10 +191,10 @@ class MetricsEquation(NonSimulationEquations,Discretisation, Solution):
                             SD[i,j,k] = cls.cartesian_coordinates[k]
                         elif cls.stretching_metric[k]:
                             if i==j==k:
-                                SD[i,j,k] = 0
+                                SD[i,j,k] = cls.cartesian_coordinates[k]
                 for k in range(cls.ndim):
                     args_orig = [cls.curvilinear_coordinates[i],cls.cartesian_coordinates[j], cls.curvilinear_coordinates[k]]
-                    args_eval = [cls.curvilinear_coordinates[i],cls.cartesian_coordinates[j] ,SD[i,j,k]]
+                    args_eval = [cls.curvilinear_coordinates[i],cls.cartesian_coordinates[j], SD[i,j,k]]
                     v = CentralDerivative(*args_eval).doit()
                     if isinstance(v,CentralDerivative):
                         sd_subs[CentralDerivative(*args_orig)] = DataObject("SD%d%d%d"%(i,j,k))
@@ -199,18 +218,27 @@ class MetricsEquation(NonSimulationEquations,Discretisation, Solution):
         for no,d in enumerate(sd_transformed):
             # if it is a second derivative we will just multiply by the detJ as of now
             cls.classical_strong_differentiabilty_transformation_sd[no] = d
-        
+
         cls.SD_metrics = SD_jacobians
         cls.SD_evaluations = SD_evaluations
         cls.generate_sd_metrics_equations()
+        #fn_ders = CentralDerivative(DataObject('f'), cls.cartesian_coordinates[i], cls.cartesian_coordinates[j]) for i,j in zip(()
+        for i in range(cls.ndim):
+            for j in range(cls.ndim):
+                fn = CentralDerivative(cls.general_function, cls.cartesian_coordinates[i], cls.cartesian_coordinates[j])
+                latex.write_expression(Eq(fn,cls.classical_strong_differentiabilty_transformation_sd[i,j]))
+
+        #eqns = [Eq(x,y,evaluate=False) for x,y in zip(cls.SD_metrics, cls.SD_evaluations)]
+        #for eq in eqns:
+            #latex.write_expression(eq)
         #pprint(srepr(cls.SD_transformation_equations[0]))
         return
     def generate_sd_metrics_equations(cls):
         eqns = [Eq(x,y) for x,y in zip(cls.SD_metrics, cls.SD_evaluations)]
         eqns = [e for e in eqns if isinstance(e, Equality)]
-        cls.equations += eqns
+        cls.sdequations = eqns
         return
-    
+
     def full3D_FD_transformation(cls,coordinate_symbol):
         eq = Equation()
         fd_fn = "Eq(Der(f, %s_i), MetricDer(f,%s_i))"%(coordinate_symbol,coordinate_symbol)
@@ -223,7 +251,7 @@ class MetricsEquation(NonSimulationEquations,Discretisation, Solution):
         sd_fn = "Eq(Der(f, %s_i,%s_j), MetricDer(MetricDer(f,%s_i), %s_j))"%(coordinate_symbol,coordinate_symbol,coordinate_symbol,coordinate_symbol)
         sdfn = eq.expand(sd_fn, cls.ndim, coordinate_symbol, substitutions=[], constants=[], Metric=None)
         return sdfn
-    
+
     def apply_transformation(cls, equation):
         if cls.kwargs['strong_differentiability']:
             fns = equation.atoms(Function)
@@ -233,13 +261,13 @@ class MetricsEquation(NonSimulationEquations,Discretisation, Solution):
                 equation = equation.subs({fn:transformed})
         else:
             raise NotImplementedError("Not implemented other transformation of Metric ders")
-        return equation 
+        return equation
 
     def spatial_discretisation(cls, schemes, block):
         (Solution,cls).__init__(cls)
         if any(cls.curvilinear_metric):
             raise NotImplementedError("Handling curvilinear coordinates for the evaluation of metrics is not applied")
-        
+
         #cls.descritsed_equations = copy.copy(cls.equations)
         spatialschemes = []
         for sc in schemes:
@@ -249,16 +277,30 @@ class MetricsEquation(NonSimulationEquations,Discretisation, Solution):
         block.store_work_index # store the work array index
         for no,sc in enumerate(spatialschemes):
             # TODO discretise the First derivatives and then apply BC's then discretise Second derivatives
+            cls.equations  = block.dataobjects_to_datasets_on_block(cls.fdequations) # First derivatives
+            schemes[sc].required_constituent_relations = {}
             a = schemes[sc].discretise(cls, block)
-            if a:
-                for key, val in a.iteritems():
-                    cls.requires[key] = val
+            pprint(cls.sdequations)
+            cls.equations  = block.dataobjects_to_datasets_on_block(cls.sdequations) # Second derivatives
+            schemes[sc].required_constituent_relations = {}
+            b = schemes[sc].discretise(cls, block)
+            schemes[sc].required_constituent_relations = {}
+            #if b:
+                #for key, val in a.iteritems():
+                    #cls.requires[key] = val
+        for k in cls.Kernels:
+            print k.computation_name, k.halo_ranges, k.ranges
+        #exit()
         #pprint(cls.requires)
-        pprint([k.equations for k in cls.Kernels])
+        #pprint([k.equations for k in cls.Kernels])
+        #exit()
         cls.process_kernels(block)
         block.reset_work_to_stored # reset the work array index on the block
+        #for k in cls.Kernels:
+            #print k.computation_name, k.halo_ranges, k.ranges
+        #exit()
         return
-    
+
     def apply_boundary_conditions(cls, block):
         """No global boundary conditions for the metric terms"""
         ndim = block.ndim
@@ -267,16 +309,19 @@ class MetricsEquation(NonSimulationEquations,Discretisation, Solution):
         detJ = cls.detJ
         kernels = []
         # arrays = metrics[:] + [detJ]
-        # arrays = block.dataobjects_to_datasets_on_block(arrays) 
+        # arrays = block.dataobjects_to_datasets_on_block(arrays)
         # pprint(arrays)
         # kernels = block.apply_boundary_conditions(arrays)
-        for direction in directions:
-            for side in [0,1]:
-                kernels += [create_metric_bc_kernel(metrics, detJ, direction, side, block)]
-        cls.Kernels += kernels
-        
+        #for direction in directions:
+            #for side in [0,1]:
+                #kernels += [create_metric_bc_kernel(metrics, detJ, direction, side, block)]
+        #cls.Kernels += kernels
+        for k in cls.Kernels:
+            print k.computation_name, k.halo_ranges, k.ranges
+        #exit()
+
         return
-    
+
     def process_kernels(cls, block):
         for key,kernel in cls.constituent_relations_kernels.iteritems():
             kernel.update_block_datasets(block)
@@ -340,9 +385,9 @@ def create_metric_bc_kernel(metrics, detJ, direction, side, block):
     pprint(kernel.equations)
     kernel.update_block_datasets(block)
     return kernel
-    
+
 """
 TODO remove the process kernels in all the equation classes
 this will be done in algorithm
-b. As there is no curvilinear system 
+b. As there is no curvilinear system
 """
