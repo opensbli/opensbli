@@ -47,7 +47,7 @@ class MetricsEquation(NonSimulationEquations,Discretisation, Solution):
     def latex_debug_start(self):
         self.latex_file = LatexWriter()
         latex = self.latex_file
-        latex.open('./debug/metric_transformations.tex')
+        latex.open('./metric_transformations.tex')
         metadata = {"title": "Transformations of the equations in OpenSBLI framework", "author": "Satya P Jammy", "institution": "University of Southampton"}
         latex.write_header(metadata)
         latex.write_string("The Cartesian coordinates system is (%s)"%(','.join([str(s) for s in self.cartesian_coordinates])))
