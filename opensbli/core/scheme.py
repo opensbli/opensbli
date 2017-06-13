@@ -26,8 +26,8 @@ class CentralHalos(object):
     def __init__(self, order):
         # Check for the boundary types in the blocks and set the halo points
         #self.halos = [[-scheme.order, scheme.order] for dim in range(block.ndim)]
-        #self.halos = [-5, 5]
-        self.halos = [-order/2, order/2]
+        self.halos = [-5, 5]
+        #self.halos = [-order/2, order/2]
         return
     def get_halos(self, side):
         return self.halos[side]
@@ -220,12 +220,12 @@ class Central(Scheme):
         for key, value in local_evaluations_group.iteritems():
             kernels += value + function_expressions_group[key]
         # Create convective residual
-        
+
         convective_descritised = convective[:]
 
         for no, c in enumerate(convective_descritised):
             convective_descritised[no] = convective_descritised[no].subs(subs_conv)
-        
+
         conv_residual_kernel = self.create_residual_kernel(residual_arrays,convective_descritised, block)
         conv_residual_kernel.set_computation_name("Convective residual ")
         kernels += [conv_residual_kernel]
@@ -299,7 +299,7 @@ class Central(Scheme):
             return local_kernels, descritised_equations
         else:
             return None, None
-    
+
     def classify_equations_on_parameter(self, equations, parameter):
         from sympy import S
         containing_terms = [S.Zero for eq in equations]
