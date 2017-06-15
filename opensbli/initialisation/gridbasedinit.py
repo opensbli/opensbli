@@ -66,7 +66,7 @@ class GridBasedInitialisation(Discretisation, NonSimulationEquations):
                     kernel1.set_halo_range(d, 0, schemes[sc].halotype)
                     kernel1.set_halo_range(d, 1, schemes[sc].halotype)
         kernel1.add_equation(cls.equations)
-        kernel1.update_stencils(block)
+        kernel1.update_block_datasets(block)
         cls.Kernels = [kernel1]
         # Checking
         #for eq in block.list_of_equation_classes:

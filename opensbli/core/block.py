@@ -211,9 +211,20 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes): # BoundaryCo
         for io in self.InputOutput:
             io.arrays = self.dataobjects_to_datasets_on_block(io.arrays)
         return
+
     def add_metric(self, metric_params):
         self.metric_transformations = metriceq
         return
+
+    def get_all_scheme_halos(self):
+        spatialschemes = []
+        for sc in self.discretisation_schemes:
+            if self.discretisation_schemes[sc].schemetype == "Spatial":
+                spatialschemes += [self.discretisation_schemes[sc]]
+        halos = set()
+        for s in spatialschemes:
+            halos.add(s.halotype)
+        return halos
 
 def sort_constants(constants_dictionary):
     known_constants, unknown_constants = [], []

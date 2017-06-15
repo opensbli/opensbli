@@ -100,8 +100,6 @@ class Kernel(object):
         self._mhash = h
         return h
     def _hashable_content(self):
-        #print "IN ", self._args
-        #exit()
         return str(self.kernelname)
 
     def add_equation(self,equation):
@@ -378,21 +376,26 @@ class Kernel(object):
             if d in DataSetsToDeclare.datasetbases:
                 ind =  DataSetsToDeclare.datasetbases.index(d)
                 d1 = DataSetsToDeclare.datasetbases[ind]
-                for direction in range(len(d1.halo_ranges)):
-                    d1.halo_ranges[direction][0] = d1.halo_ranges[direction][0] | self.halo_ranges[direction][0]
-                    d1.halo_ranges[direction][1] = d1.halo_ranges[direction][1] | self.halo_ranges[direction][1]
+                #for direction in range(len(d1.halo_ranges)):
+                    #d1.halo_ranges[direction][0] = block.get_all_scheme_halos()
+                    #d1.halo_ranges[direction][1] = block.get_all_scheme_halos()
             else:
                 d = dataset_attributes(d)
                 d.size = block.shape
                 d.block_number = block.blocknumber
-                d.halo_ranges = self.halo_ranges
+                import copy
+                d.halo_ranges = [[set(), set()] for d1 in range(block.ndim)]
+                #[[set(), set()] for d in range(block.ndim)]
+                for direction in range(len(d.halo_ranges)):
+                    d.halo_ranges[direction][0] = block.get_all_scheme_halos()
+                    d.halo_ranges[direction][1] = block.get_all_scheme_halos()
                 d.block_name = block.blockname
                 DataSetsToDeclare.datasetbases += [d]
             if str(d) in block.block_datasets.keys():
                 dset = block.block_datasets[str(d)]
-                for direction in range(len(dset.halo_ranges)):
-                    dset.halo_ranges[direction][0] = dset.halo_ranges[direction][0] | self.halo_ranges[direction][0]
-                    dset.halo_ranges[direction][1] = dset.halo_ranges[direction][1] | self.halo_ranges[direction][1]
+                #for direction in range(len(dset.halo_ranges)):
+                    #dset.halo_ranges[direction][0] = dset.halo_ranges[direction][0] | block.get_all_scheme_halos()
+                    #dset.halo_ranges[direction][1] = dset.halo_ranges[direction][1] | block.get_all_scheme_halos()
                 block.block_datasets[str(d)] = dset
                 if block.blocknumber != dset.block_number:
                     raise ValueError("Block number error")
@@ -403,20 +406,24 @@ class Kernel(object):
                 d = dataset_attributes(d)
                 d.size = block.shape
                 d.block_number = block.blocknumber
-                d.halo_ranges = self.halo_ranges
+                d.halo_ranges = [[set(), set()] for d1 in range(block.ndim)]
+                #[[set(), set()] for d in range(block.ndim)]
+                for direction in range(len(d.halo_ranges)):
+                    d.halo_ranges[direction][0] = block.get_all_scheme_halos()
+                    d.halo_ranges[direction][1] = block.get_all_scheme_halos()
                 d.block_name = block.blockname
                 # Add dataset to block datasets
                 block.block_datasets[str(d)] = d
         # Update rational constant attributes
         rational_constants = self.Rational_constants.union(self.Inverse_constants)
-        if self.computation_name == 'Viscous residual':
-            pprint([self.computation_name, rational_constants])
-            for eq in self.equations:
-                #pprint(eq)
-                a = Wild('a')
-                b = Wild('b')
-                print eq.atoms(Pow)
-                print eq.atoms(Rational)
+        #if self.computation_name == 'Viscous residual':
+            #pprint([self.computation_name, rational_constants])
+            #for eq in self.equations:
+                ##pprint(eq)
+                #a = Wild('a')
+                #b = Wild('b')
+                #print eq.atoms(Pow)
+                #print eq.atoms(Rational)
                 #print eq.match(a*b**-1)
                 #print eq.atoms()
         #if rational_constants:
