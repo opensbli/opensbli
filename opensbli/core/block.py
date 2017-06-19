@@ -221,9 +221,11 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes): # BoundaryCo
         for sc in self.discretisation_schemes:
             if self.discretisation_schemes[sc].schemetype == "Spatial":
                 spatialschemes += [self.discretisation_schemes[sc]]
-        halos = set()
-        for s in spatialschemes:
-            halos.add(s.halotype)
+        from opensbli.core.scheme import CentralHalos_defdec
+        halos = set([CentralHalos_defdec()])
+        #for s in spatialschemes:
+            #CentralHalos_defdec()
+            #halos.add(s.halotype)
         return halos
 
 def sort_constants(constants_dictionary):

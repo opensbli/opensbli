@@ -8,6 +8,7 @@ from .opensbliequations import OpenSBLIExpression
 from .weno_opensbli import *
 from .kernel import *
 from .latex import *
+from opensbli.utilities.helperfunctions import increasing_order
 class Scheme(object):
 
     """ A numerical discretisation scheme. """
@@ -24,6 +25,18 @@ class Scheme(object):
         return
 class CentralHalos(object):
     def __init__(self, order):
+        # Check for the boundary types in the blocks and set the halo points
+        #self.halos = [[-scheme.order, scheme.order] for dim in range(block.ndim)]
+        #self.halos = [-5, 5]
+        self.halos = [-order/2, order/2]
+        return
+    def get_halos(self, side):
+        return self.halos[side]
+    def __str__(self):
+        return "CentralHalos"
+
+class CentralHalos_defdec(object):
+    def __init__(self):
         # Check for the boundary types in the blocks and set the halo points
         #self.halos = [[-scheme.order, scheme.order] for dim in range(block.ndim)]
         self.halos = [-5, 5]
@@ -234,7 +247,7 @@ class Central(Scheme):
         # Discretise the viscous fluxes. This is straight forward as we need not modify anything
         viscous_kernels, viscous_discretised = self.genral_discretisation(viscous, block, name="Viscous")
         if viscous_kernels:
-            for ker in viscous_kernels:
+            for ker in sorted(viscous_kernels, cmp=increasing_order):
                 eval_ker = viscous_kernels[ker]
                 #eval_ker.set_computation_name("Viscous %s "%(ker))
                 kernels += [eval_ker]

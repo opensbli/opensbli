@@ -28,3 +28,20 @@ def dot(v1, v2):
             raise ValueError("")
     else:
         return v1*v2
+
+def decreasing_order(s1, s2):
+    return cmp(len(s2.args), len(s1.args))
+
+
+def increasing_order(s1, s2):
+    return cmp(len(s1.atoms(CoordinateObject)), len(s2.atoms(CoordinateObject)))
+
+
+def sort_funcitons(fns, increasing_order=True):
+    """Sorts the functions based on the number of arguments in
+    increasing order
+    """
+    if increasing_order:
+        return (sorted(fns, cmp=increasing_order))
+    else:
+        return (sorted(fns, cmp=decreasing_order))
