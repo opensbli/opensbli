@@ -62,13 +62,15 @@ class GridVariable(Symbol):
 class WorkDataSet():
     """ Base object for using work arrays contains differnt attributes to control the flow of work arrays
     in the opensbli framework. This should be used in conjunction with a Simulation block
-    see ``SimulationBlock`` in ``block.py``
+    see ``SimulationBlock`` in ``block.py``. 
+    Instantiated from Grid
+    Some hard coded dependencies are work array name is always ``wk`` appended by the work index
     """
     def __init__(self):
-        self.work_name = 'wk%d'
-        self.work_index = 0
+        self.work_name = 'wk%d' # Work array name
+        self.work_index = 0 # Index of the work array, this is update when ever a new work array is called
         self.stored_index = 0
-        self.dtype = None
+        self.dtype = None # Place holder to save dtype not used currently
         return
 
     def work_array(self, name = None, location=None):
@@ -76,8 +78,8 @@ class WorkDataSet():
         By default the range of the data set is that of the the block
         Parameters
         ==========
-        :arg str name: The desired name of the work array.
-        :arg location: List of relative indexing for the array
+        :arg str name: The desired name of the work array (optional), defaults to ``wk``
+        :arg location: List of relative indexing for the array (optional), defaults to grid intersection location
         :returns: Opensbli Dataset defined on the grid
         :rtype: opensbli.DataSet
         Notes
@@ -118,7 +120,10 @@ class WorkDataSet():
         else:
             base = name
         ret = DataSetBase(base)
-        if not location:
+        if location:
+            if len(location) != self.ndim:
+                raise ValueError("")
+        else:
             # Default location to the current grid location
             location = [0 for i in range(self.ndim)]
         ret = ret[location]
@@ -139,7 +144,7 @@ class WorkDataSet():
         return
     @property
     def store_work_index(self):
-        """Stores the current work array index and can be used to reset the index to this
+        """Stores the current work array index
         """
         self.stored_index = self.work_index
         return
@@ -155,40 +160,39 @@ class Grid(WorkDataSet):
     """ The numerical grid for a block and contains grid parameters"""
 
     def __init__(self):
-        """ Initialise the grid of dimension ndim, and number of points nx0 x nx1 x nx2 (for the case of ndim = 3).
-
-        :arg int ndim: The dimension of the grid.
-        :arg dict grid_data: Optional user-defined grid parameters including the exact number of points and grid point spacing. If not provided, symbolic representations are used instead.
-        :returns: None
+        """ Initialise the gridobject and its parameters. This is instantiated from SimulationBlock
+        see, ``block.py``
         """
 
-        # Define the control parameters
+        # Define the control parameters, currently not used
         self.define_control_parameters()
 
         # Instantiate WorkDataSet
         WorkDataSet.__init__(self)
-        inds = symbols('shape_0:%d'%self.ndim, integer=True)
+        
         shape = symbols('block%dnp0:%d'%(self.blocknumber, self.ndim), integer=True)
+        # Opensbli symbolic number of points, ConstantObjects
         self.shape = [ConstantObject("%s"%s, integer=True) for s in shape]
+        # Sympy Idx type shape, lower and upper can be modified if required
         self.Idxed_shape = [Idx(Symbol('i%d'%dim, integer = True),(0, self.shape[dim])) for dim in range(self.ndim)]
+        # For easier access ranges are created
         self.ranges = [[s.lower, s.upper] for s in self.Idxed_shape]
+        # Grid spaciing in the number of dimensions, these are of type Constant Object
         self.deltas = [ConstantObject("Delta%dblock%d"%(dire,self.blocknumber)) for dire in range(self.ndim)]
+        # Add the constants to ConstantsToDeclare
         from .kernel import ConstantsToDeclare as CTD
         for d in self.deltas:
             CTD.add_constant(d)
         for s in self.shape:
             CTD.add_constant(s, dtype = Int())
-        # Name for the grid indices
+        # Name for the grid indices access (instead if i,j,k we use idx[0:ndim])
         g = GridIndexedBase('idx', self)
         self.grid_indexes = [g[i] for i in range(self.ndim)]
-        #self.shape = [Idx(i, (upper[no])) for no,i in enumerate(inds)]
-        #print(self.shape[0].args)
-        #self.shape[0].args[1] = tuple([self.shape[0].lower, upper[1]])
-        #print(self.shape[0].lower, self.shape[0].upper)
         return
-    #def @upper.
-
+    
     def define_control_parameters(self):
+        """Not used, these should be used for further optimisations
+        """
         # Parameters for optimizations / different schemes for convective and viscous fluxes
         self.store_derivatives = True # By default store derivatives is set to true
         self.derivatives_to_store = set()
