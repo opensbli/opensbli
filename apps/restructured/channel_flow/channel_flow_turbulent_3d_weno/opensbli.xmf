@@ -1,0 +1,51 @@
+<?xml version="1.0" ?>
+    <!DOCTYPE Xdmf SYSTEM "Xdmf.dtd" []>
+    <Xdmf Version="2.0">
+    <Domain>
+    
+    <Grid Name="Box" GridType="Uniform">
+    <Topology TopologyType="3DCoRectMesh" Dimensions="68 68 68"/>
+    <Geometry GeometryType="ORIGIN_DXDYDZ">
+       <DataItem DataType="Float" Dimensions="3" Format="XML">0.000000 0.000000 0.000000</DataItem>
+       <DataItem DataType="Float" Dimensions="3" Format="XML">0.184800 0.029412 0.092400</DataItem>
+    </Geometry>
+    
+
+    <Attribute Name="rho" AttributeType="Scalar" Center="Node">
+    <DataItem Dimensions="68 68 68" NumberType="Float" Precision="8"
+    Format="HDF">opensbli.h5:/opensbliblock00/rho_B0
+    </DataItem>
+    </Attribute>
+    
+
+    <Attribute Name="rhou0" AttributeType="Scalar" Center="Node">
+    <DataItem Dimensions="68 68 68" NumberType="Float" Precision="8"
+    Format="HDF">opensbli.h5:/opensbliblock00/rhou0_B0
+    </DataItem>
+    </Attribute>
+    
+
+    <Attribute Name="rhou1" AttributeType="Scalar" Center="Node">
+    <DataItem Dimensions="68 68 68" NumberType="Float" Precision="8"
+    Format="HDF">opensbli.h5:/opensbliblock00/rhou1_B0
+    </DataItem>
+    </Attribute>
+    
+
+    <Attribute Name="rhou2" AttributeType="Scalar" Center="Node">
+    <DataItem Dimensions="68 68 68" NumberType="Float" Precision="8"
+    Format="HDF">opensbli.h5:/opensbliblock00/rhou2_B0
+    </DataItem>
+    </Attribute>
+    
+
+    <Attribute Name="rhoE" AttributeType="Scalar" Center="Node">
+    <DataItem Dimensions="68 68 68" NumberType="Float" Precision="8"
+    Format="HDF">opensbli.h5:/opensbliblock00/rhoE_B0
+    </DataItem>
+    </Attribute>
+    
+    </Grid>
+    </Domain>
+    </Xdmf>
+    
