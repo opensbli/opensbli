@@ -170,14 +170,14 @@ opensbli_openmp: Makefile opensbli_ops.cpp  opensbliblock00_kernels.h $(OPS_INST
 #
 # Sequential version
 #
-opensbli_seq: clean Makefile opensbli_ops.cpp  opensbliblock00_kernels.h bc_exchanges.h defdec_data_set.h $(OPS_INSTALL_PATH)/lib/libops_seq.a
+opensbli_seq: clean Makefile opensbli_ops.cpp  opensbliblock00_kernels.h  $(OPS_INSTALL_PATH)/lib/libops_seq.a
 	$(CPP) $(MPIFLAGS) $(OPS_INC) $(OPS_LIB) opensbli_ops.cpp -I. ./MPI/$(SEQ_KERNELS) -lops_seq $(HDF5_LIB) -o opensbli_seq
 
 #
 # CUDA version
 #
 
-opensbli_cuda: clean Makefile ./CUDA/opensbli_kernels_cu.o opensbli_ops.cpp  opensbliblock00_kernels.h  bc_exchanges.h defdec_data_set.h $(OPS_INSTALL_PATH)/lib/libops_cuda.a
+opensbli_cuda: clean Makefile ./CUDA/opensbli_kernels_cu.o opensbli_ops.cpp  opensbliblock00_kernels.h   $(OPS_INSTALL_PATH)/lib/libops_cuda.a
 	$(CPP) $(OMPFLAGS) $(CPPFLAGS) $(CUDA_INC) $(OPS_INC) $(OPS_LIB) $(CUDA_LIB) opensbli_ops.cpp ./CUDA/opensbli_kernels_cu.o -lcudart -lops_cuda $(HDF5_LIB) -o opensbli_cuda
 
 opensbli_mpi_cuda: Makefile ./CUDA/opensbli_kernels_mpi_cu.o opensbli_ops.cpp  opensbliblock00_kernels.h $(OPS_INSTALL_PATH)/lib/libops_mpi_cuda.a
