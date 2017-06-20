@@ -26,24 +26,20 @@ from .datatypes import *
 
 class GridVariable(Symbol):
 
-    """ Defines a new symbolic variable on the Grid.
-        This should be used to create thread or process local variables in a kernel.
-        dtype (datatype) and is_constant arguments are set to None and False initially.
-        Attributes
-        ==========
-        ``dtype`` : data type of the variable, defaults to None
-        ``is_constant`` : weather the variable is a constant or not.
-        Notes
-        ==========
-        Grid variable cannot be a constant but used to fit in the abstraction.
-        Later one can use this to define variables in Fortran subroutine for example
-        For various dtypes used in OpenSBLI see ``datatypes.py``
-        Parameter:
-        ==========
-        arg: string: variable: Name of the variable.
-        :returns  variable defined on the grid.
-        Examples:
-        ==========
+    """ | Defines a new symbolic variable on the Grid. This should be used to create thread or process local variables in a kernel.
+
+        :param str variable: Name of the grid variable required
+        :return: Grid variable
+        :rtype: GridVariable
+
+        **Attributes**: The default attribute assumptions are,
+            | **dtype**: data type of the variable, defaults to None
+            | **is_constant**: weather the variable is a constant or not, defaults to ``False``
+
+        .. note::
+            Grid variable cannot be a constant but used to fit in the abstraction.
+            Later one can use this to define variables in Fortran subroutine.
+
         >>> a = GridVariable("variable1")
         >>> srepr(a)
         GridVariable('variable1')
@@ -59,13 +55,16 @@ class GridVariable(Symbol):
 
 
 class WorkDataSet():
-    """ Base object for using work arrays contains differnt attributes to control the flow of work arrays
+    """ Base object for using work arrays contains different attributes to control the flow of work arrays
     in the opensbli framework. This should be used in conjunction with a Simulation block
     see ``SimulationBlock`` in ``block.py``.
     Instantiated from Grid
     Some hard coded dependencies are work array name is always ``wk`` appended by the work index
     """
+
     def __init__(self):
+        """ Im not stupid
+        """
         self.work_name = 'wk%d' # Work array name
         self.work_index = 0 # Index of the work array, this is update when ever a new work array is called
         self.stored_index = 0
@@ -91,7 +90,7 @@ class WorkDataSet():
         code.
         Example
         ==========
-        >>> block = SimulationBlock(2, blocknumber=1)
+        >>> b = SimulationBlock(2, blocknumber=1)
         >>> b.work_array()
         wk0_B1[0,0]
         >>> b.increase_work_index
