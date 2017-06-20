@@ -1,9 +1,7 @@
-
 from sympy import Symbol, Eq, flatten, srepr
 from sympy.tensor import Idx, IndexedBase, Indexed
 from sympy import pprint
-#class EinsteinIndex(Symbol):
-    #return
+
 class EinsteinTerm(Symbol):
 
     """ Represents any symbol in the equation as a SymPy Symbol object which in turn represents an Einstein term.
@@ -33,7 +31,6 @@ class EinsteinTerm(Symbol):
         self.is_coordinate = False
         self.is_tensor = False
         self.rank = 0
-        #pprint([self, type(self)])
 
         # Extract the indices, which are always preceded by an underscore.
         indices = self.name.split('_')[1:]
@@ -72,9 +69,6 @@ class EinsteinTerm(Symbol):
         :rtype: str
         """
         return self.name.split('_')[0]
-
-    #def __getitem__(self, idx, value):
-        #return
 
     def apply_index(self, idx, value):
         if idx in self.get_indices():
@@ -147,7 +141,6 @@ class MetricObject(EinsteinTerm):
 class DataObject(EinsteinTerm):
     """ This represents the objects this constitutes one of the basic terms if the OpenSBLI objects"""
     is_commutative = True
-    #is_commutative = True
     is_Atom = True
     def __new__(cls, label, **kw_args):
         ret = super(DataObject, cls).__new__(cls, label, **kw_args)
@@ -164,32 +157,24 @@ from sympy.core.compatibility import is_sequence, string_types, NotIterable, ran
 from sympy.core.cache import cacheit
 class DataSetBase(IndexedBase):
     is_commutative = True
-    #is_Symbol = True
-    #is_symbol = True
     is_Atom = True
     block = None
     @cacheit
     def __new__(cls, label, **kw_args):
         if not cls.block:
             raise ValueError("Set the block for DataSetBase")
-        #sym = Symbol("%s_B%d"%(label, cls.block.blocknumber))
         sym = label
         shape = list(cls.block.shape) + [Idx(cls.block.blockname)]
-        #cls.label = label
         ret = super(DataSetBase, cls).__new__(cls, sym, shape, **kw_args)
         ret.noblockname = Symbol(str(label))
         ret.blockname = cls.block.blockname
         ret.blocknumber = cls.block.blocknumber
-        #ret.HDF5out = False
-        #ret.HDF5inp = False
         return ret
     def __hash__(self):
         h = hash(self._hashable_content())
         self._mhash = h
         return h
     def _hashable_content(self):
-        #print "IN ", self._args
-        #exit()
         return str(self.label) + self.blockname
     def __getitem__(cls, indices, **kw_args):
         if len(indices) == len(cls.shape) and indices[-1] == Idx(cls.blockname):
@@ -207,13 +192,9 @@ class DataSetBase(IndexedBase):
         e.g. Creating the old variables in Runge Kutta scheme
         """
         return "%s"%(str(self.label))
-    #__xnew_cached_ = staticmethod(
-        #cacheit(__new_stage2__))
     @staticmethod
     def location():
         return [0 for i in range(DataSetBase.block.ndim)]
-    #def __eq__(
-
     #def _pretty(self, printer):
         """Pretty Printing method. """
         #from sympy.printing.pretty.stringpict import prettyForm
@@ -241,7 +222,6 @@ class DataSet(Indexed):
     def _sympystr(self, p):
         allinds = [i for i in self.indices if not isinstance(i,Idx)]
         indices = list(map(p.doprint, allinds))
-        #return "%s[%s]" % (p.doprint(self.base), ", ".join(indices))
         return "%s" % (p.doprint(self.base))
     def _pretty(self, printer):
         """Pretty Printing method. """
@@ -277,7 +257,6 @@ class GridIndex(Indexed):
     is_commutative = True
     is_Indexed = True
     is_Symbol = True
-    is_symbol = True
     is_Atom = True
     def __new__(cls, base, *indices, **kwargs):
         if not isinstance(base, GridIndexedBase):
@@ -286,15 +265,14 @@ class GridIndex(Indexed):
         return ret
     def free_symbols(self):
         return self
+
 class GridIndexedBase(IndexedBase):
     is_commutative = True
     is_Symbol = True
-    is_symbol = True
     is_Atom = True
     def __new__(cls, label, block, **kw_args):
         sym = label
         shape = list(block.shape)
-        #cls.label = label
         ret = super(GridIndexedBase, cls).__new__(cls, sym, [block.ndim], **kw_args) # Shape would be of size ndim
         ret.blockname = block.blockname
         ret.blocknumber = block.blocknumber
