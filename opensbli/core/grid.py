@@ -179,7 +179,7 @@ class Grid(WorkDataSet):
 
 class GridVariable(Symbol):
 
-    """ | Defines a new symbolic variable on the Grid. This should be used to create thread or process local variables in a kernel.
+    """ Defines a new symbolic variable on the Grid. This should be used to create thread or process local variables in a kernel.
 
         :param str variable: Name of the grid variable required
         :return: Grid variable
