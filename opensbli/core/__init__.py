@@ -34,7 +34,6 @@ from .scheme import *
 from .opensbliequations import *
 from .block import *
 from .grid import *
-from .transformation import *
 from .algorithm import *
 from .diagnostics import *
 from .metrics import *
