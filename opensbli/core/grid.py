@@ -138,30 +138,33 @@ class Grid(WorkDataSet):
         see, ``block.py``
         """
 
-        # Define the control parameters, currently not used
-        self.define_control_parameters()
-
         # Instantiate WorkDataSet
         WorkDataSet.__init__(self)
 
         shape = symbols('block%dnp0:%d'%(self.blocknumber, self.ndim), integer=True)
-        # Opensbli symbolic number of points, ConstantObjects
         self.shape = [ConstantObject("%s"%s, integer=True) for s in shape]
-        # Sympy Idx type shape, lower and upper can be modified if required
+        """Symbolic number of points
+
+        :param return: Symbolic points of the instantiated grid
+        :param rtype: ConstantObject"""
         self.Idxed_shape = [Idx(Symbol('i%d'%dim, integer = True),(0, self.shape[dim])) for dim in range(self.ndim)]
-        # For easier access ranges are created
+        """
+        :param return: Symbolic points of the instantiated grid
+        :param rtype: Idx"""
         self.ranges = [[s.lower, s.upper] for s in self.Idxed_shape]
-        # Grid spaciing in the number of dimensions, these are of type Constant Object
+        """ For easier access ranges are created"""
         self.deltas = [ConstantObject("Delta%dblock%d"%(dire,self.blocknumber)) for dire in range(self.ndim)]
+        """ Grid spaciing in the number of dimensions, these are of type ConstantObject"""
         # Add the constants to ConstantsToDeclare
         from .kernel import ConstantsToDeclare as CTD
         for d in self.deltas:
             CTD.add_constant(d)
         for s in self.shape:
             CTD.add_constant(s, dtype = Int())
-        # Name for the grid indices access (instead if i,j,k we use idx[0:ndim])
         g = GridIndexedBase('idx', self)
         self.grid_indexes = [g[i] for i in range(self.ndim)]
+        """ Name for the grid indices access (instead if i,j,k we use idx[0:ndim])"""
+        self.define_control_parameters()
         return
 
     def define_control_parameters(self):
