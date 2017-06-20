@@ -45,7 +45,7 @@ class GridVariable(Symbol):
         Examples:
         ==========
         >>> a = GridVariable("variable1")
-        >>> srepr(variable1)
+        >>> srepr(a)
         GridVariable('variable1')
         >>> a.__dict__
         {dtype: None, is_constant: False}
@@ -61,7 +61,7 @@ class GridVariable(Symbol):
 class WorkDataSet():
     """ Base object for using work arrays contains differnt attributes to control the flow of work arrays
     in the opensbli framework. This should be used in conjunction with a Simulation block
-    see ``SimulationBlock`` in ``block.py``. 
+    see ``SimulationBlock`` in ``block.py``.
     Instantiated from Grid
     Some hard coded dependencies are work array name is always ``wk`` appended by the work index
     """
@@ -168,7 +168,7 @@ class Grid(WorkDataSet):
 
         # Instantiate WorkDataSet
         WorkDataSet.__init__(self)
-        
+
         shape = symbols('block%dnp0:%d'%(self.blocknumber, self.ndim), integer=True)
         # Opensbli symbolic number of points, ConstantObjects
         self.shape = [ConstantObject("%s"%s, integer=True) for s in shape]
@@ -188,7 +188,7 @@ class Grid(WorkDataSet):
         g = GridIndexedBase('idx', self)
         self.grid_indexes = [g[i] for i in range(self.ndim)]
         return
-    
+
     def define_control_parameters(self):
         """Not used, these should be used for further optimisations
         """
