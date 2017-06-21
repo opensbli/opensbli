@@ -63,7 +63,8 @@ class WorkDataSet(object):
             used any more. This helps in reducing the total memory foot print of the generated
             code. An example of such usage is,
 
-        >>> b = SimulationBlock(2, blocknumber=1) # Number of dimensions are 2 and block number is 1
+        >>> from opensbli.core.block import SimulationBlock
+        >>> b = SimulationBlock(2, block_number=1) # Number of dimensions are 2 and block number is 1
         >>> b.work_array()
         wk0_B1[0,0]
         >>> b.increase_work_index # Increases the work array index
@@ -152,10 +153,6 @@ class Grid(WorkDataSet):
         :returns: Symbolic points of the instantiated grid
         :rtype: ConstantObject 
         
-        Usage:
-        
-        >>>
-        >>>
         """
         self.Idxed_shape = [Idx(Symbol('i%d'%dim, integer = True),(0, self.shape[dim])) for dim in range(self.ndim)]
         """
@@ -163,9 +160,6 @@ class Grid(WorkDataSet):
         :rtype: Idx 
         
         Usage:
-        
-        >>>
-        >>>
         """
         self.ranges = [[s.lower, s.upper] for s in self.Idxed_shape]
         """ For easier access ranges are created
@@ -202,10 +196,20 @@ class Grid(WorkDataSet):
         :returns: Name of loop for each dimension in grid
         :rtype: GridIndexed 
         
-        Usage:
+        Example for using various attributes in grid:
         
-        >>>
-        >>>
+        >>> from opensbli.core.block import SimulationBlock
+        >>> b = SimulationBlock(2, block_number=1) 
+        >>> b.shape
+        [block1np0, block1np1]
+        >>> b.Idxed_shape
+        [i0, i1]
+        >>> b.ranges
+        [[0, block1np0], [0, block1np1]]
+        >>> b.deltas
+        [Delta0block1, Delta1block1]
+        >>> b.grid_indexes
+        [idx_B1[0], idx_B1[1]]
         
         """
         self.define_control_parameters()
@@ -240,6 +244,8 @@ class GridVariable(Symbol):
             Grid variable cannot be a constant, but used to fit in the abstraction.
             Later one can use this to define variables in Fortran subroutine.
 
+        >>> from opensbli.core.grid import GridVariable
+        >>> from sympy import srepr
         >>> a = GridVariable("variable1")
         >>> srepr(a)
         GridVariable('variable1')
