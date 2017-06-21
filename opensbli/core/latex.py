@@ -44,7 +44,7 @@ class LatexWriter(LatexPrinter):
     def close(self):
         """ Close the LaTeX file.
 
-        :returns None
+        :returns: None
         """
         self.f.close()
         return
@@ -89,9 +89,9 @@ class LatexWriter(LatexPrinter):
         return
 
     def latexify_expression(self, expression, mode):
-        """ Format a SymPy expression as LaTeX.
+        """ Format a SymPy/OpenSBLI expression as LaTeX.
 
-        :arg expression: The SymPy expression to format.
+        :arg expression: The expression to convert.
         :returns: The LaTeX string representation of the expression.
         :rtype: str
         """
@@ -145,6 +145,8 @@ class LatexWriter(LatexPrinter):
         """ Convert a single expression or list of expressions to LaTeX format and then write it/them to file.
 
         :arg expression: a single SymPy expression of list of SymPy expressions to format and write.
+        :arg mode: weather the latex is an inline expression or equation type or any that user wants. defaults to `dmath` mode of LaTeX
+        :arg substitutions: additional substitutions the user wants in the output
         :returns: None
         """
 
@@ -168,84 +170,3 @@ class LatexWriter(LatexPrinter):
         output =  output + '\n\n'
         self.f.write(output)
         return
-#from .kernel import Kernel
-class WriteAlgorithm():
-    def __init__(self, code):
-        self.substitutions = {'gama':'\gamma ', 'deltat':'\delta t ','rhoE':'\\rho E','deltai0':'\Delta_{i0}',\
-            'rhou0':'\\rho u0', 'rhou1':'\\rho u1', 'rhou2':'\\rho u2', 'deltai1':'\Delta_{i1}','deltai2':'\Delta_{i2}'}
-        self.latex = LatexWriter()
-        self.latex.open(code.CODE_DIR + "/algorithm_%s_%dd.tex"%(code.simulation_parameters["name"], code.ndim))
-        self.write_header(code)
-        self.write_computation_kernels(code)
-        self.latex.write_footer()
-        self.latex.close()
-        return
-    def write_header(self, code):
-        """Writes the algorithm from the code object, this code object would be the one returned by
-        OPSC or other programming languages. File name is automatically generated from the simulation
-        name given in simulation parameters"""
-        metadata = {"title": "Algorithm", "author": "Satya P Jammy", "institution": "University of Southampton"}
-        self.latex.write_header(metadata)
-
-        return
-    def write_footer(self, code):
-
-        return
-    def write_computation_kernels(self, code):
-
-        equations_code = []
-        for block in range(code.nblocks):
-            # Get all the computations to be performed. Add computations as needed.
-            block_computations = []
-            self.latex.write_string('The following are the computations performed on block %s\n\n'%str(block))
-            if code.spatial_discretisation[block].computations:
-                block_computations += code.spatial_discretisation[block].computations
-            if code.temporal_discretisation[block].computations:
-                block_computations += code.temporal_discretisation[block].computations
-            if code.temporal_discretisation[block].start_computations:
-                block_computations += code.temporal_discretisation[block].start_computations
-            if code.temporal_discretisation[block].end_computations:
-                block_computations += code.temporal_discretisation[block].end_computations
-            if code.initial_conditions[block].computations:
-                block_computations += code.initial_conditions[block].computations
-            if code.diagnostics:
-                for inst in code.diagnostics[block]:
-                    block_computations += inst.computations
-            if code.boundary_condition[block].computations:
-                block_computations += [t for t in code.boundary_condition[block].computations if isinstance(t, Kernel)]
-
-            for computation in block_computations:
-                self.write_kernel(computation)
-        return
-    def write_kernel(self, computation):
-        print(computation.computation_type)
-        self.latex.write_string("The computation performed is %s \n\n"%computation.computation_type)
-        self.latex.write_string("The name of the kernel given in the code is %s\n\n"%computation.name)
-        self.latex.write_string("The grid range on which the kernel is executed is %s\n\n"%computation.ranges)
-        if isinstance(computation.equations, list):
-            for eq in computation.equations:
-                self.latex.write_expression(eq, self.substitutions)
-        else:
-            self.latex.write_expression(computation.equations, self.substitutions)
-        self.latex.write_string("\n \n")
-        return
-
-
-#def create_latex_kernel(kernels):
-    #latex = LatexWriter()
-    #latex.open('./kernels.tex')
-    #metadata = {"title": "Characteristic boundary conditions", "author": "Jammy", "institution": ""}
-    #latex.write_header(metadata)
-    #for ker in kernels:
-        ##pprint(ker.__dict__)
-        #latex.write_string('The kernel is %s'%ker.computation_name)
-        #for index, eq in enumerate(ker.equations):
-            #if isinstance(eq, Matrix):
-                #for n, e in enumerate(eq):
-                    #v = Eq(Symbol('dW0%d' %n), e)
-                    #latex.write_expression(v)
-            #else:
-                #latex.write_expression(eq)
-    #latex.write_footer()
-    #latex.close()
-    #return
