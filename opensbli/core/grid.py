@@ -131,7 +131,11 @@ class WorkDataSet(object):
 
 class Grid(WorkDataSet):
 
-    """ The numerical grid for a block and contains grid parameters"""
+    """ The numerical grid for a block and contains grid parameters. This is autmatically instantiated from
+        SimulationBlock
+        
+        `todo` Unit tests written will be copied at their respective locations TODO
+    """
 
     def __init__(self):
         """ Initialise the gridobject and its parameters. This is instantiated from SimulationBlock
@@ -145,16 +149,46 @@ class Grid(WorkDataSet):
         self.shape = [ConstantObject("%s"%s, integer=True) for s in shape]
         """Symbolic number of points
 
-        :param return: Symbolic points of the instantiated grid
-        :param rtype: ConstantObject"""
+        :returns: Symbolic points of the instantiated grid
+        :rtype: ConstantObject 
+        
+        Usage:
+        
+        >>>
+        >>>
+        """
         self.Idxed_shape = [Idx(Symbol('i%d'%dim, integer = True),(0, self.shape[dim])) for dim in range(self.ndim)]
         """
-        :param return: Symbolic points of the instantiated grid
-        :param rtype: Idx"""
+        :returns: Symbolic points of the instantiated grid
+        :rtype: Idx 
+        
+        Usage:
+        
+        >>>
+        >>>
+        """
         self.ranges = [[s.lower, s.upper] for s in self.Idxed_shape]
-        """ For easier access ranges are created"""
+        """ For easier access ranges are created
+        
+        :returns: Lower and upper bounds of the range as list of lists
+        :rtype: list of lists 
+        
+        Usage:
+        
+        >>>
+        >>>
+        """
         self.deltas = [ConstantObject("Delta%dblock%d"%(dire,self.blocknumber)) for dire in range(self.ndim)]
-        """ Grid spaciing in the number of dimensions, these are of type ConstantObject"""
+        """
+        :returns: Grid spacing in all the dimensions
+        :rtype: list of ConstantObject 
+        
+        Usage:
+        
+        >>>
+        >>>
+        
+        """
         # Add the constants to ConstantsToDeclare
         from .kernel import ConstantsToDeclare as CTD
         for d in self.deltas:
@@ -163,7 +197,17 @@ class Grid(WorkDataSet):
             CTD.add_constant(s, dtype = Int())
         g = GridIndexedBase('idx', self)
         self.grid_indexes = [g[i] for i in range(self.ndim)]
-        """ Name for the grid indices access (instead if i,j,k we use idx[0:ndim])"""
+        """ Name for the grid index loop in each dimension (instead if i,j,k we use idx[0:ndim])
+        
+        :returns: Name of loop for each dimension in grid
+        :rtype: GridIndexed 
+        
+        Usage:
+        
+        >>>
+        >>>
+        
+        """
         self.define_control_parameters()
         return
 
