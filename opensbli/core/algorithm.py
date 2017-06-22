@@ -1,5 +1,21 @@
+#!/usr/bin/env python
 
-loopcounter = 0
+#    OpenSBLI: An automatic code generator for solving differential equations.
+#    Copyright (C) 2017 Satya P. Jammy
+
+#    This file is part of OpenSBLI.
+#    OpenSBLI is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+
+#    OpenSBLI is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+
+#    You should have received a copy of the GNU General Public License
+#    along with OpenSBLI.  If not, see <http://www.gnu.org/licenses/>
 
 from .block import SimulationBlock as SB
 from .kernel import *
@@ -9,22 +25,36 @@ from .opensbliobjects import *
 from opensbli.initialisation.gridbasedinit import *
 
 class Loop(object):
+    """ Base object representing loops in an algorithm
+    """
     pass
 
 class MainPrg(Loop):
+    """ Main program of the algorithm. The attribute components are used to loop over
+    """
     def __init__(self):
         self.components = []
         return
     def __str__(self):
         return "%s"%(self.__class__.__name__)
     def add_components(self, components):
-        """ """
+        """ Adds the given components to the main program
+
+        :param components: the components to be added to the main program, this can be a list or an individual component
+        :return: None
+        """
         if isinstance(components, list):
             self.components += components
         else:
             self.components += [components]
         return
     def write_latex(self, latex):
+        """ Writes the LaTeX of the main program by looping over the components
+
+        :param latex: the opened file pointer to which the generated LaTeX code should be written.
+        :returns: None
+
+        """
         latex.write_string("Starting of the main program\\\\\n")
         for c in self.components:
             c.write_latex(latex)
@@ -32,6 +62,8 @@ class MainPrg(Loop):
         return
     @property
     def opsc_code(self):
+        """ Writes the OPS C version of the code by looping over the components
+        """
         code = []
         code += [self.opsc_start]
         for c in flatten(self.components):
@@ -40,16 +72,28 @@ class MainPrg(Loop):
         return code
     @property
     def opsc_start(self):
+        """ Starting the program in OPS C
+        """
         return "int main(int argc, char **argv) \n{"
     @property
     def opsc_end(self):
+        """ Ending the program in OPS C
+        """
         return "//Main program end \n}"
+
 class Condition(object):
+    """ Used for setting the conditions in the program, example
+    """
     def __init__(self, condition):
         self.condition = condition
         self.components = []
         return
     def add_components(self, components):
+        """ Adds the given components to the Condition
+
+        :param components: the components to be added to the Condition, this can be a list or an individual component
+        :return: None
+        """
         if isinstance(components, list):
             self.components += components
         else:
@@ -83,6 +127,11 @@ class DoLoop(Loop):
         self.components = []
         return
     def add_components(self, components):
+        """ Adds the given components to the Do Loop
+
+        :param components: the components to be added to the DoLoop, this can be a list or an individual component
+        :return: None
+        """
         if isinstance(components, list):
             self.components += components
         else:
@@ -112,6 +161,11 @@ class DefDecs(object):
     def __init__(self):
         self.components = []
     def add_components(self, components):
+        """ Adds the given components to the definitions and declarations
+
+        :param components: the components to be added to the DefDecs, this can be a list or an individual component
+        :return: None
+        """
         if isinstance(components, list):
             self.components += components
         else:
@@ -149,6 +203,11 @@ class Timers(object):
         return ["cpu_end%d"%(self.number), "elapsed_end%d"%(self.number)]
 
     def add_components(self, components):
+        """ Adds the given components to the timers
+
+        :param components: the components to be added to the timers, this can be a list or an individual component
+        :return: None
+        """
         if isinstance(components, list):
             self.components += components
         else:
@@ -339,33 +398,4 @@ class TraditionalAlgorithmRK(object):
                 raise ValueError("More than one temporal scheme for a block")
         return
 
-"""
-Best implementation of this would be
-What we will have are
-a. Equations evaluated in the time loop (order)
-b. Equations evaluated outside the time loop (Metrics evaluations, Diagnostics)
-c. Equations evaluated both inside and outside the time loop (Statistics, Diagnostics etc)
 
-Algorithm is a doubly linked list with the names as strings
-(For kernels it would be blocknumber+kernel_no)
-For BC's it would be
-next, previous
-insert
-remove
-
-For each of the equation classes we should have the following,
-a. solution_kernels (Simulation equations) (CR+Spatial)
-b. Temporal_soultion_kernels (Substage true or false for each kernel)
-c.
-
-Algorithm:
-a. tloop
-b. ts.start
-c. Rkloop
-d. SimulationEquationsBC
-e. SimulationEquationsSpatial, other
-f. Time advancement
-g. RKend
-h. Diagnostics,
-i. Tend
-"""
