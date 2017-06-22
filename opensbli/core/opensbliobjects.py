@@ -11,6 +11,8 @@ class EinsteinTerm(Symbol):
     In other words, all symbols in the equation are Einstein terms, but they can have zero or more indices. The indices
     are used for applying the Einstein contraction structure.
 
+    **Used during parsing and Einstein expansion process**
+
     By default EinsteinTerm is not commutative.
     """
 
@@ -120,7 +122,9 @@ class Constant(object):
 
 class ConstantObject(EinsteinTerm, Constant):
     """ A constant object which can have Einstein indices to be expanded. This is used to
-    differentiate between different Einstein terms, which are used in differentiation
+    differentiate between different Einstein terms, which are used in differentiation.
+
+    **Used during parsing and Einstein expansion process**
 
     :param str label: name of the constant object
     :returns: declared constant
@@ -133,7 +137,7 @@ class ConstantObject(EinsteinTerm, Constant):
         return ret
 
 class ConstantIndexed(Indexed, Constant):
-    """ A constant Indexed object 
+    """ A constant Indexed object
     """
     def __new__(cls, label, indices, **kwargs):
         base = IndexedBase(label)
@@ -155,6 +159,8 @@ class ConstantIndexed(Indexed, Constant):
 class CoordinateObject(EinsteinTerm):
     """ A coordinate object which can have Einstein indices to be expanded, this is used to
     differentiate between different Einstein terms, while performing differentiation.
+
+    **Used during parsing, Einstein expansion processes and during discretisation**
 
     :param str label: name of the coordinate object to be defined
     :returns: declared coordinate
@@ -183,6 +189,8 @@ class MetricObject(EinsteinTerm):
     """ A metric object which can have Einstein indices to be expanded, this is used to
     differentiate between different Einstein terms, while performing metric transformations
 
+    **Used during application of Metrics and expansion**
+
     :param str label: name of the metric object to be defined
     :returns: declared metric
     :rtype: MetricObject
@@ -197,7 +205,18 @@ class MetricObject(EinsteinTerm):
         return ret
 
 class DataObject(EinsteinTerm):
-    """ This represents the objects this constitutes one of the basic terms if the OpenSBLI objects"""
+    """ Once parsed and expanded all the EinsteinTerms that are not constants and coordinates are converted
+    to DataObject. This is useful to discretise the expanded equations on a block and acts as a link between
+    Equation expansion and discretisation. If required the user can write their own equations using these objects.
+
+    This acts as an intermediate function to decouple the expansion process and other opensbli processes, and
+    gives flexibility in equation definition
+
+    :param str label: name of the data objectto be defined
+    :returns: declared data object
+    :rtype: DataObject
+
+    """
     is_commutative = True
     is_Atom = True
     def __new__(cls, label, **kw_args):
@@ -213,7 +232,10 @@ class DataObject(EinsteinTerm):
 from sympy.core import Expr, Tuple, Symbol, sympify, S
 from sympy.core.compatibility import is_sequence, string_types, NotIterable, range
 from sympy.core.cache import cacheit
+
 class DataSetBase(IndexedBase):
+    """
+    """
     is_commutative = True
     is_Atom = True
     block = None
