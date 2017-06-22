@@ -234,7 +234,17 @@ from sympy.core.compatibility import is_sequence, string_types, NotIterable, ran
 from sympy.core.cache import cacheit
 
 class DataSetBase(IndexedBase):
-    """
+    """ Base object for converting a DataObject to an array on the block with specific dimensions of
+    the block. When a SimulationBlock is instantiated then the attribute block is set and the various
+    attributes of the block are used.
+
+    :param label: name of the Dataset base, this can be OpenSBLI/SymPy's basic types
+    :returns: defined dataset base on the block
+    :rtype: DataSetBase which is derived from IndexedBase
+
+    .. note:
+        As given in SymPy's Indexed object documentation it is always advised to create a DataSetBase and then
+        a Dataset
     """
     is_commutative = True
     is_Atom = True
