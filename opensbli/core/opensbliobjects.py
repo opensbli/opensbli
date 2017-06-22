@@ -242,14 +242,15 @@ class DataSetBase(IndexedBase):
     :returns: defined dataset base on the block
     :rtype: DataSetBase which is derived from IndexedBase
 
-    .. note:
+    .. note::
         As given in SymPy's Indexed object documentation it is always advised to create a DataSetBase and then
         a Dataset
+
     """
     is_commutative = True
     is_Atom = True
     block = None
-    @cacheit
+    @cacheit # we cache it so that the changes to a particular dataset base are global and not local
     def __new__(cls, label, **kw_args):
         if not cls.block:
             raise ValueError("Set the block for DataSetBase")
@@ -278,27 +279,28 @@ class DataSetBase(IndexedBase):
         """ For clarity the block number is printed"""
         return "%s_B%s"%(str(self.label), str(self.blocknumber))
     def simplelabel(self):
-        """Returns the abse label in case we need to add strings to the end of it
-        e.g. Creating the old variables in Runge Kutta scheme
+        """Returns the base label in case we need the label as a string to modify and create a new one with modifications
         """
         return "%s"%(str(self.label))
     @staticmethod
     def location():
+        """ The location is the relative grid location, it is presently hard coded to the grid location.
+        This is provided so that if in future staggered grid arrangement can be implemented
+        """
         return [0 for i in range(DataSetBase.block.ndim)]
-    #def _pretty(self, printer):
-        """Pretty Printing method. """
-        #from sympy.printing.pretty.stringpict import prettyForm
-        #pforms = [printer._print("_B"), printer._print(str(self.blocknumber))]
-        ##expr = prettyForm(*printer.join("", pforms))
-        ##pform = prettyForm(printer._print(self.label))
-        ##b = pform.baseline
-        ##pform.baseline = pform.height() - 0.5
-        #pform =prettyForm(*pform.right(*printer.join("", pforms)))
-        ##pform.baseline = b
-        #return pform
-
 
 class DataSet(Indexed):
+    """ It is the Data set of a DatasetBase which is defined on a block.
+
+    :param base: name of the Dataset base, this is of type DataSetBase
+    :param list indices: indices of the dataset, in out context it is the value of the dataset at the relative location from the dataset base location (example, [0,0] or [1,0])
+    :returns: Dataset at the specified location
+    :rtype: DataSet
+
+    .. note::
+        As given in SymPy's Indexed object documentation it is always advised to create a DataSetBase and then
+        a Dataset
+    """
     is_commutative = True
     is_Indexed = True
     is_Symbol = True
@@ -323,9 +325,14 @@ class DataSet(Indexed):
         return expr
     @property
     def get_grid_indices(self):
+        """ Returns the relative location of the dataset, as used in discretisation
+        :rtype: list
+        """
         return [i for i in self.indices if not isinstance(i, Idx)]
 
 class GridIndex(Indexed):
+    """ An Indexed object to get the local grid point
+    """
     is_commutative = True
     is_Indexed = True
     is_Symbol = True
@@ -339,6 +346,8 @@ class GridIndex(Indexed):
         return self
 
 class GridIndexedBase(IndexedBase):
+    """ Base object to locate the global index of the grid point
+    """
     is_commutative = True
     is_Symbol = True
     is_Atom = True
