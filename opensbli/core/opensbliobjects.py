@@ -4,12 +4,14 @@ from sympy import pprint
 
 class EinsteinTerm(Symbol):
 
-    """ Represents any symbol in the equation as a SymPy Symbol object which in turn represents an Einstein term.
-    This could be e.g. tau_i_j, but can also be e.g. u_i, rho.
-    In other words, all symbols in the equation are Einstein terms, but they can have zero or more indices.
-    Simple way of writing this class would be
-    a. Notation, which gives the notaion as an indexed object u[i], tau[i,j] etc. etc.
-    b. Value which is nothing but u_i will be u0, u1, u2
+    """ Basic term in OpenSBLI. This is used to parse the equations. Any atom in the expression that is not a function
+    is represented as an EinsteinTerm. Atoms like constant, coordinates, Data objects are derived from this.
+
+    This could be e.g. tau_i_j, but can also be e.g. u_i, rho, x_j (coordinates), Re (constants).
+    In other words, all symbols in the equation are Einstein terms, but they can have zero or more indices. The indices
+    are used for applying the Einstein contraction structure.
+
+    By default EinsteinTerm is not commutative.
     """
 
     is_commutative = False
@@ -30,7 +32,7 @@ class EinsteinTerm(Symbol):
         self.is_constant = False
         self.is_coordinate = False
         self.is_tensor = False
-        self.rank = 0
+        self.rank = 0 # Rank of the term
 
         # Extract the indices, which are always preceded by an underscore.
         indices = self.name.split('_')[1:]
@@ -49,16 +51,18 @@ class EinsteinTerm(Symbol):
         return self.indices
 
     def structure(self):
+        """ Structure of the Einstein term, used for determining the contraction structure of an expression
+
+        :returns: SymPy's Indexed object with Einstein term base as the base and indices are Einstein term indices
+        """
         if len(self.get_indices()) >0:
             st = IndexedBase("%s"%str(self.get_base()))
             st = st[self.get_indices()]
-            #st.is_commutative= False
             st.expression = self
             self.indexed_object = st
             return st
         else:
             st = self
-            #st.is_commutative= False
             st.expression = st
             self.indexed_object = st
             return st
@@ -71,12 +75,18 @@ class EinsteinTerm(Symbol):
         return self.name.split('_')[0]
 
     def apply_index(self, idx, value):
+        """ Substitutes the index idx with its value and returns a new Einstein term
+
+        :param Idx idx: Index of the original term to be substituted
+        :param int value: value of the index
+        :returns: a new Einstein term with the value substituted
+        :rtype: EinsteinTerm
+        """
         if idx in self.get_indices():
             if self.get_base():
                 newval = str(self).replace("_%s"%str(idx), str(value))
                 val = type(self)(newval)
                 # Store val index
-                #if isinstance(self, CoordinateObject):
                 val.direction = value
             else:
                 val = int(value)
@@ -85,8 +95,12 @@ class EinsteinTerm(Symbol):
         return val
 
     def apply_multiple_indices(self, indices, index_map):
-        """
-        This is used while having multiple indices and all are replaced
+        """ Similar to apply_index function but can handle multiple indices
+
+        :param indices: indices to map
+        :param index_map: a map of index and its value
+        :returns: a new Einstein term with the values substituted
+        :rtype: EinsteinTerm
         """
         dictionary_indices = {}
         newval = str(self)
@@ -100,16 +114,52 @@ class EinsteinTerm(Symbol):
                 val.direction = dictionary_indices[self.get_indices()[0]]
         return val
 class Constant(object):
+    """ A base class to represents different types of constants
+    """
     pass
 
 class ConstantObject(EinsteinTerm, Constant):
+    """ A constant object which can have Einstein indices to be expanded. This is used to
+    differentiate between different Einstein terms, which are used in differentiation
+
+    :param str label: name of the constant object
+    :returns: declared constant
+    :rtype: ConstantObject
+    """
     is_commutative = True
     def __new__(cls, label, **kwargs):
         ret = super(ConstantObject,cls).__new__(cls, label, **kwargs)
         ret.is_constant = True
         return ret
 
+class ConstantIndexed(Indexed, Constant):
+    """ A constant Indexed object 
+    """
+    def __new__(cls, label, indices, **kwargs):
+        base = IndexedBase(label)
+        if isinstance(indices, list):
+            for i in indices:
+                if not isinstance(i, Idx):
+                    raise ValueError("The indices of the Constant Indexed Object should be of type Idx", i)
+        else:
+            if not isinstance(indices, Idx):
+                raise ValueError("The indices of the Constant Indexed Object should be of type Idx", i)
+            indices = flatten([indices])
+        ret = Indexed.__new__(cls, base , *indices)
+        ret.is_constant = True
+        return ret
+    @property
+    def location(cls):
+        return list(cls.args[1:])
+
 class CoordinateObject(EinsteinTerm):
+    """ A coordinate object which can have Einstein indices to be expanded, this is used to
+    differentiate between different Einstein terms, while performing differentiation.
+
+    :param str label: name of the coordinate object to be defined
+    :returns: declared coordinate
+    :rtype: CoordinateObject
+    """
     is_commutative = True
     is_Atom = True
     def __new__(cls, label, **kwargs):
@@ -130,6 +180,14 @@ class CoordinateObject(EinsteinTerm):
         return
 
 class MetricObject(EinsteinTerm):
+    """ A metric object which can have Einstein indices to be expanded, this is used to
+    differentiate between different Einstein terms, while performing metric transformations
+
+    :param str label: name of the metric object to be defined
+    :returns: declared metric
+    :rtype: MetricObject
+
+    """
     def __new__(cls, label, **kwargs):
         ret = super(MetricObject,cls).__new__(cls, label)
         if 'time' in kwargs:
@@ -234,24 +292,6 @@ class DataSet(Indexed):
     @property
     def get_grid_indices(self):
         return [i for i in self.indices if not isinstance(i, Idx)]
-
-class ConstantIndexed(Indexed, Constant):
-    def __new__(cls, label, indices, **kwargs):
-        base = IndexedBase(label)
-        if isinstance(indices, list):
-            for i in indices:
-                if not isinstance(i, Idx):
-                    raise ValueError("The indices of the Constant Indexed Object should be of type Idx", i)
-        else:
-            if not isinstance(indices, Idx):
-                raise ValueError("The indices of the Constant Indexed Object should be of type Idx", i)
-            indices = flatten([indices])
-        ret = Indexed.__new__(cls, base , *indices)
-        ret.is_constant = True
-        return ret
-    @property
-    def location(cls):
-        return list(cls.args[1:])
 
 class GridIndex(Indexed):
     is_commutative = True
