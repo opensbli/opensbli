@@ -99,6 +99,12 @@ class Condition(object):
         else:
             self.components += [components]
     def write_latex(self, latex):
+        """ Writes the LaTeX of the Condition by looping over the components
+
+        :param latex: the opened file pointer to which the generated LaTeX code should be written.
+        :returns: None
+
+        """
         latex.write_string("Condition %s"%(self.condition))
         for c in self.components:
             c.write_latex(latex)
@@ -138,6 +144,12 @@ class DoLoop(Loop):
             self.components += [components]
         return
     def write_latex(self, latex):
+        """ Writes the LaTeX of the components of the Do loop
+
+        :param latex: the opened file pointer to which the generated LaTeX code should be written.
+        :returns: None
+
+        """
         latex.write_string("Do loop %s,%s, %s\\\\\n"%(self.loop, self.loop.lower, self.loop.upper))
         for c in self.components:
             c.write_latex(latex)
@@ -158,6 +170,9 @@ class DoLoop(Loop):
     def opsc_end(self):
         return "}"
 class DefDecs(object):
+    """ Definitions and declarations in a program. This write latex and OPS C code printing functions are
+    not used currently but these will be added in the future releases
+    """
     def __init__(self):
         self.components = []
     def add_components(self, components):
@@ -171,6 +186,12 @@ class DefDecs(object):
         else:
             self.components += [components]
     def write_latex(self, latex):
+        """ Writes the LaTeX of the definitions are declarations
+
+        :param latex: the opened file pointer to which the generated LaTeX code should be written.
+        :returns: None
+
+        """
         for c in self.components:
             if isinstance(c, Constant):
                 if c.is_input:
@@ -214,6 +235,12 @@ class Timers(object):
             self.components += [components]
         return
     def write_latex(self, latex):
+        """ Writes the LaTeX of the times
+
+        :param latex: the opened file pointer to which the generated LaTeX code should be written.
+        :returns: None
+
+        """
         latex.write_string("Initialising timers\\\\\n")
         for c in self.components:
             c.write_latex(latex)
@@ -381,11 +408,6 @@ class TraditionalAlgorithmRK(object):
         self.ntimers += 1
         timer.add_components(components)
         return timer
-
-    #def get_io(self, blocks):
-        #for b in blocks:
-
-        #return
 
     def check_temporal_scheme(self, blocks):
         """
