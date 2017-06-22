@@ -112,6 +112,8 @@ class Condition(object):
         return
     @property
     def opsc_code(self):
+        """ Writes the OPS C version of the code by looping over the components
+        """
         code = self.opsc_condition_start
         for c in self.components:
             code += c.opsc_code
@@ -119,12 +121,16 @@ class Condition(object):
         return code
     @property
     def opsc_condition_start(self):
+        """ The starting loop for a if condition in OPS C
+        """
         from .codegeneration.opsc import OPSCCodePrinter
         code = OPSCCodePrinter().doprint(self.condition)
         code = 'if (' + code + '){'
         return [code]
     @property
     def opsc_condition_end(self):
+        """ The loop end for an if condition in OPS C
+        """
         return ['}']
 
 class DoLoop(Loop):
@@ -157,6 +163,8 @@ class DoLoop(Loop):
         return
     @property
     def opsc_code(self):
+        """ Writes the OPS  version of the Do loop with the components
+        """
         code = []
         code += [self.opsc_start]
         for c in self.components:
@@ -165,9 +173,13 @@ class DoLoop(Loop):
         return code
     @property
     def opsc_start(self):
+        """ Do loop in OPSC is a for loop, and the starting of the for loop is written by this function
+        """
         return "for(int %s=%s; %s<=%s; %s++)\n{"%(self.loop, str(self.loop.lower), self.loop, str(self.loop.upper), self.loop)
     @property
     def opsc_end(self):
+        """ Ending of a for loop in OPSC
+        """
         return "}"
 class DefDecs(object):
     """ Definitions and declarations in a program. This write latex and OPS C code printing functions are
@@ -191,6 +203,8 @@ class DefDecs(object):
         :param latex: the opened file pointer to which the generated LaTeX code should be written.
         :returns: None
 
+        .. note:: This is not used currently
+
         """
         for c in self.components:
             if isinstance(c, Constant):
@@ -204,6 +218,10 @@ class DefDecs(object):
         return
     @property
     def opsc_code(self):
+        """ Writes the Definitions and declarations in OPSC,
+
+        .. note:: This is not used currently
+        """
         code = []
         for c in self.components:
             if isinstance(c, Constant):
@@ -217,10 +235,10 @@ class Timers(object):
         self.number = number
         return
     @property
-    def start_variables(self):
+    def _start_variables(self):
         return ["cpu_start%d"%(self.number), "elapsed_start%d"%(self.number)]
     @property
-    def end_variables(self):
+    def _end_variables(self):
         return ["cpu_end%d"%(self.number), "elapsed_end%d"%(self.number)]
 
     def add_components(self, components):
@@ -248,6 +266,10 @@ class Timers(object):
         return
     @property
     def opsc_code(self):
+        """ OPSC code for the timers, this combines the codes from different components
+
+        .. note:: The data type for timer variables `double`
+        """
         code = []
         code += self.opsc_start_timer
         for c in self.components:
@@ -256,18 +278,24 @@ class Timers(object):
         return code
     @property
     def opsc_start_timer(self):
-        start = self.start_variables
+        """ OPSC code for the starting the timers, this is called from Timers.opsc_code()
+        """
+        start = self._start_variables
         timer_start = ["double %s, %s;" % (start[0], start[1])] + ["ops_timers(&%s, &%s);" % (start[0], start[1])]
         return timer_start
     @property
     def opsc_end_timer(self):
-        end = self.end_variables
+        """ OPSC code for the ending the timers, this is called from Timers.opsc_code()
+        """
+        end = self._end_variables
         code = []
         code += ["double %s, %s;" % (end[0], end[1])] + ["ops_timers(&%s, &%s);" % (end[0], end[1])]
         code += self.timing_result_opsc
         return code
     @property
     def timing_result_opsc(self):
+        """ Generates the code for printing the timing results in OPSC
+        """
         code = []
         code += ["ops_printf(\"\\nTimings are:\\n\");" ]
         code += ["ops_printf(\"-----------------------------------------\\n\");"]
