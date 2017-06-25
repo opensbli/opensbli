@@ -485,7 +485,50 @@ class BL_optimisation(Central):
             discretisation_kernel.update_block_datasets(block)
             type_of_eq.Kernels +=  [discretisation_kernel]
             return self.required_constituent_relations
+
+class RA_optimisation(Central):
+    """Optimisation this wil work as not classifying the derivatives into
+    convective and viscous terms
+    """
+    def __init__(self, order):
+        Central.__init__(self, order)
         
+        return
+    
+    def discretise(self, type_of_eq, block):
+        equations =  flatten(type_of_eq.equations)
+        residual_arrays = [eq.residual for eq in equations]
+        equations = [e._sanitise_equation for e in equations]
+        rhs_eq = [e.rhs for e in equations]
+        pprint(rhs_eq)
+        self.required_constituent_relations = {}
+        equations = [Eq(x,y) for x,y in zip(residual_arrays, rhs_eq)]
+        local_kernels, discretised_eq = self.RA(equations, block)
+        if discretised_eq:
+            for ker in local_kernels:
+                eval_ker = local_kernels[ker]
+                #eval_ker.set_computation_name("%s "%(ker))
+                #eval_ker.update_block_datasets(block)
+                type_of_eq.Kernels += [eval_ker]
+
+            discretisation_kernel = Kernel(block, computation_name="%s evaluation"%type_of_eq.__class__.__name__)
+            discretisation_kernel.set_grid_range(block)
+            for eq in discretised_eq:
+                discretisation_kernel.add_equation(eq)
+            discretisation_kernel.update_block_datasets(block)
+            type_of_eq.Kernels +=  [discretisation_kernel]
+            return self.required_constituent_relations
+    def RA(self, equations, block):
+        cds = self.get_local_function(equations)
+        pprint(cds)
+        if cds:
+            for der in sorted(cds, cmp=increasing_order):
+                pprint(der)
+            #expr_discretised = Eq(der.work, expr._discretise_derivative(self, block))
+            #work_arry_subs[der] = der.work
+            #for no, c in enumerate(descritised_equations):
+                #descritised_equations[no] = descritised_equations[no].subs(work_arry_subs)
+        return
 
 from .opensbliobjects import ConstantIndexed, ConstantObject
 class TemproalSolution(object):
