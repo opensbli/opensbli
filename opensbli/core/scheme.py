@@ -487,7 +487,6 @@ class BL_optimisation(Central):
             return self.required_constituent_relations
         
 
-
 from .opensbliobjects import ConstantIndexed, ConstantObject
 class TemproalSolution(object):
     def __init__(self):
