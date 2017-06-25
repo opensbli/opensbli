@@ -299,7 +299,7 @@ class Timers(object):
         code = []
         code += ["ops_printf(\"\\nTimings are:\\n\");" ]
         code += ["ops_printf(\"-----------------------------------------\\n\");"]
-        code += ["ops_printf(\"Total Wall time %%lf\\n\",%s-%s);" % (self._end_variables[1], self._end_variables[1])]
+        code += ["ops_printf(\"Total Wall time %%lf\\n\",%s-%s);" % (self._end_variables[1], self._start_variables[1])]
         return code
 
 #class If
