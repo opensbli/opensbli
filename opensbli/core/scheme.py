@@ -525,12 +525,12 @@ class RA_optimisation(Central):
         #pprint(cds)
         work_arry_subs = {}
         if cds:
-            for CD in sorted(cds, cmp=increasing_order):
+            for der in sorted(cds, cmp=increasing_order):
                 #pprint(der)
-                expr = CD.copy()
+                expr = der.copy()
                 inner_cds = []
                 #if CD.args[0].atoms(CentralDerivative):
-                pot = postorder_traversal(CD)
+                pot = postorder_traversal(expr)
                 inner_cds = []
                 for p in pot:
                     if isinstance(p, CentralDerivative):
@@ -539,12 +539,16 @@ class RA_optimisation(Central):
                         continue
                 # Contains inner derivatives
                 if len(inner_cds)>1:
+                    pprint(expr)
                     for np,cd in enumerate(inner_cds[:-1]):
+                        pprint(cd)
                         expr = expr.subs(cd, cd._discretise_derivative(self, block))
+                        pprint(expr)
                 expr_discretised = expr._discretise_derivative(self, block)
-                #work_arry_subs[CD] = expr_discretised
-                for no, c in enumerate(descritised_equations):
-                    descritised_equations[no] = descritised_equations[no].subs(CD, expr_discretised)
+                pprint(expr_discretised)
+                work_arry_subs[der] = expr_discretised
+            for no, c in enumerate(descritised_equations):
+                descritised_equations[no] = descritised_equations[no].subs(der, work_arry_subs)
             return descritised_equations
         else:
             return None
