@@ -377,6 +377,116 @@ class Central(Scheme):
                     raise ValueError("Could not classify this")
         return expr, kernel_dictionary
 
+class Store_some_optimisation(Central):
+    """Optimisation this wil work as not classifying the derivatives into
+    convective and viscous terms
+    """
+    def __init__(self, order):
+        Central.__init__(self, order)
+        
+        return
+    
+    def discretise(self, type_of_eq, block):
+        pprint(type_of_eq)
+        equations =  flatten(type_of_eq.equations)
+        residual_arrays = [eq.residual for eq in equations]
+        #equations = [e._sanitise_equation for e in equations]
+        self.required_constituent_relations = {}
+        cds = self.get_local_function(equations)
+        grouped = self.group_by_direction(cds)
+        
+        homogenous_ders, non_homogenous_ders = self.process_group(grouped)
+        self.groups_to_a_kernel(homogenous_ders, block)
+        return
+    def groups_to_a_kernel(self, derivatives, block):
+        kernels = dict(zip(derivatives.keys(), [Kernel(block) for k in derivatives.keys()]))
+        # Update the work arrays if used else where
+        for key, value in derivatives.iteritems():
+            for v in value:
+                if v.used_else_where:
+                    v.update_work(block)
+                    block.increase_work_index
+        # Store the work index
+        block.store_work_index
+        for key, value in derivatives.iteritems():
+            for v in value:
+                if not v.used_else_where:
+                    v.update_work(block)
+                    block.increase_work_index
+                    kernels[key].add_equation(Eq(v.work, v._discretise_derivative(self, block)))
+        print block.work_index
+        return
+    def process_group(self, grouped):
+        homogenous_ders = dict(zip(grouped.keys(), [[] for k in grouped.keys()]))
+        non_homogenous_ders = dict(zip(grouped.keys(), [[] for k in grouped.keys()]))
+        for key in grouped:
+            for v in grouped[key]:
+                if not v.is_homogeneous:
+                    sanitised = v._sanitise
+                    sanitised.direction_used = []
+                    non_homogenous_ders[key] += [sanitised]
+                else:
+                    sanitised = v._sanitise
+                    sanitised.direction_used = []
+                    homogenous_ders[key] += [sanitised]
+        #pprint(non_homogenous_ders)
+        for key, value in non_homogenous_ders.iteritems():
+            for v in value:
+                inner = self.find_inner(v)
+                for i in inner:
+                    i.is_used(True)
+                    i.direction_used += v.get_direction
+        return homogenous_ders, non_homogenous_ders
+    def find_inner(self, CD):
+        expr = CD.copy()
+        inner_cds = []
+        
+        pot = postorder_traversal(CD)
+        inner_cds = []
+        for p in pot:
+            if isinstance(p, CentralDerivative):
+                inner_cds += [p]
+            else:
+                continue
+        inner_cds = [i for i in inner_cds if i is not CD]
+        return inner_cds
+    def ssalgorithm(self,equations):
+        
+        return
+
+class BL_optimisation(Central):
+    """Optimisation this wil work as not classifying the derivatives into
+    convective and viscous terms
+    """
+    def __init__(self, order):
+        Central.__init__(self, order)
+        
+        return
+    
+    def discretise(self, type_of_eq, block):
+        equations =  flatten(type_of_eq.equations)
+        residual_arrays = [eq.residual for eq in equations]
+        equations = [e._sanitise_equation for e in equations]
+        rhs_eq = [e.rhs for e in equations]
+        self.required_constituent_relations = {}
+        equations = [Eq(x,y) for x,y in zip(residual_arrays, rhs_eq)]
+        local_kernels, discretised_eq = self.genral_discretisation(equations, block, name="BL alg")
+        if discretised_eq:
+            for ker in local_kernels:
+                eval_ker = local_kernels[ker]
+                #eval_ker.set_computation_name("%s "%(ker))
+                #eval_ker.update_block_datasets(block)
+                type_of_eq.Kernels += [eval_ker]
+
+            discretisation_kernel = Kernel(block, computation_name="%s evaluation"%type_of_eq.__class__.__name__)
+            discretisation_kernel.set_grid_range(block)
+            for eq in discretised_eq:
+                discretisation_kernel.add_equation(eq)
+            discretisation_kernel.update_block_datasets(block)
+            type_of_eq.Kernels +=  [discretisation_kernel]
+            return self.required_constituent_relations
+        
+
 
 from .opensbliobjects import ConstantIndexed, ConstantObject
 class TemproalSolution(object):

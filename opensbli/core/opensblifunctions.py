@@ -309,7 +309,7 @@ class BasicDiscretisation(EinsteinStructure):
         return expr
     @property
     def used_else_where(self):
-        if hasattr('_is_used'):
+        if hasattr(self, '_is_used'):
             return self._is_used
         else:
             return False
@@ -452,7 +452,7 @@ class CentralDerivative(Function, BasicDiscretisation):
         else:
             return cls
 
-    def _discretise_derivative(cls, scheme, block):
+    def _discretise_derivative(cls, scheme, block, boundary=True):
         """This would return the descritised derivative of the
         local object depending on the order of accuracy specified
         Returns the formula for the derivative function, only first derivatives or homogeneous
@@ -481,15 +481,21 @@ class CentralDerivative(Function, BasicDiscretisation):
                 raise ValueError("Central derivative formula is zero for %s"%cls)
         else:
             raise ValueError("The provided derivative is not homogeneous, %s"%cls)
+        if boundary:
+            form = cls.modify_boundary_formula(form, block)
+        return form
+    
+    def modify_boundary_formula(cls, form, block):
         # Apply the boundary modifications
         modifications = block.check_modify_central()
+        dire = cls.get_direction[0]
         if dire in modifications:
             #print "YES", dire, cls
             boundary_mods = [k for k in modifications[dire] if k]
             expression_condition_pairs = []
             pprint(cls.args[0])
             for b in boundary_mods:
-                expression_condition_pairs += b.modification_scheme.expr_cond_pairs(cls.args[0], b.direction, b.side, order, block)
+                expression_condition_pairs += b.modification_scheme.expr_cond_pairs(cls.args[0], b.direction, b.side, cls.order, block)
             expression_condition_pairs += [ExprCondPair(form, True)]
             form  = Piecewise(*expression_condition_pairs, **{'evaluate':False})
         return form
