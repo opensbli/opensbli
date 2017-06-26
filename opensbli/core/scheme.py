@@ -526,7 +526,6 @@ class RA_optimisation(Central):
         work_arry_subs = {}
         if cds:
             for der in sorted(cds, cmp=decreasing_order):
-                pprint(der)
                 expr = der.copy()
                 inner_cds = []
                 #if CD.args[0].atoms(CentralDerivative):
@@ -548,6 +547,74 @@ class RA_optimisation(Central):
             return descritised_equations
         else:
             return None
+
+class SN_optimisation(Central):
+    """Optimisation this wil work as not classifying the derivatives into
+    convective and viscous terms
+    """
+    def __init__(self, order):
+        Central.__init__(self, order)
+        
+        return
+    
+    def discretise(self, type_of_eq, block):
+        equations =  flatten(type_of_eq.equations)
+        residual_arrays = [eq.residual for eq in equations]
+        equations = [e._sanitise_equation for e in equations]
+        rhs_eq = [e.rhs for e in equations]
+        #print "nhere"
+        self.required_constituent_relations = {}
+        equations = [Eq(x,y) for x,y in zip(residual_arrays, rhs_eq)]
+        discretised_eq = self.SN(equations, block)
+        if discretised_eq:
+            #print discretised_eq
+            #for ker in local_kernels:
+                #eval_ker = local_kernels[ker]
+                ##eval_ker.set_computation_name("%s "%(ker))
+                ##eval_ker.update_block_datasets(block)
+                #type_of_eq.Kernels += [eval_ker]
+
+            discretisation_kernel = Kernel(block, computation_name="%s evaluation"%type_of_eq.__class__.__name__)
+            discretisation_kernel.set_grid_range(block)
+            for eq in discretised_eq:
+                discretisation_kernel.add_equation(eq)
+            discretisation_kernel.update_block_datasets(block)
+            type_of_eq.Kernels +=  [discretisation_kernel]
+        return self.required_constituent_relations
+    def SN(self, equations, block):
+        cds = self.get_local_function(equations)
+        descritised_equations = equations[:]
+        #pprint(cds)
+        work_arry_subs = {}
+        local_eq = []
+        if cds:
+            gvs = [GridVariable("localeval_%d"%i) for i in range(len(cds))]
+            for der in sorted(cds, cmp=decreasing_order):
+                expr = der.copy()
+                inner_cds = []
+                #if CD.args[0].atoms(CentralDerivative):
+                pot = postorder_traversal(expr)
+                inner_cds = []
+                for p in pot:
+                    if isinstance(p, CentralDerivative):
+                        inner_cds += [p]
+                    else:
+                        continue
+                # Contains inner derivatives
+                if len(inner_cds)>1:
+                    for np,cd in enumerate(inner_cds[:-1]):
+                        expr = expr.subs(cd, cd._discretise_derivative(self, block))
+                expr_discretised = expr._discretise_derivative(self, block)
+                var = gvs.pop(0)
+                local_eq += [Eq(var, expr_discretised)]
+                for no, c in enumerate(descritised_equations):
+                    descritised_equations[no] = descritised_equations[no].subs(der, var)
+            # add the local equations to discretised 
+            return local_eq + descritised_equations
+        else:
+            return None
+
+
 
 from .opensbliobjects import ConstantIndexed, ConstantObject
 class TemproalSolution(object):
