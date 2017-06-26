@@ -8,7 +8,7 @@ from .opensbliequations import OpenSBLIExpression
 from .weno_opensbli import *
 from .kernel import *
 from .latex import *
-from opensbli.utilities.helperfunctions import increasing_order
+from opensbli.utilities.helperfunctions import increasing_order, decreasing_order
 class Scheme(object):
 
     """ A numerical discretisation scheme. """
@@ -525,8 +525,8 @@ class RA_optimisation(Central):
         #pprint(cds)
         work_arry_subs = {}
         if cds:
-            for der in sorted(cds, cmp=increasing_order):
-                #pprint(der)
+            for der in sorted(cds, cmp=decreasing_order):
+                pprint(der)
                 expr = der.copy()
                 inner_cds = []
                 #if CD.args[0].atoms(CentralDerivative):
@@ -539,16 +539,12 @@ class RA_optimisation(Central):
                         continue
                 # Contains inner derivatives
                 if len(inner_cds)>1:
-                    pprint(expr)
                     for np,cd in enumerate(inner_cds[:-1]):
-                        pprint(cd)
                         expr = expr.subs(cd, cd._discretise_derivative(self, block))
-                        pprint(expr)
                 expr_discretised = expr._discretise_derivative(self, block)
-                pprint(expr_discretised)
-                work_arry_subs[der] = expr_discretised
-            for no, c in enumerate(descritised_equations):
-                descritised_equations[no] = descritised_equations[no].subs(der, work_arry_subs)
+                
+                for no, c in enumerate(descritised_equations):
+                    descritised_equations[no] = descritised_equations[no].subs(der, expr_discretised)
             return descritised_equations
         else:
             return None
@@ -561,7 +557,6 @@ class TemproalSolution(object):
         self.kernels = []
         return
 class RungeKutta(Scheme):
-
     """ Runge-Kutta time-stepping scheme. """
 
     def __init__(cls, order, constant_dt=None):

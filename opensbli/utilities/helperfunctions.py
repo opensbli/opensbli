@@ -30,7 +30,7 @@ def dot(v1, v2):
         return v1*v2
 
 def decreasing_order(s1, s2):
-    return cmp(len(s2.args), len(s1.args))
+    return cmp(len(s2.atoms(CoordinateObject)), len(s1.atoms(CoordinateObject)))
 
 
 def increasing_order(s1, s2):
