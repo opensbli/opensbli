@@ -614,8 +614,145 @@ class SN_optimisation(Central):
         else:
             return None
 
+class SN_optimisation_level_2(Central):
+    """Optimisation this wil work as not classifying the derivatives into
+    convective and viscous terms
+    """
+    def __init__(self, order):
+        Central.__init__(self, order)
+        
+        return
+    
+    def discretise(self, type_of_eq, block):
+        equations =  flatten(type_of_eq.equations)
+        residual_arrays = [eq.residual for eq in equations]
+        equations = [e._sanitise_equation for e in equations]
+        # Group to convective and viscous terms
+        classify_parameter = ConstantObject("Re")
+        self.required_constituent_relations = {}
+        viscous, convective = self.classify_equations_on_parameter(equations, classify_parameter)
+        # First process the convective terms
+        equations = [Eq(x,x+y) for x,y in zip(residual_arrays, convective)]
+        discretised_eq = self.SN(equations, block)
+        if discretised_eq:
+            discretisation_kernel = Kernel(block, computation_name="%s Convective evaluation"%type_of_eq.__class__.__name__)
+            discretisation_kernel.set_grid_range(block)
+            for eq in discretised_eq:
+                discretisation_kernel.add_equation(eq)
+            discretisation_kernel.update_block_datasets(block)
+            type_of_eq.Kernels +=  [discretisation_kernel]
+        # The viscous terms
+        equations = [Eq(x,x+y) for x,y in zip(residual_arrays, viscous)]
+        discretised_eq = self.SN(equations, block)
+        if discretised_eq:
+            discretisation_kernel = Kernel(block, computation_name="%s Viscous evaluation"%type_of_eq.__class__.__name__)
+            discretisation_kernel.set_grid_range(block)
+            for eq in discretised_eq:
+                discretisation_kernel.add_equation(eq)
+            discretisation_kernel.update_block_datasets(block)
+            type_of_eq.Kernels +=  [discretisation_kernel]
+        return self.required_constituent_relations
+    def SN(self, equations, block):
+        cds = self.get_local_function(equations)
+        descritised_equations = equations[:]
+        #pprint(cds)
+        work_arry_subs = {}
+        local_eq = []
+        if cds:
+            gvs = [GridVariable("localeval_%d"%i) for i in range(len(cds))]
+            for der in sorted(cds, cmp=decreasing_order):
+                expr = der.copy()
+                inner_cds = []
+                #if CD.args[0].atoms(CentralDerivative):
+                pot = postorder_traversal(expr)
+                inner_cds = []
+                for p in pot:
+                    if isinstance(p, CentralDerivative):
+                        inner_cds += [p]
+                    else:
+                        continue
+                # Contains inner derivatives
+                if len(inner_cds)>1:
+                    for np,cd in enumerate(inner_cds[:-1]):
+                        expr = expr.subs(cd, cd._discretise_derivative(self, block))
+                expr_discretised = expr._discretise_derivative(self, block)
+                var = gvs.pop(0)
+                local_eq += [Eq(var, expr_discretised)]
+                for no, c in enumerate(descritised_equations):
+                    descritised_equations[no] = descritised_equations[no].subs(der, var)
+            # add the local equations to discretised 
+            return local_eq + descritised_equations
+        else:
+            return None
 
 
+class RA_optimisation_level_2(Central):
+    """Optimisation this wil work as not classifying the derivatives into
+    convective and viscous terms
+    """
+    def __init__(self, order):
+        Central.__init__(self, order)
+        
+        return
+    
+    def discretise(self, type_of_eq, block):
+        equations =  flatten(type_of_eq.equations)
+        residual_arrays = [eq.residual for eq in equations]
+        equations = [e._sanitise_equation for e in equations]
+        classify_parameter = ConstantObject("Re")
+        self.required_constituent_relations = {}
+        viscous, convective = self.classify_equations_on_parameter(equations, classify_parameter)
+        # First process the convective terms
+        equations = [Eq(x,x+y) for x,y in zip(residual_arrays, convective)]
+        discretised_eq = self.RA(equations, block)
+        if discretised_eq:
+            discretisation_kernel = Kernel(block, computation_name="%s Convective evaluation"%type_of_eq.__class__.__name__)
+            discretisation_kernel.set_grid_range(block)
+            for eq in discretised_eq:
+                discretisation_kernel.add_equation(eq)
+            discretisation_kernel.update_block_datasets(block)
+            type_of_eq.Kernels +=  [discretisation_kernel]
+        # The viscous terms
+        equations = [Eq(x,x+y) for x,y in zip(residual_arrays, viscous)]
+        discretised_eq = self.RA(equations, block)
+        if discretised_eq:
+            discretisation_kernel = Kernel(block, computation_name="%s Viscous evaluation"%type_of_eq.__class__.__name__)
+            discretisation_kernel.set_grid_range(block)
+            for eq in discretised_eq:
+                discretisation_kernel.add_equation(eq)
+            discretisation_kernel.update_block_datasets(block)
+            type_of_eq.Kernels +=  [discretisation_kernel]
+        return self.required_constituent_relations
+    
+    def RA(self, equations, block):
+        cds = self.get_local_function(equations)
+        descritised_equations = equations[:]
+        #pprint(cds)
+        work_arry_subs = {}
+        if cds:
+            for der in sorted(cds, cmp=decreasing_order):
+                expr = der.copy()
+                inner_cds = []
+                #if CD.args[0].atoms(CentralDerivative):
+                pot = postorder_traversal(expr)
+                inner_cds = []
+                for p in pot:
+                    if isinstance(p, CentralDerivative):
+                        inner_cds += [p]
+                    else:
+                        continue
+                # Contains inner derivatives
+                if len(inner_cds)>1:
+                    for np,cd in enumerate(inner_cds[:-1]):
+                        expr = expr.subs(cd, cd._discretise_derivative(self, block))
+                expr_discretised = expr._discretise_derivative(self, block)
+                
+                for no, c in enumerate(descritised_equations):
+                    descritised_equations[no] = descritised_equations[no].subs(der, expr_discretised)
+            return descritised_equations
+        else:
+            return None
+        
 from .opensbliobjects import ConstantIndexed, ConstantObject
 class TemproalSolution(object):
     def __init__(self):
