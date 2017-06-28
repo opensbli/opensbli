@@ -25,6 +25,8 @@ from opensbli.core.kernel import Kernel, ConstantsToDeclare as CTD
 from opensbli.core.algorithm import Loop
 from opensbli.core.opensbliobjects import *
 from opensbli.core.datatypes import *
+from sympy.printing.precedence import precedence
+from sympy.core.function import _coeff_isneg
 import os
 import logging
 LOG = logging.getLogger(__name__)
@@ -170,6 +172,25 @@ class OPSCCodePrinter(CCodePrinter):
         return out
 
 from opensbli.core.grid import GridVariable
+from sympy import Pow
+
+def pow_to_constant(expr):
+    from sympy.core.function import _coeff_isneg
+    # Only negative powers i.e they correspond to division and they are stored into constant arrays
+    inverse_terms = {}
+    # change the name of Rational counter to rcinv
+    orig_name = rc.name
+    rc.name = 'rcinv%d'
+    for at in expr.atoms(Pow):
+        if _coeff_isneg(at.exp) and not at.base.atoms(Indexed) and not at.base.atoms(GridVariable):
+            if at in rc.existing:
+                inverse_terms[at] = rc.existing[at]
+            else:
+                inverse_terms[at] = rc.get_next_rational_constant(at)
+    expr = expr.subs(inverse_terms)
+    rc.name = orig_name # change it back to the original name of Rational counter
+    return expr
+
 def ccode(expr, settings = {}):
     """ Create an OPSC code printer object and write out the expression as an OPSC code string.
 
@@ -180,6 +201,10 @@ def ccode(expr, settings = {}):
     :rtype: str
     """
     if isinstance(expr, Eq):
+        if 'rational' in settings.keys():
+            pass
+        else:
+            expr = pow_to_constant(expr)
         code_print = OPSCCodePrinter(settings)
         code = code_print.doprint(expr.lhs) \
             + ' = ' + OPSCCodePrinter(settings).doprint(expr.rhs)
@@ -413,8 +438,8 @@ class OPSC(object):
         #pprint(flatten(s.stencil))
 
         out += [WriteString('ops_stencil %s = ops_decl_stencil(%d,%d,%s,\"%s\");'%(s.name, s.ndim, len(s.stencil), name, name))]
-        pprint(out)
-        print "\n"
+        #pprint(out)
+        #print "\n"
 
         return out
     def ops_partition(self):
