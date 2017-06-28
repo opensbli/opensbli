@@ -115,10 +115,10 @@ class OPSCCodePrinter(CCodePrinter):
         args_code = [self._print(a) for a in expr.args]
         if nargs == 2:
             args_code = ', '.join(args_code)
-            return "MAX(%s)"%(args_code)
+            return "MAX(%s)" %(args_code)
         # Need to come up with a better IDEA For this FIXME
         elif nargs == 3:
-            a = args_code[0]; c = args_code[2];
+            a = args_code[0]; c = args_code[2]
             b = args_code[1];
             return "MAX(MAX(%s,%s), MAX(%s,%s))"%(a,b,b,c)
         elif nargs == 4:
