@@ -1,6 +1,7 @@
 
 from .opensblifunctions import CentralDerivative
 from .kernel import *
+#from .latex import *
 from opensbli.core.scheme import Central
 from opensbli.utilities.helperfunctions import increasing_order, decreasing_order
 class Store_some_optimisation(Central):
@@ -153,6 +154,7 @@ class RA_optimisation(Central):
         work_arry_subs = {}
         if cds:
             for der in sorted(cds, cmp=decreasing_order):
+                self.update_range_of_constituent_relations(der, block)
                 expr = der.copy()
                 inner_cds = []
                 #if CD.args[0].atoms(CentralDerivative):
@@ -212,6 +214,7 @@ class SN_optimisation(Central):
         if cds:
             gvs = [GridVariable("localeval_%d"%i) for i in range(len(cds))]
             for der in sorted(cds, cmp=decreasing_order):
+                self.update_range_of_constituent_relations(der, block)
                 expr = der.copy()
                 inner_cds = []
                 #if CD.args[0].atoms(CentralDerivative):
@@ -257,6 +260,10 @@ class SN_optimisation_level_2(Central):
         viscous, convective = self.classify_equations_on_parameter(equations, classify_parameter)
         # First process the convective terms
         equations = [Eq(x,x+y) for x,y in zip(residual_arrays, convective)]
+        self.latex = LatexWriter()
+        self.latex.open('./discretise.tex')
+        metadata = {"title": "Discretise", "author": "Jammy", "institution": ""}
+        self.latex.write_header(metadata)
         discretised_eq = self.SN(equations, block)
         if discretised_eq:
             discretisation_kernel = Kernel(block, computation_name="%s Convective evaluation"%type_of_eq.__class__.__name__)
@@ -275,6 +282,9 @@ class SN_optimisation_level_2(Central):
                 discretisation_kernel.add_equation(eq)
             discretisation_kernel.update_block_datasets(block)
             type_of_eq.Kernels +=  [discretisation_kernel]
+        self.latex.write_footer()
+        self.latex.close()
+
         return self.required_constituent_relations
     def SN(self, equations, block):
         cds = self.get_local_function(equations)
@@ -283,8 +293,9 @@ class SN_optimisation_level_2(Central):
         work_arry_subs = {}
         local_eq = []
         if cds:
-            gvs = [GridVariable("localeval_%d"%i) for i in range(len(cds))]
+            gvs = [GridVariable("leval_%d"%i) for i in range(len(cds))]
             for der in sorted(cds, cmp=decreasing_order):
+                self.update_range_of_constituent_relations(der, block)
                 expr = der.copy()
                 inner_cds = []
                 #if CD.args[0].atoms(CentralDerivative):
@@ -301,6 +312,7 @@ class SN_optimisation_level_2(Central):
                         expr = expr.subs(cd, cd._discretise_derivative(self, block))
                 expr_discretised = expr._discretise_derivative(self, block)
                 var = gvs.pop(0)
+                self.latex.write_expression(Eq(der, Eq(var, expr_discretised)))
                 local_eq += [Eq(var, expr_discretised)]
                 for no, c in enumerate(descritised_equations):
                     descritised_equations[no] = descritised_equations[no].subs(der, var)
@@ -356,6 +368,7 @@ class RA_optimisation_level_2(Central):
         work_arry_subs = {}
         if cds:
             for der in sorted(cds, cmp=decreasing_order):
+                self.update_range_of_constituent_relations(der, block)
                 expr = der.copy()
                 inner_cds = []
                 #if CD.args[0].atoms(CentralDerivative):
