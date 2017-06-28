@@ -477,6 +477,7 @@ class CentralDerivative(Function, BasicDiscretisation):
                     val = req.base[loc]
                     expr = expr.replace(req, val)
                 form = form + weights[no]*expr
+            form = form/block.deltas[dire]
             if form == 0:
                 raise ValueError("Central derivative formula is zero for %s"%cls)
         else:

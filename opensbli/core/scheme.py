@@ -73,7 +73,7 @@ class Central(Scheme):
         """ Descritises only the homogeneous derivatives of any order or
         first derivatives"""
         #print(self.points, direction, type(direction))
-        self.diffpoints = [i*block.deltas[direction] for i in self.points]
+        self.diffpoints = [i for i in self.points]
         weights = finite_diff_weights(order, self.diffpoints, 0)
         return weights[order][-1]
 
