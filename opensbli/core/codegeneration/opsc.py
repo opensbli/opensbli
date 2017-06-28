@@ -30,11 +30,11 @@ import logging
 LOG = logging.getLogger(__name__)
 BUILD_DIR = os.getcwd()
 
+
 def get_min_max_halo_values(halos):
     halo_m = []
     halo_p = []
     for direction in range(len(halos)):
-        max_halo_direction = []
         if halos[direction][0]:
             hal = [d.get_halos(0) for d in halos[direction][0]]
             halo_m += [min(hal)]
@@ -47,31 +47,37 @@ def get_min_max_halo_values(halos):
             halo_p += [0]
     return halo_m, halo_p
 
+
 class RationalCounter():
+
     # Counter for the kernels
     def __init__(self):
         self.name = 'rc%d'
         self.rational_counter = 0
         self.existing = {}
+
     @property
     def increase_rational_counter(self):
-        self.rational_counter = self.rational_counter +1
+        self.rational_counter = self.rational_counter + 1
         return
+
     def get_next_rational_constant(self, numerical_value):
         name = self.name % self.rational_counter
         self.increase_rational_counter
         ret = ConstantObject(name)
         self.existing[numerical_value] = ret
-        CTD.add_constant(ret, value = numerical_value)
+        CTD.add_constant(ret, value=numerical_value)
         return ret
+
+
 rc = RationalCounter()
-#rational_to_declare = []
+
 
 class OPSCCodePrinter(CCodePrinter):
 
     """ Prints OPSC code. """
     dataset_accs_dictionary = {}
-    settings_opsc = {'rational':False}
+    settings_opsc = {'rational': False}
 
     def __init__(self, settings={}):
         """ Initialise the code printer. """
@@ -79,7 +85,7 @@ class OPSCCodePrinter(CCodePrinter):
             self.settings_opsc = settings
         else:
             self.settings_opsc['rational'] = False
-        CCodePrinter.__init__(self, settings ={})
+        CCodePrinter.__init__(self, settings={})
 
     def _print_ReductionVariable(self, expr):
         return '*%s' % str(expr)
@@ -94,7 +100,6 @@ class OPSCCodePrinter(CCodePrinter):
             else:
                 return self._print(rc.get_next_rational_constant(expr))
 
-
     def _print_Mod(self, expr):
         args = map(ccode, expr.args)
         args = [x for x in args]
@@ -105,7 +110,7 @@ class OPSCCodePrinter(CCodePrinter):
     def _print_GridVariable(self, expr):
         return str(expr)
 
-    def _print_Max(self,expr):
+    def _print_Max(self, expr):
         nargs = len(expr.args)
         args_code = [self._print(a) for a in expr.args]
         if nargs == 2:
