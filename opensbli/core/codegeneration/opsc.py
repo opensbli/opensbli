@@ -206,6 +206,19 @@ class OPSAccess(object):
         self.name = "OPS_ACC%d"%no
         return
 
+
+def indent_code(code_lines):
+    """ Indent the code.
+
+    :arg code_lines: The string or list of strings of lines of code to indent.
+    :returns: A list of the indented line(s) of code.
+    :rtype: list
+    """
+
+    p = CCodePrinter()
+    return p.indent_code(code_lines)
+
+
 class OPSC(object):
 
     ops_headers = {'input': "const %s *%s",  'output': '%s *%s', 'inout': '%s *%s'}
@@ -223,9 +236,47 @@ class OPSC(object):
             code = self.before_main(algorithm) + code
             self.name = 'taylor_green_vortex'
             f = open('opensbli.cpp' , 'w')
+            #code = indent_code(code)
             f.write('\n'.join(code))
             f.close()
         return
+    
+    def wrap_long_lines(self, code_lines):
+        """ """
+        limit=120
+        space=' ';
+        formatted_code = []
+        for code in code_lines:
+            if len(code) > limit:
+                # count the leading spaces so that we can use it at the end
+                Leading_spaces = len(code) - len(code.lstrip())
+                codelstrip = code.lstrip(); length_ofstring = Leading_spaces
+                split_lines = []
+                # start the string with the leading spaces
+                string = Leading_spaces*space
+                for s in codelstrip.split(" "):
+                    length_ofstring = len(string) + len(s)
+                    if length_ofstring >= limit:
+                        split_lines += [string]
+                        # Increase the indentation by 4 spaces
+                        string = (Leading_spaces + Leading_spaces)*space + s
+                    else:
+                        string = string + " " + s
+                formatted_code += split_lines + [string]
+                # Check the correctness of the code
+                s1 = ''.join(split_lines + [string])
+                s1 = "".join(s1.split())
+                s2 = "".join(code.split())
+                if s1 == s2:
+                    pass
+                else:
+                    print(code)
+                    print('\n'.join(split_lines + [string]))
+                    raise ValueError("The code and the formatted line are not same")
+            else:
+                formatted_code += [code]
+
+        return formatted_code
 
     def kernel_header(self, tuple_list):
         code = []
@@ -257,7 +308,7 @@ class OPSC(object):
         #all_dataset_inps = [str(i) for i in all_dataset_inps]
         ops_accs = [OPSAccess(no) for no in range(len(all_dataset_inps))]
         OPSCCodePrinter.dataset_accs_dictionary = dict(zip(all_dataset_inps, ops_accs))
-        out += [ccode(eq)+ ';'  for eq in kernel.equations if isinstance(eq, Equality)] + ['}']
+        out += [ccode(eq)+ ';\n'  for eq in kernel.equations if isinstance(eq, Equality)] + ['}']
         OPSCCodePrinter.dataset_accs_dictionary = {}
         return out
     def write_kernels(self, algorithm):
@@ -269,6 +320,8 @@ class OPSC(object):
             f.write('#define %s\n'%name)
         for k in kernels:
             out = self.kernel_computation_opsc(k) + ['\n']
+            out = indent_code(out)
+            out = self.wrap_long_lines(out)
             files[k.block_number].write('\n'.join(out))
         for f in files:
             f.write("#endif\n")
