@@ -270,7 +270,7 @@ class Kernel(object):
     @property
     def grid_indices_used(self):
         for eq in self.equations:
-            if eq.atoms(GridIndexedBase):
+            if eq.atoms(Grididx):
                 return True
         return False
 

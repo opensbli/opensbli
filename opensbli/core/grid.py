@@ -18,7 +18,7 @@
 #    along with OpenSBLI.  If not, see <http://www.gnu.org/licenses/>
 
 from sympy.tensor import IndexedBase, Idx
-from .opensbliobjects import DataSetBase, GridIndexedBase, ConstantObject
+from .opensbliobjects import DataSetBase, Grididx, ConstantObject
 
 from sympy.core import Symbol,S, symbols
 from .datatypes import *
@@ -134,7 +134,7 @@ class Grid(WorkDataSet):
 
     """ The numerical grid for a block and contains grid parameters. This is autmatically instantiated from
         SimulationBlock
-        
+
         `todo` Unit tests written will be copied at their respective locations TODO
     """
 
@@ -151,37 +151,37 @@ class Grid(WorkDataSet):
         """Symbolic number of points
 
         :returns: Symbolic points of the instantiated grid
-        :rtype: ConstantObject 
-        
+        :rtype: ConstantObject
+
         """
         self.Idxed_shape = [Idx(Symbol('i%d'%dim, integer = True),(0, self.shape[dim])) for dim in range(self.ndim)]
         """
         :returns: Symbolic points of the instantiated grid
-        :rtype: Idx 
-        
+        :rtype: Idx
+
         Usage:
         """
         self.ranges = [[s.lower, s.upper] for s in self.Idxed_shape]
         """ For easier access ranges are created
-        
+
         :returns: Lower and upper bounds of the range as list of lists
-        :rtype: list of lists 
-        
+        :rtype: list of lists
+
         Usage:
-        
+
         >>>
         >>>
         """
         self.deltas = [ConstantObject("Delta%dblock%d"%(dire,self.blocknumber)) for dire in range(self.ndim)]
         """
         :returns: Grid spacing in all the dimensions
-        :rtype: list of ConstantObject 
-        
+        :rtype: list of ConstantObject
+
         Usage:
-        
+
         >>>
         >>>
-        
+
         """
         # Add the constants to ConstantsToDeclare
         from .kernel import ConstantsToDeclare as CTD
@@ -189,17 +189,18 @@ class Grid(WorkDataSet):
             CTD.add_constant(d)
         for s in self.shape:
             CTD.add_constant(s, dtype = Int())
-        g = GridIndexedBase('idx', self)
-        self.grid_indexes = [g[i] for i in range(self.ndim)]
+        #GridIndexedBase.block = self
+        #g = Grididx('idx_B0')
+        self.grid_indexes = [Grididx("idx", i) for i in range(self.ndim)]
         """ Name for the grid index loop in each dimension (instead if i,j,k we use idx[0:ndim])
-        
+
         :returns: Name of loop for each dimension in grid
-        :rtype: GridIndexed 
-        
+        :rtype: GridIndexed
+
         Example for using various attributes in grid:
-        
+
         >>> from opensbli.core.block import SimulationBlock
-        >>> b = SimulationBlock(2, block_number=1) 
+        >>> b = SimulationBlock(2, block_number=1)
         >>> b.shape
         [block1np0, block1np1]
         >>> b.Idxed_shape
@@ -210,7 +211,7 @@ class Grid(WorkDataSet):
         [Delta0block1, Delta1block1]
         >>> b.grid_indexes
         [idx_B1[0], idx_B1[1]]
-        
+
         """
         self.define_control_parameters()
         return

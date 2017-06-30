@@ -430,6 +430,7 @@ e. update the work arrays
 f. Create computations
 g. Update the original equations
 """
+from opensbli.utilities.helperfunctions import get_inverse_deltas
 class CentralDerivative(Function, BasicDiscretisation):
     """
     wrapper class to represent derivatives
@@ -465,7 +466,6 @@ class CentralDerivative(Function, BasicDiscretisation):
         order = cls.order
         form = 0
         # Put the coefficients of first and second derivatives in a dictionary and use them
-
         if cls.is_homogeneous:
             dire = cls.get_direction[0]
             weights = scheme._generate_weights(dire, order, block)
@@ -477,15 +477,18 @@ class CentralDerivative(Function, BasicDiscretisation):
                     val = req.base[loc]
                     expr = expr.replace(req, val)
                 form = form + weights[no]*expr
-            form = form/(block.deltas[dire]**order)
             if form == 0:
                 raise ValueError("Central derivative formula is zero for %s"%cls)
         else:
             raise ValueError("The provided derivative is not homogeneous, %s"%cls)
         if boundary:
             form = cls.modify_boundary_formula(form, block)
+
+        delta = S.One/block.deltas[dire]**order
+        inv_delta = get_inverse_deltas(delta)
+        form = form*(inv_delta)
         return form
-    
+
     def modify_boundary_formula(cls, form, block):
         # Apply the boundary modifications
         modifications = block.check_modify_central()
@@ -501,7 +504,7 @@ class CentralDerivative(Function, BasicDiscretisation):
             form  = Piecewise(*expression_condition_pairs, **{'evaluate':False})
         return form
     def apply_boundary_derivative_modification(cls, block, scheme, work):
-        """Apply the boundary modifications this returns a list of kernels if modification 
+        """Apply the boundary modifications this returns a list of kernels if modification
         is required else returns an empty list
         WARNING This is not working but keeping it while reverting back
         """
@@ -519,7 +522,7 @@ class CentralDerivative(Function, BasicDiscretisation):
                 ker.add_equation(expr)
                 ker.set_computation_name("Carpenter scheme %s "%(str(cls)))
                 ker.set_grid_range(block)
-                # modify the range to the number of points 
+                # modify the range to the number of points
                 expression_condition_pairs, ranges = b.modification_scheme.expr_cond_pairs(cls.args[0], b.direction, b.side, order, block)
                 ker.ranges[dire] = [ranges[0], ranges[-1]+1]
                 #expression_condition_pairs += b.modification_scheme.expr_cond_pairs(cls.args[0], b.direction, b.side, order, block)

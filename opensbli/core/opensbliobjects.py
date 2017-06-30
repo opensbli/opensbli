@@ -218,7 +218,7 @@ class DataObject(EinsteinTerm):
 
     """
     is_commutative = True
-    is_Atom = True
+    #is_Atom = True
     def __new__(cls, label, **kw_args):
         ret = super(DataObject, cls).__new__(cls, label, **kw_args)
         #ret.location = [0]*cls.ndim
@@ -248,14 +248,20 @@ class DataSetBase(IndexedBase):
 
     """
     is_commutative = True
+    is_Symbol = True
+    is_symbol = True
     is_Atom = True
     block = None
     @cacheit # we cache it so that the changes to a particular dataset base are global and not local
-    def __new__(cls, label, **kw_args):
+    def __new__(cls, label, shape =None, **kw_args):
         if not cls.block:
             raise ValueError("Set the block for DataSetBase")
         sym = label
-        shape = list(cls.block.shape) + [Idx(cls.block.blockname)]
+        if shape is None:
+            #print cls.block, "yes"
+            shape = list(cls.block.shape) + [Idx(cls.block.blockname)]
+        else:
+            shape = shape
         ret = super(DataSetBase, cls).__new__(cls, sym, shape, **kw_args)
         ret.noblockname = Symbol(str(label))
         ret.blockname = cls.block.blockname
@@ -330,46 +336,68 @@ class DataSet(Indexed):
         """
         return [i for i in self.indices if not isinstance(i, Idx)]
 
+
 class GridIndex(Indexed):
     """ An Indexed object to get the local grid point
     """
     is_commutative = True
     is_Indexed = True
     is_Symbol = True
+    is_symbol = True
     is_Atom = True
     def __new__(cls, base, *indices, **kwargs):
         if not isinstance(base, GridIndexedBase):
             raise ValueError("GridIndex base should be GridIndexedBase object")
         ret = Indexed.__new__(cls, base, *indices)
         return ret
-    def free_symbols(self):
-        return self
+    #def free_symbols(self):
+        #return self
 
 class GridIndexedBase(IndexedBase):
-    """ Base object to locate the global index of the grid point
+    """ Base object to locate the global index of the grid point NOT USED ANY MORE WARNING
     """
     is_commutative = True
     is_Symbol = True
+    is_symbol = True
     is_Atom = True
-    def __new__(cls, label, block, **kw_args):
+    def __new__(cls, label, ndim, **kw_args):
         sym = label
-        shape = list(block.shape)
-        ret = super(GridIndexedBase, cls).__new__(cls, sym, [block.ndim], **kw_args) # Shape would be of size ndim
-        ret.blockname = block.blockname
-        ret.blocknumber = block.blocknumber
+        pprint(sym); print type(sym)
+        ret = super(GridIndexedBase, cls).__new__(cls, sym, (1), **kw_args) # Shape would be of size ndim
+        pprint(ret.shape)
         return ret
     def __hash__(self):
         h = hash(self._hashable_content())
         self._mhash = h
         return h
     def _hashable_content(self):
-        return str(self.label) + self.blockname
+        return str(self.label)
     def __getitem__(cls, indices, **kw_args):
         if isinstance(indices, int):
             indices = [indices]
-        if len(indices) != len(cls.shape):
+        if len(indices) != cls.shape:
             raise IndexException("Rank mismatch.")
         return GridIndex(cls, *indices)
     def _sympystr(self, p):
         """ For clarity the block number is printed"""
-        return "%s_B%s"%(str(self.label), str(self.blocknumber))
+        return "%s"%(str(self.label))
+
+
+class Grididx(Symbol):
+    """ A coordinate object which can have Einstein indices to be expanded, this is used to
+    differentiate between different Einstein terms, while performing differentiation.
+
+    **Used during parsing, Einstein expansion processes and during discretisation**
+
+    :param str label: name of the coordinate object to be defined
+    :returns: declared coordinate
+    :rtype: CoordinateObject
+    """
+    def __new__(self, label, number, **assumptions):
+        self._sanitize(assumptions, self)  # Remove any 'None's, etc.
+        self.name = str(label) + str(number)
+        # Make this into a new SymPy Symbol object.
+        self = Symbol.__xnew__(self, self.name, **assumptions)
+        self.number = number
+        self.base = label
+        return self

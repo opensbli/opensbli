@@ -171,6 +171,10 @@ class OPSCCodePrinter(CCodePrinter):
         out = "%s[%s]" % (self._print(expr.base.label), ','.join([self._print(index) for index in indices]))
         return out
 
+    def _print_Grididx(self, expr):
+        out = "%s[%s]" % (self._print(expr.base), ','.join([self._print(expr.number)]))
+        return out
+
 from opensbli.core.grid import GridVariable
 from sympy import Pow, Piecewise
 
