@@ -45,3 +45,15 @@ def sort_funcitons(fns, increasing_order=True):
         return (sorted(fns, cmp=increasing_order))
     else:
         return (sorted(fns, cmp=decreasing_order))
+
+def get_inverse_deltas(delta):
+    from  opensbli.core.codegeneration.opsc import rc
+    if delta in rc.existing:
+        return rc.existing[delta]
+    else:
+        name = rc.name
+        b, exp = delta.as_base_exp()
+        rc.name = "inv_%d"
+        inv_delta_name = rc.get_next_rational_constant(delta)
+        rc.name = name
+        return inv_delta_name

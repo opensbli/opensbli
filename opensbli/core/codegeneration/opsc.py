@@ -172,7 +172,7 @@ class OPSCCodePrinter(CCodePrinter):
         return out
 
 from opensbli.core.grid import GridVariable
-from sympy import Pow
+from sympy import Pow, Piecewise
 
 def pow_to_constant(expr):
     from sympy.core.function import _coeff_isneg
@@ -181,8 +181,9 @@ def pow_to_constant(expr):
     # change the name of Rational counter to rcinv
     orig_name = rc.name
     rc.name = 'rcinv%d'
+
     for at in expr.atoms(Pow):
-        if _coeff_isneg(at.exp) and not at.base.atoms(Indexed) and not at.base.atoms(GridVariable):
+        if _coeff_isneg(at.exp) and isinstance(at.base, ConstantObject):
             if at in rc.existing:
                 inverse_terms[at] = rc.existing[at]
             else:
@@ -270,7 +271,7 @@ class OPSC(object):
             f.write('\n'.join(code))
             f.close()
         return
-    
+
     def wrap_long_lines(self, code_lines):
         """ """
         limit=120

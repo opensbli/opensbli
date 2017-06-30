@@ -1,6 +1,6 @@
 from opensbli.core.parsing import Equation
 from opensbli.core.latex import *
-from opensbli.core.opensbliequations import NonSimulationEquations,Discretisation, Solution
+from opensbli.core.opensbliequations import NonSimulationEquations,Discretisation, Solution, OpenSBLIEquation
 from opensbli.core.opensblifunctions import CentralDerivative
 from opensbli.initialisation.common import *
 from sympy.tensor.array import MutableDenseNDimArray
@@ -158,6 +158,7 @@ class MetricsEquation(NonSimulationEquations,Discretisation, Solution):
         # WARNING check this expression
         return expr
 
+
     def generate_fd_metrics_equations(cls, Cartesian_curvilinear_derivatives):
         adjointJ = Cartesian_curvilinear_derivatives.adjugate(); detJ = Cartesian_curvilinear_derivatives.det()
         evaluation = adjointJ/detJ
@@ -166,6 +167,7 @@ class MetricsEquation(NonSimulationEquations,Discretisation, Solution):
         eqns = [Eq(cls.detJ, detJ)]
         eqns += [Eq(x,y) for (x,y) in zip(cls.FD_metrics, evaluation)]
         eqns = [e for e in eqns if isinstance(e, Equality)]
+        eqns = [OpenSBLIEquation(eq.lhs, eq.rhs) for eq in eqns]
         cls.fdequations = eqns
         return eqns
 
@@ -236,6 +238,7 @@ class MetricsEquation(NonSimulationEquations,Discretisation, Solution):
     def generate_sd_metrics_equations(cls):
         eqns = [Eq(x,y) for x,y in zip(cls.SD_metrics, cls.SD_evaluations)]
         eqns = [e for e in eqns if isinstance(e, Equality)]
+        eqns = [OpenSBLIEquation(eq.lhs, eq.rhs) for eq in eqns]
         cls.sdequations = eqns
         return
 
@@ -263,6 +266,12 @@ class MetricsEquation(NonSimulationEquations,Discretisation, Solution):
             raise NotImplementedError("Not implemented other transformation of Metric ders")
         return equation
 
+
+    def create_residual_arrays(cls):
+        for eq in flatten(cls.equations):
+            eq.residual = eq.lhs
+        return
+
     def spatial_discretisation(cls, schemes, block):
         (Solution,cls).__init__(cls)
         if any(cls.curvilinear_metric):
@@ -278,10 +287,12 @@ class MetricsEquation(NonSimulationEquations,Discretisation, Solution):
         for no,sc in enumerate(spatialschemes):
             # TODO discretise the First derivatives and then apply BC's then discretise Second derivatives
             cls.equations  = block.dataobjects_to_datasets_on_block(cls.fdequations) # First derivatives
+            cls.create_residual_arrays()
             schemes[sc].required_constituent_relations = {}
             a = schemes[sc].discretise(cls, block)
             pprint(cls.sdequations)
             cls.equations  = block.dataobjects_to_datasets_on_block(cls.sdequations) # Second derivatives
+            cls.create_residual_arrays()
             schemes[sc].required_constituent_relations = {}
             b = schemes[sc].discretise(cls, block)
             schemes[sc].required_constituent_relations = {}
@@ -300,6 +311,7 @@ class MetricsEquation(NonSimulationEquations,Discretisation, Solution):
             #print k.computation_name, k.halo_ranges, k.ranges
         #exit()
         return
+
 
     def apply_boundary_conditions(cls, block):
         """No global boundary conditions for the metric terms"""
