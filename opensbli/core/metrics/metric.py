@@ -19,6 +19,7 @@ class MetricsEquation(NonSimulationEquations,Discretisation, Solution):
         ret.equations = []
         ret.kwargs = {'strong_differentiability':True}
         ret.algorithm_place = [BeforeSimulationStarts()]
+        ret.order = 1
         return ret
     def __hash__(self):
         h = hash(self._hashable_content())
@@ -29,6 +30,8 @@ class MetricsEquation(NonSimulationEquations,Discretisation, Solution):
 
     def genreate_transformations(cls, ndim, coordinate_symbol, parameters, max_order):
         cls.ndim = ndim
+        if len(flatten(parameters)) != ndim*2:
+            raise ValueError("The parameters for stretching provided should match the number of dimensions")
         cls.transformation_eq = [0 for i in range(max_order)]
         cls.stretching_metric = [param[0] for param in parameters] # Get whether true or false for streching
         cls.curvilinear_metric = [param[1] for param in parameters] # Get T/F for curvilinear
