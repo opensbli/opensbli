@@ -352,6 +352,9 @@ class TraditionalAlgorithmRK(object):
             defdecs.add_components(b.block_datasets.values())
             defdecs.add_components(b.block_stencils.values())
         return defdecs
+    
+    def comapre_no_sims(self, s1, s2):
+        return cmp(s1.order, s2.order)
 
     def spatial_solution(self, blocks):
         """ Add the spatial kernels to the temporal solution i.e temporalscheme.solution
@@ -375,6 +378,7 @@ class TraditionalAlgorithmRK(object):
             before_time = []
             after_time = []
             in_time = []
+            non_simulation_eqs = []
             for scheme in b.get_temporal_schemes:
                 for key, value in scheme.solution.iteritems():
                     if isinstance(key, SimulationEquations):
@@ -385,15 +389,27 @@ class TraditionalAlgorithmRK(object):
                         bc_kernels = key.boundary_kernels
                         spatial_kernels = key.all_spatial_kernels
                     elif isinstance(key, NonSimulationEquations): # Add all other types of equations
-                        for place in key.algorithm_place:
-                            if isinstance(place, BeforeSimulationStarts):
-                                before_time += key.Kernels
-                            elif isinstance(place, AfterSimulationEnds):
-                                after_time += key.Kernels
-                            else:
-                                raise NotImplementedError("In Nonsimulation equations")
+                        non_simulation_eqs += [key]
+                        #for place in key.algorithm_place:
+                            #if isinstance(place, BeforeSimulationStarts):
+                                #before_time += key.Kernels
+                            #elif isinstance(place, AfterSimulationEnds):
+                                #after_time += key.Kernels
+                            #else:
+                                #raise NotImplementedError("In Nonsimulation equations")
                     else:
                         print "NOT classified", type(key)
+            pprint(non_simulation_eqs)
+            pprint(sorted(non_simulation_eqs, cmp=self.comapre_no_sims))
+            for key in sorted(non_simulation_eqs, cmp=self.comapre_no_sims):
+                for place in key.algorithm_place:
+                    if isinstance(place, BeforeSimulationStarts):
+                        before_time += key.Kernels
+                    elif isinstance(place, AfterSimulationEnds):
+                        after_time += key.Kernels
+                    else:
+                        raise NotImplementedError("In Nonsimulation equations")
+            
             sc = b.get_temporal_schemes[0]
             innerloop = sc.generate_inner_loop(spatial_kernels + inner_temporal_advance_kernels + bc_kernels)
             # Add BC kernels to temporal start
