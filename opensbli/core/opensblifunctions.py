@@ -15,6 +15,7 @@ from .opensbliobjects import *
 from sympy.functions.elementary.piecewise import ExprCondPair
 # from .bcs import apply_modify_derivative
 from numpy import ndindex as mutidimindex
+from sympy.functions.special.tensor_functions import eval_levicivita
 
 #ndim = 2 # Testing change this
 def summation_apply(final_expr, sumindices):
@@ -80,18 +81,15 @@ class KD(Function):
         indexed.expression = self
         indexed.is_commutative = False
         return indexed
-    @property
+    
     def value(self):
         if len(self.args) != 2:
             raise ValueError("Expected only two arguments in KD.")
         if Symbol(str(self.args[0])) == Symbol(str(self.args[1])):
-            return 1
+            return S.One
         else:
-            return 0
-        # for arg in self.args:
-        # pprint(KroneckerDelta(*self.args))
-        return KroneckerDelta(*self.args)
-
+            return S.Zero
+        
 
 class LC(Function):
     """ Handler for the built-in SymPy LeviCivita function. """
@@ -109,10 +107,16 @@ class LC(Function):
         indexed.expression = self
         indexed.is_commutative = False
         return indexed
-    @property
+    
     def value(self):
-        raise NotImplementedError("")
-        return
+        args = []
+        for a in self.args:
+            if isinstance(a, EinsteinTerm):
+                if not a.get_base():
+                    args += Symbol(str(a))
+            else:
+                args += [a]
+        return eval_levicivita(*args)
 
 class EinsteinStructure(object):
     def apply_contraction(cls, contraction_dictionary, expr, reversesubs):

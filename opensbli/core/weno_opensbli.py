@@ -4,16 +4,7 @@ from opensbli.core import *
 from .grid import GridVariable
 from .opensbliequations import *
 from opensbli.utilities.helperfunctions import increment_dataset
-
-class Scheme(object):
-    """ A numerical discretisation scheme. """
-    def __init__(self, name, order):
-        """ Initialise the scheme.
-        :arg str name: The name of the scheme.
-        :arg int order: The order of the scheme."""
-        self.name = name
-        self.order = order
-        return
+from .scheme import Scheme
 
 class WenoHalos(object):
     def __init__(self, order, reconstruction=None):

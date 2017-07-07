@@ -515,11 +515,7 @@ class Equation(EinsteinStructure):
     def apply_functions(self,equation):
         for at in (equation.atoms(Function)):
             if (hasattr(at, 'value')):
-                #pprint([at, at.value])
-                #if at.value == 0:
-                    equation= equation.subs(at, at.value)
-                #else:
-                    #equation= equation.subs(at, at.value, evaluate=False)
+                equation= equation.subs(at, at.value())
         return equation
     def convert_to_data_sets(self, equation):
         for at in equation.atoms(DataObject):
