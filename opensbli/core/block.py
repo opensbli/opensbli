@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #    OpenSBLI: An automatic code generator for solving differential equations.
-#    Copyright (C) 2016 Satya P. Jammy and others
+#    Copyright (C) 2016 Satya P. Jammy 
 
 #    This file is part of OpenSBLI.
 
@@ -27,31 +27,46 @@ from .opensbliequations import SimulationEquations
 from .opensbliobjects import ConstantObject, DataObject, DataSetBase
 #from .opensbliobjects import
 from sympy import flatten
+
 class DataSetsToDeclare(object):
+    """
+    """
     datasetbases = []
 class KernelCounter():
-    # Counter for the kernels
+    """Counter for the kernels
+    """
     def __init__(self):
         self.kernel_counter = 0
 
     def reset_kernel_counter(self):
+        """
+        """
         self.kernel_counter = 0
         return
+
     @property
     def increase_kernel_counter(self):
+        """
+        """
         self.kernel_counter = self.kernel_counter +1
         return
 
     def store_kernel_counter(self):
+        """
+        """
         self.stored_counter = self.kernel_counter
         return
 
     def reset_kernel_to_stored(self):
+        """
+        """
         self.kernel_counter = self.stored_counter
         return
 
 
 class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes): # BoundaryConditionTypes add this later
+    """
+    """
     def __init__(self, ndim, block_number = None):
         if block_number:
             self.blocknumber = block_number
@@ -72,13 +87,19 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes): # BoundaryCo
 
     @property
     def blockname(self):
+        """
+        """
         return 'opensbliblock%02d' % self.blocknumber
 
     def set_block_number(self, number):
+        """
+        """
         self.blocknumber = number
         return
 
     def set_block_boundaries(self, bclist):
+        """
+        """
         self.set_boundary_types(bclist)
         # Convert the equations into block datasets
         for b in flatten(self.boundary_types):
@@ -92,10 +113,14 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes): # BoundaryCo
         return
 
     def set_block_boundary_halos(self, direction, side, types):
+        """
+        """
         self.boundary_halos[direction][side].add(types)
         return
 
     def dataobjects_to_datasets_on_block(self, eqs):
+        """
+        """
         all_equations = flatten(eqs)[:]
         consts = set()
 
@@ -149,6 +174,8 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes): # BoundaryCo
         return
 
     def apply_boundary_conditions(self, arrays):
+        """
+        """
         kernels = []
         for no,b in enumerate(self.boundary_types):
             kernels += [self.apply_bc_direction(no, 0, arrays)]
@@ -156,10 +183,14 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes): # BoundaryCo
         return kernels
 
     def apply_bc_direction(self, direction, side, arrays):
+        """
+        """
         kernel = self.boundary_types[direction][side].apply(arrays, direction, side, self)
         return kernel
 
     def set_equations(self, list_of_equations):
+        """
+        """
         self.list_of_equation_classes = list_of_equations
         DataSetBase.block = self
         # Convert the equations into block datasets
@@ -169,11 +200,15 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes): # BoundaryCo
         return
 
     def set_discretisation_schemes(self, schemes):
+        """
+        """
         self.discretisation_schemes = schemes
         return
 
     @property
     def get_constituent_equation_class(self):
+        """
+        """
         from .opensbliequations import ConstituentRelations as CR
         CR_classes = []
         for sc in self.list_of_equation_classes:
@@ -183,6 +218,8 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes): # BoundaryCo
 
     @property
     def get_temporal_schemes(self):
+        """
+        """
         temporal = []
         for sc in  self.discretisation_schemes:
             if self.discretisation_schemes[sc].schemetype == "Temporal":
@@ -190,6 +227,8 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes): # BoundaryCo
         return temporal
     @property
     def collect_all_spatial_kernels(self):
+        """
+        """
         all_kernels = []
         for scheme in self.get_temporal_schemes:
             for key, value in scheme.solution.iteritems(): # These are equation classes
@@ -200,10 +239,14 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes): # BoundaryCo
         return all_kernels
 
     def setio(self, list_of_ios):
+        """
+        """
         self.add_io(list_of_ios)
         return
 
     def add_io(self, list_of_ios):
+        """
+        """
         if isinstance(list_of_ios, list):
             self.InputOutput += list_of_ios
         else:
@@ -213,10 +256,14 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes): # BoundaryCo
         return
 
     def add_metric(self, metric_params):
+        """
+        """
         self.metric_transformations = metriceq
         return
 
     def get_all_scheme_halos(self):
+        """
+        """
         spatialschemes = []
         for sc in self.discretisation_schemes:
             if self.discretisation_schemes[sc].schemetype == "Spatial":
@@ -229,6 +276,8 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes): # BoundaryCo
         return halos
 
 def sort_constants(constants_dictionary):
+    """
+    """
     known_constants, unknown_constants = [], []
     pprint(constants_dictionary)
     for const in constants_dictionary.values():
