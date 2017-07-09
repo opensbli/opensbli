@@ -10,7 +10,7 @@ from .scheme import Scheme
 class WenoHalos(object):
     def __init__(self, order, reconstruction=None):
         # Check for the boundary types in the blocks and set the halo points
-        #self.halos = [[-scheme.order, scheme.order] for dim in range(block.ndim)]
+        # self.halos = [[-scheme.order, scheme.order] for dim in range(block.ndim)]
         k = int(0.5*(order+1))
         # self.halos = [(-k, k+1)for dim in range(ndim)]
         if not reconstruction:
@@ -18,6 +18,7 @@ class WenoHalos(object):
         else:
             self.halos = [-1, 1]
         return
+
     def get_halos(self, side):
         return self.halos[side]
 
@@ -42,7 +43,7 @@ class ConfigureWeno(object):
 
     @property
     def generate_symbolic_function_points(self):
-        """ Creates a set of symbolic function points f[0], f[1], ... to be used in the 
+        """ Creates a set of symbolic function points f[0], f[1], ... to be used in the
         WENO reconstruction, and a dictionary linking each function point to its index.
         :returns list symbolic_functions: The symbolic function points.
         :returns dict symbolic_function_dictionary: A dictionary of index:symbolic function pairs."""
@@ -75,13 +76,13 @@ class ConfigureWeno(object):
                     bottom_product = 1
                     for l in [x for x in range(k+1) if x != m]:
                         top_product_total = 1
-                        for q in [x for x in range(k+1) if (x != m and x!= l)]:
+                        for q in [x for x in range(k+1) if (x != m and x != l)]:
                             top_product = r - q + d
                             top_product_total *= top_product
                         bottom_product *= m - l
                         top_sum += top_product_total
                     c_rj_sum += Rational(top_sum, bottom_product)
-                c_rj[(r,j)] = c_rj_sum
+                c_rj[(r, j)] = c_rj_sum
         return c_rj
 
     def generate_optimal_weights(self):
@@ -94,7 +95,7 @@ class ConfigureWeno(object):
         equations = []
         for i, indices in enumerate(r_values):
             variables = [opt_weights[r] for r in indices]
-            coeffs = [c_rj[(r,j)] for j, r in enumerate(indices)]
+            coeffs = [c_rj[(r, j)] for j, r in enumerate(indices)]
             rhs = c2_rj[(k-1, i)]
             v = [variables[i]*coeffs[i] for i in range(len(indices))]
             equations += [sum(v) - rhs]
@@ -102,11 +103,11 @@ class ConfigureWeno(object):
         solution = solve(equations, opt_weights)
         coeff_dict = {}
         for i in range(k):
-            coeff_dict[(0,i)] = solution[opt_weights[i]]
+            coeff_dict[(0, i)] = solution[opt_weights[i]]
         return coeff_dict
 
     def generate_left_right_points(self):
-        """ Evaluate the required function evaluation points for left and 
+        """ Evaluate the required function evaluation points for left and
         right WENO reconstructions.
         returns: list: fn_points: A list of integers to index the function locations."""
         k = self.k
@@ -119,9 +120,10 @@ class ConfigureWeno(object):
             fn_points += [-r+j+c for j in range(k)]
         return fn_points
 
+
 class JS_smoothness(object):
     def __init__(self, k):
-        """ An object to hold the Jiang-Shu smoothness coefficients. Listed as Eq(3.1) in 
+        """ An object to hold the Jiang-Shu smoothness coefficients. Listed as Eq(3.1) in
         'WENO coefficient k, equal to scheme order = 2k - 1.' Shu(1996)."""
         self.k = k
         self.smooth_coeffs = self.generate_smoothness_coefficients()
@@ -137,7 +139,7 @@ class JS_smoothness(object):
         for r in range(k):
             # Generate x, y values to create interpolating polynomial
             dx_values = [dx*i for i in range(-r, k+1-r)]
-            nodes = [Symbol('fn[i%+d]' % i) for i in range(-r,k-r)]
+            nodes = [Symbol('fn[i%+d]' % i) for i in range(-r, k-r)]
             funcs = [0]
             for i in range(k):
                 funcs.append(funcs[-1] + dx*nodes[i])
@@ -145,11 +147,11 @@ class JS_smoothness(object):
             lagrange_interp = interpolating_poly(k+1, x, dx_values, funcs).diff(x)
             # Loop over the derivatives of the interpolating polynomial
             total = 0
-            for l in range(1,k):
+            for l in range(1, k):
                 q = (lagrange_interp.diff(x, l))**2
                 # Perform the integration and multiply by h^(2*l-1) over cell
                 q = integrate(q.as_poly(x), x) * dx**(2*l-1)
-                total += (q.subs(x, dx) - q.subs(x,0))
+                total += (q.subs(x, dx) - q.subs(x, 0))
             done = []
             # Save the coefficients of the smoothness indicator
             for m in range(0, 2*k-2):
@@ -158,7 +160,7 @@ class JS_smoothness(object):
                     if func_product not in done:
                     c = total.coeff(func_product)
                     if c != 0:
-                        smooth_coeffs[(r,m,n)] = c
+                        smooth_coeffs[(r, m, n)] = c
                     done.append(func_product)
         return smooth_coeffs
 
@@ -177,13 +179,14 @@ class JS_smoothness(object):
             local_smoothness = 0
             for m in range(0, 2*k-2): # WARNING: change to (0, 2*k -1) if this is now broken.
                 for n in range(0, 2*k-2):
-                    beta = self.smooth_coeffs.get((r,m,n))
+                    beta = self.smooth_coeffs.get((r, m, n))
                     if beta != None:
                         shift_indices = [-r+m+shift, -r+n+shift]
                         func_product = fn.function_stencil_dictionary[shift_indices[0]]*fn.function_stencil_dictionary[shift_indices[1]]
                         local_smoothness += beta*func_product
             fn.smoothness_indicators += [local_smoothness]
         return
+
 
 class ReconstructionVariable(object):
     def __init__(self, name):
@@ -229,6 +232,7 @@ class ReconstructionVariable(object):
 
         return
 
+
 class LeftReconstructionVariable(ReconstructionVariable):
     def __init__(self, name):
         """ Reconstruction object for the left reconstruction.
@@ -236,12 +240,14 @@ class LeftReconstructionVariable(ReconstructionVariable):
         ReconstructionVariable.__init__(self, name)
         return
 
+
 class RightReconstructionVariable(ReconstructionVariable):
     def __init__(self, name):
         """ Reconstruction object for the right reconstruction.
         arg: str: name: 'right' """
         ReconstructionVariable.__init__(self, name)
         return
+
 
 class WenoZ(object):
     def __init__(self, k):
@@ -257,7 +263,7 @@ class WenoZ(object):
         p = 2
         for r in range(self.k):
             RV.alpha_symbols += [Symbol('alpha_%d' % r)]
-            RV.alpha_evaluated.append(WenoConfig.opt_weights.get((0,r))*(1.0 + (tau_5/(self.eps + RV.smoothness_symbols[r]))**p))
+            RV.alpha_evaluated.append(WenoConfig.opt_weights.get((0, r))*(1.0 + (tau_5/(self.eps + RV.smoothness_symbols[r]))**p))
         return
 
     def generate_omegas(self, RV, WenoConfig):
@@ -276,10 +282,11 @@ class WenoZ(object):
         stencil = 0
         k, c_rj = self.k, WenoConfig.c_rj
         for r in range(k):
-            eno_expansion = [c_rj.get((r,j))*RV.function_stencil_dictionary[WenoConfig.func_points[r*k+j]] for j in range(k)]
+            eno_expansion = [c_rj.get((r, j))*RV.function_stencil_dictionary[WenoConfig.func_points[r*k+j]] for j in range(k)]
             stencil += RV.omega_symbols[r]*sum(eno_expansion)
         RV.reconstructed_expression = stencil
         return
+
 
 class WenoJS(object):
     def __init__(self, k):
@@ -293,7 +300,7 @@ class WenoJS(object):
         arg: object WenoConfig: Configuration settings for a reconstruction of either left or right."""
         for r in range(self.k):
             RV.alpha_symbols += [Symbol('alpha_%d' % r)]
-            RV.alpha_evaluated.append(WenoConfig.opt_weights.get((0,r))/(self.eps+RV.smoothness_symbols[r])**2)
+            RV.alpha_evaluated.append(WenoConfig.opt_weights.get((0, r))/(self.eps+RV.smoothness_symbols[r])**2)
         return
 
     def generate_omegas(self, RV, WenoConfig):
@@ -312,10 +319,11 @@ class WenoJS(object):
         stencil = 0
         k, c_rj = self.k, WenoConfig.c_rj
         for r in range(k):
-            eno_expansion = [c_rj.get((r,j))*RV.function_stencil_dictionary[WenoConfig.func_points[r*k+j]] for j in range(k)]
+            eno_expansion = [c_rj.get((r, j))*RV.function_stencil_dictionary[WenoConfig.func_points[r*k+j]] for j in range(k)]
             stencil += RV.omega_symbols[r]*sum(eno_expansion)
         RV.reconstructed_expression = stencil
         return
+
 
 class Weno(Scheme):
     """ Main WENO class. Performs the Jiang-Shu WENO reconstruction procedure. Refer to the reference: 
@@ -406,6 +414,7 @@ class Weno(Scheme):
             crs[DataSetBase(str(key))[DataSetBase.location()]] = kernel
         return crs
 
+
 class EigenSystem(object):
     def __init__(self, eigenvalue, left_ev, right_ev):
         """ Class to hold the routines required by the characteristic decomposition of the Euler equations. The input
@@ -453,8 +462,8 @@ class EigenSystem(object):
         symbolic_matrix = zeros(*shape)
         for i in range(shape[0]):
             for j in range(shape[1]):
-                if mat[i,j]:
-                    symbolic_matrix[i,j] = GridVariable('%s_%d%d'%(name,i,j))
+                if mat[i, j]:
+                    symbolic_matrix[i, j] = GridVariable('%s_%d%d'% (name, i, j))
         return symbolic_matrix
 
     def convert_matrix_to_grid_variable(self, mat, name):
@@ -463,7 +472,7 @@ class EigenSystem(object):
         arg: str: name: Base name to use for the GridVariables
         returns: mat: The matrix updated to contain GridVariables."""
         syms = list(mat.atoms(EinsteinTerm).difference(mat.atoms(ConstantObject)))
-        new_syms = [GridVariable('%s_%s'%(name,str(sym))) for sym in syms]
+        new_syms = [GridVariable('%s_%s'%(name, str(sym))) for sym in syms]
         substitutions = dict(zip(syms, new_syms))
         mat = mat.subs(substitutions)
         return mat
@@ -494,6 +503,7 @@ class EigenSystem(object):
         location_datasets = [d[loc] for d in dsets]
         substitutions = dict(zip(symbols, location_datasets))
         return symbolics.subs(substitutions)
+
 
 class Characteristic(EigenSystem):
     def __init__(self,  eigenvalue, left_ev, right_ev):
@@ -549,7 +559,7 @@ class Characteristic(EigenSystem):
         grid_LEV = self.generate_grid_variable_LEV(direction, averaged_suffix_name)
         # Store the grid LEV variables for the characteristic boundary condition
         self.LEV_store[direction] = grid_LEV
-        pre_process_equations += flatten(self.generate_equations_from_matrices(grid_LEV ,avg_LEV_values))
+        pre_process_equations += flatten(self.generate_equations_from_matrices(grid_LEV, avg_LEV_values))
         # Transform the flux vector and the solution vector to characteristic space
         characteristic_flux_vector, CF_matrix = self.flux_vector_to_characteristic(derivatives, direction, averaged_suffix_name)
         characteristic_solution_vector, CS_matrix = self.solution_vector_to_characteristic(solution_vector, direction, averaged_suffix_name)
@@ -564,8 +574,8 @@ class Characteristic(EigenSystem):
             print ("Characteristic flux splitting scheme")
             max_wavespeed_matrix, pre_process_equations = self.create_max_characteristic_wave_speed(pre_process_equations, direction)
             # self.split_fluxes(CF_matrix, CS_matrix, max_wavespeed_matrix)
-            positive_flux = Rational(1,2)*(CF_matrix + max_wavespeed_matrix*CS_matrix)
-            negative_flux = Rational(1,2)*(CF_matrix - max_wavespeed_matrix*CS_matrix)
+            positive_flux = Rational(1, 2)*(CF_matrix + max_wavespeed_matrix*CS_matrix)
+            negative_flux = Rational(1, 2)*(CF_matrix - max_wavespeed_matrix*CS_matrix)
             positive_flux.stencil_points = CF_matrix.stencil_points
             negative_flux.stencil_points = CF_matrix.stencil_points
             self.generate_right_reconstruction_variables(positive_flux, derivatives)
@@ -585,11 +595,11 @@ class Characteristic(EigenSystem):
         avg_REV_values = self.convert_matrix_to_grid_variable(self.right_eigen_vector[self.direction], averaged_suffix_name)
         grid_REV = self.generate_grid_variable_REV(self.direction, averaged_suffix_name)
         self.REV_store[self.direction] = grid_REV
-        post_process_equations += flatten(self.generate_equations_from_matrices(grid_REV ,avg_REV_values))
+        post_process_equations += flatten(self.generate_equations_from_matrices(grid_REV, avg_REV_values))
         reconstructed_characteristics = Matrix([d.evaluate_reconstruction for d in derivatives])
         reconstructed_flux = grid_REV*reconstructed_characteristics
         reconstructed_work = [d.reconstruction_work for d in derivatives]
-        post_process_equations += [Eq(x,y) for x,y in zip(reconstructed_work, reconstructed_flux)]
+        post_process_equations += [Eq(x, y) for x, y in zip(reconstructed_work, reconstructed_flux)]
         kernel.add_equation(post_process_equations)
         return
 
@@ -599,7 +609,7 @@ class Characteristic(EigenSystem):
             for i in range(flux.shape[0]):
                 rv = LeftReconstructionVariable('L_X%d_%d' % (self.direction, i))
                 for p in sorted(set(self.reconstruction_classes[0].func_points)):
-                    rv.function_stencil_dictionary[p] = flux[i,stencil.index(p)]
+                    rv.function_stencil_dictionary[p] = flux[i, stencil.index(p)]
                 derivatives[i].add_reconstruction_classes([rv])
         return
 
@@ -609,7 +619,7 @@ class Characteristic(EigenSystem):
             for i in range(flux.shape[0]):
                 rv = RightReconstructionVariable('R_X%d_%d' % (self.direction, i))
                 for p in sorted(set(self.reconstruction_classes[1].func_points)):
-                    rv.function_stencil_dictionary[p] = flux[i,stencil.index(p)]
+                    rv.function_stencil_dictionary[p] = flux[i, stencil.index(p)]
                 derivatives[i].add_reconstruction_classes([rv])
         return
 
@@ -619,8 +629,8 @@ class Characteristic(EigenSystem):
         CS_matrix = zeros(len(solution_vector), len(stencil_points))
         for j, val in enumerate(stencil_points): # j in fv stencil matrix
             for i, flux in enumerate(solution_vector):
-                solution_vector_stencil[i,j] = increment_dataset(flux, direction, val)
-                CS_matrix[i,j] = GridVariable('CS_%d%d' %(i,j))
+                solution_vector_stencil[i, j] = increment_dataset(flux, direction, val)
+                CS_matrix[i, j] = GridVariable('CS_%d%d' % (i, j))
         grid_LEV = self.generate_grid_variable_LEV(direction, name)
         characteristic_solution_stencil = grid_LEV*solution_vector_stencil
         characteristic_solution_stencil.stencil_points = stencil_points
@@ -638,8 +648,8 @@ class Characteristic(EigenSystem):
         CF_matrix = zeros(len(fv), len(stencil_points))
         for j, val in enumerate(stencil_points): # j in fv stencil matrix
             for i, flux in enumerate(fv):
-                flux_stencil[i,j] = increment_dataset(flux, direction, val)
-                CF_matrix[i,j] = GridVariable('CF_%d%d' % (i,j))
+                flux_stencil[i, j] = increment_dataset(flux, direction, val)
+                CF_matrix[i, j] = GridVariable('CF_%d%d' % (i, j))
         grid_LEV = self.generate_grid_variable_LEV(direction, name)
         characteristic_flux_stencil = grid_LEV*flux_stencil
         characteristic_flux_stencil.stencil_points = stencil_points
@@ -654,7 +664,7 @@ class LLFCharacteristic(Characteristic, Weno):
         Characteristic.__init__(self, eigenvalue, left_ev, right_ev)
         Weno.__init__(self, order)
         if averaging == None:
-            self.average = SimpleAverage([0,1]).average
+            self.average = SimpleAverage([0, 1]).average
         else:
             self.average = averaging.average
         self.ndim = ndim
@@ -673,7 +683,7 @@ class LLFCharacteristic(Characteristic, Weno):
         ev_equations = self.generate_equations_from_matrices(max_wave_speed, out)
         ev_equations = [x for x in ev_equations if x != 0]
         pre_process_equations += ev_equations
-        max_wave_speed = diag(*([max_wave_speed[i,i] for i in range(ev.shape[0])]))
+        max_wave_speed = diag(*([max_wave_speed[i, i] for i in range(ev.shape[0])]))
         return max_wave_speed, pre_process_equations
 
 
@@ -696,7 +706,7 @@ class LLFCharacteristic(Characteristic, Weno):
             reconstruction_halos = WenoHalos(self.order, reconstruction=True)
             for key, derivatives in grouped.iteritems():
                 all_derivatives_evaluated_locally += derivatives
-                for no,deriv in enumerate(derivatives):
+                for no, deriv in enumerate(derivatives):
                     #dic = eqs[no].rhs.as_coefficients_dict()
                     ##pprint(dic)
                     #expr = eqs[no].rhs
@@ -708,7 +718,7 @@ class LLFCharacteristic(Characteristic, Weno):
                     #pprint(expr.coeff(deriv))
                     #coeffs[deriv] = eqs[no].collect(deriv).coeff(deriv)
                     deriv.create_reconstruction_work_array(block)
-                weno_kernel = Kernel(block, computation_name = "Weno_reconstruction_%d_direction"%(key))
+                weno_kernel = Kernel(block, computation_name = "Weno_reconstruction_%d_direction"% (key))
                 weno_kernel.set_grid_range(block)
                 # WENO reconstruction should be evaluated for extra point on each side 
                 weno_kernel.set_halo_range(key, 0, reconstruction_halos)
@@ -724,7 +734,7 @@ class LLFCharacteristic(Characteristic, Weno):
             constituent_relations = self.generate_constituent_relations_kernels(block)
             return constituent_relations
 
-    def evaluate_residuals(self, block,eqns, local_ders):
+    def evaluate_residuals(self, block, eqns, local_ders):
         residue_eq = []
         for eq in eqns:
             substitutions = {}
