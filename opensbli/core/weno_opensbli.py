@@ -6,6 +6,7 @@ from .opensbliequations import *
 from opensbli.utilities.helperfunctions import increment_dataset
 from .scheme import Scheme
 
+
 class WenoHalos(object):
     def __init__(self, order, reconstruction=None):
         # Check for the boundary types in the blocks and set the halo points
@@ -19,6 +20,7 @@ class WenoHalos(object):
         return
     def get_halos(self, side):
         return self.halos[side]
+
 
 class ConfigureWeno(object):
     def __init__(self, k, side):
@@ -83,25 +85,25 @@ class ConfigureWeno(object):
         return c_rj
 
     def generate_optimal_weights(self):
-      """ Creates the optimal weights d_r needed by the WENO scheme, as specified in Shu(1997).
-      :returns dict: coeff_dict: A dictionary of the optimal weights. """
-      # Store reconstruction coefficients to form the sum
-      k, c_rj, c2_rj = self.k, self.c_rj, self.c2_rj
-      opt_weights = [Symbol('d_%d' % r) for r in range(k)]
-      r_values = [[k-1-j for j in range(m+1)][::-1] for m in range(k)]
-      equations = []
-      for i, indices in enumerate(r_values):
-        variables = [opt_weights[r] for r in indices]
-        coeffs = [c_rj[(r,j)] for j, r in enumerate(indices)]
-        rhs = c2_rj[(k-1, i)]
-        v = [variables[i]*coeffs[i] for i in range(len(indices))]
-        equations += [sum(v) - rhs]
-      # Solve the linear system to get the coefficients
-      solution = solve(equations, opt_weights)
-      coeff_dict = {}
-      for i in range(k):
-        coeff_dict[(0,i)] = solution[opt_weights[i]]
-      return coeff_dict
+        """ Creates the optimal weights d_r needed by the WENO scheme, as specified in Shu(1997).
+        :returns dict: coeff_dict: A dictionary of the optimal weights. """
+        # Store reconstruction coefficients to form the sum
+        k, c_rj, c2_rj = self.k, self.c_rj, self.c2_rj
+        opt_weights = [Symbol('d_%d' % r) for r in range(k)]
+        r_values = [[k-1-j for j in range(m+1)][::-1] for m in range(k)]
+        equations = []
+        for i, indices in enumerate(r_values):
+            variables = [opt_weights[r] for r in indices]
+            coeffs = [c_rj[(r,j)] for j, r in enumerate(indices)]
+            rhs = c2_rj[(k-1, i)]
+            v = [variables[i]*coeffs[i] for i in range(len(indices))]
+            equations += [sum(v) - rhs]
+        # Solve the linear system to get the coefficients
+        solution = solve(equations, opt_weights)
+        coeff_dict = {}
+        for i in range(k):
+            coeff_dict[(0,i)] = solution[opt_weights[i]]
+        return coeff_dict
 
     def generate_left_right_points(self):
         """ Evaluate the required function evaluation points for left and 
@@ -126,39 +128,39 @@ class JS_smoothness(object):
         return
 
     def generate_smoothness_coefficients(self):
-      """Extracts the JS smoothness coefficients.
-      returns: dict: Dictionary of coefficients used in the generation of the smoothness indicators
-      calculated in the 'generate_function_smoothness_indicators' routine."""
-      k = self.k
-      smooth_coeffs = {}
-      x, dx = Symbol('x'), Symbol('dx')
-      for r in range(k):
-        # Generate x, y values to create interpolating polynomial
-        dx_values = [dx*i for i in range(-r, k+1-r)]
-        nodes = [Symbol('fn[i%+d]' % i) for i in range(-r,k-r)]
-        funcs = [0]
-        for i in range(k):
-          funcs.append(funcs[-1] + dx*nodes[i])
-        # Perform Lagrange interpolation
-        lagrange_interp = interpolating_poly(k+1, x, dx_values, funcs).diff(x)
-        # Loop over the derivatives of the interpolating polynomial
-        total = 0
-        for l in range(1,k):
-          q = (lagrange_interp.diff(x, l))**2
-          # Perform the integration and multiply by h^(2*l-1) over cell
-          q = integrate(q.as_poly(x), x) * dx**(2*l-1)
-          total += (q.subs(x, dx) - q.subs(x,0))
-        done = []
-        # Save the coefficients of the smoothness indicator
-        for m in range(0, 2*k-2):
-          for n in range(0, 2*k-2):
-            func_product = Symbol('fn[i%+d]' % (-r+m))*Symbol('fn[i%+d]' % (-r+n))
-            if func_product not in done:
-              c = total.coeff(func_product)
-              if c != 0:
-                smooth_coeffs[(r,m,n)] = c
-              done.append(func_product)
-      return smooth_coeffs
+        """Extracts the JS smoothness coefficients.
+        returns: dict: Dictionary of coefficients used in the generation of the smoothness indicators
+        calculated in the 'generate_function_smoothness_indicators' routine."""
+        k = self.k
+        smooth_coeffs = {}
+        x, dx = Symbol('x'), Symbol('dx')
+        for r in range(k):
+            # Generate x, y values to create interpolating polynomial
+            dx_values = [dx*i for i in range(-r, k+1-r)]
+            nodes = [Symbol('fn[i%+d]' % i) for i in range(-r,k-r)]
+            funcs = [0]
+            for i in range(k):
+                funcs.append(funcs[-1] + dx*nodes[i])
+            # Perform Lagrange interpolation
+            lagrange_interp = interpolating_poly(k+1, x, dx_values, funcs).diff(x)
+            # Loop over the derivatives of the interpolating polynomial
+            total = 0
+            for l in range(1,k):
+                q = (lagrange_interp.diff(x, l))**2
+                # Perform the integration and multiply by h^(2*l-1) over cell
+                q = integrate(q.as_poly(x), x) * dx**(2*l-1)
+                total += (q.subs(x, dx) - q.subs(x,0))
+            done = []
+            # Save the coefficients of the smoothness indicator
+            for m in range(0, 2*k-2):
+                for n in range(0, 2*k-2):
+                    func_product = Symbol('fn[i%+d]' % (-r+m))*Symbol('fn[i%+d]' % (-r+n))
+                    if func_product not in done:
+                    c = total.coeff(func_product)
+                    if c != 0:
+                        smooth_coeffs[(r,m,n)] = c
+                    done.append(func_product)
+        return smooth_coeffs
 
     def generate_function_smoothness_indicators(self, fn):
         """ Generates the standard Jiang-Shu smoothness indicators as polynomials in the
