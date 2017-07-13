@@ -89,6 +89,10 @@ class KD(Function):
             return S.One
         else:
             return S.Zero
+    
+    @staticmethod
+    def _latex_no_arg(printer):
+        return r'\delta'
         
 
 class LC(Function):

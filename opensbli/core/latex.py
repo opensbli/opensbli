@@ -140,6 +140,14 @@ class LatexWriter(LatexPrinter):
         return r'\left. %s \right|_{{%s }}' % (self._print(Derivative(*expr.args)), "Temporal")
     def _print_WenoDerivative(self, expr):
         return r'\left. %s \right|_{{%s }}' % (self._print(Derivative(*expr.args)), "Weno")
+    
+    def _print_KD(self, expr):
+        #print expr
+        #print expr._latex_no_arg(self)
+        #for arg in expr.args:
+            #print self._print(arg)
+        #exit()
+        return expr._latex_no_arg(self) + '_{%s}'%(' '.join([self._print(a) for a in expr.args]).replace('_',''))
 
     def write_expression(self, expression, mode = None, substitutions={}):
         """ Convert a single expression or list of expressions to LaTeX format and then write it/them to file.
