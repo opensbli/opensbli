@@ -81,7 +81,7 @@ class KD(Function):
         indexed.expression = self
         indexed.is_commutative = False
         return indexed
-    
+
     def value(self):
         if len(self.args) != 2:
             raise ValueError("Expected only two arguments in KD.")
@@ -89,7 +89,7 @@ class KD(Function):
             return S.One
         else:
             return S.Zero
-    
+
     @staticmethod
     def _latex_no_arg(printer):
         return r'\delta'
@@ -111,7 +111,7 @@ class LC(Function):
         indexed.expression = self
         indexed.is_commutative = False
         return indexed
-    
+
     def value(self):
         args = []
         for a in self.args:
@@ -410,7 +410,7 @@ class Dot(Function, BasicDiscretisation):
     @property
     def simple_name(self):
         return "Dot"
-    @property
+    
     def value(self):
         return Mul(*self.args)
 

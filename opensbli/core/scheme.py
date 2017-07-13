@@ -5,7 +5,7 @@ from sympy.printing import *
 from .opensbliobjects import ConstantObject
 from .opensblifunctions import CentralDerivative
 from .opensbliequations import OpenSBLIExpression
-from .weno_opensbli import *
+
 from .kernel import *
 from .latex import *
 from opensbli.utilities.helperfunctions import increasing_order, decreasing_order
@@ -39,8 +39,7 @@ class CentralHalos_defdec(object):
     def __init__(self):
         # Check for the boundary types in the blocks and set the halo points
         #self.halos = [[-scheme.order, scheme.order] for dim in range(block.ndim)]
-        self.halos = [-2, 2]
-        #self.halos = [-order/2, order/2]
+        self.halos = [-5, 5]
         return
     def get_halos(self, side):
         return self.halos[side]
@@ -376,7 +375,7 @@ class Central(Scheme):
                 else:
                     raise ValueError("Could not classify this")
         return expr, kernel_dictionary
-        
+
 from .opensbliobjects import ConstantIndexed, ConstantObject
 class TemproalSolution(object):
     def __init__(self):
