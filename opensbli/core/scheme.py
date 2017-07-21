@@ -1,7 +1,6 @@
 
 from sympy.calculus import finite_diff_weights
 from sympy import *
-from sympy.printing import *
 from .opensbliobjects import ConstantObject
 from .opensblifunctions import CentralDerivative
 from .opensbliequations import OpenSBLIExpression
