@@ -157,7 +157,9 @@ class MetricsEquation(NonSimulationEquations,Discretisation, Solution):
         #term_subs = [CentralDerivative(a.args[0]*b/self.detJ , a.args[1:])  for a in l for b in l1]
         #expr = self.detJ*expr.subs(dict(zip(terms, term_subs))) # substitute
         term_subs = [CentralDerivative(a.args[0]*b*self.detJ , a.args[1:])  for a in l for b in l1]
+        pprint(expr)
         expr = expr.subs(dict(zip(terms, term_subs)))/self.detJ # substitute
+        pprint(expr)
         # WARNING check this expression
         return expr
 
@@ -293,17 +295,18 @@ class MetricsEquation(NonSimulationEquations,Discretisation, Solution):
             cls.create_residual_arrays()
             schemes[sc].required_constituent_relations = {}
             a = schemes[sc].discretise(cls, block)
-            pprint(cls.sdequations)
+            #pprint(cls.sdequations)
+            cls.apply_periodic_bc(block)
             cls.equations  = block.dataobjects_to_datasets_on_block(cls.sdequations) # Second derivatives
             cls.create_residual_arrays()
             schemes[sc].required_constituent_relations = {}
             b = schemes[sc].discretise(cls, block)
             schemes[sc].required_constituent_relations = {}
-            #if b:
-                #for key, val in a.iteritems():
-                    #cls.requires[key] = val
+            if b:
+                for key, val in a.iteritems():
+                    cls.requires[key] = val
         for k in cls.Kernels:
-            print k.computation_name, k.halo_ranges, k.ranges
+            print k.computation_name
         #exit()
         #pprint(cls.requires)
         #pprint([k.equations for k in cls.Kernels])
@@ -315,7 +318,31 @@ class MetricsEquation(NonSimulationEquations,Discretisation, Solution):
         #exit()
         return
 
+    def apply_periodic_bc(self, block):
+        arrays = self.FD_metrics[:] + [self.detJ]
+        arrays = block.dataobjects_to_datasets_on_block(arrays)
+        from opensbli.core.bcs import PeriodicBoundaryConditionBlock as pbc
+        modify = {}
+        for no, val in enumerate(block.boundary_types):
+            left = val[0]; right = val[1]
+            if isinstance(left, pbc):
+                if no in modify:
+                    modify[no][0] = left
+                else:
+                    modify[no] = [left, None]
+            if isinstance(right, pbc):
+                if no in modify:
+                    modify[no][1] = right
+                else:
+                    modify[no] = [None, right]
 
+        if modify:
+            for dire in modify:
+                boundary_mods = [k for k in modify[dire] if k] 
+                for b in boundary_mods:
+                    self.Kernels += [b.apply(arrays, b.direction, b.side, block)]
+
+        return
     def apply_boundary_conditions(cls, block):
         """No global boundary conditions for the metric terms"""
         ndim = block.ndim
@@ -331,17 +358,17 @@ class MetricsEquation(NonSimulationEquations,Discretisation, Solution):
             #for side in [0,1]:
                 #kernels += [create_metric_bc_kernel(metrics, detJ, direction, side, block)]
         #cls.Kernels += kernels
-        for k in cls.Kernels:
-            print k.computation_name, k.halo_ranges, k.ranges
         #exit()
 
         return
 
     def process_kernels(cls, block):
         for key,kernel in cls.constituent_relations_kernels.iteritems():
-            kernel.update_block_datasets(block)
+            if isinstance(kernel, Kernel):
+                kernel.update_block_datasets(block)
         for kernel in cls.Kernels:
-            kernel.update_block_datasets(block)
+            if isinstance(kernel, Kernel):
+                kernel.update_block_datasets(block)
         return
 
 
