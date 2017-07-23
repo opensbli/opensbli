@@ -170,7 +170,7 @@ class Der(AppliedUndef, ParsingSchemes):
             revertback[fn(*fndeps)] = fn
         expr = cls.args[0]
         expr = expr.subs(substits)
-        subexpr =expr
+        subexpr = expr
         pot = postorder_traversal(expr)
         schemes = {}
         for p in pot:
