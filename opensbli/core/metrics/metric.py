@@ -302,9 +302,9 @@ class MetricsEquation(NonSimulationEquations,Discretisation, Solution):
             schemes[sc].required_constituent_relations = {}
             b = schemes[sc].discretise(cls, block)
             schemes[sc].required_constituent_relations = {}
-            if b:
-                for key, val in a.iteritems():
-                    cls.requires[key] = val
+            #if b:
+                #for key, val in a.iteritems():
+                    #cls.requires[key] = val
         for k in cls.Kernels:
             print k.computation_name
         #exit()
