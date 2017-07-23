@@ -88,6 +88,8 @@ class EinsteinTerm(Symbol):
             if self.get_base():
                 newval = str(self).replace("_%s"%str(idx), str(value))
                 val = type(self)(newval)
+                indices = list(set(self.get_indices()[:]).difference(set([idx])))
+                val.indices = indices
                 # Store val index
                 val.direction = value
             else:
@@ -218,7 +220,7 @@ class DataObject(EinsteinTerm):
 
     """
     is_commutative = True
-    #is_Atom = True
+    is_Atom = True
     def __new__(cls, label, **kw_args):
         ret = super(DataObject, cls).__new__(cls, label, **kw_args)
         #ret.location = [0]*cls.ndim
