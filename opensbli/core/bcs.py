@@ -493,7 +493,7 @@ class IsothermalWallBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCond
         wall_eqns = [Eq(x,0) for x in NS.momentum()] + self.equations[:]
         kernel.add_equation(wall_eqns)
         # Evaluate the wall pressure
-        p0, gama, Minf = GridVariable('p0'), ConstantObject('gama'), ConstantObject('Minf')
+        p0, gama, Minf = GridVariable('p0'), NS.specific_heat_ratio(), NS.mach_number()
         kernel.add_equation(Eq(p0, NS.pressure(relation=True, conservative=True)))
         # Temperature evaluations #TODO: need to fix evaluations for upper wall halos
         # new_loc[boundary_direction] += to_side_factor
@@ -567,49 +567,38 @@ class InletPressureExtrapolateBoundaryConditionBlock(ModifyCentralDerivative, Bo
 
     def apply(self, arrays, boundary_direction, side, block):
         halos, kernel = self.generate_boundary_kernel(boundary_direction, side, block, self.bc_name)
-        crs = []
-        for eq_class in block.list_of_equation_classes:
-            if isinstance(eq_class, ConstituentRelations):
-                crs += eq_class.equations
-        #crs = block.list_of_equation_classes[1].equations
-        cr_dict = {}
-        gama = ConstantObject('gama')
-        for eqn in crs:
-            cr_dict[str(eqn.lhs)] = eqn.rhs
-        loc = arrays[0].indices
+        # Using Navier Stokes physics object, create conservative variables
+        NS = NSphysics(block.ndim)
+        cons_vars = [NS.density(), NS.momentum(), NS.total_energy()]
+        loc = list(cons_vars[0].indices)
         # Evaluation of pressure, density, speed of sound on the boundary
         pb, rhob, ab = GridVariable('pb'), GridVariable('rhob'), GridVariable('ab')
-        grid_vels = [GridVariable('ub%d' % i) for i in range(len(arrays[1]))]
+        gama = NS.specific_heat_ratio()
+        grid_vels = [GridVariable('ub%d' % i) for i in range(block.ndim)]
         grid_vels_sq = [i**2 for i in grid_vels]
-        eqns = [Eq(rhob, arrays[0])]
-        eqns += [Eq(grid_vels[i], Abs(cr_dict['u%d_B%d' % (i, block.blocknumber)])) for i in range(len(arrays[1]))]
+        eqns = [Eq(rhob, NS.density())]
+        eqns += [Eq(grid_vels[i], Abs(u/NS.density())) for i, u in enumerate(NS.momentum())]
         eqns += [Eq(pb,(gama-1)*(flatten(arrays)[-1] - 0.5*rhob*sum(flatten(grid_vels_sq))))]
         eqns += [Eq(ab,(gama*pb/rhob)**0.5)]
         kernel.add_equation(eqns)
-        arrs = flatten(arrays)
         locations = [-1, 0]
-        vel = grid_vels[boundary_direction]
+        inlet_vel = grid_vels[boundary_direction]
         # Conditions to be set at the boundary
-        for lhs in flatten(arrays):
+        for lhs in flatten(cons_vars):
             ecs = []
-            # ecs = [ExprCondPair(0, True)]
             rhs_values = [increment_dataset(lhs, boundary_direction, value) for value in locations]
-            ecs += [ExprCondPair(rhs_values[0], GreaterThan(vel, ab))]
+            ecs += [ExprCondPair(rhs_values[0], GreaterThan(inlet_vel, ab))]
             ecs += [ExprCondPair(rhs_values[1], True)]
             kernel.add_equation(Eq(lhs, Piecewise(*ecs, **{'evaluate':False})))
-        # Conditions set in the halos
-        rhoE = arrays[-1]
+        # Conditions set in the halos in rhoE
         rhs_rhoE = pb/(gama-1.0) + 0.5*rhob*sum(grid_vels_sq)
         locations = [-i-1 for i in range(abs(halos[0][0]))]
-        lhs_arrays = [increment_dataset(rhoE, boundary_direction, value) for value in locations]
-
-        for i, lhs in enumerate(lhs_arrays):
+        lhs_rhoE = [increment_dataset(NS.total_energy(), boundary_direction, value) for value in locations]
+        for i, lhs in enumerate(lhs_rhoE):
             ecs = []
-            # ecs = [ExprCondPair(0, True)]
-            ecs += [ExprCondPair(lhs, GreaterThan(vel, ab))] # lhs == rhs
-            ecs += [ExprCondPair(rhs_rhoE, True)]
+            ecs += [ExprCondPair(lhs, GreaterThan(inlet_vel, ab))] # lhs == rhs
+            ecs += [ExprCondPair(NS.total_energy(), True)]
             kernel.add_equation(Eq(lhs, Piecewise(*ecs, **{'evaluate':False})))
-        pprint(kernel.equations)
         kernel.update_block_datasets(block)
         return kernel
 
@@ -617,7 +606,7 @@ class InletPressureExtrapolateBoundaryConditionBlock(ModifyCentralDerivative, Bo
 class OutletTransferBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionBase):
     """This is boundary condition should not be used until the user knows what he is doing. This is used for testing OpenSBLI
     """
-    def __init__(self, boundary_direction, side, equations = None, scheme = None,plane=True, NS=True):
+    def __init__(self, boundary_direction, side, equations = None, scheme = None,plane=True):
         BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
         self.bc_name = 'OutletTransfer'
         self.equations = equations
@@ -626,7 +615,7 @@ class OutletTransferBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCond
         else:
             self.modification_scheme = scheme
         if side != 1:
-            raise ValueError("Only implemented this BC for inlet side 1.")
+            raise ValueError("Only implemented this BC for outlet side 1.")
         return
 
     def apply(self, arrays, boundary_direction, side, block):
