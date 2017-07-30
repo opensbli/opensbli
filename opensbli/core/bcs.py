@@ -18,12 +18,14 @@
 #    You should have received a copy of the GNU General Public License
 #    along with OpenSBLI.  If not, see <http://www.gnu.org/licenses/>
 
-# @author: New structure implemented by Satya P Jammy (October, 2016)
+# @author: New structure implemented by Satya P Jammy, David J Lusher (October, 2016)
 from opensbli.physical_models.euler_eigensystem import EulerEquations
 from sympy import *
 from .kernel import *
 from opensbli.utilities.helperfunctions import increment_dataset
 from opensbli.core.opensbliequations import ConstituentRelations
+
+from opensbli.physical_models.ns_physics import *
 side_names  = {0:'left', 1:'right'}
 
 class Exchange(object):
@@ -362,7 +364,7 @@ class Carpenter(object):
             ecs += [ExprCondPair(d, Equality(idx,loc))]
         # Commenting out creating different kernels for the Carpenter bc's
         """if side != 0:
-            ranges = list(reversed(ranges))""" 
+            ranges = list(reversed(ranges))"""
         return ecs
 
     def expr_cond_pair_kernel(self, fn, direction, side, order,block):
@@ -474,76 +476,49 @@ class IsothermalWallBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCond
             self.modification_scheme = scheme
         return
     def apply(self, arrays, boundary_direction, side, block):
-
         kernel = Kernel(block, computation_name="Isothermal wall boundary dir%d side%d" % (boundary_direction, side))
         kernel.set_boundary_plane_range(block, boundary_direction, side)
         halos = kernel.get_plane_halos(block)
+        n_halos = abs(halos[boundary_direction][side])
         # Add the halos to the kernel in directions not equal to boundary direction
         for i in [x for x in range(block.ndim) if x != boundary_direction]:
             kernel.halo_ranges[i][0] = block.boundary_halos[i][0]
             kernel.halo_ranges[i][1] = block.boundary_halos[i][1]
         base = block.ranges[boundary_direction][side]
-
-        metric = eye(block.ndim)
-        # Set equations for the wall condition and halo points
-        lhs_eqns = flatten(arrays)
-
-        # Set wall conditions:
-        wall_eqns = []
-        for ar in arrays:
-            if isinstance(ar, list):
-                rhs = [0 for i in range(len(ar))]
-                wall_eqns += [Eq(x,y) for (x,y) in zip(ar, rhs)]
-        rhoE_wall = self.equations[:]
-        wall_eqns += rhoE_wall
+        # Using Navier Stokes physics object, create conservative variables
+        NS = NSphysics(block.ndim)
+        cons_vars = [NS.density(), NS.momentum(), NS.total_energy()]
+        base_loc = list(cons_vars[0].indices)
+        # Set wall conditions, momentum zero, rhoE specified:
+        wall_eqns = [Eq(x,0) for x in NS.momentum()] + self.equations[:]
         kernel.add_equation(wall_eqns)
-
-        n_halos = abs(halos[boundary_direction][side])
-        p0 = GridVariable('p0')
-        gama, Minf = ConstantObject('gama'), ConstantObject('Minf')
-        vel_comps = [i**2 for i in flatten(arrays[1])]
-        p0_rhs = (gama-1.0)*(lhs_eqns[-1] - 0.5*sum(vel_comps)/lhs_eqns[0])
-        kernel.add_equation(Eq(p0, p0_rhs))
-
-        loc = list(lhs_eqns[0].indices)
-
+        # Evaluate the wall pressure
+        p0, gama, Minf = GridVariable('p0'), ConstantObject('gama'), ConstantObject('Minf')
+        kernel.add_equation(Eq(p0, NS.pressure(relation=True, conservative=True)))
+        # Temperature evaluations #TODO: need to fix evaluations for upper wall halos
+        # new_loc[boundary_direction] += to_side_factor
         for i in range(1, n_halos+1):
-            new_loc = loc[:]
+            new_loc = base_loc[:]
             new_loc[boundary_direction] += i
-            T = (lhs_eqns[-1] - 0.5*(sum(vel_comps)/lhs_eqns[0]))*(gama*(gama-1.0)*Minf**2) / lhs_eqns[0]
-            T = self.convert_dataset_base_expr_to_datasets(T,new_loc)
+            T = self.convert_dataset_base_expr_to_datasets(NS.temperature(relation=True, conservative=True),new_loc)
             kernel.add_equation(Eq(GridVariable('T%d' % i), T))
+        from_side_factor, to_side_factor = self.set_side_factor(side)
 
-        if side == 0:
-            from_side_factor = -1
-            to_side_factor = 1
-        elif side == 1:
-            from_side_factor = 1
-            to_side_factor = -1
-
-        new_loc[boundary_direction] += to_side_factor
-        rhs_eqns = []
-        for ar in arrays:
-            if isinstance(ar, list):
-                transformed_vector = metric*Matrix(ar)
-                transformed_vector = -1*transformed_vector
-                rhs_eqns += flatten(transformed_vector)
-            else:
-                rhs_eqns += [ar]
-
+        # Set rhoE RHS and reverse momentum components in the halos
+        rhs_eqns = flatten([0, [-1*x for x in NS.momentum()], 0])
+        rhs_eqns[-1] = p0/(gama-1.0) + 0.5*dot(NS.momentum(), NS.momentum())/NS.density()
+        # Transfer indices are the indices of halo points
         transfer_indices = [tuple([from_side_factor*t, to_side_factor*t]) for t in range(1, n_halos + 1)]
 
         final_equations = []
         for i, index in enumerate(transfer_indices):
             array_equations = []
-            loc_lhs, loc_rhs = loc[:], loc[:]
+            loc_lhs, loc_rhs = base_loc[:], base_loc[:]
             loc_lhs[boundary_direction] += index[0]
             loc_rhs[boundary_direction] += index[1]
             # Set rho RHS
             rhs_eqns[0] = p0*gama*Minf**2 / GridVariable('T%d' % (i+1))
-            # Set rhoE RHS
-            rhs_eqns[-1] = p0/(gama-1.0) + 0.5*sum(vel_comps)/lhs_eqns[0]
-            for left, right in zip(lhs_eqns, rhs_eqns):
+            for left, right in zip(flatten(cons_vars), rhs_eqns):
                 left = self.convert_dataset_base_expr_to_datasets(left, loc_lhs)
                 right = self.convert_dataset_base_expr_to_datasets(right, loc_rhs)
                 array_equations += [Eq(left, right, evaluate=False)]
@@ -642,9 +617,9 @@ class InletPressureExtrapolateBoundaryConditionBlock(ModifyCentralDerivative, Bo
 class OutletTransferBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionBase):
     """This is boundary condition should not be used until the user knows what he is doing. This is used for testing OpenSBLI
     """
-    def __init__(self, boundary_direction, side, equations = None, scheme = None,plane=True):
+    def __init__(self, boundary_direction, side, equations = None, scheme = None,plane=True, NS=True):
         BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
-        self.bc_name = 'InletTransfer'
+        self.bc_name = 'OutletTransfer'
         self.equations = equations
         if not scheme:
             self.modification_scheme = Carpenter()
