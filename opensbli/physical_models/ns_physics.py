@@ -12,6 +12,7 @@ class PhysicsVariable(object):
             raise ValueError("")
         self._variable = var
         self._relation = None
+        self._conservative_relation = None
         return
     @property
     def relation(self):
@@ -21,6 +22,12 @@ class PhysicsVariable(object):
     def relation(self, formula):
         self._relation = formula
         return
+    @property
+    def conservative_relation(self):
+        return self._conservative_relation
+    @conservative_relation.setter
+    def conservative_relation(self, formula):
+        self._conservative_relation = formula
     @property
     def variable(self):
         # returns the dataset of the current variable at the location
@@ -44,7 +51,7 @@ class NSphysics(Physics):
         self._momentum = m2# Expand rhou_i to number of dimensions
         self._totalenergy = PhysicsVariable(DataObject('rhoE'))
         self._pressure = PhysicsVariable(DataObject('p'))
-        self._tempertature = PhysicsVariable(DataObject('T'))
+        self._temperature = PhysicsVariable(DataObject('T'))
         m = self.eqobject.expand('u_i', self.ndim, "x", substitutions =[], constants = [])
         m2 = [PhysicsVariable(m1) for m1 in m]
         self._velocity = m2 # Expand u_i to number of dimensions
@@ -59,13 +66,21 @@ class NSphysics(Physics):
         self._Reynoldsnumber = ConstantObject("Re")
         self._CpbyCv = ConstantObject("gama") # Ratio of specific heats
         self._Prandtlnumber = ConstantObject("Pr")
+        self._Mach = ConstantObject("Minf")
 
         self._pressure.relation = (self.specific_heat_ratio() - S.One)*(self.total_energy() - Rational(1,2)*self.density()*(dot(self.velocity(), self.velocity())))
-        self._pressure.momentum_relation = (self.specific_heat_ratio() - S.One)*(self.total_energy() - Rational(1,2)*(dot(self.momentum(), self.momentum()))/self.density())
+        self._pressure.conservative_relation = (self.specific_heat_ratio() - S.One)*(self.total_energy() - Rational(1,2)*(dot(self.momentum(), self.momentum()))/self.density())
+        
+        self._temperature.relation = (self.total_energy() - Rational(1,2)*self.density()*(dot(self.velocity(), self.velocity())))*\
+                                                (self.specific_heat_ratio()*(self.specific_heat_ratio() - S.One)*self.mach_number()**2) / self.density()
+        self._temperature.conservative_relation = (self.total_energy() - Rational(1,2)*(dot(self.momentum(), self.momentum()))/self.density())*\
+                                                (self.specific_heat_ratio()*(self.specific_heat_ratio() - S.One)*self.mach_number()**2) / self.density()
         return
 
     def specific_heat_ratio(self):
         return self._CpbyCv
+    def mach_number(self):
+        return self._Mach
     @property
     def viscosity(self):
         return
@@ -91,12 +106,12 @@ class NSphysics(Physics):
             return self._totalenergy.variable
         else:
             raise NotImplementedError("")
-    def pressure(self, relation=False, momentum=False):
+    def pressure(self, relation=False, conservative=False):
         if not relation:
             return self._pressure.variable
         else:
-            if momentum:
-                return self._pressure.momentum_relation
+            if conservative:
+                return self._pressure.conservative_relation
             else:
                 return self._pressure.relation
     def velocity(self, relation=False):
@@ -104,11 +119,14 @@ class NSphysics(Physics):
             return [m.variable for m in self._velocity]
         else:
             return [m.relation for m in self._velocity]
-    def temperature(self, relation=False):
+    def temperature(self, relation=False, conservative=False):
         if not relation:
-            return self._tempertature.variable
+            return self._temperature.variable
         else:
-            raise NotImplementedError("")
+            if conservative:
+                return self._temperature.conservative_relation
+            else:
+                return self._temperature.relation
     def viscosity(self, relation=False):
         if not relation:
             return [m.variable for m in self._momentum]
