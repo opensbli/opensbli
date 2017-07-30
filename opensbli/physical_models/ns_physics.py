@@ -60,7 +60,8 @@ class NSphysics(Physics):
         self._CpbyCv = ConstantObject("gama") # Ratio of specific heats
         self._Prandtlnumber = ConstantObject("Pr")
 
-        self._pressure.relation = (self.specific_heat_ratio() - S.One)*(self.total_energy() - Rational(1,2)*(dot(self.momentum(), self.momentum()))/self.density())
+        self._pressure.relation = (self.specific_heat_ratio() - S.One)*(self.total_energy() - Rational(1,2)*self.density()*(dot(self.velocity(), self.velocity())))
+        self._pressure.momentum_relation = (self.specific_heat_ratio() - S.One)*(self.total_energy() - Rational(1,2)*(dot(self.momentum(), self.momentum()))/self.density())
         return
 
     def specific_heat_ratio(self):
@@ -90,11 +91,14 @@ class NSphysics(Physics):
             return self._totalenergy.variable
         else:
             raise NotImplementedError("")
-    def pressure(self, relation=False):
+    def pressure(self, relation=False, momentum=False):
         if not relation:
             return self._pressure.variable
         else:
-            return self._pressure.relation
+            if momentum:
+                return self._pressure.momentum_relation
+            else:
+                return self._pressure.relation
     def velocity(self, relation=False):
         if not relation:
             return [m.variable for m in self._velocity]
