@@ -60,7 +60,7 @@ class NSphysics(Physics):
         self._CpbyCv = ConstantObject("gama") # Ratio of specific heats
         self._Prandtlnumber = ConstantObject("Pr")
 
-        self._pressure.relation = (self.specific_heat_ratio() - S.One)*(self.total_energy() -self.density() * (dot(self.velocity(), self.velocity())))
+        self._pressure.relation = (self.specific_heat_ratio() - S.One)*(self.total_energy() - Rational(1,2)*(dot(self.momentum(), self.momentum()))/self.density())
         return
 
     def specific_heat_ratio(self):
