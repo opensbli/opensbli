@@ -327,7 +327,7 @@ class Carpenter(object):
 
     def weight_function_points(self, func_points, direction, order, block, side, char_BC=False):
         if order == 1:
-            h = (block.deltas[direction])**(-1)
+            h = S.One # The division of delta is now applied in central derivative to reduce the divisions
             if side == 1:
                 h = -S.One*h # Modify the first derivatives for side ==1
             if char_BC:
@@ -337,7 +337,7 @@ class Carpenter(object):
                 for i in range(4):
                     weighted[i] = h*(self.bc4_coefficients[i,:]*func_points[:,i])
         elif order == 2:
-            h_sq = (block.deltas[direction])**(-2)
+            h_sq = S.One # The division of delta**2 is now applied in central derivative to reduce the divisions
             weighted = zeros(2,1)
             for i in range(2):
                 weighted[i] = h_sq*(self.bc4_2_coefficients[i,:]*func_points[0:5,i])
