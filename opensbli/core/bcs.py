@@ -495,14 +495,13 @@ class IsothermalWallBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCond
         # Evaluate the wall pressure
         p0, gama, Minf = GridVariable('p0'), NS.specific_heat_ratio(), NS.mach_number()
         kernel.add_equation(Eq(p0, NS.pressure(relation=True, conservative=True)))
-        # Temperature evaluations #TODO: need to fix evaluations for upper wall halos
-        # new_loc[boundary_direction] += to_side_factor
+        # Temperature evaluations for the halos
+        from_side_factor, to_side_factor = self.set_side_factor(side)
         for i in range(1, n_halos+1):
             new_loc = base_loc[:]
-            new_loc[boundary_direction] += i
+            new_loc[boundary_direction] += to_side_factor*i
             T = self.convert_dataset_base_expr_to_datasets(NS.temperature(relation=True, conservative=True),new_loc)
             kernel.add_equation(Eq(GridVariable('T%d' % i), T))
-        from_side_factor, to_side_factor = self.set_side_factor(side)
 
         # Set rhoE RHS and reverse momentum components in the halos
         rhs_eqns = flatten([0, [-1*x for x in NS.momentum()], 0])
