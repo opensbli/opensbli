@@ -221,6 +221,16 @@ class SimulationEquations(Discretisation, Solution):
         kernel.set_grid_range(block)
         cls.Kernels += [kernel]
         return
+
+
+    @property
+    def get_required_constituents(self):
+        arrays = []
+        for eq in flatten(self.equations):
+            arrays += list(eq.atoms(DataSet))
+        arrays = set(arrays) 
+        return arrays
+
     def spatial_discretisation(cls, schemes, block):
         """
         Discretisation will be done by
@@ -248,7 +258,6 @@ class SimulationEquations(Discretisation, Solution):
         cls.requires = {}
         for no,sc in enumerate(spatialschemes):
             cls.constituent_evaluations[sc] = schemes[sc].discretise(cls, block)
-            #pprint([cls.constituent_evaluations[sc], cls])
             for key, value in cls.constituent_evaluations[sc].iteritems():
                 if key in cr_dictionary.keys():
                     if key in cls.constituent_relations_kernels:
@@ -259,7 +268,14 @@ class SimulationEquations(Discretisation, Solution):
                 else:
                     #raise ValueError("Constituent relation is not found for %s"%key)
                     cls.requires[key] = value
+        missing_CR_datasets = cls.get_required_constituents.difference(cls.constituent_relations_kernels.keys())
+        for dset in missing_CR_datasets:
+            # Evaluation of missing dataset is required
+            if dset in cr_dictionary.keys():
+                for kernel in cr_dictionary[dset].kernels:
+                    cls.constituent_relations_kernels[kernel.equations[0].lhs] = kernel
         cls.process_kernels(block)
+
         return
     def process_kernels(cls, block):
         for key,kernel in cls.constituent_relations_kernels.iteritems():
@@ -279,10 +295,20 @@ class SimulationEquations(Discretisation, Solution):
         """
         Sort the constituent relations thinking requires is Known
         """
-        order_of_evaluation = cls.sort_dictionary(list(cls.requires.keys()), cls.constituent_relations_kernels)
+        input_order = []
+        for a in cls.requires.keys():
+            if isinstance(a, DataSet):
+                input_order += [a.base]
+            else:
+                input_order +=  [a]
+
+        dictionary = {}
+        for key, value in cls.constituent_relations_kernels.iteritems():
+            dictionary[key.base] = value
+        order_of_evaluation = cls.sort_dictionary(input_order, dictionary)
         ordered_kernels = []
         for o in order_of_evaluation:
-            ordered_kernels += [cls.constituent_relations_kernels[o]]
+            ordered_kernels += [dictionary[o]]
         return ordered_kernels
     def sort_dictionary(cls, order, new_dictionary):
         """ Sort the evaluations based on the requirements of each term. For example, if we have
@@ -297,13 +323,14 @@ class SimulationEquations(Discretisation, Solution):
         :rtype: list
         """
         dictionary = new_dictionary
-        reverse_dictionary = {}
-        order = flatten(order + cls.time_advance_arrays)
+        # reverse_dictionary = {}
+        order = flatten(order + [a.base for a in flatten(cls.time_advance_arrays)])
         order = list(set(order))
         # store the length of order
         input_order = len(order)
         key_list = [key for key in dictionary.keys() if key not in order]
         requires_list = ([dictionary[key].required_data_sets for key in key_list])
+       
         zipped = zip(key_list, requires_list)
         # Breaks after 1000 iterations
         iter_count = 0
@@ -312,7 +339,6 @@ class SimulationEquations(Discretisation, Solution):
             order += [x for (x, y) in zipped if all(req in order for req in y)]
             key_list = [key for key in dictionary.keys() if key not in order]
             requires_list = [dictionary[key].required_data_sets for key in key_list]
-            #requires_list = flatten(requires_list)
             zipped = zip(key_list, requires_list)
             if iter_count > 1000:
                 print("Exiting because i cannot classify the following")
@@ -404,6 +430,16 @@ class ConstituentRelations(Discretisation, Solution):
                 spatialschemes += [sc]
         # Perform spatial Discretisation if any in constituent relations evaluation
         cls.constituent_evaluations = {}
+        equations = cls.equations
+
+        for eq in equations:
+            cls.equations = [eq]
+            for sc in spatialschemes:
+                cls.constituent_evaluations[sc] = schemes[sc].discretise(cls, block)
+            eq.kernels = cls.Kernels[:]
+
+            cls.Kernels = []
+        cls.equations = equations
         for sc in spatialschemes:
             cls.constituent_evaluations[sc] = schemes[sc].discretise(cls, block)
         return
