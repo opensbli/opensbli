@@ -11,7 +11,7 @@ OpenSBLI is an automatic code generator which expands a set of equations written
 First ensure that the following dependencies are satisfied:
 
 * Python 2.7
-* SymPy >= 1.0
+* SymPy v1.0 (works only with SymPy v1.0)
 * python-h5py
 * OPS (to target the generated OPSC code towards different backends), specifically revision 178ec4f7c1ccb1917a85b4248820cfecb912ac6f of the [OPS project's repository](https://github.com/gihanmudalige/OPS) or later.
 * pytest (for running the test suite)
