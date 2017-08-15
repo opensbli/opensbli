@@ -505,7 +505,6 @@ class CentralDerivative(Function, BasicDiscretisation):
             #print "YES", dire, cls
             boundary_mods = [k for k in modifications[dire] if k]
             expression_condition_pairs = []
-            pprint(cls.args[0])
             for b in boundary_mods:
                 expression_condition_pairs += b.modification_scheme.expr_cond_pairs(cls.args[0], b.direction, b.side, cls.order, block)
             expression_condition_pairs += [ExprCondPair(form, True)]
@@ -622,6 +621,71 @@ class WenoDerivative(Function, BasicDiscretisation):
             metric_der = metric_der.subs(at, local_at)
         return metric_der
 
+class TenoDerivative(Function, BasicDiscretisation):
+
+    def __new__(cls, expr, *args):
+        args = flatten([expr] + list(args))
+        ret = super(TenoDerivative, cls).__new__(cls, *args, evaluate=False)
+        ret.store = True # By default all the derivatives are stored
+        ret.reconstructions = []
+        ret.local_evaluation = True
+        return ret
+    @property
+    def simple_name(cls):
+        return "%s"%("TD")
+
+    def _discretise_derivative(cls, block, scheme=None):
+        """This would return the descritised derivative of the
+        local object depending on the order of accuracy specified
+        Returns the formula for the derivative function, only first derivatives or homogeneous
+        derivatives of higher order are supported. The mixed derivatives will be handled impl-
+        citly while creating the kernels
+        :arg derivative: the derivative on which descritisation should be performed
+        :returns: the descritised derivative, in case of wall boundaries this is a Piecewise-
+        function
+        """
+        order = cls.order
+        if (order > 1):
+            raise ValueError("Teno Derivatives only defined for first order")
+        dire = cls.get_direction[0]
+        delta = block.deltas[dire]
+        loc = list(cls.reconstruction_work.indices[:])
+        loc[dire] += -1
+        form = (cls.reconstruction_work - cls.reconstruction_work.base[loc]) / delta
+        return form
+
+    def add_reconstruction_classes(self, classes):
+        if isinstance(classes, list):
+            self.reconstructions += classes
+        else:
+            self.reconstructions += [classes]
+        return
+    def create_reconstruction_work_array(self, block):
+        self.reconstruction_work = block.work_array()
+        block.increase_work_index
+        return
+    @property
+    def evaluate_reconstruction(self):
+
+        total = 0
+        for r in self.reconstructions:
+            total += r.reconstructed_symbol
+        return total
+    def _sympystr(self, p):
+        args = list(map(p.doprint, self.args))
+        return "%s %s"%(self.simple_name, " ".join(args))
+
+    def classical_strong_differentiabilty_transformation(cls, metric):
+        direction = cls.get_direction
+        if cls.order == 1:
+            metric_der = metric.classical_strong_differentiabilty_transformation[direction[0]]
+        elif cls.order == 2:
+            raise NotImplementedError("")
+        for at in metric_der.atoms(Function):
+            local_at = type(cls)(at.args[0].subs(metric.general_function, cls.args[0]), at.args[1:])
+            metric_der = metric_der.subs(at, local_at)
+        return metric_der
+
 
 class TemporalDerivative(Function, BasicDiscretisation):
 
@@ -698,6 +762,6 @@ class MetricDerivative(Function, BasicDiscretisation):
         return "%s"%("CD")
 
 
-localfuncs = (MetricDerivative, KD, CentralDerivative, WenoDerivative, TemporalDerivative, LC, Dot)
+localfuncs = (MetricDerivative, KD, CentralDerivative, WenoDerivative, TenoDerivative, TemporalDerivative, LC, Dot)
 simplifying_funcs = (KD, LC, Dot)
 local_objects = ( DataObject, CoordinateObject, ConstantObject, EinsteinTerm)

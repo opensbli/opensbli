@@ -140,7 +140,9 @@ class LatexWriter(LatexPrinter):
         return r'\left. %s \right|_{{%s }}' % (self._print(Derivative(*expr.args)), "Temporal")
     def _print_WenoDerivative(self, expr):
         return r'\left. %s \right|_{{%s }}' % (self._print(Derivative(*expr.args)), "Weno")
-    
+    def _print_TenoDerivative(self, expr):
+        return r'\left. %s \right|_{{%s }}' % (self._print(Derivative(*expr.args)), "Teno")
+
     def _print_KD(self, expr):
         #print expr
         #print expr._latex_no_arg(self)

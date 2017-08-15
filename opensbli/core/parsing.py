@@ -34,7 +34,7 @@ from .opensblifunctions import *
 
 LOCAL_FUNCTIONS = []
 
-classdict = {Symbol('Central'): CentralDerivative, Symbol('Temporal'):TemporalDerivative, Symbol('Weno'):WenoDerivative, Symbol('Metric'):MetricDerivative}
+classdict = {Symbol('Central'): CentralDerivative, Symbol('Temporal'):TemporalDerivative, Symbol('Weno'):WenoDerivative, Symbol('Metric'):MetricDerivative, Symbol('Teno'):TenoDerivative}
 
 class ParsingSchemes(object):
     def set_schemes(cls, expr):
