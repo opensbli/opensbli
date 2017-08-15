@@ -7,6 +7,7 @@ from opensbli.utilities.helperfunctions import increment_dataset
 from .scheme import Scheme
 
 
+
 class WenoHalos(object):
     def __init__(self, order, reconstruction=None):
         # Check for the boundary types in the blocks and set the halo points
@@ -39,6 +40,7 @@ class ConfigureWeno(object):
         self.c_rj = self.generate_eno_coefficients(k)
         self.c2_rj = self.generate_eno_coefficients(2*k-1)
         self.opt_weights = self.generate_optimal_weights()
+        print self.opt_weights
         return
 
     @property
@@ -168,9 +170,9 @@ class JS_smoothness(object):
         """ Generates the standard Jiang-Shu smoothness indicators as polynomials in the
         symbolic placeholder functions 'f'.
         arg: object: fn: The reconstruction variable object to contain the smoothness indicators."""
-        if isinstance(fn, LeftReconstructionVariable):
+        if isinstance(fn, LeftWenoReconstructionVariable):
             shift = 1
-        elif isinstance(fn, RightReconstructionVariable):
+        elif isinstance(fn, RightWenoReconstructionVariable):
             shift = 0
         k = self.k
         # Compute the smoothness indicator and alpha
@@ -184,11 +186,17 @@ class JS_smoothness(object):
                         shift_indices = [-r+m+shift, -r+n+shift]
                         func_product = fn.function_stencil_dictionary[shift_indices[0]]*fn.function_stencil_dictionary[shift_indices[1]]
                         local_smoothness += beta*func_product
+            # pprint(local_smoothness)
+            # print "old: ", local_smoothness.count_ops()
+            # local_smoothness = horner(local_smoothness)
+            # print "new: ", local_smoothness.count_ops()
+            # pprint(local_smoothness)
+            # print "\n\n"
             fn.smoothness_indicators += [local_smoothness]
         return
 
 
-class ReconstructionVariable(object):
+class WenoReconstructionVariable(object):
     def __init__(self, name):
         """ Reconstruction variable object to hold the quantities required for WENO.
         arg: str: name: Name of the reconstruction, either left or right."""
@@ -229,23 +237,22 @@ class ReconstructionVariable(object):
         for no, value in enumerate(all_symbols):
             kernel.add_equation(Eq(value, all_evaluations[no]))
         kernel.add_equation(Eq(self.reconstructed_symbol, self.reconstructed_expression))
-
         return
 
 
-class LeftReconstructionVariable(ReconstructionVariable):
+class LeftWenoReconstructionVariable(WenoReconstructionVariable):
     def __init__(self, name):
         """ Reconstruction object for the left reconstruction.
         arg: str: name: 'left' """
-        ReconstructionVariable.__init__(self, name)
+        WenoReconstructionVariable.__init__(self, name)
         return
 
 
-class RightReconstructionVariable(ReconstructionVariable):
+class RightWenoReconstructionVariable(WenoReconstructionVariable):
     def __init__(self, name):
         """ Reconstruction object for the right reconstruction.
         arg: str: name: 'right' """
-        ReconstructionVariable.__init__(self, name)
+        WenoReconstructionVariable.__init__(self, name)
         return
 
 
@@ -263,7 +270,7 @@ class WenoZ(object):
         p = 2
         for r in range(self.k):
             RV.alpha_symbols += [Symbol('alpha_%d' % r)]
-            RV.alpha_evaluated.append(WenoConfig.opt_weights.get((0, r))*(1.0 + (tau_5/(self.eps + RV.smoothness_symbols[r]))**p))
+            RV.alpha_evaluated.append(WenoConfig.opt_weights.get((0, r))*(Float(1) + (tau_5/(self.eps + RV.smoothness_symbols[r]))**p))
         return
 
     def generate_omegas(self, RV, WenoConfig):
@@ -347,7 +354,7 @@ class Weno(Scheme):
         self.required_constituent_relations_symbols = {}
         # Generate smoothness coefficients and store configurations for left and right reconstructions.
         smooth_coeffs = JS.smooth_coeffs
-        self.reconstruction_classes = [LeftReconstructionVariable('left'), RightReconstructionVariable('right')]
+        self.reconstruction_classes = [LeftWenoReconstructionVariable('left'), RightWenoReconstructionVariable('right')]
         # Populate the quantities required by WENO for the left and right reconstruction variable.
         for no, side in enumerate([-1, 1]):
             WenoConfig = ConfigureWeno(self.k, side)
@@ -362,16 +369,16 @@ class Weno(Scheme):
         return
 
     def interpolate_reconstruction_variables(self, derivatives, kernel):
-        """ Perform the WENO interpolation on the reconstruction variables.
-        arg: list: derivatives: A list of the WENO derivatives to be computed.
+        """ Perform the TENO interpolation on the reconstruction variables.
+        arg: list: derivatives: A list of the TENO derivatives to be computed.
         arg: object: kernel: The current computational kernel.
         """
         for d in derivatives:
             pprint(d)
             for rv in d.reconstructions:
-                if isinstance(rv, RightReconstructionVariable):
+                if isinstance(rv, type(self.reconstruction_classes[1])):
                     original_rv = self.reconstruction_classes[1]
-                elif isinstance(rv, LeftReconstructionVariable):
+                elif isinstance(rv, type(self.reconstruction_classes[0])):
                     original_rv = self.reconstruction_classes[0]
                 else:
                     raise ValueError("Reconstruction must be left or right")
@@ -472,6 +479,8 @@ class EigenSystem(object):
         arg: str: name: Base name to use for the GridVariables
         returns: mat: The matrix updated to contain GridVariables."""
         syms = list(mat.atoms(EinsteinTerm).difference(mat.atoms(ConstantObject)))
+        print type(syms[0])
+        print str(syms[0])
         new_syms = [GridVariable('%s_%s' % (name, str(sym))) for sym in syms]
         substitutions = dict(zip(syms, new_syms))
         mat = mat.subs(substitutions)
@@ -517,27 +526,7 @@ class Characteristic(EigenSystem):
         self.REV_store = {}
         return
 
-    def group_by_direction(self, eqs):
-        """ Groups the input equations by the direction (x0, x1, ...) they depend upon.
-        arg: list: eqs: List of equations to group by direction.
-        returns: dict: grouped: Dictionary of {direction: equations} key, value pairs for equations grouped by direction."""
-        all_WDS = []
-        for eq in eqs:
-            all_WDS += list(eq.atoms(WenoDerivative))
-            # pprint([eq, eq.atoms(WenoDerivative)])
-        # all_WDS = list(set(all_WDS))
-        # pprint(all_WDS)
-        # if len(all_WDS) != len(eqs):
-        #     raise ValueError("Number of WD in each equation should be one.")
-        grouped = {}
-        for cd in all_WDS:
-            direction = cd.get_direction[0]
-            if direction in grouped.keys():
-                grouped[direction] += [cd]
-            else:
-                grouped[direction] = [cd]
-        # TODO: check for size of grouped items
-        return grouped
+
 
     def pre_process(self, direction, derivatives, solution_vector, kernel):
         """ Performs the transformation of the derivatives into characteristic space using the eigensystems provided to Characteristic. Flux splitting is then applied
@@ -563,6 +552,7 @@ class Characteristic(EigenSystem):
         # Transform the flux vector and the solution vector to characteristic space
         characteristic_flux_vector, CF_matrix = self.flux_vector_to_characteristic(derivatives, direction, averaged_suffix_name)
         characteristic_solution_vector, CS_matrix = self.solution_vector_to_characteristic(solution_vector, direction, averaged_suffix_name)
+        # Can use horner here on characteristic flux
         pre_process_equations += flatten(self.generate_equations_from_matrices(CF_matrix, characteristic_flux_vector))
         pre_process_equations += flatten(self.generate_equations_from_matrices(CS_matrix, characteristic_solution_vector))
 
@@ -603,11 +593,30 @@ class Characteristic(EigenSystem):
         kernel.add_equation(post_process_equations)
         return
 
+    # def generate_left_reconstruction_variables(self, flux, derivatives):
+    #     if isinstance(flux, Matrix):
+    #         stencil = flux.stencil_points
+    #         for i in range(flux.shape[0]):
+    #             rv = LeftWenoReconstructionVariable('L_X%d_%d' % (self.direction, i))
+    #             for p in sorted(set(self.reconstruction_classes[0].func_points)):
+    #                 rv.function_stencil_dictionary[p] = flux[i, stencil.index(p)]
+    #             derivatives[i].add_reconstruction_classes([rv])
+    #     return
+
+    # def generate_right_reconstruction_variables(self, flux, derivatives):
+    #     if isinstance(flux, Matrix):
+    #         stencil = flux.stencil_points
+    #         for i in range(flux.shape[0]):
+    #             rv = RightWenoReconstructionVariable('R_X%d_%d' % (self.direction, i))
+    #             for p in sorted(set(self.reconstruction_classes[1].func_points)):
+    #                 rv.function_stencil_dictionary[p] = flux[i, stencil.index(p)]
+    #             derivatives[i].add_reconstruction_classes([rv])
+    #     return
     def generate_left_reconstruction_variables(self, flux, derivatives):
         if isinstance(flux, Matrix):
             stencil = flux.stencil_points
             for i in range(flux.shape[0]):
-                rv = LeftReconstructionVariable('L_X%d_%d' % (self.direction, i))
+                rv = type(self.reconstruction_classes[0])('L_X%d_%d' % (self.direction, i))
                 for p in sorted(set(self.reconstruction_classes[0].func_points)):
                     rv.function_stencil_dictionary[p] = flux[i, stencil.index(p)]
                 derivatives[i].add_reconstruction_classes([rv])
@@ -617,12 +626,11 @@ class Characteristic(EigenSystem):
         if isinstance(flux, Matrix):
             stencil = flux.stencil_points
             for i in range(flux.shape[0]):
-                rv = RightReconstructionVariable('R_X%d_%d' % (self.direction, i))
+                rv = type(self.reconstruction_classes[1])('R_X%d_%d' % (self.direction, i))
                 for p in sorted(set(self.reconstruction_classes[1].func_points)):
                     rv.function_stencil_dictionary[p] = flux[i, stencil.index(p)]
                 derivatives[i].add_reconstruction_classes([rv])
         return
-
     def solution_vector_to_characteristic(self, solution_vector, direction, name):
         stencil_points = sorted(list(set(self.reconstruction_classes[0].func_points + self.reconstruction_classes[1].func_points)))
         solution_vector_stencil = zeros(len(solution_vector), len(stencil_points))
@@ -657,12 +665,12 @@ class Characteristic(EigenSystem):
         return characteristic_flux_stencil, CF_matrix
 
 
-class LLFCharacteristic(Characteristic, Weno):
+class LLFCharacteristic(Characteristic):
     """ This class contains the Local Lax-Fedrich scheme
     """
     def __init__(self, eigenvalue, left_ev, right_ev, order, ndim, averaging=None):
         Characteristic.__init__(self, eigenvalue, left_ev, right_ev)
-        Weno.__init__(self, order)
+        # Weno.__init__(self, order)
         if averaging == None:
             self.average = SimpleAverage([0, 1]).average
         else:
@@ -702,22 +710,22 @@ class LLFCharacteristic(Characteristic, Weno):
             grouped = self.group_by_direction(eqs)
             all_derivatives_evaluated_locally = []
 
-            reconstruction_halos = WenoHalos(self.order, reconstruction=True)
+            reconstruction_halos = self.reconstruction_halotype(self.order, reconstruction=True)
             for key, derivatives in grouped.iteritems():
                 all_derivatives_evaluated_locally += derivatives
                 for no, deriv in enumerate(derivatives):
                     deriv.create_reconstruction_work_array(block)
-                weno_kernel = Kernel(block, computation_name="Weno_reconstruction_%d_direction" % (key))
-                weno_kernel.set_grid_range(block)
+                kernel = Kernel(block, computation_name="%s_reconstruction_%d_direction" % (self.__class__.__name__, key))
+                kernel.set_grid_range(block)
                 # WENO reconstruction should be evaluated for extra point on each side
-                weno_kernel.set_halo_range(key, 0, reconstruction_halos)
-                weno_kernel.set_halo_range(key, 1, reconstruction_halos)
-                self.pre_process(key, derivatives, flatten(type_of_eq.time_advance_arrays), weno_kernel)
-                self.interpolate_reconstruction_variables(derivatives, weno_kernel)
+                kernel.set_halo_range(key, 0, reconstruction_halos)
+                kernel.set_halo_range(key, 1, reconstruction_halos)
+                self.pre_process(key, derivatives, flatten(type_of_eq.time_advance_arrays), kernel)
+                self.interpolate_reconstruction_variables(derivatives, kernel)
                 block.set_block_boundary_halos(key, 0, self.halotype)
                 block.set_block_boundary_halos(key, 1, self.halotype)
-                reconstructed_flux = self.post_process(derivatives, weno_kernel)
-                type_of_eq.Kernels += [weno_kernel]
+                reconstructed_flux = self.post_process(derivatives, kernel)
+                type_of_eq.Kernels += [kernel]
             if grouped:
                 type_of_eq.Kernels += [self.evaluate_residuals(block, eqs, all_derivatives_evaluated_locally)]
             constituent_relations = self.generate_constituent_relations_kernels(block)
@@ -733,12 +741,33 @@ class LLFCharacteristic(Characteristic, Weno):
                 else:
                     substitutions[d] = 0
             residue_eq += [Eq(eq.residual, eq.residual + eq.rhs.subs(substitutions))]
-        residue_kernel = Kernel(block, computation_name="Weno Residual")
+        residue_kernel = Kernel(block, computation_name="%s Residual" % self.__class__.__name__)
         residue_kernel.set_grid_range(block)
         residue_kernel.add_equation(residue_eq)
         return residue_kernel
 
 
+    # def group_by_direction(self, eqs):
+    #     """ Groups the input equations by the direction (x0, x1, ...) they depend upon.
+    #     arg: list: eqs: List of equations to group by direction.
+    #     returns: dict: grouped: Dictionary of {direction: equations} key, value pairs for equations grouped by direction."""
+    #     all_WDS = []
+    #     for eq in eqs:
+    #         all_WDS += list(eq.atoms(WenoDerivative))
+    #         # pprint([eq, eq.atoms(WenoDerivative)])
+    #     # all_WDS = list(set(all_WDS))
+    #     # pprint(all_WDS)
+    #     # if len(all_WDS) != len(eqs):
+    #     #     raise ValueError("Number of WD in each equation should be one.")
+    #     grouped = {}
+    #     for cd in all_WDS:
+    #         direction = cd.get_direction[0]
+    #         if direction in grouped.keys():
+    #             grouped[direction] += [cd]
+    #         else:
+    #             grouped[direction] = [cd]
+    #     # TODO: check for size of grouped items
+    #     return grouped
 class SimpleAverage(object):
     def __init__(self, locations):
         self.locations = locations
@@ -752,7 +781,8 @@ class SimpleAverage(object):
         arg; name_suffix: Name to be appended to the functions. """
         avg_equations = []
         for f in functions:
-            d = DataSetBase(str(f))
+            name = f.get_base()
+            d = DataSetBase(name)
             loc = [0 for i in range(DataSetBase.block.ndim)]
             loc1 = loc[:]
             loc2 = loc[:]
@@ -760,5 +790,30 @@ class SimpleAverage(object):
             loc2[direction] = loc[direction] + self.locations[1]
             a = d[loc1]
             b = d[loc2]
-            avg_equations += [Eq(GridVariable('%s_%s' % (name_suffix, str(f))), (a+b)/2)]
+            avg_equations += [Eq(GridVariable('%s_%s' % (name_suffix, name)), (a+b)/2)]
         return avg_equations
+
+class LLFWeno(LLFCharacteristic, Weno):
+    def __init__(self, eigenvalue, left_ev, right_ev, order, ndim, averaging=None):
+        LLFCharacteristic.__init__(self, eigenvalue, left_ev, right_ev, order, ndim, averaging)
+        Weno.__init__(self, order)
+        return
+
+    def reconstruction_halotype(self, order, reconstruction=True):
+        return WenoHalos(order,reconstruction)
+    def group_by_direction(self, eqs):
+        """ Groups the input equations by the direction (x0, x1, ...) they depend upon.
+        arg: list: eqs: List of equations to group by direction.
+        returns: dict: grouped: Dictionary of {direction: equations} key, value pairs for equations grouped by direction."""
+        all_WDS = []
+        for eq in eqs:
+            all_WDS += list(eq.atoms(WenoDerivative))
+        grouped = {}
+        for cd in all_WDS:
+            direction = cd.get_direction[0]
+            if direction in grouped.keys():
+                grouped[direction] += [cd]
+            else:
+                grouped[direction] = [cd]
+        # TODO: check for size of grouped items
+        return grouped
