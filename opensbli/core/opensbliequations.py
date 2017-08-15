@@ -330,7 +330,7 @@ class SimulationEquations(Discretisation, Solution):
         input_order = len(order)
         key_list = [key for key in dictionary.keys() if key not in order]
         requires_list = ([dictionary[key].required_data_sets for key in key_list])
-       
+
         zipped = zip(key_list, requires_list)
         # Breaks after 1000 iterations
         iter_count = 0

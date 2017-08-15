@@ -214,7 +214,7 @@ class Kernel(object):
         requires = []
         for eq in self.equations:
             if isinstance(eq, Equality):
-                requires += list(eq.rhs.atoms(DataSet))
+                requires += list(eq.rhs.atoms(DataSetBase))
         return requires
     @property
     def lhs_datasets(self):
