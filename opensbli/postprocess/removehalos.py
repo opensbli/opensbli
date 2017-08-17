@@ -11,9 +11,9 @@ import argparse
 def read_dataset(openname, dataset):
     d_m = openname["%s"%(dataset)].attrs['d_m']
     d_p = openname["%s"%(dataset)].attrs['d_p']
-    size = openname["%s"%(dataset)].attrs['size']
+    size = openname["%s"%(dataset)].shape
     read_start = [abs(d) for d in d_m]
-    read_end = [abs(d)+s for d,s in zip(d_m,size)]
+    read_end = [s-abs(d) for d,s in zip(d_m,size)]
     if len(read_end) == 2:
         read_data = openname["%s"%(dataset)].value[read_start[0]:read_end[0], read_start[1]:read_end[1]]
     elif len(read_end) == 3:
