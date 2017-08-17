@@ -1,5 +1,5 @@
 # Convert the output from OpenSBLI to the domain only by removing the halo points
-# Author Satya P Jammy, 2017 
+# Author Satya P Jammy, 2017
 # Requires numpy and h5py
 
 from __future__ import division
@@ -23,7 +23,7 @@ def read_dataset(openname, dataset):
     return read_data
 
 def strip_halos(fname, output_name):
-    
+
     opensbli_file = h5py.File(fname, 'r')
     block_name1 = opensbli_file.keys()[0]
     group_block =  opensbli_file[block_name1]
@@ -31,16 +31,14 @@ def strip_halos(fname, output_name):
     for key in group_block.keys():
         data_without_halos = read_dataset(group_block, key)
         output_opensbli.create_dataset("%s"%(key), data=data_without_halos)
-    
     output_opensbli.close()
     return
 
 if(__name__ == "__main__"):
     # Parse the command line arguments provided by the user, Teo paths should be provided
     parser = argparse.ArgumentParser(prog="pat")
-    parser.add_argument("input_path", help="Path of the HDF5 file written out from OpenSBLI inlcuding the file name", action="store", type=str)    
+    parser.add_argument("input_path", help="Path of the HDF5 file written out from OpenSBLI inlcuding the file name", action="store", type=str)
     args = parser.parse_args()
-    #fname = 'taylor_green_vortex_500.h5'
     print "Processing HDF5 from the path %s"%args.input_path
     a = args.input_path.split('/')
     if '.h5' not in a[-1]:
@@ -48,5 +46,4 @@ if(__name__ == "__main__"):
     h5name_output = a[-1].split('.')[0]
     output_name = '/'.join(a[:-1]+['%s_pp.h5'%h5name_output])
     print "Output for post processing will be %s"%output_name
-    #exit()
     strip_halos(args.input_path, output_name)
