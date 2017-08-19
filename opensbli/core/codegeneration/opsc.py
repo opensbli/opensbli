@@ -115,28 +115,14 @@ class OPSCCodePrinter(CCodePrinter):
     def _print_Max(self, expr):
         nargs = len(expr.args)
         args_code = [self._print(a) for a in expr.args]
-        if nargs == 2:
-            args_code = ', '.join(args_code)
-            return "MAX(%s)" %(args_code)
-        # Need to come up with a better IDEA For this FIXME
-        elif nargs == 3:
-            a = args_code[0]; c = args_code[2]
-            b = args_code[1];
-            return "MAX(MAX(%s,%s), MAX(%s,%s))"%(a,b,b,c)
-        elif nargs == 4:
-            a = args_code[0]; c = args_code[2];
-            b = args_code[1]; d = args_code[3];
-            return "MAX(MAX(MAX(%s,%s), MAX(%s,%s)), MAX(%s,%s))"%(a,b,b,c,c,d)
-        elif nargs == 5:
-            a = args_code[0]; c = args_code[2]; e = args_code[4]
-            b = args_code[1]; d = args_code[3];
-            return "MAX(MAX(MAX(%s,%s), MAX(%s,%s)), MAX(MAX(%s,%s),MAX(%s,%s)))"%(a,b,b,c,c,d,d,e)
-        elif nargs == 6:
-            a = args_code[0]; c = args_code[2]; e = args_code[4]
-            b = args_code[1]; d = args_code[3]; f = args_code[5]
-            return "MAX(MAX(MAX(%s,%s), MAX(%s,%s)), MAX(MAX(%s,%s),MAX(%s,%s)))"%(a,b,b,c,c,d,d,e)
-        else:
-            raise ValueError("Max for arguments %d is not defined in code printer or OPS"%nargs)
+        for i in range(nargs-1):
+            # Max of the last 2 arguments in the array
+            string_max = 'fmax(%s, %s)' % (args_code[-2], args_code[-1])
+            # Remove the last 2 entries and append the max of the last 2
+            del args_code[-2:]
+            args_code.append(string_max)
+        return str(args_code[0])
+
     def _print_DataSetBase(self, expr):
         return str(expr)
     def _print_Equality(self, expr):
