@@ -354,9 +354,9 @@ class Weno(Scheme):
         self.required_constituent_relations_symbols = {}
         # Generate smoothness coefficients and store configurations for left and right reconstructions.
         smooth_coeffs = JS.smooth_coeffs
-        self.reconstruction_classes = [LeftWenoReconstructionVariable('left'), RightWenoReconstructionVariable('right')]
+        self.reconstruction_classes = [RightWenoReconstructionVariable('right'), LeftWenoReconstructionVariable('left')]
         # Populate the quantities required by WENO for the left and right reconstruction variable.
-        for no, side in enumerate([-1, 1]):
+        for no, side in enumerate([1, -1]):
             WenoConfig = ConfigureWeno(self.k, side)
             RV = self.reconstruction_classes[no]
             RV.func_points = sorted(set(WenoConfig.func_points))
@@ -616,8 +616,8 @@ class Characteristic(EigenSystem):
         if isinstance(flux, Matrix):
             stencil = flux.stencil_points
             for i in range(flux.shape[0]):
-                rv = type(self.reconstruction_classes[0])('L_X%d_%d' % (self.direction, i))
-                for p in sorted(set(self.reconstruction_classes[0].func_points)):
+                rv = type(self.reconstruction_classes[1])('L_X%d_%d' % (self.direction, i))
+                for p in sorted(set(self.reconstruction_classes[1].func_points)):
                     rv.function_stencil_dictionary[p] = flux[i, stencil.index(p)]
                 derivatives[i].add_reconstruction_classes([rv])
         return
@@ -626,8 +626,8 @@ class Characteristic(EigenSystem):
         if isinstance(flux, Matrix):
             stencil = flux.stencil_points
             for i in range(flux.shape[0]):
-                rv = type(self.reconstruction_classes[1])('R_X%d_%d' % (self.direction, i))
-                for p in sorted(set(self.reconstruction_classes[1].func_points)):
+                rv = type(self.reconstruction_classes[0])('R_X%d_%d' % (self.direction, i))
+                for p in sorted(set(self.reconstruction_classes[0].func_points)):
                     rv.function_stencil_dictionary[p] = flux[i, stencil.index(p)]
                 derivatives[i].add_reconstruction_classes([rv])
         return
