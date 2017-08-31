@@ -24,19 +24,24 @@ from .opensbliequations import *
 from .opensbliobjects import *
 from opensbli.initialisation.gridbasedinit import *
 
+
 class Loop(object):
     """ Base object representing loops in an algorithm
     """
     pass
 
+
 class MainPrg(Loop):
     """ Main program of the algorithm. The attribute components are used to loop over
     """
+
     def __init__(self):
         self.components = []
         return
+
     def __str__(self):
-        return "%s"%(self.__class__.__name__)
+        return "%s" % (self.__class__.__name__)
+
     def add_components(self, components):
         """ Adds the given components to the main program
 
@@ -48,6 +53,7 @@ class MainPrg(Loop):
         else:
             self.components += [components]
         return
+
     def write_latex(self, latex):
         """ Writes the LaTeX of the main program by looping over the components
 
@@ -60,6 +66,7 @@ class MainPrg(Loop):
             c.write_latex(latex)
         latex.write_string("End of Main")
         return
+
     @property
     def opsc_code(self):
         """ Writes the OPS C version of the code by looping over the components
@@ -70,24 +77,29 @@ class MainPrg(Loop):
             code += c.opsc_code
         code += [self.opsc_end]
         return code
+
     @property
     def opsc_start(self):
         """ Starting the program in OPS C
         """
         return "int main(int argc, char **argv) \n{"
+
     @property
     def opsc_end(self):
         """ Ending the program in OPS C
         """
         return "//Main program end \n}"
 
+
 class Condition(object):
     """ Used for setting the conditions in the program, example
     """
+
     def __init__(self, condition):
         self.condition = condition
         self.components = []
         return
+
     def add_components(self, components):
         """ Adds the given components to the Condition
 
@@ -98,6 +110,7 @@ class Condition(object):
             self.components += components
         else:
             self.components += [components]
+
     def write_latex(self, latex):
         """ Writes the LaTeX of the Condition by looping over the components
 
@@ -105,11 +118,12 @@ class Condition(object):
         :returns: None
 
         """
-        latex.write_string("Condition %s"%(self.condition))
+        latex.write_string("Condition %s" % (self.condition))
         for c in self.components:
             c.write_latex(latex)
         latex.write_string("Ending condition loop %s")
         return
+
     @property
     def opsc_code(self):
         """ Writes the OPS C version of the code by looping over the components
@@ -119,6 +133,7 @@ class Condition(object):
             code += c.opsc_code
         code += self.opsc_condition_end
         return code
+
     @property
     def opsc_condition_start(self):
         """ The starting loop for a if condition in OPS C
@@ -127,17 +142,20 @@ class Condition(object):
         code = OPSCCodePrinter().doprint(self.condition)
         code = 'if (' + code + '){'
         return [code]
+
     @property
     def opsc_condition_end(self):
         """ The loop end for an if condition in OPS C
         """
         return ['}']
 
+
 class DoLoop(Loop):
     def __init__(self, iterator):
         self.loop = iterator
         self.components = []
         return
+
     def add_components(self, components):
         """ Adds the given components to the Do Loop
 
@@ -149,6 +167,7 @@ class DoLoop(Loop):
         else:
             self.components += [components]
         return
+
     def write_latex(self, latex):
         """ Writes the LaTeX of the components of the Do loop
 
@@ -156,11 +175,12 @@ class DoLoop(Loop):
         :returns: None
 
         """
-        latex.write_string("Do loop %s,%s, %s\\\\\n"%(self.loop, self.loop.lower, self.loop.upper))
+        latex.write_string("Do loop %s,%s, %s\\\\\n" % (self.loop, self.loop.lower, self.loop.upper))
         for c in self.components:
             c.write_latex(latex)
-        latex.write_string("Ending Do loop %s\\\\\n"%(self.loop))
+        latex.write_string("Ending Do loop %s\\\\\n" % (self.loop))
         return
+
     @property
     def opsc_code(self):
         """ Writes the OPS  version of the Do loop with the components
@@ -171,22 +191,28 @@ class DoLoop(Loop):
             code += c.opsc_code
         code += [self.opsc_end]
         return code
+
     @property
     def opsc_start(self):
         """ Do loop in OPSC is a for loop, and the starting of the for loop is written by this function
         """
-        return "for(int %s=%s; %s<=%s; %s++)\n{"%(self.loop, str(self.loop.lower), self.loop, str(self.loop.upper), self.loop)
+        return "for(int %s=%s; %s<=%s; %s++)\n{" % (self.loop, str(self.loop.lower), self.loop, str(self.loop.upper), self.loop)
+
     @property
     def opsc_end(self):
         """ Ending of a for loop in OPSC
         """
         return "}"
+
+
 class DefDecs(object):
     """ Definitions and declarations in a program. This write latex and OPS C code printing functions are
     not used currently but these will be added in the future releases
     """
+
     def __init__(self):
         self.components = []
+
     def add_components(self, components):
         """ Adds the given components to the definitions and declarations
 
@@ -197,6 +223,7 @@ class DefDecs(object):
             self.components += components
         else:
             self.components += [components]
+
     def write_latex(self, latex):
         """ Writes the LaTeX of the definitions are declarations
 
@@ -212,10 +239,11 @@ class DefDecs(object):
                     l = "Is an input"
                 else:
                     l = "Is not an input"
-                latex.write_string("DefDec constant %s, %s\\\\\n"%(str(c), l))
+                latex.write_string("DefDec constant %s, %s\\\\\n" % (str(c), l))
             elif isinstance(c, DataSetBase):
-                latex.write_string("DefDec dataset %s\\\\\n"%(str(c)))
+                latex.write_string("DefDec dataset %s\\\\\n" % (str(c)))
         return
+
     @property
     def opsc_code(self):
         """ Writes the Definitions and declarations in OPSC,
@@ -225,21 +253,25 @@ class DefDecs(object):
         code = []
         for c in self.components:
             if isinstance(c, Constant):
-                code += ["DefDec constant %s"%(str(c))]
+                code += ["DefDec constant %s" % (str(c))]
             elif isinstance(c, DataSetBase):
-                code += ["DefDec dataset %s"%(str(c))]
+                code += ["DefDec dataset %s" % (str(c))]
         return code
+
+
 class Timers(object):
     def __init__(self, number):
         self.components = []
         self.number = number
         return
+
     @property
     def _start_variables(self):
-        return ["cpu_start%d"%(self.number), "elapsed_start%d"%(self.number)]
+        return ["cpu_start%d" % (self.number), "elapsed_start%d" % (self.number)]
+
     @property
     def _end_variables(self):
-        return ["cpu_end%d"%(self.number), "elapsed_end%d"%(self.number)]
+        return ["cpu_end%d" % (self.number), "elapsed_end%d" % (self.number)]
 
     def add_components(self, components):
         """ Adds the given components to the timers
@@ -252,6 +284,7 @@ class Timers(object):
         else:
             self.components += [components]
         return
+
     def write_latex(self, latex):
         """ Writes the LaTeX of the times
 
@@ -264,6 +297,7 @@ class Timers(object):
             c.write_latex(latex)
         latex.write_string("Ending timers\\\\\n")
         return
+
     @property
     def opsc_code(self):
         """ OPSC code for the timers, this combines the codes from different components
@@ -276,6 +310,7 @@ class Timers(object):
             code += c.opsc_code
         code += self.opsc_end_timer
         return code
+
     @property
     def opsc_start_timer(self):
         """ OPSC code for the starting the timers, this is called from Timers.opsc_code()
@@ -283,6 +318,7 @@ class Timers(object):
         start = self._start_variables
         timer_start = ["double %s, %s;" % (start[0], start[1])] + ["ops_timers(&%s, &%s);" % (start[0], start[1])]
         return timer_start
+
     @property
     def opsc_end_timer(self):
         """ OPSC code for the ending the timers, this is called from Timers.opsc_code()
@@ -292,27 +328,33 @@ class Timers(object):
         code += ["double %s, %s;" % (end[0], end[1])] + ["ops_timers(&%s, &%s);" % (end[0], end[1])]
         code += self.timing_result_opsc
         return code
+
     @property
     def timing_result_opsc(self):
         """ Generates the code for printing the timing results in OPSC
         """
         code = []
-        code += ["ops_printf(\"\\nTimings are:\\n\");" ]
+        code += ["ops_printf(\"\\nTimings are:\\n\");"]
         code += ["ops_printf(\"-----------------------------------------\\n\");"]
         code += ["ops_printf(\"Total Wall time %%lf\\n\",%s-%s);" % (self._end_variables[1], self._start_variables[1])]
         return code
 
-#class If
+# class If
+
+
 class BlockDescription(object):
     def __init__(self, block):
         copy_block_attributes(block, self)
         return
+
+
 class TraditionalAlgorithmRK(object):
     """ It is where the algorithm is generated, This is a seperate layer
     which gives user control to do any modifications for extra functionality that
     is to be performed like, doing some post processing for every time loop or
     sub rk loop
     """
+
     def __init__(self, blocks, dtype=None):
         self.block_descriptions = []
         self.ntimers = 0
@@ -331,10 +373,11 @@ class TraditionalAlgorithmRK(object):
         self.add_block_names(blocks)
         defdecs = self.get_definitions_declarations(blocks)
         self.defnitionsdeclarations = defdecs
-        #self.add_def_decs(defdecs)
+        # self.add_def_decs(defdecs)
         self.spatial_solution(blocks)
         # Now try the algorithm generation
         return
+
     def add_block_names(self, blocks):
         for b in blocks:
             self.block_descriptions += [BlockDescription(b)]
@@ -352,7 +395,7 @@ class TraditionalAlgorithmRK(object):
             defdecs.add_components(b.block_datasets.values())
             defdecs.add_components(b.block_stencils.values())
         return defdecs
-    
+
     def comapre_no_sims(self, s1, s2):
         return cmp(s1.order, s2.order)
 
@@ -388,15 +431,15 @@ class TraditionalAlgorithmRK(object):
                         inner_temporal_advance_kernels += scheme.solution[key].kernels
                         bc_kernels = key.boundary_kernels
                         spatial_kernels = key.all_spatial_kernels
-                    elif isinstance(key, NonSimulationEquations): # Add all other types of equations
+                    elif isinstance(key, NonSimulationEquations):  # Add all other types of equations
                         non_simulation_eqs += [key]
-                        #for place in key.algorithm_place:
-                            #if isinstance(place, BeforeSimulationStarts):
-                                #before_time += key.Kernels
-                            #elif isinstance(place, AfterSimulationEnds):
-                                #after_time += key.Kernels
-                            #else:
-                                #raise NotImplementedError("In Nonsimulation equations")
+                        # for place in key.algorithm_place:
+                        # if isinstance(place, BeforeSimulationStarts):
+                        # before_time += key.Kernels
+                        # elif isinstance(place, AfterSimulationEnds):
+                        # after_time += key.Kernels
+                        # else:
+                        # raise NotImplementedError("In Nonsimulation equations")
                     else:
                         print "NOT classified", type(key)
             pprint(non_simulation_eqs)
@@ -409,15 +452,17 @@ class TraditionalAlgorithmRK(object):
                         after_time += key.Kernels
                     else:
                         raise NotImplementedError("In Nonsimulation equations")
-            
+
             sc = b.get_temporal_schemes[0]
             innerloop = sc.generate_inner_loop(spatial_kernels + inner_temporal_advance_kernels + bc_kernels)
             # Add BC kernels to temporal start
             temporal_start = bc_kernels + temporal_start
-            temporal_iteration = Idx("iter", ConstantObject('niter', integer =True))
+            temporal_iteration = Idx("iter", ConstantObject('niter', integer=True))
             from .kernel import ConstantsToDeclare as CTD
             from .datatypes import *
-            start_io = []; end_io = []; time_io = []
+            start_io = []
+            end_io = []
+            time_io = []
             for io in b.InputOutput:
                 for place in io.algorithm_place:
                     if isinstance(place, BeforeSimulationStarts):
@@ -425,19 +470,19 @@ class TraditionalAlgorithmRK(object):
                     elif isinstance(place, AfterSimulationEnds):
                         after_time += [io]
                     elif isinstance(place, InTheSimulation):
-                        t = (Equality(temporal_iteration%place.frequency, 0))
+                        t = (Equality(temporal_iteration % place.frequency, 0))
                         cond = Condition(t)
                         cond.add_components(io)
                         in_time += [cond]
                     else:
                         raise NotImplementedError("In Nonsimulation equations")
-            CTD.add_constant(ConstantObject('niter'), dtype = Int())
+            CTD.add_constant(ConstantObject('niter'), dtype=Int())
             tloop = DoLoop(temporal_iteration)
             tloop.add_components(temporal_start)
             tloop.add_components(innerloop)
             tloop.add_components(in_time)
             tloop.add_components(temporal_end)
-            #tloop.write_latex(latex)
+            # tloop.write_latex(latex)
             # Process the initial conditions and Diagnostics if any here
             timed_tloop = self.add_timers(tloop)
             self.prg.add_components(before_time)
@@ -447,6 +492,7 @@ class TraditionalAlgorithmRK(object):
         latex.write_footer()
         latex.close()
         return
+
     def add_timers(self, components):
         timer = Timers(self.ntimers)
         self.ntimers += 1
@@ -463,5 +509,3 @@ class TraditionalAlgorithmRK(object):
             if len(blocks[0].get_temporal_schemes) > 1:
                 raise ValueError("More than one temporal scheme for a block")
         return
-
-
