@@ -1,28 +1,11 @@
-#!/usr/bin/env python
-
-#    OpenSBLI: An automatic code generator for solving differential equations.
-#    Copyright (C) 2017 Satya P. Jammy
-
-#    This file is part of OpenSBLI.
-#    OpenSBLI is free software: you can redistribute it and/or modify
-#    it under the terms of the GNU General Public License as published by
-#    the Free Software Foundation, either version 3 of the License, or
-#    (at your option) any later version.
-
-#    OpenSBLI is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU General Public License for more details.
-
-#    You should have received a copy of the GNU General Public License
-#    along with OpenSBLI.  If not, see <http://www.gnu.org/licenses/>
-
-from .block import SimulationBlock as SB
-from .kernel import *
-from .latex import *
-from .opensbliequations import *
-from .opensbliobjects import *
-from opensbli.initialisation.gridbasedinit import *
+from opensbli.core.block import SimulationBlock as SB
+from sympy import flatten, pprint, Idx, Equality
+from opensbli.core.latex import LatexWriter
+from opensbli.core.kernel import ConstantsToDeclare as CTD
+from opensbli.core.opensbliequations import SimulationEquations, NonSimulationEquations
+from opensbli.core.opensbliobjects import Constant, DataSetBase, ConstantObject
+from opensbli.core.datatypes import Int
+from opensbli.initialisation.common import BeforeSimulationStarts, AfterSimulationEnds, InTheSimulation
 
 
 class Loop(object):
@@ -344,7 +327,7 @@ class Timers(object):
 
 class BlockDescription(object):
     def __init__(self, block):
-        copy_block_attributes(block, self)
+        block.copy_block_attributes(self)
         return
 
 
@@ -405,10 +388,9 @@ class TraditionalAlgorithmRK(object):
         print "Writing algorithm \n\n"
         fname = './algorithm.tex'
         latex = LatexWriter()
-        latex.open('./algorithm.tex')
+        latex.open(fname)
         metadata = {"title": "Algorithm for the equations", "author": "Jammy", "institution": ""}
         latex.write_header(metadata)
-        all_kernels = []
         if self.MultiBlock:
             raise NotImplementedError("")
         else:
@@ -458,11 +440,6 @@ class TraditionalAlgorithmRK(object):
             # Add BC kernels to temporal start
             temporal_start = bc_kernels + temporal_start
             temporal_iteration = Idx("iter", ConstantObject('niter', integer=True))
-            from .kernel import ConstantsToDeclare as CTD
-            from .datatypes import *
-            start_io = []
-            end_io = []
-            time_io = []
             for io in b.InputOutput:
                 for place in io.algorithm_place:
                     if isinstance(place, BeforeSimulationStarts):

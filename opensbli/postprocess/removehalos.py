@@ -1,16 +1,10 @@
-# Convert the output from OpenSBLI to the domain only by removing the halo points
-# Author Satya P Jammy, 2017
-# Requires numpy and h5py
-
 from __future__ import division
-import numpy as np
 import h5py
 import argparse
 
 
 def read_dataset(openname, dataset):
     d_m = openname["%s" % (dataset)].attrs['d_m']
-    d_p = openname["%s" % (dataset)].attrs['d_p']
     size = openname["%s" % (dataset)].shape
     read_start = [abs(d) for d in d_m]
     read_end = [s-abs(d) for d, s in zip(d_m, size)]
