@@ -91,54 +91,54 @@ class ConfigureTeno(object):
         return [fn_points[i] for i in range(order-2)]
 
     def generate_eno_coefficients(self):
-         """ Generates the ENO coefficients required for the TENO stencils.
+        """ Generates the ENO coefficients required for the TENO stencils.
         returns: list: coeffs: List of ENO coefficients for each stencil."""
         side = self.side
         if side == 1:
-            coeffs = [[Rational(-1,6), Rational(5,6), Rational(2,6)], [Rational(2,6), Rational(5,6), Rational(-1,6)], \
-            [Rational(2,6), Rational(-7,6), Rational(11,6)]]
-            if self.order in [6,8]:
-                coeffs += [[Rational(3,12), Rational(13,12), Rational(-5,12), Rational(1,12)]]
+            coeffs = [[Rational(-1, 6), Rational(5, 6), Rational(2, 6)], [Rational(2, 6), Rational(5, 6), Rational(-1, 6)],
+                      [Rational(2, 6), Rational(-7, 6), Rational(11, 6)]]
+            if self.order in [6, 8]:
+                coeffs += [[Rational(3, 12), Rational(13, 12), Rational(-5, 12), Rational(1, 12)]]
             if self.order == 8:
-                coeffs += [[Rational(-3,12), Rational(13,12), Rational(-23,12), Rational(25,12)], \
-                            [Rational(12,60), Rational(77,60), Rational(-43,60), Rational(17,60), Rational(-3,60)]]
+                coeffs += [[Rational(-3, 12), Rational(13, 12), Rational(-23, 12), Rational(25, 12)],
+                           [Rational(12, 60), Rational(77, 60), Rational(-43, 60), Rational(17, 60), Rational(-3, 60)]]
         elif side == -1:
-            coeffs = [[Rational(2,6), Rational(5,6), Rational(-1,6)], [Rational(-1,6), Rational(5,6), Rational(2,6)], \
-            [Rational(11,6), Rational(-7,6), Rational(1,3)]]
-            if self.order in [6,8]:
-                coeffs += [[Rational(1,12), Rational(-5,12), Rational(13,12), Rational(3,12)]]
+            coeffs = [[Rational(2, 6), Rational(5, 6), Rational(-1, 6)], [Rational(-1, 6), Rational(5, 6), Rational(2, 6)],
+                      [Rational(11, 6), Rational(-7, 6), Rational(1, 3)]]
+            if self.order in [6, 8]:
+                coeffs += [[Rational(1, 12), Rational(-5, 12), Rational(13, 12), Rational(3, 12)]]
             if self.order == 8:
-                coeffs += [[Rational(3,12), Rational(13,12), Rational(-5,12), Rational(1,12)], \
-                            [Rational(-1,20), Rational(17,60), Rational(-43,60), Rational(77,60), Rational(12,60)]]
+                coeffs += [[Rational(3, 12), Rational(13, 12), Rational(-5, 12), Rational(1, 12)],
+                           [Rational(-1, 20), Rational(17, 60), Rational(-43, 60), Rational(77, 60), Rational(12, 60)]]
         return coeffs
 
     def generate_optimal_coefficients(self):
-         """ Generates the optimal linear coefficients required for the TENO stencils.
-        returns: list: opt_coeffs: List of optimal coefficients for each stencil."""  
+        """ Generates the optimal linear coefficients required for the TENO stencils.
+        returns: list: opt_coeffs: List of optimal coefficients for each stencil."""
         # Optimal weights are not reversed for TENO when switching between upwind/downwind biasing
         order = self.order
         if self.optimized:
             if order == 5:
-                opt_coeffs = [Rational(11,20), Rational(4,10), Rational(1,20)]
+                opt_coeffs = [Rational(11, 20), Rational(4, 10), Rational(1, 20)]
             elif order == 6:
-                opt_coeffs = [Rational(231,500), Rational(3,10), Rational(27,500), Rational(23,125)]
+                opt_coeffs = [Rational(231, 500), Rational(3, 10), Rational(27, 500), Rational(23, 125)]
             elif order == 8:
-                opt_coeffs = [0.4336570089737348, 0.2193140179474722, 0.07144766367542149,0.1302093452983125,\
+                opt_coeffs = [0.4336570089737348, 0.2193140179474722, 0.07144766367542149, 0.1302093452983125,
                               0.03089532735084351, 0.1144766367542177]
         elif not self.optimized:
             if order == 5:
-                opt_coeffs = [Rational(6,10), Rational(3,10), Rational(1,10)]
+                opt_coeffs = [Rational(6, 10), Rational(3, 10), Rational(1, 10)]
             elif order == 6:
-                opt_coeffs = [Rational(9,20), Rational(6,20), Rational(1,20), Rational(4,20)]
-            elif order == 8: 
-                opt_coeffs = [Rational(30,70), Rational(18, 70), Rational(4,70), Rational(12,70), Rational(1,70), Rational(5,70)]
+                opt_coeffs = [Rational(9, 20), Rational(6, 20), Rational(1, 20), Rational(4, 20)]
+            elif order == 8:
+                opt_coeffs = [Rational(30, 70), Rational(18, 70), Rational(4, 70), Rational(12, 70), Rational(1, 70), Rational(5, 70)]
         return opt_coeffs
 
     def generate_smoothness_indicators(self):
-         """ Generates the smoothness indicators required for the TENO stencils.
+        """ Generates the smoothness indicators required for the TENO stencils.
         returns: dict: fns_dictionary: Key: Integer grid location, Value: placeholder function 'f' at the grid location.
         returns: list: smoothness_indicators: List of smoothness indicator expressions.
-        returns: list: smoothness_symbols: List of placeholder symbols for the smoothness indicators."""  
+        returns: list: smoothness_symbols: List of placeholder symbols for the smoothness indicators."""
         points = sorted(list(set(flatten([i for i in self.fn_points]))))
         f = IndexedBase('f')
         symbolic_functions = []
@@ -150,48 +150,48 @@ class ConfigureTeno(object):
         if self.side == 1:
             # Stencils [0, 1, 2] for TENO5
             # Factored versions: 0, 1, 2, 3
-            smoothness_indicators += [Rational(1,4)*(fns[-1] - fns[1])**2 + Rational(13,12)*(fns[-1]-2*fns[0]+fns[1])**2]
-            smoothness_indicators += [Rational(1,4)*(3*fns[0]-4*fns[1]+fns[2])**2 + Rational(13,12)*(fns[0]-2*fns[1]+fns[2])**2]
-            smoothness_indicators += [Rational(1,4)*(fns[-2]-4*fns[-1]+3*fns[0])**2 + Rational(13,12)*(fns[-2]-2*fns[-1]+fns[0])**2]
-            if self.order in [6,8]:
-                smoothness_indicators += [Rational(1,36)*(-11*fns[0]+18*fns[1]-9*fns[2]+2*fns[3])**2 + Rational(13,12)*(2*fns[0]-5*fns[1]+4*fns[2]-fns[3])**2 +\
-                                      Rational(781,720)*(-fns[0]+3*fns[1]-3*fns[2]+fns[3])]
+            smoothness_indicators += [Rational(1, 4)*(fns[-1] - fns[1])**2 + Rational(13, 12)*(fns[-1]-2*fns[0]+fns[1])**2]
+            smoothness_indicators += [Rational(1, 4)*(3*fns[0]-4*fns[1]+fns[2])**2 + Rational(13, 12)*(fns[0]-2*fns[1]+fns[2])**2]
+            smoothness_indicators += [Rational(1, 4)*(fns[-2]-4*fns[-1]+3*fns[0])**2 + Rational(13, 12)*(fns[-2]-2*fns[-1]+fns[0])**2]
+            if self.order in [6, 8]:
+                smoothness_indicators += [Rational(1, 36)*(-11*fns[0]+18*fns[1]-9*fns[2]+2*fns[3])**2 + Rational(13, 12)*(2*fns[0]-5*fns[1]+4*fns[2]-fns[3])**2 +
+                                          Rational(781, 720)*(-fns[0]+3*fns[1]-3*fns[2]+fns[3])]
             # Add Stencils [4, 5] for TENO8
             if self.order == 8:
-                smoothness_indicators += [Rational(1,36)*(-2*fns[-3]+9*fns[-2]-18*fns[-1]+11*fns[0])**2 + \
-                                        Rational(13,12)*(-1*fns[-3]+4*fns[-2]-5*fns[-1]+2*fns[0])**2 + \
-                                        Rational(781,720)*(-1*fns[-3]+3*fns[-2]-3*fns[-1]+fns[0])**2]
+                smoothness_indicators += [Rational(1, 36)*(-2*fns[-3]+9*fns[-2]-18*fns[-1]+11*fns[0])**2 +
+                                          Rational(13, 12)*(-1*fns[-3]+4*fns[-2]-5*fns[-1]+2*fns[0])**2 +
+                                          Rational(781, 720)*(-1*fns[-3]+3*fns[-2]-3*fns[-1]+fns[0])**2]
                 # Use horner on this one, reduces number of operations
-                smoothness_indicators += [horner(Rational(1,144)*(-25*fns[0]+48*fns[1]-36*fns[2]+16*fns[3]-3*fns[4])**2 +\
-                                        Rational(13,1728)*(35*fns[0]-104*fns[1]+114*fns[2]-56*fns[3]+11*fns[4])**2 +\
-                                        Rational(781,2880)*(-5*fns[0]+18*fns[1]-24*fns[2]+14*fns[3]-3*fns[4])**2 -\
-                                        Rational(1,4320)*(35*fns[0]-104*fns[1]+114*fns[2]-56*fns[3]+11*fns[4])*\
-                                        (fns[0]-4*fns[1]+6*fns[2]-4*fns[3]+fns[4]) + Rational(32803,30240)*\
-                                        (fns[0]-4*fns[1]+6*fns[2]-4*fns[3]+fns[4])**2)]
+                smoothness_indicators += [horner(Rational(1, 144)*(-25*fns[0]+48*fns[1]-36*fns[2]+16*fns[3]-3*fns[4])**2 +
+                                                 Rational(13, 1728)*(35*fns[0]-104*fns[1]+114*fns[2]-56*fns[3]+11*fns[4])**2 +
+                                                 Rational(781, 2880)*(-5*fns[0]+18*fns[1]-24*fns[2]+14*fns[3]-3*fns[4])**2 -
+                                                 Rational(1, 4320)*(35*fns[0]-104*fns[1]+114*fns[2]-56*fns[3]+11*fns[4]) *
+                                                 (fns[0]-4*fns[1]+6*fns[2]-4*fns[3]+fns[4]) + Rational(32803, 30240) *
+                                                 (fns[0]-4*fns[1]+6*fns[2]-4*fns[3]+fns[4])**2)]
         elif self.side == -1:
             # Stencils [0, 1, 2] for TENO5
             # Factored versions: 0, 1, 2, 3 [0, 1, 2], [-1, 0, 1], [1, 2, 3], [-2, -1, 0, 1]
-            smoothness_indicators += [Rational(1,4)*(fns[0]-fns[2])**2 + Rational(13,12)*(fns[0]-2*fns[1]+fns[2])**2]
-            smoothness_indicators += [Rational(1,4)*(fns[-1]-4*fns[0]+3*fns[1])**2 + Rational(13,12)*(fns[-1]-2*fns[0]+fns[1])**2]
-            smoothness_indicators += [Rational(1,4)*(3*fns[1]-4*fns[2]+fns[3])**2 + Rational(13,12)*(fns[1]-2*fns[2]+fns[3])**2]
-            if self.order in [6,8]:
-                smoothness_indicators += [Rational(1,36)*(-2*fns[-2]+9*fns[-1]-18*fns[0]+11*fns[1])**2 + \
-                                        Rational(13,12)*(-1*fns[-2]+4*fns[-1]-5*fns[0]+2*fns[1])**2 + \
-                                        Rational(781,720)*(-1*fns[-2]+3*fns[-1]-3*fns[0]+fns[1])**2]
+            smoothness_indicators += [Rational(1, 4)*(fns[0]-fns[2])**2 + Rational(13, 12)*(fns[0]-2*fns[1]+fns[2])**2]
+            smoothness_indicators += [Rational(1, 4)*(fns[-1]-4*fns[0]+3*fns[1])**2 + Rational(13, 12)*(fns[-1]-2*fns[0]+fns[1])**2]
+            smoothness_indicators += [Rational(1, 4)*(3*fns[1]-4*fns[2]+fns[3])**2 + Rational(13, 12)*(fns[1]-2*fns[2]+fns[3])**2]
+            if self.order in [6, 8]:
+                smoothness_indicators += [Rational(1, 36)*(-2*fns[-2]+9*fns[-1]-18*fns[0]+11*fns[1])**2 +
+                                          Rational(13, 12)*(-1*fns[-2]+4*fns[-1]-5*fns[0]+2*fns[1])**2 +
+                                          Rational(781, 720)*(-1*fns[-2]+3*fns[-1]-3*fns[0]+fns[1])**2]
             if self.order == 8:
                 # [0, 1, 2, 3]
                 # smoothness_indicators += [Rational(1,36)*(-2*fns[0]-3*fns[1]+6*fns[2]-fns[3])**2 + Rational(13,12)*(fns[0]-2*fns[1]+fns[2])**2 +\
                 #                          + Rational(1043,960)*(-fns[0]+3*fns[1]-3*fns[2]+fns[3])**2 + Rational(1,432)*(-2*fns[0]-3*fns[1]+6*fns[2]-fns[3])*\
                 #                          (-fns[0]+3*fns[1]-3*fns[2]+fns[3])]
-                smoothness_indicators += [horner(Rational(547,240)*fns[0]**2 - Rational(1261,120)*fns[0]*fns[1]+Rational(961,120)*fns[0]*fns[2] - Rational(247,120)*fns[0]*fns[3]\
-                                         +Rational(3443,240)*fns[1]**2 -Rational(2983,120)*fns[1]*fns[2] + Rational(267,40)*fns[1]*fns[3]+Rational(2843,240)*fns[2]**2 \
-                                         -Rational(821,120)*fns[2]*fns[3] + Rational(89,80)*fns[3]**2)]
+                smoothness_indicators += [horner(Rational(547, 240)*fns[0]**2 - Rational(1261, 120)*fns[0]*fns[1]+Rational(961, 120)*fns[0]*fns[2] - Rational(247, 120)*fns[0]*fns[3]
+                                                 + Rational(3443, 240)*fns[1]**2 - Rational(2983, 120)*fns[1]*fns[2] + Rational(267, 40)*fns[1]*fns[3]+Rational(2843, 240)*fns[2]**2
+                                                 - Rational(821, 120)*fns[2]*fns[3] + Rational(89, 80)*fns[3]**2)]
                 # Factored , [-3, -2, -1, 0, 1]
-                smoothness_indicators += [horner(Rational(11329,2520)*fns[-3]**2-Rational(208501,5040)*fns[-3]*fns[-2]+Rational(121621,1680)*fns[-3]*fns[-1] \
-                                          -Rational(288007,5040)*fns[-3]*fns[0]+Rational(86329,5040)*fns[-3]*fns[1]+Rational(482963,5040)*fns[-2]**2 \
-                                          -Rational(142033,420)*fns[-2]*fns[-1]+Rational(679229,2520)*fns[-2]*fns[0]-Rational(411487,5040)*fns[-2]*fns[1] \
-                                          +Rational(507131,1680)*fns[-1]**2 -Rational(68391,140)*fns[-1]*fns[0]+Rational(252941,1680)*fns[-1]*fns[1] \
-                                          +Rational(1020563,5040)*fns[0]**2 -Rational(649501,5040)*fns[0]*fns[1]+Rational(53959,2520)*fns[1]**2)]
+                smoothness_indicators += [horner(Rational(11329, 2520)*fns[-3]**2-Rational(208501, 5040)*fns[-3]*fns[-2]+Rational(121621, 1680)*fns[-3]*fns[-1]
+                                                 - Rational(288007, 5040)*fns[-3]*fns[0]+Rational(86329, 5040)*fns[-3]*fns[1]+Rational(482963, 5040)*fns[-2]**2
+                                                 - Rational(142033, 420)*fns[-2]*fns[-1]+Rational(679229, 2520)*fns[-2]*fns[0]-Rational(411487, 5040)*fns[-2]*fns[1]
+                                                 + Rational(507131, 1680)*fns[-1]**2 - Rational(68391, 140)*fns[-1]*fns[0]+Rational(252941, 1680)*fns[-1]*fns[1]
+                                                 + Rational(1020563, 5040)*fns[0]**2 - Rational(649501, 5040)*fns[0]*fns[1]+Rational(53959, 2520)*fns[1]**2)]
         fns_dictionary = fns
         smoothness_symbols = [Symbol('beta_%d' % r) for r in range(len(smoothness_indicators))]
         return fns_dictionary, smoothness_indicators, smoothness_symbols
@@ -205,6 +205,7 @@ class ConfigureTeno(object):
             stencil.smoothness_indicator = self.smoothness_indicators[no]
         return
 
+
 class Teno5(object):
     def __init__(self):
         # Epsilon to avoid division by zero in non-linear weights
@@ -214,12 +215,12 @@ class Teno5(object):
         CTD.add_constant(self.CT)
         CTD.add_constant(self.eps)
         return
-    
+
     def generate_alphas(self, RV, TC):
         """ Create the alpha terms for the non-linear TENO weights.
         arg: object RV: The reconstruction variable object.
         arg: object TenoConfig: Configuration settings for a reconstruction of either left or right."""
-        # Scale separation parameters 
+        # Scale separation parameters
         C, q = S.One, 6
         # Global reference smoothness indicator tau_5
         tau_5 = Abs(RV.smoothness_symbols[0] - RV.smoothness_symbols[-1])
@@ -264,6 +265,7 @@ class Teno5(object):
         RV.reconstructed_expression = reconstruction
         return
 
+
 class Teno6(object):
     def __init__(self):
         # Epsilon to avoid division by zero in non-linear weights
@@ -273,15 +275,15 @@ class Teno6(object):
         CTD.add_constant(self.CT)
         CTD.add_constant(self.eps)
         return
-    
+
     def generate_alphas(self, RV, TC):
         """ Create the alpha terms for the non-linear TENO weights.
         arg: object RV: The reconstruction variable object.
         arg: object TenoConfig: Configuration settings for a reconstruction of either left or right."""
-        # Scale separation parameters 
+        # Scale separation parameters
         C, q = S.One, 6
         # Global reference smoothness indicator tau_6
-        tau_6 = RV.smoothness_symbols[3] - Rational(1,6)*(RV.smoothness_symbols[0] + RV.smoothness_symbols[2] - 4*RV.smoothness_symbols[1])
+        tau_6 = RV.smoothness_symbols[3] - Rational(1, 6)*(RV.smoothness_symbols[0] + RV.smoothness_symbols[2] - 4*RV.smoothness_symbols[1])
         for r in range(TC.n_stencils):
             RV.alpha_symbols += [Symbol('alpha_%d' % r)]
             RV.alpha_evaluated.append((C + (tau_6/(self.eps + RV.smoothness_symbols[r])))**q)
@@ -323,6 +325,7 @@ class Teno6(object):
         RV.reconstructed_expression = reconstruction
         return
 
+
 class Teno8(object):
     def __init__(self):
         # Epsilon to avoid division by zero in non-linear weights
@@ -337,6 +340,7 @@ class Teno8(object):
         h = hash(self._hashable_content())
         self._mhash = h
         return h
+
     def _hashable_content(self):
         return str(type(cls).__name__)
 
@@ -349,25 +353,25 @@ class Teno8(object):
         for p in points:
             symbolic_functions.append(f[p])
             fns[p] = symbolic_functions[-1]
-        tau_8 = fns[4]*(75349098471*fns[4]-1078504915264*fns[3]+3263178215782*fns[2]\
-                -5401061230160*fns[1]+5274436892970*fns[0]-3038037798592*fns[-1]+956371298594*fns[-2]-127080660272*fns[-3])+fns[3]*(3944861897609*fns[3]-24347015748304*fns[2]\
-                +41008808432890*fns[1]-40666174667520*fns[0]+23740865961334*fns[-1]-7563868580208*fns[-2]\
-                +1016165721854*fns[-3])+fns[2]*(38329064547231*fns[2]-131672853704480*fns[1]+132979856899250*fns[0]-78915800051952*fns[-1]+25505661974314*fns[-2]- 3471156679072*fns[-3])\
-                +fns[1]*(115451981835025*fns[1]-238079153652400*fns[0]+144094750348910*fns[-1] \
-                    -47407534412640*fns[-2]+6553080547830*fns[-3])+fns[0]*(125494539510175*fns[0] \
-                    -155373333547520*fns[-1]+52241614797670*fns[-2]-7366325742800*fns[-3]) \
-                    +fns[-1]*(49287325751121*fns[-1]-33999931981264*fns[-2]+4916835566842*fns[-3]) \
-                    +fns[-2]*(6033767706599*fns[-2]-1799848509664*fns[-3])+139164877641*fns[-3]*fns[-3]
-        tau_8 = Rational(1,62270208000)*(tau_8)
+        tau_8 = fns[4]*(75349098471*fns[4]-1078504915264*fns[3]+3263178215782*fns[2]
+                        - 5401061230160*fns[1]+5274436892970*fns[0]-3038037798592*fns[-1]+956371298594*fns[-2]-127080660272*fns[-3])+fns[3]*(3944861897609*fns[3]-24347015748304*fns[2]
+                                                                                                                                             + 41008808432890*fns[1]-40666174667520*fns[0]+23740865961334*fns[-1]-7563868580208*fns[-2]
+                                                                                                                                             + 1016165721854*fns[-3])+fns[2]*(38329064547231*fns[2]-131672853704480*fns[1]+132979856899250*fns[0]-78915800051952*fns[-1]+25505661974314*fns[-2] - 3471156679072*fns[-3])\
+            + fns[1]*(115451981835025*fns[1]-238079153652400*fns[0]+144094750348910*fns[-1]
+                      - 47407534412640*fns[-2]+6553080547830*fns[-3])+fns[0]*(125494539510175*fns[0]
+                                                                              - 155373333547520*fns[-1]+52241614797670*fns[-2]-7366325742800*fns[-3]) \
+            + fns[-1]*(49287325751121*fns[-1]-33999931981264*fns[-2]+4916835566842*fns[-3]) \
+            + fns[-2]*(6033767706599*fns[-2]-1799848509664*fns[-3])+139164877641*fns[-3]*fns[-3]
+        tau_8 = Rational(1, 62270208000)*(tau_8)
         RV.tau_8_symbol = [Symbol('tau_8')]
         RV.tau_8_evaluated = [tau_8]
         return
-    
+
     def generate_alphas(self, RV, TC):
         """ Create the alpha terms for the non-linear TENO weights.
         arg: object RV: The reconstruction variable object.
         arg: object TenoConfig: Configuration settings for a reconstruction of either left or right."""
-        # Scale separation parameters 
+        # Scale separation parameters
         C, q = S.One, 6
         RV.tau_8_symbol = [Symbol('tau')]
         for r in range(TC.n_stencils):
@@ -411,6 +415,7 @@ class Teno8(object):
         RV.reconstructed_expression = reconstruction
         return
 
+
 class TenoReconstructionVariable(object):
     def __init__(self, name):
         """ Reconstruction variable object to hold the quantities required for TENO.
@@ -445,14 +450,14 @@ class TenoReconstructionVariable(object):
 
         if original.order == 8:
             new_name = self.name.split('_')[-1]
-            self.tau_8_symbol = [GridVariable('%s_%s' %(original.tau_8_symbol[0], new_name))]
+            self.tau_8_symbol = [GridVariable('%s_%s' % (original.tau_8_symbol[0], new_name))]
             originals = original.tau_8_symbol
             new = self.tau_8_symbol[:]
         else:
             originals = []
             new = []
-        originals += original.smoothness_symbols + original.alpha_symbols+ original.inv_alpha_sum_symbols + original.kronecker_symbols +original.omega_symbols
-        new += self.smoothness_symbols  + self.alpha_symbols+ self.inv_alpha_sum_symbols  + self.kronecker_symbols + self.omega_symbols
+        originals += original.smoothness_symbols + original.alpha_symbols + original.inv_alpha_sum_symbols + original.kronecker_symbols + original.omega_symbols
+        new += self.smoothness_symbols + self.alpha_symbols + self.inv_alpha_sum_symbols + self.kronecker_symbols + self.omega_symbols
         subs_dict = dict(zip(originals, new))
         fn_subs_dict = {}
 
@@ -474,8 +479,8 @@ class TenoReconstructionVariable(object):
         return
 
     def add_evaluations_to_kernel(self, kernel):
-        all_symbols = self.smoothness_symbols + self.tau_8_symbol + self.alpha_symbols + self.inv_alpha_sum_symbols + self.kronecker_symbols + self.omega_symbols 
-        all_evaluations = self.smoothness_indicators + self.tau_8_evaluated + self.alpha_evaluated + self.inv_alpha_sum_evaluated  + self.kronecker_evaluated + self.omega_evaluated
+        all_symbols = self.smoothness_symbols + self.tau_8_symbol + self.alpha_symbols + self.inv_alpha_sum_symbols + self.kronecker_symbols + self.omega_symbols
+        all_evaluations = self.smoothness_indicators + self.tau_8_evaluated + self.alpha_evaluated + self.inv_alpha_sum_evaluated + self.kronecker_evaluated + self.omega_evaluated
 
         for no, value in enumerate(all_symbols):
             kernel.add_equation(Eq(value, all_evaluations[no]))
@@ -490,6 +495,7 @@ class LeftTenoReconstructionVariable(TenoReconstructionVariable):
         TenoReconstructionVariable.__init__(self, name)
         return
 
+
 class RightTenoReconstructionVariable(TenoReconstructionVariable):
     def __init__(self, name):
         """ Reconstruction object for the right reconstruction.
@@ -497,8 +503,10 @@ class RightTenoReconstructionVariable(TenoReconstructionVariable):
         TenoReconstructionVariable.__init__(self, name)
         return
 
+
 class Teno(Scheme):
     """ Main TENO class."""
+
     def __init__(self, order, **kwargs):
         """ :arg: int order: Numerical order of the TENO scheme (3,5,...). """
         Scheme.__init__(self, "TenoDerivative", order)
@@ -512,7 +520,7 @@ class Teno(Scheme):
             WT = Teno8()
         else:
             raise NotImplementedError("Only 5th, 6th and 8th order TENO implemented currently.")
-        # Use optimized schemes? 
+        # Use optimized schemes?
         optimized = True
         self.halotype = TenoHalos(self.order)
         self.required_constituent_relations_symbols = {}
@@ -591,6 +599,7 @@ class Teno(Scheme):
             crs[DataSetBase(str(key))[DataSetBase.location()]] = kernel
         return crs
 
+
 class LLFTeno(LLFCharacteristic, Teno):
     def __init__(self, eigenvalue, left_ev, right_ev, order, ndim, averaging=None):
         LLFCharacteristic.__init__(self, eigenvalue, left_ev, right_ev, order, ndim, averaging)
@@ -598,7 +607,8 @@ class LLFTeno(LLFCharacteristic, Teno):
         return
 
     def reconstruction_halotype(self, order, reconstruction=True):
-        return TenoHalos(order,reconstruction)
+        return TenoHalos(order, reconstruction)
+
     def group_by_direction(self, eqs):
         """ Groups the input equations by the direction (x0, x1, ...) they depend upon.
         arg: list: eqs: List of equations to group by direction.

@@ -125,21 +125,23 @@ class OPSCCodePrinter(CCodePrinter):
 
     def _print_DataSetBase(self, expr):
         return str(expr)
+
     def _print_Equality(self, expr):
-        #print "In equality"
-        #pprint(expr.lhs)
-        #pprint(self._print(expr.lhs))
-        return "%s == %s"%(self._print(expr.lhs),self._print(expr.rhs))
+        # print "In equality"
+        # pprint(expr.lhs)
+        # pprint(self._print(expr.lhs))
+        return "%s == %s" % (self._print(expr.lhs), self._print(expr.rhs))
+
     def _print_DataSet(self, expr):
         base = expr.base
-        #print base
-        #print self.dataset_accs_dictionary.keys()
+        # print base
+        # print self.dataset_accs_dictionary.keys()
         if self.dataset_accs_dictionary[base]:
             indices = expr.get_grid_indices
-            out = "%s[%s(%s)]"%(self._print(base), self.dataset_accs_dictionary[base].name , ','.join([self._print(i) for i in indices]))
+            out = "%s[%s(%s)]" % (self._print(base), self.dataset_accs_dictionary[base].name, ','.join([self._print(i) for i in indices]))
             return out
         else:
-            raise ValueError("Did not find the OPS Access for %s "% expr.base)
+            raise ValueError("Did not find the OPS Access for %s " % expr.base)
 
     def _print_Indexed(self, expr):
         """ Print out an Indexed object.
@@ -161,8 +163,10 @@ class OPSCCodePrinter(CCodePrinter):
         out = "%s[%s]" % (self._print(expr.base), ','.join([self._print(expr.number)]))
         return out
 
+
 from opensbli.core.grid import GridVariable
 from sympy import Pow, Piecewise
+
 
 def pow_to_constant(expr):
     from sympy.core.function import _coeff_isneg
@@ -179,10 +183,11 @@ def pow_to_constant(expr):
             else:
                 inverse_terms[at] = rc.get_next_rational_constant(at)
     expr = expr.subs(inverse_terms)
-    rc.name = orig_name # change it back to the original name of Rational counter
+    rc.name = orig_name  # change it back to the original name of Rational counter
     return expr
 
-def ccode(expr, settings = {}):
+
+def ccode(expr, settings={}):
     """ Create an OPSC code printer object and write out the expression as an OPSC code string.
 
     :arg expr: The expression to translate into OPSC code.
@@ -200,7 +205,7 @@ def ccode(expr, settings = {}):
         code = code_print.doprint(expr.lhs) \
             + ' = ' + OPSCCodePrinter(settings).doprint(expr.rhs)
         if isinstance(expr.lhs, GridVariable):
-            code = "double " + code # WARNING dtype
+            code = "double " + code  # WARNING dtype
         return code
     else:
         return OPSCCodePrinter(settings).doprint(expr)
@@ -215,16 +220,21 @@ class WriteString(object):
         else:
             raise ValueError("")
         return
+
     def __str__(self):
         return '\n'.join(self.components)
+
     def _print(self):
         return str(self)
+
     @property
     def opsc_code(self):
         return ['\n'.join(self.components)]
+
+
 class OPSAccess(object):
     def __init__(self, no):
-        self.name = "OPS_ACC%d"%no
+        self.name = "OPS_ACC%d" % no
         return
 
 
@@ -242,7 +252,8 @@ def indent_code(code_lines):
 
 class OPSC(object):
 
-    ops_headers = {'input': "const %s *%s",  'output': '%s *%s', 'inout': '%s *%s'}
+    ops_headers = {'input': "const %s *%s", 'output': '%s *%s', 'inout': '%s *%s'}
+
     def __init__(self, algorithm):
         """ Generating an OPSC code from the algorithm"""
         if not algorithm.MultiBlock:
@@ -256,22 +267,23 @@ class OPSC(object):
             code = algorithm.prg.opsc_code
             code = self.before_main(algorithm) + code
             self.name = 'taylor_green_vortex'
-            f = open('opensbli.cpp' , 'w')
-            #code = indent_code(code)
+            f = open('opensbli.cpp', 'w')
+            # code = indent_code(code)
             f.write('\n'.join(code))
             f.close()
         return
 
     def wrap_long_lines(self, code_lines):
         """ """
-        limit=120
-        space=' ';
+        limit = 120
+        space = ' '
         formatted_code = []
         for code in code_lines:
             if len(code) > limit:
                 # count the leading spaces so that we can use it at the end
                 Leading_spaces = len(code) - len(code.lstrip())
-                codelstrip = code.lstrip(); length_ofstring = Leading_spaces
+                codelstrip = code.lstrip()
+                length_ofstring = Leading_spaces
                 split_lines = []
                 # start the string with the leading spaces
                 string = Leading_spaces*space
@@ -301,11 +313,12 @@ class OPSC(object):
 
     def kernel_header(self, tuple_list):
         code = []
-        dtype = "double" # WARNING dtype
+        dtype = "double"  # WARNING dtype
         for key, val in (tuple_list):
-            code += [self.ops_headers[val]%(dtype, key)]
+            code += [self.ops_headers[val] % (dtype, key)]
         code = ','.join(code)
         return code
+
     def kernel_computation_opsc(self, kernel):
         ins = kernel.rhs_datasets
         outs = kernel.lhs_datasets
@@ -314,31 +327,32 @@ class OPSC(object):
         outs = outs.difference(inouts)
         eqs = kernel.equations
         all_dataset_inps = list(ins) + list(outs) + list(inouts)
-        all_dataset_types = ['input' for i in ins] + ['output' for o in outs ] + ['inout' for io in inouts]
+        all_dataset_types = ['input' for i in ins] + ['output' for o in outs] + ['inout' for io in inouts]
         # Use list of tuples as dictionary messes the order
         header_dictionary = zip(all_dataset_inps, all_dataset_types)
         if kernel.IndexedConstants:
             for i in kernel.IndexedConstants:
                 header_dictionary += [tuple([(i.base), 'input'])]
         if kernel.grid_indices_used:
-            kerel_index = ", const int *idx" #WARNING hard coded here
+            kerel_index = ", const int *idx"  # WARNING hard coded here
         else:
             kerel_index = ''
-        #print header_dictionary
-        out = ["void %s("%kernel.kernelname + self.kernel_header(header_dictionary) + kerel_index + ')' + '\n{']
-        #all_dataset_inps = [str(i) for i in all_dataset_inps]
+        # print header_dictionary
+        out = ["void %s(" % kernel.kernelname + self.kernel_header(header_dictionary) + kerel_index + ')' + '\n{']
+        # all_dataset_inps = [str(i) for i in all_dataset_inps]
         ops_accs = [OPSAccess(no) for no in range(len(all_dataset_inps))]
         OPSCCodePrinter.dataset_accs_dictionary = dict(zip(all_dataset_inps, ops_accs))
-        out += [ccode(eq)+ ';\n'  for eq in kernel.equations if isinstance(eq, Equality)] + ['}']
+        out += [ccode(eq) + ';\n' for eq in kernel.equations if isinstance(eq, Equality)] + ['}']
         OPSCCodePrinter.dataset_accs_dictionary = {}
         return out
+
     def write_kernels(self, algorithm):
         kernels = self.loop_alg(algorithm, Kernel)
-        files = [open('%s_kernels.h'%b.block_name, 'w') for b in algorithm.block_descriptions]
+        files = [open('%s_kernels.h' % b.block_name, 'w') for b in algorithm.block_descriptions]
         for f in files:
-            name = ('%s_kernel_H'%b.block_name).upper()
-            f.write('#ifndef %s\n'%name)
-            f.write('#define %s\n'%name)
+            name = ('%s_kernel_H' % b.block_name).upper()
+            f.write('#ifndef %s\n' % name)
+            f.write('#define %s\n' % name)
         for k in kernels:
             out = self.kernel_computation_opsc(k) + ['\n']
             out = indent_code(out)
@@ -356,17 +370,17 @@ class OPSC(object):
         out = ['#include <stdlib.h> \n#include <string.h> \n#include <math.h>']
         for d in CTD.constants:
             if isinstance(d, ConstantObject):
-                out += ["%s %s;"%(d.dtype.opsc(), d)]
+                out += ["%s %s;" % (d.dtype.opsc(), d)]
             elif isinstance(d, ConstantIndexed):
                 indices = ''
                 for s in d.shape:
-                    indices = indices + '[%d]'%s
-                out += ["%s %s%s;"%(d.dtype.opsc(), d.base.label, indices)]
+                    indices = indices + '[%d]' % s
+                out += ["%s %s%s;" % (d.dtype.opsc(), d.base.label, indices)]
         for b in algorithm.block_descriptions:
-            out += ['#define OPS_%dD'%b.ndim]
+            out += ['#define OPS_%dD' % b.ndim]
         out += ['#include \"ops_seq.h\"']
         for b in algorithm.block_descriptions:
-            out += ['#include \"%s_kernels.h\"'%b.block_name]
+            out += ['#include \"%s_kernels.h\"' % b.block_name]
         return out
 
     def opsc_def_decs(self, algorithm):
@@ -376,7 +390,7 @@ class OPSC(object):
         decls += self.ops_init()
         # First process all the constants in the definitions
         out = [WriteString("// Define and Declare OPS Block")]
-        #from .kernel import ConstantsToDeclare as CTD
+        # from .kernel import ConstantsToDeclare as CTD
         for d in CTD.constants:
             if isinstance(d, Constant):
                 defs += self.define_constants(d)
@@ -387,9 +401,9 @@ class OPSC(object):
         decls = []
         # Define and declare blocks
         for b in algorithm.block_descriptions:
-            #output += self.define_block(b)
+            # output += self.define_block(b)
             output += self.declare_block(b)
-        #output += defs + decls
+        # output += defs + decls
         # Define and declare datasets on each block
         f = open('defdec_data_set.h', 'w')
         datasets_dec = []
@@ -409,30 +423,32 @@ class OPSC(object):
         from opensbli.core.bcs import Exchange
         exchange_list = self.loop_alg(algorithm, Exchange)
         if exchange_list:
-            f = open('bc_exchanges.h', 'w') # write BC_exchange code to a separate file
+            f = open('bc_exchanges.h', 'w')  # write BC_exchange code to a separate file
             exchange_code = []
             for e in exchange_list:
                 call, code = self.bc_exchange_call_code(e)
                 exchange_code += [code]
             f.write('\n'.join(flatten(exchange_code)))
             f.close()
-            output += [WriteString("#include \"bc_exchanges.h\"")] # Include statement in the code
+            output += [WriteString("#include \"bc_exchanges.h\"")]  # Include statement in the code
         output += self.ops_partition()
 
         return output
+
     def ops_stencils_declare(self, s):
         out = []
-        dtype = 'int' #WARNING dtype
+        dtype = 'int'  # WARNING dtype
         name = s.name + 'temp'
         sorted_stencil = s.sort_stencil_indices()
         out = [self.declare_inline_array(dtype, name, [st for st in flatten(sorted_stencil) if not isinstance(st, Idx)])]
-        #pprint(flatten(s.stencil))
+        # pprint(flatten(s.stencil))
 
-        out += [WriteString('ops_stencil %s = ops_decl_stencil(%d,%d,%s,\"%s\");'%(s.name, s.ndim, len(s.stencil), name, name))]
-        #pprint(out)
-        #print "\n"
+        out += [WriteString('ops_stencil %s = ops_decl_stencil(%d,%d,%s,\"%s\");' % (s.name, s.ndim, len(s.stencil), name, name))]
+        # pprint(out)
+        # print "\n"
 
         return out
+
     def ops_partition(self):
         """ Initialise an OPS partition for the purpose of multi-block and/or MPI partitioning.
 
@@ -458,18 +474,18 @@ class OPSC(object):
             self.ops_diagnostics = False
             return out + [WriteString('ops_init(argc,argv,%d);' % (1))]
 
-
     def Exchange_code(self, e):
-        #out =
+        # out =
         return
+
     def bc_exchange_call_code(self, instance):
         off = 0
         halo = 'halo'
-        #instance.transfer_size = instance.transfer_from
+        # instance.transfer_size = instance.transfer_from
         # Name of the halo exchange
         name = instance.name
-        #self.halo_exchange_number = self.halo_exchange_number + 1
-        code = ['// Boundary condition exchange code on %s direction %s %s'%(instance.block_name,instance.direction, instance.side) ]
+        # self.halo_exchange_number = self.halo_exchange_number + 1
+        code = ['// Boundary condition exchange code on %s direction %s %s' % (instance.block_name, instance.direction, instance.side)]
         code += ['ops_halo_group %s %s' % (name, ";")]
         code += ["{"]
         code += ['int halo_iter[] = {%s}%s' % (', '.join([str(s) for s in instance.transfer_size]), ";")]
@@ -489,13 +505,14 @@ class OPSC(object):
         code += ["}"]
         # Finished OPS halo exchange, now get the call
         instance.call_name = 'ops_halo_transfer(%s)%s' % (name, ";")
-        call = ['// Boundary condition exchange calls' , 'ops_halo_transfer(%s)%s' % (name, ";")]
+        call = ['// Boundary condition exchange calls', 'ops_halo_transfer(%s)%s' % (name, ";")]
         for no, c in enumerate(code):
             code[no] = WriteString(c).opsc_code
         return call, code
 
     def loop_alg(self, algorithm, type_of_component):
         type_list = []
+
         def _generate(components, type_list):
             for component1 in components:
                 if hasattr(component1, 'components'):
@@ -527,7 +544,7 @@ class OPSC(object):
 
     def define_block(self, b):
         if not self.MultiBlock:
-            return [WriteString("ops_block %s;"%b.block_name)]
+            return [WriteString("ops_block %s;" % b.block_name)]
         else:
             raise NotImplementedError("")
 
@@ -542,15 +559,15 @@ class OPSC(object):
     def define_constants(self, c):
         if isinstance(c, ConstantObject):
             if c.value:
-                return [WriteString("%s=%s;"%(str(c), ccode(c.value, settings = {'rational':True})))]
+                return [WriteString("%s=%s;" % (str(c), ccode(c.value, settings={'rational': True})))]
             else:
-                return [WriteString("%s=%s;"%(str(c), "Input"))]
+                return [WriteString("%s=%s;" % (str(c), "Input"))]
         elif isinstance(c, ConstantIndexed):
             out = []
             if c.value:
                 if len(c.shape) == 1:
                     for i in range(c.shape[0]):
-                        out += [WriteString("%s[%d]=%s;"%(str(c.base.label), i, ccode(c.value[i], settings = {'rational':True})))]
+                        out += [WriteString("%s[%d]=%s;" % (str(c.base.label), i, ccode(c.value[i], settings={'rational': True})))]
                 else:
                     raise NotImplementedError("Indexed constant declaration is done for only one ")
                 return out
@@ -559,23 +576,27 @@ class OPSC(object):
         else:
             print c
             raise ValueError("")
+
     def declare_ops_constants(self, c):
         if isinstance(c, ConstantObject):
-            return [WriteString("ops_decl_const(\"%s\" , 1, \"%s\", &%s);"%(str(c), c.dtype.opsc(), str(c)))]
+            return [WriteString("ops_decl_const(\"%s\" , 1, \"%s\", &%s);" % (str(c), c.dtype.opsc(), str(c)))]
         elif isinstance(c, ConstantIndexed):
             return []
         return
 
     def declare_inline_array(self, dtype, name, values):
         return WriteString('%s %s[] = {%s};' % (dtype, name, ', '.join([str(s) for s in values])))
+
     def update_inline_array(self, name, values):
         out = []
-        for no,v in enumerate(values):
-            out += [WriteString("%s[%d] = %s;"%(name, no, value))]
+        for no, v in enumerate(values):
+            out += [WriteString("%s[%d] = %s;" % (name, no, value))]
         return out
+
     def define_dataset(self, dset):
         if not self.MultiBlock:
-            return [WriteString("ops_dat %s;" %(dset))]
+            return [WriteString("ops_dat %s;" % (dset))]
+
     def get_max_halos(self, halos):
         halo_m = []
         halo_p = []
@@ -592,6 +613,7 @@ class OPSC(object):
             else:
                 halo_p += [0]
         return halo_m, halo_p
+
     def declare_dataset(self, dset):
 
         hm, hp = self.get_max_halos(dset.halo_ranges)
@@ -600,25 +622,23 @@ class OPSC(object):
         sizes = self.declare_inline_array("int", "size", [str(s) for s in (dset.size)])
         base = self.declare_inline_array("int", "base", [0 for i in range(len(dset.size))])
 
-
         if dset.dtype:
             dtype = dset.dtype
         else:
             dtype = self.dtype
-        value = WriteString("%s* value = NULL;"%dtype)
+        value = WriteString("%s* value = NULL;" % dtype)
 
         fname = 'data.h5'
         if dset.read_from_hdf5:
-            temp = '%s = ops_decl_dat_hdf5(%s, 1, \"%s\", \"%s\", \"%s\");'%(dset,
-                            dset.block_name, dtype, dset, fname)
+            temp = '%s = ops_decl_dat_hdf5(%s, 1, \"%s\", \"%s\", \"%s\");' % (dset,
+                                                                               dset.block_name, dtype, dset, fname)
         else:
-            temp = '%s = ops_decl_dat(%s, 1, size, base, halo_m, halo_p, value, \"%s\", \"%s\");'%(dset,
-                            dset.block_name, dtype, dset)
+            temp = '%s = ops_decl_dat(%s, 1, size, base, halo_m, halo_p, value, \"%s\", \"%s\");' % (dset,
+                                                                                                     dset.block_name, dtype, dset)
         temp = WriteString(temp)
         declaration = WriteString("ops_dat %s;" % dset)
         out = [declaration, WriteString("{"), halo_p, halo_m, sizes, base, value, temp, WriteString("}")]
         return out
-
 
     def add_block_name_to_kernel_sb(self, kernel):
         kernel.block_name = "block"
@@ -634,6 +654,6 @@ class OPSC(object):
                     self.constants = self.constants.union(component1.constants).union(component1.IndexedConstants)
 
         code = algorithm.prg.opsc_code
-        #print '\n'.join(code)
+        # print '\n'.join(code)
         _generate(algorithm.prg.components)
         return
