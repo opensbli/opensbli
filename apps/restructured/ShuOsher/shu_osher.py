@@ -1,9 +1,9 @@
 #!/usr/bin/env python
-import sys, os
+import sys
+import os
 from math import ceil
 
 # Import local utility functions
-#import opensbli as base
 from opensbli.core import *
 from opensbli.core.bcs import *
 from opensbli.physical_models.euler_eigensystem import *
@@ -21,12 +21,12 @@ LLF = LLFCharacteristic(ev_dict, LEV_dict, REV_dict, weno_order, ndim, Avg)
 
 sc1 = "**{\'scheme\':\'Weno\'}"
 # Define the compresible Navier-Stokes equations in Einstein notation.
-a = "Conservative(rhou_j,x_j,%s)"%sc1
-mass = "Eq(Der(rho,t), - %s)"%(a)
-a = "Conservative(rhou_i*u_j + KD(_i,_j)*p,x_j , %s)"%sc1
-momentum = "Eq(Der(rhou_i,t) , -%s  )"%(a)
-a = "Conservative((p+rhoE)*u_j,x_j, %s)"%sc1
-energy = "Eq(Der(rhoE,t), - %s  )"%(a)
+a = "Conservative(rhou_j,x_j,%s)" % sc1
+mass = "Eq(Der(rho,t), - %s)" % (a)
+a = "Conservative(rhou_i*u_j + KD(_i,_j)*p,x_j , %s)" % sc1
+momentum = "Eq(Der(rhou_i,t) , -%s  )" % (a)
+a = "Conservative((p+rhoE)*u_j,x_j, %s)" % sc1
+energy = "Eq(Der(rhoE,t), - %s  )" % (a)
 # Substitutions
 substitutions = []
 
@@ -67,7 +67,7 @@ schemes[LLF.name] = LLF
 rk = RungeKutta(3)
 schemes[rk.name] = rk
 
-block= SimulationBlock(ndim, block_number = 0)
+block = SimulationBlock(ndim, block_number=0)
 block.sbli_rhs_discretisation = True
 
 # Initial conditions
@@ -79,23 +79,23 @@ u0 = "Eq(GridVariable(u0), Piecewise((2.629369, x0<1.0),(0.0, x0>=1.0),(0.0,True
 d = "Eq(GridVariable(d), Piecewise((3.857143, x0<1.0),(1.0+0.2*sin(5*GridVariable(x0)), x0>=1.0),(0,True)))"
 rho = "Eq(DataObject(rho), d)"
 rhou0 = "Eq(DataObject(rhou0), d*u0)"
-rhoE ="Eq(DataObject(rhoE), p/(gama-1.0) + 0.5* d *(u0**2.0))"
+rhoE = "Eq(DataObject(rhoE), p/(gama-1.0) + 0.5* d *(u0**2.0))"
 
 eqns = [x0, u0, p, d, rho, rhou0, rhoE]
 
-local_dict = {"block" : block, "GridVariable" : GridVariable, "DataObject" : DataObject}
+local_dict = {"block": block, "GridVariable": GridVariable, "DataObject": DataObject}
 initial_equations = [parse_expr(eq, local_dict=local_dict) for eq in eqns]
 initial = GridBasedInitialisation()
 initial.add_equations(initial_equations)
 
 
-# # Shu Osher boundary condition values left side
+# Shu Osher boundary condition values left side
 arrays = flatten(simulation_eq.time_advance_arrays)
-subs_dict = {Symbol('x0'):0}
+subs_dict = {Symbol('x0'): 0}
 left_eqns = [eq.subs(subs_dict) for eq in initial_equations]
 pprint(left_eqns)
 
-subs_dict = {Symbol('x0'):10.0}
+subs_dict = {Symbol('x0'): 10.0}
 
 right_eqns = [eq.subs(subs_dict) for eq in initial_equations]
 
@@ -104,12 +104,12 @@ pprint(right_eqns)
 boundaries = []
 # Create boundaries, one for each side per dimension
 for direction in range(ndim):
-	boundaries += [DirichletBoundaryConditionBlock(direction, 0, left_eqns)]
-	boundaries += [DirichletBoundaryConditionBlock(direction, 1, right_eqns)]
+    boundaries += [DirichletBoundaryConditionBlock(direction, 0, left_eqns)]
+    boundaries += [DirichletBoundaryConditionBlock(direction, 1, right_eqns)]
 
 
 block.set_block_boundaries(boundaries)
-block.set_equations([copy.deepcopy(constituent),copy.deepcopy(simulation_eq), initial])
+block.set_equations([copy.deepcopy(constituent), copy.deepcopy(simulation_eq), initial])
 block.set_discretisation_schemes(schemes)
 
 block.discretise()

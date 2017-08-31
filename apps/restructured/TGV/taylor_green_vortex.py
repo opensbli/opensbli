@@ -1,9 +1,9 @@
 #!/usr/bin/env python
-import sys, os
+import sys
+import os
 from math import ceil
 
 # Import local utility functions
-#import opensbli as base
 from opensbli.core import *
 from opensbli.core.bcs import *
 from opensbli.physical_models.euler_eigensystem import *
@@ -28,13 +28,12 @@ equations = [mass, momentum, energy]
 diagnostics = [ke, enstrophy, rhomean]
 
 
-
 stress_tensor = "Eq(tau_i_j, (1.0/Re)*(Der(u_i,x_j, %s)+ Der(u_j,x_i,%s)- (2/3)* KD(_i,_j)* Der(u_k,x_k,%s)))" % (sc2, sc2, sc2)
 heat_flux = "Eq(q_j, (1.0/((gama-1)*Minf*Minf*Pr*Re))*Der(T,x_j,%s))" % sc2
 
 substitutions = [stress_tensor, heat_flux]
 
-constants = ["Re", "Pr","gama", "Minf", "mu"]
+constants = ["Re", "Pr", "gama", "Minf", "mu"]
 coordinate_symbol = "x"
 
 
@@ -86,9 +85,9 @@ constituent.add_equations(eqns)
 # latex.close()
 
 
-block = SimulationBlock(ndim, block_number = 0)
+block = SimulationBlock(ndim, block_number=0)
 
-local_dict = {"block" : block, "GridVariable" : GridVariable, "DataObject" : DataObject}
+local_dict = {"block": block, "GridVariable": GridVariable, "DataObject": DataObject}
 
 x0 = "Eq(GridVariable(x0), block.deltas[0]*block.grid_indexes[0])"
 x1 = "Eq(GridVariable(x1), block.deltas[1]*block.grid_indexes[1])"
@@ -125,11 +124,11 @@ block.sbli_rhs_discretisation = True
 boundaries = []
 # Create boundaries, one for each side per dimension
 for direction in range(ndim):
-	boundaries += [PeriodicBoundaryConditionBlock(direction, 0)]
-	boundaries += [PeriodicBoundaryConditionBlock(direction, 1)]
+    boundaries += [PeriodicBoundaryConditionBlock(direction, 0)]
+    boundaries += [PeriodicBoundaryConditionBlock(direction, 1)]
 
 block.set_block_boundaries(boundaries)
-block.set_equations([copy.deepcopy(constituent),copy.deepcopy(simulation_eq), initial])
+block.set_equations([copy.deepcopy(constituent), copy.deepcopy(simulation_eq), initial])
 block.set_discretisation_schemes(schemes)
 
 block.discretise()
@@ -137,4 +136,3 @@ block.discretise()
 alg = TraditionalAlgorithmRK(block)
 SimulationDataType.set_datatype(Double)
 OPSC(alg)
-

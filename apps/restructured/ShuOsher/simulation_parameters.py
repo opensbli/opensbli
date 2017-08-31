@@ -3,6 +3,7 @@ from sympy import pprint
 import numpy as np
 from math import ceil
 
+
 def substitute_parameters(simulation_name, constants, values, dsets, hdf5=False):
     file_path = "./%s.cpp" % simulation_name
     substitutions = dict(zip(constants, values))
@@ -40,10 +41,8 @@ def substitute_parameters(simulation_name, constants, values, dsets, hdf5=False)
     return
 
 
-
-
 if __name__ == "__main__":
-    constants = ['gama', 'Minf','dt', 'niter', 'block0np0', 'Delta0block0']
+    constants = ['gama', 'Minf', 'dt', 'niter', 'block0np0', 'Delta0block0']
     values = [1.4, 0.1, 2e-4, ceil(1.8/2e-4), 1600, 10.0/1600]
     simulation_name = 'opensbli'
     dsets = ['rho', 'rhou0', 'rhoE']

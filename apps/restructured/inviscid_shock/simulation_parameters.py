@@ -3,6 +3,7 @@ from sympy import pprint
 import numpy as np
 from math import ceil
 
+
 def substitute_parameters(simulation_name, constants, values, dsets, hdf5=False):
     file_path = "./%s.cpp" % simulation_name
     substitutions = dict(zip(constants, values))
@@ -38,8 +39,6 @@ def substitute_parameters(simulation_name, constants, values, dsets, hdf5=False)
         s = s.replace(ops_exit, new_str)
         f.write(s)
     return
-
-
 
 
 if __name__ == "__main__":

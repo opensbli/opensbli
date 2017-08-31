@@ -9,10 +9,12 @@ from opensbli.core.bcs import *
 from opensbli.physical_models.euler_eigensystem import *
 from opensbli.initialisation import *
 
+
 def dt(dx, c):
     """ Given a grid spacing dx and the wave speed c, return the value of dt such that the CFL condition is respected. """
     courant_number = 0.2
     return (dx*courant_number)/c
+
 
 BUILD_DIR = os.getcwd()
 
@@ -40,7 +42,7 @@ simulation_eq.add_equations(eqns)
 
 constituent = ConstituentRelations()
 
-block= SimulationBlock(ndim, block_number = 0)
+block = SimulationBlock(ndim, block_number=0)
 block.sbli_rhs_discretisation = True
 
 boundaries = []
@@ -52,13 +54,13 @@ for direction in range(ndim):
 block.set_block_boundaries(boundaries)
 
 # Initial conditions
-local_dict = {"block" : block, "GridVariable" : GridVariable, "DataObject" : DataObject}
-phi = parse_expr("Eq(DataObject(phi), sin(2.0*pi*(block.grid_indexes[0])*block.deltas[0]))", local_dict = local_dict)
+local_dict = {"block": block, "GridVariable": GridVariable, "DataObject": DataObject}
+phi = parse_expr("Eq(DataObject(phi), sin(2.0*pi*(block.grid_indexes[0])*block.deltas[0]))", local_dict=local_dict)
 initial = GridBasedInitialisation()
 initial.add_equations([phi])
 
 kwargs = {'iotype': "Write"}
-h5 = iohdf5(save_every =100, **kwargs)
+h5 = iohdf5(save_every=100, **kwargs)
 h5.add_arrays(simulation_eq.time_advance_arrays)
 
 simulation = copy.deepcopy(simulation_eq)
