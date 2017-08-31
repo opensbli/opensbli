@@ -34,7 +34,8 @@ from .opensblifunctions import *
 
 LOCAL_FUNCTIONS = []
 
-classdict = {Symbol('Central'): CentralDerivative, Symbol('Temporal'):TemporalDerivative, Symbol('Weno'):WenoDerivative, Symbol('Metric'):MetricDerivative, Symbol('Teno'):TenoDerivative}
+classdict = {Symbol('Central'): CentralDerivative, Symbol('Temporal'): TemporalDerivative, Symbol('Weno'): WenoDerivative, Symbol('Metric'): MetricDerivative, Symbol('Teno'): TenoDerivative}
+
 
 class ParsingSchemes(object):
     def set_schemes(cls, expr):
@@ -46,7 +47,7 @@ class ParsingSchemes(object):
                 if d.args[0].atoms(Derivative):
                     modifications += [d]
                 else:
-                    substitutions[d] = classdict[cls.args[-1]](d.expr,*d.variables)
+                    substitutions[d] = classdict[cls.args[-1]](d.expr, *d.variables)
             else:
                 continue
         expr = expr.xreplace(substitutions)
@@ -54,14 +55,15 @@ class ParsingSchemes(object):
         substitutions = {}
         for m in modifications:
             if not (m.args[0].atoms(Derivative).difference(m.args[0].atoms(classdict[cls.args[-1]]))):
-                expr = expr.xreplace({m:classdict[cls.args[-1]](m.expr,*m.variables)})
+                expr = expr.xreplace({m: classdict[cls.args[-1]](m.expr, *m.variables)})
             else:
                 raise ValueError("Require better implementation in set schemes")
         return expr
 
+
 def set_args(*args, **kwargs):
     args = list(args)
-    #pprint([srepr(arg) for arg in args])
+    # pprint([srepr(arg) for arg in args])
     if 'scheme' in kwargs:
         if str(args[-1]) != kwargs['scheme']:
             args = args + [kwargs['scheme']]
@@ -96,10 +98,10 @@ class Skew(AppliedUndef):
     def __new__(cls, *args, **kwargs):
         ret = super(Skew, cls).__new__(cls, *args)
         ret.options = kwargs
-        #pprint(ret)
+        # pprint(ret)
         ret = ret.applys()
         pprint(ret)
-        #exit()
+        # exit()
         return ret
 
     def applys(cls):
@@ -114,11 +116,12 @@ class Skew(AppliedUndef):
             return Der(var, *directions)
         elif nvar == 2:
             explicitvars = var.args
-            out = Rational(1,2)*(Conservative(var, *directions, **kwargs) + explicitvars[1]*Der(explicitvars[0], *directions,**kwargs) + explicitvars[0]*Der(explicitvars[1], *directions,**kwargs))
+            out = Rational(1, 2)*(Conservative(var, *directions, **kwargs) + explicitvars[1]*Der(explicitvars[0], *directions, **kwargs) + explicitvars[0]*Der(explicitvars[1], *directions, **kwargs))
             return out
         else:
             raise ValueError("More than two terms for Skew formulation.")
         return
+
 
 class Der(AppliedUndef, ParsingSchemes):
 
@@ -150,7 +153,7 @@ class Der(AppliedUndef, ParsingSchemes):
     def differentiate(cls):
         localfuncs = (Der)
         notdiff = (ConstantObject, CoordinateObject)
-        function_deps  = list(cls.args)[1:-1]
+        function_deps = list(cls.args)[1:-1]
         functions = []
         pot = postorder_traversal(cls)
         for p in pot:
@@ -158,11 +161,11 @@ class Der(AppliedUndef, ParsingSchemes):
                 function_deps += [list(p.args[1:-1])]
             elif isinstance(p, DataObject):
                 if p.get_base():
-                    functions +=[p]
+                    functions += [p]
             else:
                 continue
         fndeps = set(flatten(function_deps))
-        fns =  set(flatten(functions))
+        fns = set(flatten(functions))
         substits = {}
         revertback = {}
         for fn in fns:
@@ -182,7 +185,7 @@ class Der(AppliedUndef, ParsingSchemes):
         expr = expr.doit()
         expr = expr.subs(revertback)
         expr = cls.set_schemes(expr)
-        return  expr
+        return expr
 
 
 class Conservative(AppliedUndef, ParsingSchemes):
@@ -204,42 +207,43 @@ class Conservative(AppliedUndef, ParsingSchemes):
         TODO Requires more rigorous testing
         """
         localfuncs = (Conservative)
-        #notdiff = (ConstantObject, CoordinateObject)
-        function_deps  = list(cls.args)[1:-1]
+        # notdiff = (ConstantObject, CoordinateObject)
+        function_deps = list(cls.args)[1:-1]
         functions = []
         pot = postorder_traversal(cls)
         expr = cls
         local_subs = {}
         for p in pot:
             if isinstance(p, localfuncs):
-                #if local_subs:
-                    #p = p.subs(local_subs)
-                ##print p, p.args, Derivative(p.args[0], p.args[1])
-                #pprint([p, p.args[0]])
-                #local_subs[p] = Derivative(p.args[0], *p.args[1:-1])
+                # if local_subs:
+                    # p = p.subs(local_subs)
+                # print p, p.args, Derivative(p.args[0], p.args[1])
+                # pprint([p, p.args[0]])
+                # local_subs[p] = Derivative(p.args[0], *p.args[1:-1])
                 expr = expr.subs(p, Derivative(p.args[0], *p.args[1:-1]))
-                #local_subs += [p]
-                #local_subs[p] = Derivative(p.args[0], *p.args[1:-1])
+                # local_subs += [p]
+                # local_subs[p] = Derivative(p.args[0], *p.args[1:-1])
             else:
                 continue
-        #pprint(local_subs)
-        #expr = expr.subs(local_subs)
+        # pprint(local_subs)
+        # expr = expr.subs(local_subs)
         # print "Inside conservative"
         # pprint(expr)
-        #exit()
+        # exit()
         subexpr = expr
-        #pprint(expr)
-        #pprint(*cls.args[1:-1])
-        #pprint(local_subs)
-        #pprint(cls)
-        #for sub in reversed(local_subs[1:]):
-            #expr = expr.subs(sub, evaluate=False)
-        #pprint(['jere-1', expr])
-        #exit()
-        #expr = Derivative(expr, *cls.args[1:-1])
-        #pprint(['jere', Derivative(Derivative(cls.args[0], cls.args[1]), cls.args[1])])
+        # pprint(expr)
+        # pprint(*cls.args[1:-1])
+        # pprint(local_subs)
+        # pprint(cls)
+        # for sub in reversed(local_subs[1:]):
+        # expr = expr.subs(sub, evaluate=False)
+        # pprint(['jere-1', expr])
+        # exit()
+        # expr = Derivative(expr, *cls.args[1:-1])
+        # pprint(['jere', Derivative(Derivative(cls.args[0], cls.args[1]), cls.args[1])])
         expr = cls.set_schemes(expr)
-        return  expr
+        return expr
+
 
 class MetricDer(AppliedUndef, ParsingSchemes):
     @property
@@ -252,14 +256,14 @@ class MetricDer(AppliedUndef, ParsingSchemes):
         ret = super(MetricDer, cls).__new__(cls, *args)
         ret.options = kwargs
         cls.dummy_index = 0
-        cls.metricobject = MetricObject('xi_dummy%d'%cls.dummy_index)
-        cls.dummy_index = cls.dummy_index +1
+        cls.metricobject = MetricObject('xi_dummy%d' % cls.dummy_index)
+        cls.dummy_index = cls.dummy_index + 1
         return ret
 
     def differentiate(cls, Metric):
         localfuncs = (MetricDer)
         notdiff = (ConstantObject, CoordinateObject)
-        function_deps  = list(cls.args)[1:-1]
+        function_deps = list(cls.args)[1:-1]
         functions = []
         mobj = cls.metricobject
         order = len(cls.atoms(MetricDer))
@@ -270,14 +274,13 @@ class MetricDer(AppliedUndef, ParsingSchemes):
         for p in pot:
             if isinstance(p, localfuncs):
                 function_deps += [list(p.args[1:-1])]
-                #newfn_deps += [{p:list(p.args[1:-1])}]
             elif isinstance(p, DataObject):
                 if p.get_base():
-                    functions +=[p]
+                    functions += [p]
             else:
                 continue
         fndeps = set(flatten(function_deps))
-        fns =  set(flatten(functions))
+        fns = set(flatten(functions))
         substits = {}
         revertback = {}
         metric_fns = mobj(*fndeps)
@@ -292,9 +295,8 @@ class MetricDer(AppliedUndef, ParsingSchemes):
         schemes = {}
         for p in pot:
             if isinstance(p, localfuncs):
-                inner_metric_ders += [p ]
+                inner_metric_ders += [p]
                 newfn_deps += [list(p.args[1:-1])]
-                #expr = expr.subs(p, p.args[0].diff(*p.args[1:-1])).doit()
             else:
                 continue
         if not inner_metric_ders:
@@ -302,29 +304,28 @@ class MetricDer(AppliedUndef, ParsingSchemes):
             expr = expr.doit()
             expr = expr.subs(revertback)
         else:
-            if len(inner_metric_ders)> 1:
+            if len(inner_metric_ders) > 1:
                 raise ValueError("Metrics greter than second order derivatives are not tested please uncomment this line and verify metric yourselves")
             p = inner_metric_ders[0]
             expr = expr.subs(p, p.args[0].diff(*p.args[1:-1])).doit()
-            #expr = expr.diff(*cls.args[1:-1])
             expr = expr.doit()
             expr, conversion_subs = cls.convert_metric_ders_dataobjects(expr, order=1)
             expr = expr.diff(*cls.args[1:-1])
             expr = cls.apply_Subs(expr)
             for key, value in conversion_subs.iteritems():
-                expr = expr.replace(key,value)
+                expr = expr.replace(key, value)
         expr = cls.remove_fn(expr)
         expr = cls.remove_fn(expr)
         expr = cls.set_schemes(expr)
-        #pprint(expr)
+        # pprint(expr)
         return expr
 
     def convert_to_functions(cls, expr):
         """
         Used to convert the expression data objects to functions
         """
-        mobj = MetricObject('xi_du%d'%cls.dummy_index)
-        cls.dummy_index = cls.dummy_index +1
+        mobj = MetricObject('xi_du%d' % cls.dummy_index)
+        cls.dummy_index = cls.dummy_index + 1
         metric_fns = mobj(*cls.fndeps)
         for at in expr.atoms(CoordinateObject):
             expr = expr.subs(at, at(metric_fns))
@@ -334,25 +335,22 @@ class MetricDer(AppliedUndef, ParsingSchemes):
         # Remove the metric objects functions
         index = 0
         expression = cls.apply_Subs(expression)
-        #expression = cls.remove_fn(expression)
         subs = {}
-        #expression = cls.apply_Subs(expression)
         for at in expression.atoms(Derivative):
-            mobj = MetricObject('xi_%d'%cls.dummy_index)
-            cls.dummy_index = cls.dummy_index +1
+            mobj = MetricObject('xi_%d' % cls.dummy_index)
+            cls.dummy_index = cls.dummy_index + 1
             metric_fns = mobj(*cls.fndeps)
-            f = Function('f%d'%index)
+            f = Function('f%d' % index)
             dobj = CoordinateObject(str(f))
             index = index + 1
             newfn = f(mobj(*cls.fndeps))
 
-            #ppritn(cls.fndeps)
+            # ppritn(cls.fndeps)
             var_args = []
             for v in at.variables:
                 var_args += [cls.remove_fn(v)]
             if isinstance(at.expr, Function):
                 if "xi" in str(at.expr.func):
-                    #indices = at.expr.get_indices() + [var.get_indices() for var in at.variables]
                     inds = (set(cls.fndeps)).difference(set(var_args))
                     fns = {}
                     for a in at.atoms(Function):
@@ -371,12 +369,13 @@ class MetricDer(AppliedUndef, ParsingSchemes):
             expression = expression.subs(at, subsfn)
         return expression, subs
 
-    def remove_fn(cls,expr):
+    def remove_fn(cls, expr):
         expr = cls.apply_Subs(expr)
         for ind in expr.atoms(Function):
-            expr = expr.subs({ind:CoordinateObject(str(ind.func))})
+            expr = expr.subs({ind: CoordinateObject(str(ind.func))})
         return expr
-    def apply_Subs(cls,expression):
+
+    def apply_Subs(cls, expression):
         substis = list(expression.atoms(Subs))
         for work in substis:
             test = list(zip(work.variables, work.point))
@@ -396,36 +395,34 @@ class MetricDer(AppliedUndef, ParsingSchemes):
             expr = cls.remove_fn(expr)
             expr = cls.set_schemes(expr)
             pprint(expr)
-            #t = Eq(expr, 0)
             expr, free_indices = Equation()._structure(expr)
             expr = Equation().substitute_indexed(expr)
             expanded_lhs = Equation().expand_summations(expr, 3)
             if free_indices:
                 expanded_equations = expand_free_indices(expanded_lhs, free_indices, 3)
             pprint(srepr(expanded_equations[0]))
-            #new = coordinates[0](cls.metricobject)
-            #new = new.diff(cls.metricobject)
-            #new = cls.remove_fn(new)
-            #new = cls.remove_fn(new)
-            #new = cls.set_schemes(new)
-            #new, free_indices = Equation()._structure(new)
-            #new = Equation().substitute_indexed(new)
-            #expanded_lhs = Equation().expand_summations(new, 3)
-            #if free_indices:
-                #expanded_equations = expand_free_indices(expanded_lhs, free_indices, 3)
-            ##pprint(new)
-            #pprint(srepr(expanded_equations[0]))
+            # new = coordinates[0](cls.metricobject)
+            # new = new.diff(cls.metricobject)
+            # new = cls.remove_fn(new)
+            # new = cls.remove_fn(new)
+            # new = cls.set_schemes(new)
+            # new, free_indices = Equation()._structure(new)
+            # new = Equation().substitute_indexed(new)
+            # expanded_lhs = Equation().expand_summations(new, 3)
+            # if free_indices:
+            # expanded_equations = expand_free_indices(expanded_lhs, free_indices, 3)
+            # pprint(new)
+            # pprint(srepr(expanded_equations[0]))
         elif order == 2:
             pass
         return expr
 
 
-#from .opensbliequations import *
 class Equation(EinsteinStructure):
 
     """ Describes an equation that is to be solved. """
 
-    def expand(self, expression, ndim, coordinate_symbol, substitutions=[], constants=[], Metric = [], local_dictionary = {}):
+    def expand(self, expression, ndim, coordinate_symbol, substitutions=[], constants=[], Metric=[], local_dictionary={}):
         """ Set up an equation, written in Einstein notation, and expand the indices.
 
         :arg str equation: An equation, written in Einstein notation, and specified in string form.
@@ -436,16 +433,15 @@ class Equation(EinsteinStructure):
         :returns: None
         """
 
-        #local_dict = {'Symbol': EinsteinTerm, 'symbols': EinsteinTerm, 'Der': Der, 'Conservative': Conservative, 'KD': KD, 'LC': LC, 'Skew': Skew}
         DataSet.dimensions = ndim
 
         self.original = expression
         constant_dictionary = {}
         for con in constants:
             constant_dictionary[con] = ConstantObject(con)
-        local_dict = {'Der': Der, 'Conservative': Conservative, 'KD': KD, 'LC': LC, 'Skew': Skew, 'coordinate':coordinate_symbol,  'time':'t', 'Dot':Dot, 'MetricDer':MetricDer}
+        local_dict = {'Der': Der, 'Conservative': Conservative, 'KD': KD, 'LC': LC, 'Skew': Skew, 'coordinate': coordinate_symbol, 'time': 't', 'Dot': Dot, 'MetricDer': MetricDer}
         local_dict.update(constant_dictionary)
-        #pprint(self.original)
+        # pprint(self.original)
         # Parse the equation.
         self.parsed = parse_expr(self.original, local_dict, tuple([convert_coordinate])+standard_transformations, evaluate=False)
         # Perform substitutions, if any.
@@ -457,7 +453,6 @@ class Equation(EinsteinStructure):
         local = (Der, Conservative)
         for p in pot:
             if isinstance(p, local):
-                #pprint([p, p.differentiate()])
                 self.parsed = self.parsed.xreplace({p: p.differentiate()})
                 pot.skip()
             else:
@@ -467,7 +462,6 @@ class Equation(EinsteinStructure):
         local = (MetricDer)
         for p in pot:
             if isinstance(p, local):
-                #pprint([p, p.differentiate()])
                 self.parsed = self.parsed.xreplace({p: p.differentiate(Metric)})
                 pot.skip()
             else:
@@ -483,25 +477,23 @@ class Equation(EinsteinStructure):
             if not lhs_indices and not rhs_indices:
                 # THIS SHOULD BE MOVED TODO
                 expanded_equation = self.apply_functions(expanded_equation)
-                #expanded_equation = self.convert_to_data_sets(expanded_equation)
+                # expanded_equation = self.convert_to_data_sets(expanded_equation)
                 # Converting to dataObjects
-                #for at in expanded_equation.atoms(DataObject):
-                    #obj = DataSet(str(at)) # By default the location of the dataset is node (0,0,0)
-                    #expanded_equation = expanded_equation.replace(at, obj)
-                ##type_ofeq.add_equations(expanded_equation)
+                # for at in expanded_equation.atoms(DataObject):
+                # obj = DataSet(str(at)) # By default the location of the dataset is node (0,0,0)
+                # type_ofeq.add_equations(expanded_equation)
                 expanded_equations = expanded_equation
 
             elif lhs_indices == rhs_indices:
                 expanded_equations = expand_free_indices(expanded_equation, lhs_indices, ndim)
                 for no, eq in enumerate(expanded_equations):
                     eq = self.apply_functions(eq)
-                    #eq = self.convert_to_data_sets(eq)
                     expanded_equations[no] = eq
-                #type_ofeq.add_equations(expanded_equations)
+                # type_ofeq.add_equations(expanded_equations)
             else:
                 pprint(lhs_indices)
                 pprint(rhs_indices)
-                #pprint(expanded_equation)
+                # pprint(expanded_equation)
                 raise ValueError("LHS indices and rhs indices are not consistent")
             return expanded_equations
         else:
@@ -511,17 +503,18 @@ class Equation(EinsteinStructure):
             expanded_equations = expand_free_indices(expanded_lhs, lhs_indices, ndim)
             return expanded_equations
 
-
-    def apply_functions(self,equation):
+    def apply_functions(self, equation):
         for at in (equation.atoms(Function)):
             if (hasattr(at, 'value')):
-                equation= equation.subs(at, at.value())
+                equation = equation.subs(at, at.value())
         return equation
+
     def convert_to_data_sets(self, equation):
         for at in equation.atoms(DataObject):
-            obj = DataSet(str(at)) # By default the location of the dataset is node (0,0,0)
+            obj = DataSet(str(at))  # By default the location of the dataset is node (0,0,0)
             equation = equation.replace(at, obj)
         return equation
+
 
 class Reduction(AppliedUndef):
     @property
@@ -564,17 +557,17 @@ def convert_coordinate(tokens, local_dict, global_dict):
                 if local_dict['time'] == name:
                     val = ', **{\'time\':True}'
                     result.extend([
-                    (NAME, 'CoordinateObject'),
-                    (OP, '('),
-                    (NAME, (name)),
-                    (OP, ("%s")%val),
-                    (OP, ')'),])
+                        (NAME, 'CoordinateObject'),
+                        (OP, '('),
+                        (NAME, (name)),
+                        (OP, ("%s") % val),
+                        (OP, ')'), ])
                 else:
                     result.extend([
-                    (NAME, 'CoordinateObject'),
-                    (OP, '('),
-                    (NAME, (name)),
-                    (OP, ')'),])
+                        (NAME, 'CoordinateObject'),
+                        (OP, '('),
+                        (NAME, (name)),
+                        (OP, ')'), ])
             elif ("_" in name) and name not in local_dict:
                 if name.split("_")[0]:
                     local_dict['DataObject'] = DataObject
@@ -582,14 +575,14 @@ def convert_coordinate(tokens, local_dict, global_dict):
                         (NAME, 'DataObject'),
                         (OP, '('),
                         (NAME, (name)),
-                        (OP, ')'),])
+                        (OP, ')'), ])
                 else:
                     local_dict['EinsteinTerm'] = EinsteinTerm
                     result.extend([
                         (NAME, 'EinsteinTerm'),
                         (OP, '('),
                         (NAME, (name)),
-                        (OP, ')'),])
+                        (OP, ')'), ])
             elif name in local_dict:
                 result.append((NAME, name))
             elif name not in global_dict:
@@ -598,7 +591,7 @@ def convert_coordinate(tokens, local_dict, global_dict):
                     (NAME, 'DataObject'),
                     (OP, '('),
                     (NAME, (name)),
-                    (OP, ')'),])
+                    (OP, ')'), ])
             else:
                 result.append((NAME, name))
             continue
@@ -607,4 +600,3 @@ def convert_coordinate(tokens, local_dict, global_dict):
             continue
         prevTok = (tokNum, tokVal)
     return result
-
