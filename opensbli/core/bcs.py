@@ -1,31 +1,10 @@
-#!/usr/bin/env python
-
-#    OpenSBLI: An automatic code generator for solving differential equations.
-#    Copyright (C) 2016 Satya P. Jammy, Christian T. Jacobs
-
-#    This file is part of OpenSBLI.
-
-#    OpenSBLI is free software: you can redistribute it and/or modify
-#    it under the terms of the GNU General Public License as published by
-#    the Free Software Foundation, either version 3 of the License, or
-#    (at your option) any later version.
-
-#    OpenSBLI is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU General Public License for more details.
-
-#    You should have received a copy of the GNU General Public License
-#    along with OpenSBLI.  If not, see <http://www.gnu.org/licenses/>
-
-# @author: New structure implemented by Satya P Jammy, David J Lusher (October, 2016)
-from opensbli.physical_models.euler_eigensystem import EulerEquations
-from sympy import *
-from .kernel import *
+from sympy import flatten, Eq, zeros, Matrix, eye, S, sqrt, Equality, MatrixSymbol, nsimplify, Abs, Piecewise, GreaterThan
+from opensbli.core.kernel import Kernel
+from opensbli.core.opensbliobjects import DataSet
+from opensbli.core.grid import GridVariable
 from opensbli.utilities.helperfunctions import increment_dataset
-from opensbli.core.opensbliequations import ConstituentRelations
-
-from opensbli.physical_models.ns_physics import *
+from opensbli.physical_models.ns_physics import NSphysics
+from opensbli.utilities.helperfunctions import dot
 side_names = {0: 'left', 1: 'right'}
 
 
@@ -182,9 +161,6 @@ class BoundaryConditionBase(object):
             from_side_factor = 1
             to_side_factor = -1
         return from_side_factor, to_side_factor
-
-    def update_location(self, loc, increment):
-        loc = [0 for i in range(self.ndim)]
 
 
 class PeriodicBoundaryConditionBlock(BoundaryConditionBase):
@@ -398,11 +374,13 @@ class Carpenter(object):
         later
         """
         ker = Kernel(block)
+        expr = fn
         ker.add_equation(expr)
         ker.set_computation_name("Carpenter scheme %s " % (fn))
         ker.set_grid_range(block)
         # modify the range to the number of points
-        ecs, ranges = self, expr_cond_pairs(fn, direction, side, order, block)
+        raise NotImplementedError("This is for testing, not implemented")
+        ecs, ranges = self.expr_cond_pairs(fn, direction, side, order, block)
         ker.ranges[direction] = [ranges[0], ranges[-1]]
         return ker, ecs
 
@@ -515,7 +493,6 @@ class IsothermalWallBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCond
         for i in [x for x in range(block.ndim) if x != boundary_direction]:
             kernel.halo_ranges[i][0] = block.boundary_halos[i][0]
             kernel.halo_ranges[i][1] = block.boundary_halos[i][1]
-        base = block.ranges[boundary_direction][side]
         # Using Navier Stokes physics object, create conservative variables
         NS = NSphysics(block.ndim)
         cons_vars = [NS.density(), NS.momentum(), NS.total_energy()]
@@ -602,7 +579,6 @@ class InletPressureExtrapolateBoundaryConditionBlock(ModifyCentralDerivative, Bo
         # Using Navier Stokes physics object, create conservative variables
         NS = NSphysics(block.ndim)
         cons_vars = [NS.density(), NS.momentum(), NS.total_energy()]
-        loc = list(cons_vars[0].indices)
         # Evaluation of pressure, density, speed of sound on the boundary
         pb, rhob, ab = GridVariable('pb'), GridVariable('rhob'), GridVariable('ab')
         gama = NS.specific_heat_ratio()
@@ -623,7 +599,6 @@ class InletPressureExtrapolateBoundaryConditionBlock(ModifyCentralDerivative, Bo
             ecs += [ExprCondPair(rhs_values[1], True)]
             kernel.add_equation(Eq(lhs, Piecewise(*ecs, **{'evaluate': False})))
         # Conditions set in the halos in rhoE
-        rhs_rhoE = pb/(gama-1.0) + 0.5*rhob*sum(grid_vels_sq)
         locations = [-i-1 for i in range(abs(halos[0][0]))]
         lhs_rhoE = [increment_dataset(NS.total_energy(), boundary_direction, value) for value in locations]
         for i, lhs in enumerate(lhs_rhoE):

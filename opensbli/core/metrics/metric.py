@@ -1,11 +1,12 @@
 from opensbli.core.parsing import Equation
-from opensbli.core.latex import *
-from opensbli.core.opensbliequations import NonSimulationEquations, Discretisation, Solution, OpenSBLIEquation
+from sympy import Eq, zeros, flatten, Matrix, pprint, Function, S, Equality, Wild, WildFunction
+from opensbli.initialisation.common import BeforeSimulationStarts
+from opensbli.core.opensbliequations import NonSimulationEquations, Discretisation, Solution, OpenSBLIEquation, DataSet
 from opensbli.core.opensblifunctions import CentralDerivative
-from opensbli.initialisation.common import *
 from sympy.tensor.array import MutableDenseNDimArray
-from opensbli.core.opensbliobjects import *
+from opensbli.core.opensbliobjects import CoordinateObject, DataObject
 from opensbli.core.kernel import Kernel
+from opensbli.core.latex import LatexWriter
 
 
 def convert_dataset_base_expr_to_datasets(expression, index):
@@ -71,16 +72,11 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
         return
 
     def transform_first_derivative(cls, coordinate_symbol):
-        A = Matrix(cls.ndim, cls.ndim, lambda i, j: cls.cartesian_coordinates[i])
-        M1 = Matrix(cls.ndim, cls.ndim, lambda i, j: cls.curvilinear_coordinates[j])
         M2 = Matrix(cls.ndim, cls.ndim, lambda i, j: 0)
         # Full 3D curvilinear expansion of the first derivatives
         fds = cls.full3D_FD_transformation(coordinate_symbol)
         cls.detJ = DataObject("detJ")
         fd_subs = {}
-        fd_symbols = {}
-        fd_metric_eqs = []
-        eq = Equation()
         fd_jacobians = Matrix(cls.ndim, cls.ndim, lambda i, j: DataObject('D%d%d' % (i, j)))
         Cartesian_curvilinear_derivatives = zeros(cls.ndim, cls.ndim)
 
@@ -267,8 +263,6 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
 
     def apply_transformation(cls, equation):
         if cls.kwargs['strong_differentiability']:
-            fns = equation.atoms(Function)
-            # pprint(fns)
             for fn in equation.atoms(Function):
                 transformed = fn.classical_strong_differentiabilty_transformation(cls)
                 equation = equation.subs({fn: transformed})
@@ -298,17 +292,11 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
             cls.equations = block.dataobjects_to_datasets_on_block(cls.fdequations)  # First derivatives
             cls.create_residual_arrays()
             schemes[sc].required_constituent_relations = {}
-            a = schemes[sc].discretise(cls, block)
-            # pprint(cls.sdequations)
             cls.apply_periodic_bc(block)
             cls.equations = block.dataobjects_to_datasets_on_block(cls.sdequations)  # Second derivatives
             cls.create_residual_arrays()
             schemes[sc].required_constituent_relations = {}
-            b = schemes[sc].discretise(cls, block)
             schemes[sc].required_constituent_relations = {}
-            # if b:
-            # for key, val in a.iteritems():
-            # cls.requires[key] = val
         for k in cls.Kernels:
             print k.computation_name
         # exit()
@@ -351,11 +339,11 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
 
     def apply_boundary_conditions(cls, block):
         """No global boundary conditions for the metric terms"""
-        ndim = block.ndim
-        directions = [i for i in range(ndim)]
-        metrics = Matrix(ndim, ndim, cls.FD_metrics[:])
-        detJ = cls.detJ
-        kernels = []
+        # ndim = block.ndim
+        # directions = [i for i in range(ndim)]
+        # metrics = Matrix(ndim, ndim, cls.FD_metrics[:])
+        # detJ = cls.detJ
+        # kernels = []
         # arrays = metrics[:] + [detJ]
         # arrays = block.dataobjects_to_datasets_on_block(arrays)
         # pprint(arrays)
@@ -365,7 +353,6 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
         # kernels += [create_metric_bc_kernel(metrics, detJ, direction, side, block)]
         # cls.Kernels += kernels
         # exit()
-
         return
 
     def process_kernels(cls, block):
