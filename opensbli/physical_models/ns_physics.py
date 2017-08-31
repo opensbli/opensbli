@@ -1,8 +1,9 @@
 """This contains the Physics Object for Navier-Stokes equations
 """
-from opensbli.core.opensbliobjects import *
-from opensbli.core.parsing import *
-from opensbli.utilities.helperfunctions import *
+from opensbli.core.opensbliobjects import DataObject, ConstantObject, DataSetBase
+from sympy import S, Rational
+from opensbli.utilities.helperfunctions import dot
+from opensbli.core.parsing import Equation
 
 
 class Physics(object):

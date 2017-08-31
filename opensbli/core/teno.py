@@ -1,11 +1,12 @@
-from sympy import *
-from opensbli.core.opensblifunctions import *
+from sympy import IndexedBase, Symbol, pprint, Rational, Eq, Abs, flatten, Max, horner, S, ceiling
+from opensbli.core.opensblifunctions import TenoDerivative
+from opensbli.core.opensbliobjects import DataSetBase, ConstantObject
+from opensbli.core.kernel import Kernel
 from opensbli.core.grid import GridVariable
-from opensbli.core.opensbliequations import *
-from opensbli.utilities.helperfunctions import increment_dataset
+# from opensbli.utilities.helperfunctions import increment_dataset as incr_dset
 from opensbli.core.scheme import Scheme
-from opensbli.core.weno_opensbli import EigenSystem, Characteristic, LLFCharacteristic
-from .kernel import ConstantsToDeclare as CTD
+from opensbli.core.weno_opensbli import LLFCharacteristic
+from opensbli.core.kernel import ConstantsToDeclare as CTD
 
 
 class TenoHalos(object):
@@ -342,7 +343,7 @@ class Teno8(object):
         return h
 
     def _hashable_content(self):
-        return str(type(cls).__name__)
+        return str(type(self).__name__)
 
     def global_smoothness_indicator(self, RV):
         # Global smoothness indicator used in tau_8 for TENO8
@@ -459,7 +460,6 @@ class TenoReconstructionVariable(object):
         originals += original.smoothness_symbols + original.alpha_symbols + original.inv_alpha_sum_symbols + original.kronecker_symbols + original.omega_symbols
         new += self.smoothness_symbols + self.alpha_symbols + self.inv_alpha_sum_symbols + self.kronecker_symbols + self.omega_symbols
         subs_dict = dict(zip(originals, new))
-        fn_subs_dict = {}
 
         for key, value in original.function_stencil_dictionary.iteritems():
             subs_dict[value] = self.function_stencil_dictionary[key]

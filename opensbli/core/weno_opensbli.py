@@ -1,10 +1,11 @@
-from sympy import *
-from .opensblifunctions import *
-from opensbli.core import *
-from .grid import GridVariable
-from .opensbliequations import *
+from sympy import IndexedBase, Symbol, pprint, Rational, solve, interpolating_poly, integrate, Eq, sqrt, zeros, Abs, Float, Matrix, flatten, Max, diag, Function
+from opensbli.core.opensblifunctions import WenoDerivative
+from opensbli.core.opensbliobjects import EinsteinTerm, DataSetBase, ConstantObject
+from opensbli.core.opensbliequations import SimulationEquations
+from opensbli.core.kernel import Kernel
+from opensbli.core.grid import GridVariable
 from opensbli.utilities.helperfunctions import increment_dataset as incr_dset
-from opensbli.physical_models.ns_physics import *
+from opensbli.physical_models.ns_physics import NSphysics
 from .scheme import Scheme
 
 
@@ -221,7 +222,6 @@ class WenoReconstructionVariable(object):
         self.omega_symbols += [GridVariable('%s_%s' % (s, self.name)) for s in original.omega_symbols]
 
         subs_dict = dict(zip(original.smoothness_symbols+original.alpha_symbols+original.omega_symbols, self.smoothness_symbols+self.alpha_symbols+self.omega_symbols))
-        fn_subs_dict = {}
         for key, value in original.function_stencil_dictionary.iteritems():
             subs_dict[value] = self.function_stencil_dictionary[key]
 
@@ -354,7 +354,6 @@ class Weno(Scheme):
         self.halotype = WenoHalos(self.order)
         self.required_constituent_relations_symbols = {}
         # Generate smoothness coefficients and store configurations for left and right reconstructions.
-        smooth_coeffs = JS.smooth_coeffs
         self.reconstruction_classes = [RightWenoReconstructionVariable('right'), LeftWenoReconstructionVariable('left')]
         # Populate the quantities required by WENO for the left and right reconstruction variable.
         for no, side in enumerate([1, -1]):
@@ -708,7 +707,6 @@ class LLFCharacteristic(Characteristic):
                 self.interpolate_reconstruction_variables(derivatives, kernel)
                 block.set_block_boundary_halos(key, 0, self.halotype)
                 block.set_block_boundary_halos(key, 1, self.halotype)
-                reconstructed_flux = self.post_process(derivatives, kernel)
                 type_of_eq.Kernels += [kernel]
             if grouped:
                 type_of_eq.Kernels += [self.evaluate_residuals(block, eqs, all_derivatives_evaluated_locally)]
@@ -729,28 +727,6 @@ class LLFCharacteristic(Characteristic):
         residue_kernel.set_grid_range(block)
         residue_kernel.add_equation(residue_eq)
         return residue_kernel
-
-    # def group_by_direction(self, eqs):
-    #     """ Groups the input equations by the direction (x0, x1, ...) they depend upon.
-    #     arg: list: eqs: List of equations to group by direction.
-    #     returns: dict: grouped: Dictionary of {direction: equations} key, value pairs for equations grouped by direction."""
-    #     all_WDS = []
-    #     for eq in eqs:
-    #         all_WDS += list(eq.atoms(WenoDerivative))
-    #         # pprint([eq, eq.atoms(WenoDerivative)])
-    #     # all_WDS = list(set(all_WDS))
-    #     # pprint(all_WDS)
-    #     # if len(all_WDS) != len(eqs):
-    #     #     raise ValueError("Number of WD in each equation should be one.")
-    #     grouped = {}
-    #     for cd in all_WDS:
-    #         direction = cd.get_direction[0]
-    #         if direction in grouped.keys():
-    #             grouped[direction] += [cd]
-    #         else:
-    #             grouped[direction] = [cd]
-    #     # TODO: check for size of grouped items
-    #     return grouped
 
 
 class SimpleAverage(object):
@@ -798,8 +774,6 @@ class RoeAverage(object):
 
     def average(self, functions, direction, name_suffix):
         self.direction = direction
-        eqns = []
-        avg_equations = []
         evaluations = []
         names = []
         # Averaged density rho_hat = sqrt(rho_L*rho_R)
