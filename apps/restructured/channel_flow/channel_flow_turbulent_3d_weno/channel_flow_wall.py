@@ -1,9 +1,10 @@
 #!/usr/bin/env python
-import sys, os
+import sys
+import os
 from math import ceil
 
 # Import local utility functions
-#import opensbli as base
+# import opensbli as base
 from opensbli.core import *
 from opensbli.core.bcs import *
 from opensbli.initialisation import *
@@ -36,7 +37,7 @@ heat_flux = "Eq(q_j, (1.0/((gama-1)*Minf*Minf*Pr*Re))*Der(T,x_j))"
 
 substitutions = [stress_tensor, heat_flux]
 
-constants = ["Re", "Pr","gama", "Minf", "mu", "c_j"]
+constants = ["Re", "Pr", "gama", "Minf", "mu", "c_j"]
 coordinate_symbol = "x"
 
 velocity = "Eq(u_i, rhou_i/rho)"
@@ -58,14 +59,14 @@ simulation_eq.add_equations(eqns)
 eqns = eq.expand(energy, ndim, coordinate_symbol, substitutions, constants)
 simulation_eq.add_equations(eqns)
 
-#latex = LatexWriter()
-#latex.open('./equation_transformations.tex')
-#metadata = {"title": "Transformations of the equations in OpenSBLI framework", "author": "Satya P Jammy", "institution": "University of Southampton"}
-#latex.write_header(metadata)
-#for no, eq in enumerate(flatten(simulation_eq.equations)):
+# latex = LatexWriter()
+# latex.open('./equation_transformations.tex')
+# metadata = {"title": "Transformations of the equations in OpenSBLI framework", "author": "Satya P Jammy", "institution": "University of Southampton"}
+# latex.write_header(metadata)
+# for no, eq in enumerate(flatten(simulation_eq.equations)):
 #    latex.write_expression(eq)
-#latex.write_footer()
-#latex.close()
+# latex.write_footer()
+# latex.close()
 
 constituent = ConstituentRelations()
 eqns = eq.expand(velocity, ndim, coordinate_symbol, substitutions, constants)
@@ -80,9 +81,9 @@ constituent.add_equations(eqns)
 eqns = eq.expand(temperature, ndim, coordinate_symbol, substitutions, constants)
 constituent.add_equations(eqns)
 
-block = SimulationBlock(ndim, block_number = 0)
+block = SimulationBlock(ndim, block_number=0)
 
-local_dict = {"block" : block, "GridVariable" : GridVariable, "DataObject" : DataObject}
+local_dict = {"block": block, "GridVariable": GridVariable, "DataObject": DataObject}
 
 x0 = "Eq(DataObject(x0), block.deltas[0]*block.grid_indexes[0])"
 x1 = "Eq(DataObject(x1), block.deltas[1]*block.grid_indexes[1])"
@@ -159,7 +160,7 @@ boundaries += [PeriodicBoundaryConditionBlock(direction, 0)]
 boundaries += [PeriodicBoundaryConditionBlock(direction, 1)]
 
 block.set_block_boundaries(boundaries)
-block.set_equations([copy.deepcopy(constituent),copy.deepcopy(simulation_eq), initial])
+block.set_equations([copy.deepcopy(constituent), copy.deepcopy(simulation_eq), initial])
 block.set_discretisation_schemes(schemes)
 
 block.discretise()
@@ -167,4 +168,3 @@ block.discretise()
 alg = TraditionalAlgorithmRK(block)
 SimulationDataType.set_datatype(Double)
 OPSC(alg)
-

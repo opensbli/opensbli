@@ -1,9 +1,10 @@
 #!/usr/bin/env python
-import sys, os
+import sys
+import os
 from math import ceil
 
 # Import local utility functions
-#import opensbli as base
+# import opensbli as base
 from opensbli.core import *
 from opensbli.core.bcs import *
 from opensbli.initialisation import *
@@ -23,11 +24,11 @@ stress_tensor = "Eq(tau_i_j, (1.0/Re)*(Der(u_i,x_j)+ Der(u_j,x_i)- (2/3)* KD(_i,
 heat_flux = "Eq(q_j, (1.0/((gama-1)*Minf*Minf*Pr*Re))*Der(T,x_j))"
 substitutions = [stress_tensor, heat_flux]
 
-constants = ["Re", "Pr","gama", "Minf", "mu", "c_j"]
+constants = ["Re", "Pr", "gama", "Minf", "mu", "c_j"]
 coordinate_symbol = "x"
 
-#metriceq = MetricsEquation()
-#metriceq.genreate_transformations(ndim, coordinate_symbol, [(False, False), (True, False), (False, False)], 3)
+# metriceq = MetricsEquation()
+# metriceq.genreate_transformations(ndim, coordinate_symbol, [(False, False), (True, False), (False, False)], 3)
 
 velocity = "Eq(u_i, rhou_i/rho)"
 pressure = "Eq(p, (gama-1)*(rhoE - rho*(1/2)*(KD(_i,_j)*u_i*u_j)))"
@@ -46,16 +47,16 @@ simulation_eq.add_equations(eqns)
 eqns = eq.expand(energy, ndim, coordinate_symbol, substitutions, constants)
 simulation_eq.add_equations(eqns)
 
-#simulation_eq.apply_metrics(metriceq)
+# simulation_eq.apply_metrics(metriceq)
 
-#latex = LatexWriter()
-#latex.open('./equation_transformations.tex')
-#metadata = {"title": "Transformations of the equations in OpenSBLI framework", "author": "Satya P Jammy", "institution": "University of Southampton"}
-#latex.write_header(metadata)
-#for no, eq in enumerate(flatten(simulation_eq.equations)):
+# latex = LatexWriter()
+# latex.open('./equation_transformations.tex')
+# metadata = {"title": "Transformations of the equations in OpenSBLI framework", "author": "Satya P Jammy", "institution": "University of Southampton"}
+# latex.write_header(metadata)
+# for no, eq in enumerate(flatten(simulation_eq.equations)):
 #    latex.write_expression(eq)
-#latex.write_footer()
-#latex.close()
+# latex.write_footer()
+# latex.close()
 
 constituent = ConstituentRelations()
 eqns = eq.expand(velocity, ndim, coordinate_symbol, substitutions, constants)
@@ -67,9 +68,9 @@ constituent.add_equations(eqns)
 eqns = eq.expand(temperature, ndim, coordinate_symbol, substitutions, constants)
 constituent.add_equations(eqns)
 
-block = SimulationBlock(ndim, block_number = 0)
+block = SimulationBlock(ndim, block_number=0)
 
-local_dict = {"block" : block, "GridVariable" : GridVariable, "DataObject" : DataObject}
+local_dict = {"block": block, "GridVariable": GridVariable, "DataObject": DataObject}
 
 x0 = "Eq(DataObject(x0), block.deltas[0]*block.grid_indexes[0])"
 x1 = "Eq(DataObject(x1), block.deltas[1]*block.grid_indexes[1])"
@@ -83,7 +84,7 @@ x0l = "Eq(GridVariable(x0l), 2.0*pi)"
 x1l = "Eq(GridVariable(x1l), 2.0)"
 x2l = "Eq(GridVariable(x2l), pi)"
 
-#u0 = "Eq(GridVariable(u0), 45*(1-(DataObject(x1)-1.0)**2))"
+# u0 = "Eq(GridVariable(u0), 45*(1-(DataObject(x1)-1.0)**2))"
 u0 = "Eq(GridVariable(u0), 0)"
 u1 = "Eq(GridVariable(u1), 0)"
 u2 = "Eq(GridVariable(u2), 0)"
@@ -130,9 +131,9 @@ boundaries += [PeriodicBoundaryConditionBlock(direction, 0)]
 boundaries += [PeriodicBoundaryConditionBlock(direction, 1)]
 
 block.set_block_boundaries(boundaries)
-#metric = copy.deepcopy(metriceq)
-#block.set_equations([copy.deepcopy(constituent),copy.deepcopy(simulation_eq), metric, initial])
-block.set_equations([copy.deepcopy(constituent),copy.deepcopy(simulation_eq), initial])
+# metric = copy.deepcopy(metriceq)
+# block.set_equations([copy.deepcopy(constituent),copy.deepcopy(simulation_eq), metric, initial])
+block.set_equations([copy.deepcopy(constituent), copy.deepcopy(simulation_eq), initial])
 block.set_discretisation_schemes(schemes)
 
 block.discretise()
@@ -140,4 +141,3 @@ block.discretise()
 alg = TraditionalAlgorithmRK(block)
 SimulationDataType.set_datatype(Double)
 OPSC(alg)
-
