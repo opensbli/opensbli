@@ -1,9 +1,11 @@
 from sympy import flatten, Max
 from .latex import *
-from .opensbliobjects import *#DataSetBase, DataSet, ConstantIndexed, ConstantObject
-from .grid  import *
+from .opensbliobjects import *  # DataSetBase, DataSet, ConstantIndexed, ConstantObject
+from .grid import *
 from .datatypes import *
-#from .block import DataSetsToDeclare
+# from .block import DataSetsToDeclare
+
+
 def dataset_attributes(dset):
     """
     Move to datasetbase? Should we??
@@ -11,10 +13,11 @@ def dataset_attributes(dset):
     dset.block_number = None
     dset.read_from_hdf5 = False
     dset.dtype = None
-    dset.size  = None
+    dset.size = None
     dset.halo_ranges = None
     dset.block_name = None
     return dset
+
 
 def constant_attributes(const):
     const.is_input = True
@@ -22,10 +25,12 @@ def constant_attributes(const):
     const.value = None
     return const
 
+
 class ConstantsToDeclare(object):
     constants = []
+
     @staticmethod
-    def add_constant(const, value = None, dtype = None):
+    def add_constant(const, value=None, dtype=None):
         if value and const not in ConstantsToDeclare.constants:
             c = constant_attributes(const)
             c.is_input = False
@@ -37,14 +42,15 @@ class ConstantsToDeclare(object):
             ConstantsToDeclare.constants += [c]
         elif const not in ConstantsToDeclare.constants:
             c = constant_attributes(const)
-            #c.is_input = False
+            # c.is_input = False
             if dtype:
                 c.dtype = dtype
             else:
                 c.dtype = SimulationDataType()
             ConstantsToDeclare.constants += [c]
-        #print c.__dict__
+        # print c.__dict__
         return
+
 
 def copy_block_attributes(block, otherclass):
     """
@@ -55,12 +61,14 @@ def copy_block_attributes(block, otherclass):
     otherclass.block_name = block.blockname
     return
 
+
 class StencilObject(object):
     def __init__(self, name, stencil, ndim):
         self.name = name
         self.stencil = stencil
         self.ndim = ndim
         return
+
     def sort_stencil_indices(self):
         """ Helper function for relative_stencil. Sorts the relative stencil. """
         index_set = self.stencil
@@ -68,17 +76,19 @@ class StencilObject(object):
         sorted_index_set = sorted(index_set, key=lambda tup: tuple(tup[i] for i in range(dim)))
         return sorted_index_set
 
+
 class Kernel(object):
 
     """ A computational kernel which will be executed over all the grid points and in parallel. """
-    mulfactor = {0:1, 1:1}
-    opsc_access = {'ins':"OPS_READ", "outs": "OPS_WRITE", "inouts":"OPS_RW"}
-    def __init__(self, block, computation_name = None):
+    mulfactor = {0: 1, 1: 1}
+    opsc_access = {'ins': "OPS_READ", "outs": "OPS_WRITE", "inouts": "OPS_RW"}
+
+    def __init__(self, block, computation_name=None):
         """ Set up the computational kernel"""
-        copy_block_attributes(block,self)
+        copy_block_attributes(block, self)
         self.computation_name = computation_name
         self.kernel_no = block.kernel_counter
-        self.kernelname = self.block_name + "Kernel%03d"%self.kernel_no
+        self.kernelname = self.block_name + "Kernel%03d" % self.kernel_no
         block.increase_kernel_counter
         self.equations = []
         self.halo_ranges = [[set(), set()] for d in range(block.ndim)]
@@ -88,6 +98,7 @@ class Kernel(object):
     def set_computation_name(self, name):
         self.computation_name = name
         return
+
     def _sanitise_kernel(self, type_of_code):
         """Sanitises the kernel equations by updating the datasetbase ranges in the
         DataSetsToDeclare class, finds the Rational constants, updates the constants
@@ -95,14 +106,16 @@ class Kernel(object):
         # TODO
         """
         return
+
     def __hash__(self):
         h = hash(self._hashable_content())
         self._mhash = h
         return h
+
     def _hashable_content(self):
         return str(self.kernelname)
 
-    def add_equation(self,equation):
+    def add_equation(self, equation):
         if isinstance(equation, list):
             self.equations += flatten([equation])
         elif isinstance(equation, Equality):
@@ -122,7 +135,7 @@ class Kernel(object):
         self.ranges = []
         for d in range(block.ndim):
             local_range = []
-            local_range += [0,0]
+            local_range += [0, 0]
             self.ranges += [local_range]
         return
 
@@ -132,17 +145,17 @@ class Kernel(object):
         print self.ranges, "setting halo loop"
         return
 
-    #def get_max_halos(self, direction, side, block):
-        #halos = block.boundary_halos[direction][side]
-        #print halos
-        #total_halos = 0
-        #for h in halos:
-            #total_halos = Max(total_halos, h.get_halos(side))
-        #total_halos = self.mulfactor[side]*total_halos
-        #return total_halos
+    # def get_max_halos(self, direction, side, block):
+        # halos = block.boundary_halos[direction][side]
+        # print halos
+        # total_halos = 0
+        # for h in halos:
+        # total_halos = Max(total_halos, h.get_halos(side))
+        # total_halos = self.mulfactor[side]*total_halos
+        # return total_halos
 
-    def get_max_halos(self,direction, side, block):
-        halos =  block.boundary_halos
+    def get_max_halos(self, direction, side, block):
+        halos = block.boundary_halos
         halo_m = []
         halo_p = []
         for direction in range(len(halos)):
@@ -183,13 +196,13 @@ class Kernel(object):
         return
 
     def set_range(self, ranges):
-        self.ranges = ranges # NOT REQUIRED
+        self.ranges = ranges  # NOT REQUIRED
         return
 
     def set_halo_range(self, direction, side, types):
-        #if not self.halo_ranges[direction][side]:
-            #self.halo_ranges[direction][side] = set([types])
-        #else:
+        # if not self.halo_ranges[direction][side]:
+            # self.halo_ranges[direction][side] = set([types])
+        # else:
         if isinstance(types, set):
             for s in types:
                 self.halo_ranges[direction][side].add(s)
@@ -209,6 +222,7 @@ class Kernel(object):
         We donot check the equations only halo range is checked and updated
         """
         return
+
     @property
     def required_data_sets(self):
         requires = []
@@ -216,6 +230,7 @@ class Kernel(object):
             if isinstance(eq, Equality):
                 requires += list(eq.rhs.atoms(DataSetBase))
         return requires
+
     @property
     def lhs_datasets(self):
         datasets = set()
@@ -223,6 +238,7 @@ class Kernel(object):
             if isinstance(eq, Equality):
                 datasets = datasets.union(eq.lhs.atoms(DataSetBase))
         return datasets
+
     @property
     def rhs_datasets(self):
         datasets = set()
@@ -230,6 +246,7 @@ class Kernel(object):
             if isinstance(eq, Equality):
                 datasets = datasets.union(eq.rhs.atoms(DataSetBase))
         return datasets
+
     @property
     def Rational_constants(self):
         rcs = set()
@@ -242,6 +259,7 @@ class Kernel(object):
             if not isinstance(rc, Integer):
                 out.add(rc)
         return out
+
     @property
     def Inverse_constants(self):
         from sympy.core.function import _coeff_isneg
@@ -253,6 +271,7 @@ class Kernel(object):
                     if _coeff_isneg(at.exp) and not (at.base.atoms(Indexed) or isinstance(at, GridVariable)):
                         inverse_terms.add(at)
         return inverse_terms
+
     @property
     def constants(self):
         consts = set()
@@ -260,6 +279,7 @@ class Kernel(object):
             if isinstance(eq, Equality):
                 consts = consts.union(eq.atoms(ConstantObject))
         return consts
+
     @property
     def IndexedConstants(self):
         consts = set()
@@ -267,6 +287,7 @@ class Kernel(object):
             if isinstance(eq, Equality):
                 consts = consts.union(eq.atoms(ConstantIndexed))
         return consts
+
     @property
     def grid_indices_used(self):
         for eq in self.equations:
@@ -294,11 +315,11 @@ class Kernel(object):
         return stencil_dictionary
 
     def write_latex(self, latex):
-        latex.write_string('The kernel is %s'%self.computation_name)
+        latex.write_string('The kernel is %s' % self.computation_name)
         from .codegeneration.opsc import get_min_max_halo_values
         halo_m, halo_p = get_min_max_halo_values(self.halo_ranges)
-        range_of_eval = [[0,0] for r in range(self.ndim)]
-        #print self.computation_name, self.ranges, self.halo_ranges
+        range_of_eval = [[0, 0] for r in range(self.ndim)]
+        # print self.computation_name, self.ranges, self.halo_ranges
         for d in range(self.ndim):
             range_of_eval[d][0] = self.ranges[d][0] + halo_m[d]
             range_of_eval[d][1] = self.ranges[d][1] + halo_p[d]
@@ -308,11 +329,12 @@ class Kernel(object):
             pprint(self.ranges)
             # exit()
         latex.write_string('The ranges are %s' % (','.join([str(d) for d in flatten(range_of_eval)])))
-        #latex.write_string('. The range of evaluation is  %s \\ \n\n the halo ranges are %s'%(self.ranges, self.halo_ranges))
+        # latex.write_string('. The range of evaluation is  %s \\ \n\n the halo ranges are %s'%(self.ranges, self.halo_ranges))
         for index, eq in enumerate(self.equations):
             if isinstance(eq, Equality):
                 latex.write_expression(eq)
         return
+
     @property
     def opsc_code(self):
         block_name = self.block_name
@@ -324,32 +346,31 @@ class Kernel(object):
         outs = outs.difference(inouts)
         from .codegeneration.opsc import get_min_max_halo_values
         halo_m, halo_p = get_min_max_halo_values(self.halo_ranges)
-        range_of_eval = [[0,0] for r in range(self.ndim)]
-        #print self.computation_name, self.ranges, self.halo_ranges
+        range_of_eval = [[0, 0] for r in range(self.ndim)]
+        # print self.computation_name, self.ranges, self.halo_ranges
         for d in range(self.ndim):
             range_of_eval[d][0] = self.ranges[d][0] + halo_m[d]
             range_of_eval[d][1] = self.ranges[d][1] + halo_p[d]
         dtype = 'int'
-        iter_name = "iteration_range_%d"%(self.kernel_no)
+        iter_name = "iteration_range_%d" % (self.kernel_no)
         iter_name_code = ['%s %s[] = {%s};' % (dtype, iter_name, ', '.join([str(s) for s in flatten(range_of_eval)]))]
         code = []
-        #pprint(self.stencil_names)
+        # pprint(self.stencil_names)
         code += ['ops_par_loop(%s, \"%s\", %s, %s, %s' % (name, self.computation_name, block_name, self.ndim, iter_name)]
         for i in ins:
-            code += ['ops_arg_dat(%s, %d, %s, \"%s\", %s)'%(i, 1, self.stencil_names[i], "double", self.opsc_access['ins'])] # WARNING dtype
+            code += ['ops_arg_dat(%s, %d, %s, \"%s\", %s)' % (i, 1, self.stencil_names[i], "double", self.opsc_access['ins'])]  # WARNING dtype
         for o in outs:
-            code += ['ops_arg_dat(%s, %d, %s, \"%s\", %s)'%(o, 1, self.stencil_names[o], "double", self.opsc_access['outs'])] # WARNING dtype
+            code += ['ops_arg_dat(%s, %d, %s, \"%s\", %s)' % (o, 1, self.stencil_names[o], "double", self.opsc_access['outs'])]  # WARNING dtype
         for io in inouts:
-            code += ['ops_arg_dat(%s, %d, %s, \"%s\", %s)'%(io, 1, self.stencil_names[io], "double", self.opsc_access['inouts'])] # WARNING dtype
+            code += ['ops_arg_dat(%s, %d, %s, \"%s\", %s)' % (io, 1, self.stencil_names[io], "double", self.opsc_access['inouts'])]  # WARNING dtype
         if self.IndexedConstants:
             for c in self.IndexedConstants:
-                code += ["ops_arg_gbl(&%s, %d, \"%s\", %s)"%(c, 1, "double", self.opsc_access['ins'])]
+                code += ["ops_arg_gbl(&%s, %d, \"%s\", %s)" % (c, 1, "double", self.opsc_access['ins'])]
         if self.grid_indices_used:
             code += ["ops_arg_idx()"]
-        code = [',\n'.join(code) + ');\n\n'] # WARNING dtype
-        code  = iter_name_code +code
+        code = [',\n'.join(code) + ');\n\n']  # WARNING dtype
+        code = iter_name_code + code
         return code
-
 
     def ops_argument_call(self, array, stencil, precision, access_type):
         template = 'ops_arg_dat(%s, %d, %s, \"%s\", %s)'
@@ -374,18 +395,18 @@ class Kernel(object):
         # New logic for the dataset delcarations across blocks
         for d in dsets:
             if d in DataSetsToDeclare.datasetbases:
-                ind =  DataSetsToDeclare.datasetbases.index(d)
+                ind = DataSetsToDeclare.datasetbases.index(d)
                 d1 = DataSetsToDeclare.datasetbases[ind]
-                #for direction in range(len(d1.halo_ranges)):
-                    #d1.halo_ranges[direction][0] = block.get_all_scheme_halos()
-                    #d1.halo_ranges[direction][1] = block.get_all_scheme_halos()
+                # for direction in range(len(d1.halo_ranges)):
+                # d1.halo_ranges[direction][0] = block.get_all_scheme_halos()
+                # d1.halo_ranges[direction][1] = block.get_all_scheme_halos()
             else:
                 d = dataset_attributes(d)
                 d.size = block.shape
                 d.block_number = block.blocknumber
                 import copy
                 d.halo_ranges = [[set(), set()] for d1 in range(block.ndim)]
-                #[[set(), set()] for d in range(block.ndim)]
+                # [[set(), set()] for d in range(block.ndim)]
                 for direction in range(len(d.halo_ranges)):
                     d.halo_ranges[direction][0] = block.get_all_scheme_halos()
                     d.halo_ranges[direction][1] = block.get_all_scheme_halos()
@@ -393,9 +414,9 @@ class Kernel(object):
                 DataSetsToDeclare.datasetbases += [d]
             if str(d) in block.block_datasets.keys():
                 dset = block.block_datasets[str(d)]
-                #for direction in range(len(dset.halo_ranges)):
-                    #dset.halo_ranges[direction][0] = dset.halo_ranges[direction][0] | block.get_all_scheme_halos()
-                    #dset.halo_ranges[direction][1] = dset.halo_ranges[direction][1] | block.get_all_scheme_halos()
+                # for direction in range(len(dset.halo_ranges)):
+                # dset.halo_ranges[direction][0] = dset.halo_ranges[direction][0] | block.get_all_scheme_halos()
+                # dset.halo_ranges[direction][1] = dset.halo_ranges[direction][1] | block.get_all_scheme_halos()
                 block.block_datasets[str(d)] = dset
                 if block.blocknumber != dset.block_number:
                     raise ValueError("Block number error")
@@ -407,7 +428,6 @@ class Kernel(object):
                 d.size = block.shape
                 d.block_number = block.blocknumber
                 d.halo_ranges = [[set(), set()] for d1 in range(block.ndim)]
-                #[[set(), set()] for d in range(block.ndim)]
                 for direction in range(len(d.halo_ranges)):
                     d.halo_ranges[direction][0] = block.get_all_scheme_halos()
                     d.halo_ranges[direction][1] = block.get_all_scheme_halos()
@@ -416,33 +436,6 @@ class Kernel(object):
                 block.block_datasets[str(d)] = d
         # Update rational constant attributes
         rational_constants = self.Rational_constants.union(self.Inverse_constants)
-        #if self.computation_name == 'Viscous residual':
-            #pprint([self.computation_name, rational_constants])
-            #for eq in self.equations:
-                ##pprint(eq)
-                #a = Wild('a')
-                #b = Wild('b')
-                #print eq.atoms(Pow)
-                #print eq.atoms(Rational)
-                #print eq.match(a*b**-1)
-                #print eq.atoms()
-        #if rational_constants:
-            #for rc in rational_constants:
-                #if rc not in block.Rational_constants.keys():
-                    #next_rc = block.get_next_rational_constant
-                    #next_rc = constant_attributes(next_rc)
-                    #next_rc.is_input = False
-                    #next_rc.value = rc
-                    #block.Rational_constants[rc] = next_rc
-
-        #constants = self.constants
-        #if constants:
-            #for c in constants:
-                #if str(c) not in block.constants:
-                    #const_obj = constant_attributes(c)
-                    ## pprint(const_obj.__dict__)
-                    #block.constants[str(c)] = const_obj
-            # pprint(block.constants)
         stens = self.get_stencils()
         for dset, stencil in stens.iteritems():
             if stencil not in block.block_stencils.keys():
@@ -455,13 +448,14 @@ class Kernel(object):
                 self.stencil_names[dset].add(block.block_stencils[stencil].name)
 
         # pprint(block.block_stencils)
-        #print "\n"
-        #pprint(self.stencil_names)
+        # print "\n"
+        # pprint(self.stencil_names)
         # for key, value in self.stencil_names.iteritems():
         #     print key, value, stens[key], block.block_stencils[stens[key]].name
         # pprint([self.stencil_names])
         # pprint(stens)
         return
+
     def update_stencils(self, block):
         self.stencil_names = {}
         stens = self.get_stencils()
