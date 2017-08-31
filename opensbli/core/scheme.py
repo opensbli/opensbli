@@ -1,13 +1,11 @@
 
 from sympy.calculus import finite_diff_weights
-from sympy import *
-from .opensbliobjects import ConstantObject
-from .opensblifunctions import CentralDerivative
-from .opensbliequations import OpenSBLIExpression
-
-from .kernel import *
-from .latex import *
-from opensbli.utilities.helperfunctions import increasing_order, decreasing_order
+from sympy import postorder_traversal, Function, flatten, Eq, Rational, Idx
+from sympy.core import Add, Mul
+from opensbli.core.opensbliobjects import ConstantObject, ConstantIndexed
+from opensbli.core.opensblifunctions import CentralDerivative
+from opensbli.core.kernel import Kernel
+from opensbli.utilities.helperfunctions import increasing_order
 
 
 class Scheme(object):
@@ -115,7 +113,7 @@ class Central(Scheme):
         # Check if it is similar to compressible Navier stokes equations
         # if type_of_eq.
         self.set_halos(block)
-        from .opensbliequations import *
+        from .opensbliequations import SimulationEquations
         if isinstance(type_of_eq, SimulationEquations):
             """ Simulation equations are always solved as sbli_rhs_discretisation as of now"""
             # if block.sbli_rhs_discretisation:
@@ -385,9 +383,6 @@ class Central(Scheme):
                 else:
                     raise ValueError("Could not classify this")
         return expr, kernel_dictionary
-
-
-from .opensbliobjects import ConstantIndexed, ConstantObject
 
 
 class TemproalSolution(object):
