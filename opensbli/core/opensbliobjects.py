@@ -1,6 +1,8 @@
-from sympy import Symbol, Eq, flatten, srepr
+from sympy import Symbol, flatten
 from sympy.tensor import Idx, IndexedBase, Indexed
 from sympy import pprint
+from sympy.tensor.indexed import IndexException
+from sympy.core.cache import cacheit
 
 
 class EinsteinTerm(Symbol):
@@ -247,11 +249,6 @@ class DataObject(EinsteinTerm):
         return {self}
 
 
-from sympy.core import Expr, Tuple, Symbol, sympify, S
-from sympy.core.compatibility import is_sequence, string_types, NotIterable, range
-from sympy.core.cache import cacheit
-
-
 class DataSetBase(IndexedBase):
     """ Base object for converting a DataObject to an array on the block with specific dimensions of
     the block. When a SimulationBlock is instantiated then the attribute block is set and the various
@@ -348,7 +345,6 @@ class DataSet(Indexed):
 
     def _sympystr(self, p):
         allinds = [i for i in self.indices if not isinstance(i, Idx)]
-        indices = list(map(p.doprint, allinds))
         return "%s" % (p.doprint(self.base))
 
     def _pretty(self, printer):

@@ -196,7 +196,7 @@ def ccode(expr, settings={}):
     :returns: The expression in OPSC code.
     :rtype: str
     """
-    if isinstance(expr, Eq):
+    if isinstance(expr, Equality):
         if 'rational' in settings.keys():
             pass
         else:
