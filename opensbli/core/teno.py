@@ -7,13 +7,17 @@ from opensbli.core.scheme import Scheme
 from opensbli.core.weno_opensbli import EigenSystem, Characteristic, LLFCharacteristic
 from .kernel import ConstantsToDeclare as CTD
 
+
 class TenoHalos(object):
     def __init__(self, order, reconstruction=None):
+        """ Object for TENO halos.
+        arg: int: order: Order of the TENO scheme.
+        arg: bool: reconstruction: True if halos for a reconstruction. """
         if not reconstruction:
             if order == 8:
                 k = 4
             else:
-                k = 3 ## Halos correct for TENO5, TENO6
+                k = 3  # Halos correct for TENO5, TENO6
             self.halos = [-k, k+1]
         else:
             self.halos = [-1, 1]
@@ -22,8 +26,13 @@ class TenoHalos(object):
     def get_halos(self, side):
         return self.halos[side]
 
+
 class TenoStencil(object):
     def __init__(self, side, width, stencil_number):
+        """ Stencil object used for the TENO reconstruction.
+        arg: int: side: Side of the TENO reconstruction, either -1 (left) or +1 (right).
+        arg: int: width: Width of the TENO candidate stencil.
+        arg: int: stencil_number: Index of the stencil. """
         self.width = width
         self.side = side
         self.stencil_number = stencil_number
@@ -33,8 +42,13 @@ class TenoStencil(object):
         self.smoothness_indicator = None
         return
 
+
 class ConfigureTeno(object):
     def __init__(self, order, side, optimized=False):
+        """ Object containing the parameters needed by the TENO reconstruction for a given order and side.
+        arg: int: order: Order of the TENO scheme.
+        arg: int: side: Side of the TENO reconstruction, either -1 (left) or +1 (right).
+        arg: bool: optimized: Optimized or regular coefficients. """
         self.order = order
         self.side = side
         self.optimized = optimized
@@ -48,9 +62,11 @@ class ConfigureTeno(object):
         self.unique_fn_points = sorted(set(flatten(self.fn_points)))
         # Add the function points and coefficients to the stencil objects
         self.update_stencils()
-        return 
+        return
 
     def generate_stencils(self):
+        """ Create stencils required for TENO5, TENO6 and TENO8.
+        returns: list: stencils: List of TENO stencil objects. """
         stencils = []
         side = self.side
         if self.order == 5:
@@ -62,7 +78,10 @@ class ConfigureTeno(object):
         for i, width in enumerate(widths):
             stencils += [TenoStencil(side, width, i)]
         return stencils
+
     def generate_func_points(self):
+        """ Generates the relative function points required for the TENO stencils.
+        returns: list: fn_points: List of stencil point lists."""
         fn_points = []
         side, order = self.side, self.order
         if side == 1:
@@ -72,6 +91,8 @@ class ConfigureTeno(object):
         return [fn_points[i] for i in range(order-2)]
 
     def generate_eno_coefficients(self):
+         """ Generates the ENO coefficients required for the TENO stencils.
+        returns: list: coeffs: List of ENO coefficients for each stencil."""
         side = self.side
         if side == 1:
             coeffs = [[Rational(-1,6), Rational(5,6), Rational(2,6)], [Rational(2,6), Rational(5,6), Rational(-1,6)], \
@@ -90,7 +111,10 @@ class ConfigureTeno(object):
                 coeffs += [[Rational(3,12), Rational(13,12), Rational(-5,12), Rational(1,12)], \
                             [Rational(-1,20), Rational(17,60), Rational(-43,60), Rational(77,60), Rational(12,60)]]
         return coeffs
+
     def generate_optimal_coefficients(self):
+         """ Generates the optimal linear coefficients required for the TENO stencils.
+        returns: list: opt_coeffs: List of optimal coefficients for each stencil."""  
         # Optimal weights are not reversed for TENO when switching between upwind/downwind biasing
         order = self.order
         if self.optimized:
@@ -111,6 +135,10 @@ class ConfigureTeno(object):
         return opt_coeffs
 
     def generate_smoothness_indicators(self):
+         """ Generates the smoothness indicators required for the TENO stencils.
+        returns: dict: fns_dictionary: Key: Integer grid location, Value: placeholder function 'f' at the grid location.
+        returns: list: smoothness_indicators: List of smoothness indicator expressions.
+        returns: list: smoothness_symbols: List of placeholder symbols for the smoothness indicators."""  
         points = sorted(list(set(flatten([i for i in self.fn_points]))))
         f = IndexedBase('f')
         symbolic_functions = []
@@ -121,7 +149,7 @@ class ConfigureTeno(object):
         smoothness_indicators = []
         if self.side == 1:
             # Stencils [0, 1, 2] for TENO5
-            ## Factored versions: 0, 1, 2, 3
+            # Factored versions: 0, 1, 2, 3
             smoothness_indicators += [Rational(1,4)*(fns[-1] - fns[1])**2 + Rational(13,12)*(fns[-1]-2*fns[0]+fns[1])**2]
             smoothness_indicators += [Rational(1,4)*(3*fns[0]-4*fns[1]+fns[2])**2 + Rational(13,12)*(fns[0]-2*fns[1]+fns[2])**2]
             smoothness_indicators += [Rational(1,4)*(fns[-2]-4*fns[-1]+3*fns[0])**2 + Rational(13,12)*(fns[-2]-2*fns[-1]+fns[0])**2]
