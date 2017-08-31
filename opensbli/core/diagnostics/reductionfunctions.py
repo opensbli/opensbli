@@ -18,29 +18,34 @@
 
 from opensbli.core.opensblifunctions import Function, BasicDiscretisation
 
+
 class BlockReduction(BasicDiscretisation):
     pass
-    
+
+
 class BlockMax(Function, BasicDiscretisation):
     def __new__(cls):
-        
+
         return
+
 
 class BlockMin(Function, BasicDiscretisation):
     def __new__(cls):
-        
+
         return
 
+
 class BlockSum(Function, BasicDiscretisation):
-    """This contains the sum of the variable 
-    """
+    # This contains the sum of the variable
     pass
+
+
 class BlockIntegral(Function, BasicDiscretisation):
     def __new__(cls, expr, *args):
         args = tuple(flatten([expr] + list(args)))
-        #ret = super(CentralDerivative, cls).__new__(cls, *args, evaluate=False)
-        ret.store = True # By default all the derivatives are stored
+        # ret = super(CentralDerivative, cls).__new__(cls, *args, evaluate=False)
+        ret.store = True  # By default all the derivatives are stored
         ret.local_evaluation = True
         return ret
-    
+
         return
