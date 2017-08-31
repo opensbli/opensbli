@@ -18,6 +18,7 @@
 
 from opensbli.core.opensbliequations import NonSimulationEquations, Discretisation, Solution
 
+
 class BlockReduction():
     def add_equations(cls, equation):
         equation = cls._sanitise_equations(equation)
@@ -33,22 +34,26 @@ class BlockReduction():
             cls.equations += [equation]
         return
 
+
 class BlockMax(BlockReduction, Discretisation, Solution):
     def __new__(cls):
-        
+
         return
+
 
 class BlockMin(BlockReduction, Discretisation, Solution):
     def __new__(cls):
-        
+
         return
 
+
 class BlockSum(Discretisation, Solution):
-    """This contains the sum of the variable 
-    """
+    # This contains the sum of the variable
     pass
+
+
 class BlockIntegral(BlockReduction, Discretisation, Solution):
-    
+
     def __new__(cls):
-        
+
         return
