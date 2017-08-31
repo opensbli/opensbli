@@ -5,6 +5,8 @@ from sympy import flatten, preorder_traversal
 from sympy import Equality
 import copy
 from sympy.tensor.array import MutableDenseNDimArray
+
+
 class Discretisation(object):
     """
     This should contain the following
@@ -23,6 +25,7 @@ class Discretisation(object):
             objs += list(eq.atoms(DataSet))
         objs = set(objs)
         return objs
+
     @property
     def required_constants(cls):
         constants = []
@@ -30,6 +33,7 @@ class Discretisation(object):
             constants += list(eq.atoms(ConstantObject))
         constants = set(constants)
         return constants
+
     @property
     def required_functions_local(cls):
         cds = []
@@ -37,21 +41,23 @@ class Discretisation(object):
             pot = preorder_traversal(eq)
             for p in pot:
                 if isinstance(p, Function):
-                    cds +=[p]
+                    cds += [p]
                     pot.skip()
                 else:
                     continue
         fns = set(cds)
         return fns
+
     @property
     def required_functions(cls):
         """
         Returns all the functions to be evaluated
         """
         fns = cls.required_functions_local
-        allfns = flatten([[fn,fn.required_functions] for fn in fns])
+        allfns = flatten([[fn, fn.required_functions] for fn in fns])
         allfns = set(allfns)
         return allfns
+
     def apply_CentralDerivative(cls):
         """
         This creates a list of central derivatives with
@@ -60,11 +66,12 @@ class Discretisation(object):
         for fn in fns:
             pass
         return
+
     def _sanitise_equations(cls, equation):
         fns = []
-        replacements ={}
+        replacements = {}
         if isinstance(equation, list):
-            for no,eq in enumerate(equation):
+            for no, eq in enumerate(equation):
                 fns += list(eq.atoms(Function))
         else:
             fns += list(equation.atoms(Function))
@@ -73,7 +80,7 @@ class Discretisation(object):
                 replacements[fn] = fn._sanitise
         # modify the original equations
         if isinstance(equation, list):
-            for no,eq in enumerate(equation):
+            for no, eq in enumerate(equation):
                 equation[no] = equation[no].xreplace(replacements)
         else:
             equation = equation.xreplace(replacements)
@@ -92,22 +99,27 @@ class Discretisation(object):
         cls.equations = out
         return
 
+
 class OpenSBLIEquation(Equality):
     is_Equality = True
+
     def __new__(cls, lhs, rhs):
         ret = super(OpenSBLIEquation, cls).__new__(cls, lhs, rhs)
         ret.is_vector = False
         return ret
+
     def _eval_evalf(self, prec):
         return self.func(*[s._evalf(prec) for s in self.args])
+
     def set_vector(cls, component_number):
         cls.is_vector = True
         cls.vector_component = component_number
         return
+
     @property
     def _sanitise_equation(cls):
         fns = []
-        replacements ={}
+        replacements = {}
         fns += list(cls.atoms(Function))
 
         for fn in fns:
@@ -115,6 +127,7 @@ class OpenSBLIEquation(Equality):
                 replacements[fn] = fn._sanitise
         eq = cls
         return eq.xreplace(replacements)
+
 
 class Solution(object):
     def __init__(self):
@@ -124,6 +137,8 @@ class Solution(object):
         # Kernels for boundary
         self.boundary_kernels = []
         return
+
+
 class OpenSBLIExpression(Expr):
     """
     This represents each and every Discretisation expression
@@ -136,9 +151,11 @@ class OpenSBLIExpression(Expr):
     def __new__(cls, expr):
         ret = Expr.__new__(cls, expr)
         return ret
+
     @property
     def as_expr(cls):
         return cls.args[0]
+
 
 class SimulationEquations(Discretisation, Solution):
     """
@@ -168,8 +185,8 @@ class SimulationEquations(Discretisation, Solution):
     a. required functions (spatial and temporal)
 
     """
-    def __new__(cls, order = None, **kwargs):
-        ret = super(SimulationEquations,cls).__new__(cls)
+    def __new__(cls, order=None, **kwargs):
+        ret = super(SimulationEquations, cls).__new__(cls)
         if order:
             ret.order = order
         else:
@@ -179,7 +196,7 @@ class SimulationEquations(Discretisation, Solution):
         return ret
 
     def add_equations(cls, equation):
-        #equation = cls._sanitise_equations(equation)
+        # equation = cls._sanitise_equations(equation)
         if isinstance(equation, list):
             local = []
             for no, eq in enumerate(equation):
@@ -197,38 +214,38 @@ class SimulationEquations(Discretisation, Solution):
         Adds the constituent relations we will make a deep copy so that the equations
         can be reused else where
         """
-        #cls.constituent_relations = constituent_relations
+        # cls.constituent_relations = constituent_relations
         cls.constituent_relations_dictionary = cls.convert_to_dictionary(constituent_relations.equations)
         return
 
     def convert_to_dictionary(cls, relations):
         output_dictionary = {}
         for r in relations:
-            output_dictionary[r.lhs] =  r.rhs
+            output_dictionary[r.lhs] = r.rhs
         return output_dictionary
 
     def create_residual_arrays(cls, block):
         for no, eq in enumerate(flatten(cls.equations)):
             if not hasattr(eq, 'residual'):
-                eq.residual = DataSetBase('Residual%d'%no)[[0 for i in range(block.ndim)]]
+                eq.residual = DataSetBase('Residual%d' % no)[[0 for i in range(block.ndim)]]
         return
+
     def zero_residuals_kernel(cls, block):
         """Evaluate all the residuals to zero
         """
-        kernel = Kernel(block, computation_name= "Zeroing residuals")
+        kernel = Kernel(block, computation_name="Zeroing residuals")
         eqs = [Eq(eq.residual, 0) for eq in flatten(cls.equations)]
         kernel.add_equation(eqs)
         kernel.set_grid_range(block)
         cls.Kernels += [kernel]
         return
 
-
     @property
     def get_required_constituents(self):
         arrays = []
         for eq in flatten(self.equations):
             arrays += list(eq.atoms(DataSet))
-        arrays = set(arrays) 
+        arrays = set(arrays)
         return arrays
 
     def spatial_discretisation(cls, schemes, block):
@@ -239,12 +256,12 @@ class SimulationEquations(Discretisation, Solution):
         c. Descritise each and every CD, WD, TD
         """
         # Instantiate the solution class
-        (Solution,cls).__init__(cls)
+        (Solution, cls).__init__(cls)
         # Create the residual array for the equations
         cls.create_residual_arrays(block)
         cls.zero_residuals_kernel(block)
 
-        #cls.descritsed_equations = copy.copy(cls.equations)
+        # cls.descritsed_equations = copy.copy(cls.equations)
         spatialschemes = []
         for sc in schemes:
             if schemes[sc].schemetype == "Spatial":
@@ -256,7 +273,7 @@ class SimulationEquations(Discretisation, Solution):
         for cr in crs:
             cr_dictionary.update(cr.get_relations_dictionary)
         cls.requires = {}
-        for no,sc in enumerate(spatialschemes):
+        for no, sc in enumerate(spatialschemes):
             cls.constituent_evaluations[sc] = schemes[sc].discretise(cls, block)
             for key, value in cls.constituent_evaluations[sc].iteritems():
                 if key in cr_dictionary.keys():
@@ -266,7 +283,7 @@ class SimulationEquations(Discretisation, Solution):
                         cls.constituent_relations_kernels[key] = value
                         cls.constituent_relations_kernels[key].add_equation(cr_dictionary[key])
                 else:
-                    #raise ValueError("Constituent relation is not found for %s"%key)
+                    # raise ValueError("Constituent relation is not found for %s"%key)
                     cls.requires[key] = value
         missing_CR_datasets = cls.get_required_constituents.difference(cls.constituent_relations_kernels.keys())
         for dset in missing_CR_datasets:
@@ -277,12 +294,13 @@ class SimulationEquations(Discretisation, Solution):
         cls.process_kernels(block)
 
         return
+
     def process_kernels(cls, block):
-        for key,kernel in cls.constituent_relations_kernels.iteritems():
+        for key, kernel in cls.constituent_relations_kernels.iteritems():
             kernel.update_block_datasets(block)
         for kernel in cls.Kernels:
             kernel.update_block_datasets(block)
-        #TODO similarly  update the rational constants and constants
+        # TODO similarly  update the rational constants and constants
         """
         Constants should have the attributes
         a. is_input = True or False
@@ -290,6 +308,7 @@ class SimulationEquations(Discretisation, Solution):
         c. if not input the value
         """
         return
+
     @property
     def sort_constituents(cls):
         """
@@ -300,7 +319,7 @@ class SimulationEquations(Discretisation, Solution):
             if isinstance(a, DataSet):
                 input_order += [a.base]
             else:
-                input_order +=  [a]
+                input_order += [a]
 
         dictionary = {}
         for key, value in cls.constituent_relations_kernels.iteritems():
@@ -310,6 +329,7 @@ class SimulationEquations(Discretisation, Solution):
         for o in order_of_evaluation:
             ordered_kernels += [dictionary[o]]
         return ordered_kernels
+
     def sort_dictionary(cls, order, new_dictionary):
         """ Sort the evaluations based on the requirements of each term. For example, if we have
         the primitive variables p, u0, u1, and T, then the pressure p may depend on the velocity u0 and u1, and T may depend on p,
@@ -345,8 +365,8 @@ class SimulationEquations(Discretisation, Solution):
                 print("Already sorted are")
                 pprint(order)
                 pprint([srepr(o) for o in order])
-                #print("Trying to sort the required for")
-                #pprint(evaluations[key].lhs)
+                # print("Trying to sort the required for")
+                # pprint(evaluations[key].lhs)
                 print("It requires")
                 pprint([req for req in requires_list[0]])
                 print("Sorted")
@@ -355,18 +375,19 @@ class SimulationEquations(Discretisation, Solution):
         order = order[input_order:]
         return order
 
-
     def temporal_discretisation(cls, schemes, block):
         """
         This should return a temporal solution class
         """
 
         return
+
     def apply_boundary_conditions(cls, block):
         arrays = cls.time_advance_arrays
         kernels = block.apply_boundary_conditions(arrays)
         cls.boundary_kernels += kernels
         return
+
     @property
     def time_advance_arrays(cls):
         TD_fns = []
@@ -374,32 +395,35 @@ class SimulationEquations(Discretisation, Solution):
             if isinstance(c, list):
                 local = []
                 for c1 in c:
-                    local += [td.time_advance_array  for td in c1.atoms(TemporalDerivative)]
+                    local += [td.time_advance_array for td in c1.atoms(TemporalDerivative)]
                 TD_fns += [local]
             else:
-                TD_fns += [td.time_advance_array  for td in c.atoms(TemporalDerivative)]
+                TD_fns += [td.time_advance_array for td in c.atoms(TemporalDerivative)]
         return TD_fns
+
     @property
     def algorithm_location(cls):
         return True
+
     @property
     def all_spatial_kernels(cls):
         return cls.sort_constituents + cls.Kernels
 
+
 class ConstituentRelations(Discretisation, Solution):
     def __new__(cls):
-        ret = super(ConstituentRelations,cls).__new__(cls)
+        ret = super(ConstituentRelations, cls).__new__(cls)
         ret.equations = []
-        ret.vector_number = 0 # Used later a place holder for multiple vectors
-        ret.order = None # This means there is no location for this explicitly in the algorithm
+        ret.vector_number = 0  # Used later a place holder for multiple vectors
+        ret.order = None  # This means there is no location for this explicitly in the algorithm
         return ret
 
     def add_equations(cls, equation):
-        #equation = cls._sanitise_equations(equation)
+        # equation = cls._sanitise_equations(equation)
         if isinstance(equation, list):
             for no, eq in enumerate(equation):
                 eq = OpenSBLIEquation(eq.lhs, eq.rhs)
-                #eq.set_vector(no)
+                # eq.set_vector(no)
                 cls.equations += [eq]
         else:
             equation = OpenSBLIEquation(equation.lhs, equation.rhs)
@@ -419,11 +443,11 @@ class ConstituentRelations(Discretisation, Solution):
         c. Descritise each and every CD, WD, TD
         """
         # Instantiate the solution class
-        (Solution,cls).__init__(cls)
+        (Solution, cls).__init__(cls)
         # Create the residual array for the equations
         cls.create_residual_arrays()
 
-        #cls.descritsed_equations = copy.copy(cls.equations)
+        # cls.descritsed_equations = copy.copy(cls.equations)
         spatialschemes = []
         for sc in schemes:
             if schemes[sc].schemetype == "Spatial":
@@ -443,6 +467,7 @@ class ConstituentRelations(Discretisation, Solution):
         for sc in spatialschemes:
             cls.constituent_evaluations[sc] = schemes[sc].discretise(cls, block)
         return
+
     @property
     def get_relations_dictionary(cls):
         relations_dictionary = {}
@@ -453,6 +478,7 @@ class ConstituentRelations(Discretisation, Solution):
     def apply_boundary_conditions(cls, block):
         pass
         return
+
 
 class NonSimulationEquations():
     """ Dummy place holder for all the equations that are not simulated but needs to be evaluated
