@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-import sys, os
+import sys
+import os
 from math import ceil
 
 # Import local utility functions
@@ -11,9 +12,6 @@ from opensbli.core.latex import *
 
 
 BUILD_DIR = os.getcwd()
-
-#base.LOG.info("Generating code for the 3D Taylor-Green Vortex simulation...")
-#start_total = time.time()
 
 # Problem dimension
 ndim = 2
@@ -30,7 +28,7 @@ heat_flux = "Eq(q_j, (1.0/((gama-1)*Minf*Minf*Pr*Re))*Der(T,x_j))"
 
 substitutions = [stress_tensor, heat_flux]
 
-constants = ["Re", "Pr","gama", "Minf", "mu"]
+constants = ["Re", "Pr", "gama", "Minf", "mu"]
 
 # Create a simulation equation class
 simulation_eq = SimulationEquations()
@@ -43,14 +41,14 @@ original = flatten(simulation_eq.equations)
 latex.open('./equation_transformations.tex')
 metadata = {"title": "Transformations of the equations in OpenSBLI framework", "author": "Satya P Jammy", "institution": "University of Southampton"}
 latex.write_header(metadata)
-#simulation_eq.apply_metrics(metriceq)
+# simulation_eq.apply_metrics(metriceq)
 for no, eq in enumerate(flatten(simulation_eq.equations)):
     latex.write_expression(original[no])
     latex.write_string(srepr(original[no]))
     latex.write_expression(eq)
 latex.write_footer()
 latex.close()
-#exit()
+# exit()
 
 velocity = "Eq(u_i, rhou_i/rho)"
 pressure = "Eq(p, (gama-1)*(rhoE - rho*(1/2)*(KD(_i,_j)*u_i*u_j)))"
@@ -64,7 +62,7 @@ constituent.add_equations(Equation().expand(pressure, ndim, coordinate_symbol, s
 constituent.add_equations(Equation().expand(temperature, ndim, coordinate_symbol, substitutions, constants))
 
 # Create a simulation
-block= SimulationBlock(ndim, block_number = 0)
+block = SimulationBlock(ndim, block_number=0)
 
 boundaries = []
 # Create boundaries, one for each side per dimension
@@ -72,15 +70,15 @@ for direction in range(ndim):
     boundaries += [PeriodicBoundaryConditionBlock(direction, 0)]
     boundaries += [PeriodicBoundaryConditionBlock(direction, 1)]
 # Set the boundary conditions in the x1 direction to adiabatic wall and carpenter by default
-boundaries[2] = AdiabaticWall(1,0)
-boundaries[3] = AdiabaticWall(1,1)
+boundaries[2] = AdiabaticWall(1, 0)
+boundaries[3] = AdiabaticWall(1, 1)
 # Set the boundary conditions of the block
 block.set_block_boundaries(boundaries)
 
 # Create a Grid based initialisation object
 initial = GridBasedInitialisation()
 # Equations for the initial conditions
-local_dict = {"block" : block, "GridVariable" : GridVariable, "DataObject" : DataObject}
+local_dict = {"block": block, "GridVariable": GridVariable, "DataObject": DataObject}
 
 x0 = "Eq(GridVariable(x0), block.deltas[0]*block.grid_indexes[0])"
 x1 = "Eq(GridVariable(x1), block.deltas[1]*block.grid_indexes[1])"
@@ -101,12 +99,14 @@ rhoE = "Eq(DataObject(rhoE), p/(gama-1) + 0.5* r *(u0**2+ u1**2 + u2**2))"
 eqns = [x0, x1, x2, u0, u1, u2, p, r, rho, rhou0, rhou1, rhou2, rhoE]
 #initial_equations = [parse_expr(eq, local_dict=local_dict) for eq in eqns]
 # Add the equations to the initialisation object
-#initial.add_equations(initial_equations)
+# initial.add_equations(initial_equations)
 
 # set the equations to be solved on the block;
 # We deepcopy the equations so that the original equations can be reused across the blocks
-metric = copy.deepcopy(metriceq); simulation = copy.deepcopy(simulation_eq); CR = copy.deepcopy(constituent)
-block.set_equations([simulation , CR, metric])
+metric = copy.deepcopy(metriceq)
+simulation = copy.deepcopy(simulation_eq)
+CR = copy.deepcopy(constituent)
+block.set_equations([simulation, CR, metric])
 # Set the discretisation schemes for the block (A dictionary)
 schemes = {}
 cent = Central(4)
