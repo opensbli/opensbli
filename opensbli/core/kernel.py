@@ -1,9 +1,11 @@
-from sympy import flatten, Max
-from .latex import *
-from .opensbliobjects import *  # DataSetBase, DataSet, ConstantIndexed, ConstantObject
-from .grid import *
-from .datatypes import *
-# from .block import DataSetsToDeclare
+from sympy import flatten, Equality, Indexed
+from sympy import Rational, Pow, Integer
+from sympy.printing import pprint
+from opensbli.core.opensbliobjects import DataSetBase, DataSet, ConstantIndexed, ConstantObject
+from opensbli.core.grid import GridVariable, Grididx
+from opensbli.core.datatypes import SimulationDataType
+from sympy.core.function import _coeff_isneg
+import copy
 
 
 def dataset_attributes(dset):
@@ -127,7 +129,6 @@ class Kernel(object):
         return
 
     def set_grid_range(self, block):
-        import copy
         self.ranges = copy.deepcopy(block.ranges)
         return
 
@@ -159,7 +160,6 @@ class Kernel(object):
         halo_m = []
         halo_p = []
         for direction in range(len(halos)):
-            max_halo_direction = []
             if halos[direction][0]:
                 hal = [d.get_halos(0) for d in halos[direction][0]]
                 halo_m += [min(hal)]
@@ -262,7 +262,6 @@ class Kernel(object):
 
     @property
     def Inverse_constants(self):
-        from sympy.core.function import _coeff_isneg
         # Only negative powers i.e. they correspond to division and they are stored into constant arrays
         inverse_terms = set()
         for eq in self.equations:
@@ -299,7 +298,6 @@ class Kernel(object):
         """ Returns the stencils for the datasets used in the kernel
         """
         stencil_dictionary = {}
-        datasetbases = self.lhs_datasets.union(self.rhs_datasets)
         datasets = set()
         for eq in self.equations:
             if isinstance(eq, Equality):
@@ -391,7 +389,7 @@ class Kernel(object):
         """
         self.stencil_names = {}
         dsets = self.lhs_datasets.union(self.rhs_datasets)
-        from .block import DataSetsToDeclare
+        from opensbli.core.block import DataSetsToDeclare
         # New logic for the dataset delcarations across blocks
         for d in dsets:
             if d in DataSetsToDeclare.datasetbases:
@@ -404,7 +402,6 @@ class Kernel(object):
                 d = dataset_attributes(d)
                 d.size = block.shape
                 d.block_number = block.blocknumber
-                import copy
                 d.halo_ranges = [[set(), set()] for d1 in range(block.ndim)]
                 # [[set(), set()] for d in range(block.ndim)]
                 for direction in range(len(d.halo_ranges)):
@@ -435,7 +432,7 @@ class Kernel(object):
                 # Add dataset to block datasets
                 block.block_datasets[str(d)] = d
         # Update rational constant attributes
-        rational_constants = self.Rational_constants.union(self.Inverse_constants)
+        # rational_constants = self.Rational_constants.union(self.Inverse_constants)
         stens = self.get_stencils()
         for dset, stencil in stens.iteritems():
             if stencil not in block.block_stencils.keys():

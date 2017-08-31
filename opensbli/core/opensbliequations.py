@@ -1,10 +1,8 @@
-from .opensbliobjects import DataSet, ConstantObject
-from .opensblifunctions import *
-from .kernel import Kernel
-from sympy import flatten, preorder_traversal
-from sympy import Equality
-import copy
-from sympy.tensor.array import MutableDenseNDimArray
+from opensbli.core.opensbliobjects import DataSet, ConstantObject, DataSetBase
+from opensbli.core.opensblifunctions import TemporalDerivative
+from opensbli.core.kernel import Kernel
+from sympy import flatten, preorder_traversal, Expr, Eq
+from sympy import Equality, Function, pprint, srepr
 
 
 class Discretisation(object):

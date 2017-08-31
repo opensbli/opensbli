@@ -8,16 +8,15 @@ c. get_indices
 d. EXPR
 _remove_repeated
 """
-from sympy import *
-from sympy.tensor import *
+from sympy import Sum, Symbol, Function, Eq, flatten, S, pprint, Mul, Expr
+from sympy.tensor import IndexedBase, Indexed, get_contraction_structure
+from sympy.tensor.index_methods import get_indices as get_indices_sympy
+from sympy import Derivative, preorder_traversal, postorder_traversal, Equality
 from sympy.tensor.index_methods import _remove_repeated
-from .opensbliobjects import *
-from sympy.functions.elementary.piecewise import ExprCondPair
-# from .bcs import apply_modify_derivative
+from .opensbliobjects import DataObject, CoordinateObject, ConstantObject, EinsteinTerm, DataSet, DataSetBase
+from sympy.functions.elementary.piecewise import ExprCondPair, Piecewise
 from numpy import ndindex as mutidimindex
 from sympy.functions.special.tensor_functions import eval_levicivita
-
-# ndim = 2 # Testing change this
 
 
 def summation_apply(final_expr, sumindices):
@@ -56,7 +55,6 @@ def expand_free_indices(expr, indices, ndim):
     for i in it:
         local_expr = expr.copy()
         local_map = []
-        linear_index = 0
         for no in range(len(indices)):
             local_map += [(indices[no], i[no])]
         for at in local_expr.atoms(EinsteinTerm):
@@ -146,7 +144,6 @@ class EinsteinStructure(object):
                         summation_notation = val
                         summation_notation = summation_apply(summation_notation, key)
                         if val in replacements:
-                            print (exist)
                             raise ValueError("The replacement object already exist this might cause errors")
                         summation_notation = summation_notation.xreplace(replacements)
                         replacements[val] = summation_notation
@@ -159,7 +156,6 @@ class EinsteinStructure(object):
 
     def _structure(cls, expr):
         substits = {}
-        value1 = expr
         obj_substitutions = {}
         pot = preorder_traversal(expr)
         # Find the structure of individual local functions in the given expression
@@ -192,7 +188,7 @@ class EinsteinStructure(object):
         # get the contraction structure of the expression
         # print(expr)
         contraction_dictionary = (get_contraction_structure(expr))
-        indices, dummies = get_indices(expr)
+        indices, dummies = get_indices_sympy(expr)
         expr = cls.apply_contraction(contraction_dictionary, expr, reversesubs)
         # pprint(expr)
         return expr, indices
@@ -201,7 +197,6 @@ class EinsteinStructure(object):
         pot = preorder_traversal(indexedexpr)
         indexed_subs = {}
         indexedBaseSubs = {}
-        einsteinobjectsubs = {}
         for p in pot:
             if isinstance(p, Indexed):
                 indexed_subs[p] = p.expression
@@ -285,7 +280,6 @@ class BasicDiscretisation(EinsteinStructure):
 
     @property
     def order(cls):
-        coordinates = len(cls.atoms(CoordinateObject))
         return len(cls.args)-1
 
     @property
@@ -526,6 +520,7 @@ class CentralDerivative(Function, BasicDiscretisation):
             # print "YES", dire, cls
             boundary_mods = [k for k in modifications[dire] if k]
             pprint(cls.args[0])
+            expr = cls.args[0]
             for b in boundary_mods:
                 ker = Kernel(block)
                 ker.add_equation(expr)

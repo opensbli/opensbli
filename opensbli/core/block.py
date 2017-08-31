@@ -20,12 +20,10 @@
 
 # @author: New structure implemented by Satya P Jammy (October, 2016)
 
-from .grid import *
-from sympy.matrices import *
-from .bcs import BoundaryConditionTypes
-from .opensbliequations import SimulationEquations
-from .opensbliobjects import ConstantObject, DataObject, DataSetBase
-# from .opensbliobjects import
+from opensbli.core.grid import Grid
+from sympy import pprint
+from opensbli.core.bcs import BoundaryConditionTypes
+from opensbli.core.opensbliobjects import ConstantObject, DataObject, DataSetBase
 from sympy import flatten
 
 
@@ -129,7 +127,6 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes):  # BoundaryC
         all_equations = flatten(eqs)[:]
         consts = set()
 
-        from sympy import *
         for no, eq in enumerate(all_equations):
             consts = consts.union(eq.atoms(ConstantObject))
             for d in eq.atoms(DataObject):
@@ -165,7 +162,6 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes):  # BoundaryC
             eq.spatial_discretisation(self.discretisation_schemes, self)
             eq.apply_boundary_conditions(self)
         # Get the classes for the constituent relations
-        crs = self.get_constituent_equation_class
         # for clas in self.list_of_equation_classes:
         # if clas not in crs:
         # print clas, "Exitting"
@@ -264,7 +260,7 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes):  # BoundaryC
     def add_metric(self, metric_params):
         """
         """
-        self.metric_transformations = metriceq
+        self.metric_transformations = metric_params
         return
 
     def get_all_scheme_halos(self):

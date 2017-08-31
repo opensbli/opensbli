@@ -17,11 +17,10 @@
 #    You should have received a copy of the GNU General Public License
 #    along with OpenSBLI.  If not, see <http://www.gnu.org/licenses/>
 
-from sympy.tensor import IndexedBase, Idx
-from .opensbliobjects import DataSetBase, Grididx, ConstantObject
-
-from sympy.core import Symbol, S, symbols
-from .datatypes import *
+from sympy.tensor import Idx
+from sympy import Symbol, symbols
+from opensbli.core.opensbliobjects import DataSetBase, Grididx, ConstantObject
+from opensbli.core.datatypes import Int
 
 
 class WorkDataSet(object):
