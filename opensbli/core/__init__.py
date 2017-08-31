@@ -38,3 +38,4 @@ from .algorithm import *
 from .diagnostics import *
 from .metrics import *
 from .optimisations import *
+from .datatypes import *

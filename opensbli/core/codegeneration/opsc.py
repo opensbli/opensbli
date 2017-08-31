@@ -1,32 +1,13 @@
-#!/usr/bin/env python
-
-#    OpenSBLI: An automatic code generator for solving differential equations.
-#    Copyright (C) 2016 Satya P. Jammy, Christian T. Jacobs
-
-#    This file is part of OpenSBLI.
-
-#    OpenSBLI is free software: you can redistribute it and/or modify
-#    it under the terms of the GNU General Public License as published by
-#    the Free Software Foundation, either version 3 of the License, or
-#    (at your option) any later version.
-
-#    OpenSBLI is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU General Public License for more details.
-
-#    You should have received a copy of the GNU General Public License
-#    along with OpenSBLI.  If not, see <http://www.gnu.org/licenses/>.
 
 from sympy.printing.ccode import CCodePrinter
 from sympy.core.relational import Equality
-from opensbli.core.opensbliobjects import ConstantObject
+from opensbli.core.opensbliobjects import ConstantObject, ConstantIndexed, Constant, DataSetBase
 from opensbli.core.kernel import Kernel, ConstantsToDeclare as CTD
 from opensbli.core.algorithm import Loop
-from opensbli.core.opensbliobjects import *
-from opensbli.core.datatypes import *
-from sympy.printing.precedence import precedence
-from sympy.core.function import _coeff_isneg
+from sympy import Symbol, flatten
+from opensbli.core.grid import GridVariable
+from opensbli.core.datatypes import SimulationDataType
+from sympy import Pow, Idx
 import os
 import logging
 LOG = logging.getLogger(__name__)
@@ -162,10 +143,6 @@ class OPSCCodePrinter(CCodePrinter):
     def _print_Grididx(self, expr):
         out = "%s[%s]" % (self._print(expr.base), ','.join([self._print(expr.number)]))
         return out
-
-
-from opensbli.core.grid import GridVariable
-from sympy import Pow, Piecewise
 
 
 def pow_to_constant(expr):
@@ -325,7 +302,7 @@ class OPSC(object):
         inouts = ins.intersection(outs)
         ins = ins.difference(inouts)
         outs = outs.difference(inouts)
-        eqs = kernel.equations
+        # eqs = kernel.equations
         all_dataset_inps = list(ins) + list(outs) + list(inouts)
         all_dataset_types = ['input' for i in ins] + ['output' for o in outs] + ['inout' for io in inouts]
         # Use list of tuples as dictionary messes the order
@@ -389,7 +366,6 @@ class OPSC(object):
         # Add OPS_init to the declarations as it should be called before all ops
         decls += self.ops_init()
         # First process all the constants in the definitions
-        out = [WriteString("// Define and Declare OPS Block")]
         # from .kernel import ConstantsToDeclare as CTD
         for d in CTD.constants:
             if isinstance(d, Constant):
@@ -526,22 +502,6 @@ class OPSC(object):
         _generate(algorithm.prg.components, type_list)
         return type_list
 
-    def ops_init(self, diagnostics_level=None):
-        """ The default diagnostics level is 1, which offers no diagnostic information and should be used for production runs.
-        Refer to OPS user manual for more information.
-
-        :arg int diagnostics_level: The diagnostics level. If None, the diagnostic level defaults to 1.
-        :returns: The call to ops_init.
-        :rtype: list
-        """
-        out = [WriteString('// Initializing OPS ')]
-        if diagnostics_level:
-            self.ops_diagnostics = True
-            return out + [WriteString('ops_init(argc,argv,%d);' % (diagnostics_level))]
-        else:
-            self.ops_diagnostics = False
-            return out + [WriteString('ops_init(argc,argv,1);')]
-
     def define_block(self, b):
         if not self.MultiBlock:
             return [WriteString("ops_block %s;" % b.block_name)]
@@ -590,7 +550,7 @@ class OPSC(object):
     def update_inline_array(self, name, values):
         out = []
         for no, v in enumerate(values):
-            out += [WriteString("%s[%d] = %s;" % (name, no, value))]
+            out += [WriteString("%s[%d] = %s;" % (name, no, v))]
         return out
 
     def define_dataset(self, dset):
@@ -601,7 +561,6 @@ class OPSC(object):
         halo_m = []
         halo_p = []
         for direction in range(len(halos)):
-            max_halo_direction = []
             if halos[direction][0]:
                 hal = [d.get_halos(0) for d in halos[direction][0]]
                 halo_m += [min(hal)]
@@ -653,7 +612,7 @@ class OPSC(object):
                     self.Rational_constants = self.Rational_constants.union(component1.Rational_constants)
                     self.constants = self.constants.union(component1.constants).union(component1.IndexedConstants)
 
-        code = algorithm.prg.opsc_code
+        # code = algorithm.prg.opsc_code
         # print '\n'.join(code)
         _generate(algorithm.prg.components)
         return
