@@ -18,12 +18,10 @@
 #    You should have received a copy of the GNU General Public License
 #    along with OpenSBLI.  If not, see <http://www.gnu.org/licenses/>.
 
-from sympy import *
-from sympy.printing.latex import *
-from sympy.parsing.sympy_parser import *
-init_printing(use_latex=True)
+# from sympy import *
+from sympy import Derivative
+from sympy.printing.latex import LatexPrinter, Printer
 import textwrap
-
 import logging
 LOG = logging.getLogger(__name__)
 

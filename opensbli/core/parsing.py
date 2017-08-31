@@ -19,19 +19,17 @@
 #    along with OpenSBLI.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
-import collections
 
-import numpy
+from sympy import pprint, flatten, Function, Derivative, Eq, Equality, Symbol, Rational, postorder_traversal, Subs, preorder_traversal, srepr
+from sympy.core.function import AppliedUndef
+from opensbli.core.opensbliobjects import ConstantObject, MetricObject, CoordinateObject, DataSet, DataObject, EinsteinTerm
+from opensbli.core.opensblifunctions import WenoDerivative, CentralDerivative, TenoDerivative, MetricDerivative, TemporalDerivative,\
+    KD, LC, EinsteinStructure, Dot, expand_free_indices
+from sympy.parsing.sympy_parser import parse_expr, standard_transformations
 
-from sympy import *
-from sympy.parsing.sympy_parser import parse_expr, standard_transformations, _group_parentheses, _apply_functions, \
-    _flatten, _token_splittable
-from sympy.tensor.array import MutableDenseNDimArray, tensorcontraction, tensorproduct
-from sympy.tensor.array import NDimArray
-from sympy.core.function import *
+from sympy.parsing.sympy_tokenize import NAME, OP
+
 LOG = logging.getLogger(__name__)
-from .opensblifunctions import *
-
 LOCAL_FUNCTIONS = []
 
 classdict = {Symbol('Central'): CentralDerivative, Symbol('Temporal'): TemporalDerivative, Symbol('Weno'): WenoDerivative, Symbol('Metric'): MetricDerivative, Symbol('Teno'): TenoDerivative}
@@ -152,7 +150,6 @@ class Der(AppliedUndef, ParsingSchemes):
 
     def differentiate(cls):
         localfuncs = (Der)
-        notdiff = (ConstantObject, CoordinateObject)
         function_deps = list(cls.args)[1:-1]
         functions = []
         pot = postorder_traversal(cls)
@@ -173,9 +170,7 @@ class Der(AppliedUndef, ParsingSchemes):
             revertback[fn(*fndeps)] = fn
         expr = cls.args[0]
         expr = expr.subs(substits)
-        subexpr = expr
         pot = postorder_traversal(expr)
-        schemes = {}
         for p in pot:
             if isinstance(p, localfuncs):
                 expr = expr.subs(p, p.args[0].diff(*p.args[1:-1])).doit()
@@ -208,11 +203,8 @@ class Conservative(AppliedUndef, ParsingSchemes):
         """
         localfuncs = (Conservative)
         # notdiff = (ConstantObject, CoordinateObject)
-        function_deps = list(cls.args)[1:-1]
-        functions = []
         pot = postorder_traversal(cls)
         expr = cls
-        local_subs = {}
         for p in pot:
             if isinstance(p, localfuncs):
                 # if local_subs:
@@ -230,7 +222,6 @@ class Conservative(AppliedUndef, ParsingSchemes):
         # print "Inside conservative"
         # pprint(expr)
         # exit()
-        subexpr = expr
         # pprint(expr)
         # pprint(*cls.args[1:-1])
         # pprint(local_subs)
@@ -262,7 +253,6 @@ class MetricDer(AppliedUndef, ParsingSchemes):
 
     def differentiate(cls, Metric):
         localfuncs = (MetricDer)
-        notdiff = (ConstantObject, CoordinateObject)
         function_deps = list(cls.args)[1:-1]
         functions = []
         mobj = cls.metricobject
@@ -292,7 +282,6 @@ class MetricDer(AppliedUndef, ParsingSchemes):
         expr = expr.subs(substits)
         pot = postorder_traversal(expr)
         inner_metric_ders = []
-        schemes = {}
         for p in pot:
             if isinstance(p, localfuncs):
                 inner_metric_ders += [p]
@@ -339,9 +328,7 @@ class MetricDer(AppliedUndef, ParsingSchemes):
         for at in expression.atoms(Derivative):
             mobj = MetricObject('xi_%d' % cls.dummy_index)
             cls.dummy_index = cls.dummy_index + 1
-            metric_fns = mobj(*cls.fndeps)
             f = Function('f%d' % index)
-            dobj = CoordinateObject(str(f))
             index = index + 1
             newfn = f(mobj(*cls.fndeps))
 
@@ -526,15 +513,7 @@ class Reduction(AppliedUndef):
         ret = super(Reduction, cls).__new__(cls, *args)
         ret.options = kwargs
         return ret
-
     pass
-
-
-from sympy.parsing.sympy_tokenize import \
-    generate_tokens, untokenize, TokenError, \
-    NUMBER, STRING, NAME, OP, ENDMARKER
-
-from keyword import iskeyword
 
 
 def convert_coordinate(tokens, local_dict, global_dict):
@@ -543,8 +522,6 @@ def convert_coordinate(tokens, local_dict, global_dict):
     This should take priority over inbuilt sympy transformations
     (standard_transformations) while parsing"""
     result = []
-    prevTok = (None, None)
-
     tokens.append((None, None))  # so zip traverses all tokens
     for tok, nextTok in zip(tokens, tokens[1:]):
         tokNum, tokVal = tok
@@ -598,5 +575,4 @@ def convert_coordinate(tokens, local_dict, global_dict):
         else:
             result.append((tokNum, tokVal))
             continue
-        prevTok = (tokNum, tokVal)
     return result

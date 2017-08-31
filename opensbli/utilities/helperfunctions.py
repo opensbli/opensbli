@@ -1,6 +1,4 @@
-from sympy import *
-from opensbli.core.opensblifunctions import *
-from opensbli.core import *
+from opensbli.core.opensbliobjects import DataSet, CoordinateObject
 
 
 def increment_dataset(expression, direction, value):
