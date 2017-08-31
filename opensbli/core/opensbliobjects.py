@@ -2,6 +2,7 @@ from sympy import Symbol, Eq, flatten, srepr
 from sympy.tensor import Idx, IndexedBase, Indexed
 from sympy import pprint
 
+
 class EinsteinTerm(Symbol):
 
     """ Basic term in OpenSBLI. This is used to parse the equations. Any atom in the expression that is not a function
@@ -34,7 +35,7 @@ class EinsteinTerm(Symbol):
         self.is_constant = False
         self.is_coordinate = False
         self.is_tensor = False
-        self.rank = 0 # Rank of the term
+        self.rank = 0  # Rank of the term
 
         # Extract the indices, which are always preceded by an underscore.
         indices = self.name.split('_')[1:]
@@ -57,8 +58,8 @@ class EinsteinTerm(Symbol):
 
         :returns: SymPy's Indexed object with Einstein term base as the base and indices are Einstein term indices
         """
-        if len(self.get_indices()) >0:
-            st = IndexedBase("%s"%str(self.get_base()))
+        if len(self.get_indices()) > 0:
+            st = IndexedBase("%s" % str(self.get_base()))
             st = st[self.get_indices()]
             st.expression = self
             self.indexed_object = st
@@ -68,6 +69,7 @@ class EinsteinTerm(Symbol):
             st.expression = st
             self.indexed_object = st
             return st
+
     def get_base(self):
         """ Return the base name.
 
@@ -86,7 +88,7 @@ class EinsteinTerm(Symbol):
         """
         if idx in self.get_indices():
             if self.get_base():
-                newval = str(self).replace("_%s"%str(idx), str(value))
+                newval = str(self).replace("_%s" % str(idx), str(value))
                 val = type(self)(newval)
                 indices = list(set(self.get_indices()[:]).difference(set([idx])))
                 val.indices = indices
@@ -109,7 +111,7 @@ class EinsteinTerm(Symbol):
         dictionary_indices = {}
         newval = str(self)
         for m in index_map:
-            newval = newval.replace("_%s"%str(m[0]), str(m[1]))
+            newval = newval.replace("_%s" % str(m[0]), str(m[1]))
             dictionary_indices[m[0]] = m[1]
         val = type(self)(newval)
         # Store val index
@@ -117,10 +119,13 @@ class EinsteinTerm(Symbol):
             if self.get_indices():
                 val.direction = dictionary_indices[self.get_indices()[0]]
         return val
+
+
 class Constant(object):
     """ A base class to represents different types of constants
     """
     pass
+
 
 class ConstantObject(EinsteinTerm, Constant):
     """ A constant object which can have Einstein indices to be expanded. This is used to
@@ -133,10 +138,12 @@ class ConstantObject(EinsteinTerm, Constant):
     :rtype: ConstantObject
     """
     is_commutative = True
+
     def __new__(cls, label, **kwargs):
-        ret = super(ConstantObject,cls).__new__(cls, label, **kwargs)
+        ret = super(ConstantObject, cls).__new__(cls, label, **kwargs)
         ret.is_constant = True
         return ret
+
 
 class ConstantIndexed(Indexed, Constant):
     """ A constant Indexed object
@@ -151,12 +158,14 @@ class ConstantIndexed(Indexed, Constant):
             if not isinstance(indices, Idx):
                 raise ValueError("The indices of the Constant Indexed Object should be of type Idx", i)
             indices = flatten([indices])
-        ret = Indexed.__new__(cls, base , *indices)
+        ret = Indexed.__new__(cls, base, *indices)
         ret.is_constant = True
         return ret
+
     @property
     def location(cls):
         return list(cls.args[1:])
+
 
 class CoordinateObject(EinsteinTerm):
     """ A coordinate object which can have Einstein indices to be expanded, this is used to
@@ -170,8 +179,9 @@ class CoordinateObject(EinsteinTerm):
     """
     is_commutative = True
     is_Atom = True
+
     def __new__(cls, label, **kwargs):
-        ret = super(CoordinateObject,cls).__new__(cls, label)
+        ret = super(CoordinateObject, cls).__new__(cls, label)
         if 'time' in kwargs:
             ret.timecoordinate = True
         else:
@@ -183,9 +193,11 @@ class CoordinateObject(EinsteinTerm):
             return True
         else:
             return False
+
     def set_direction(cls, dire):
         cls.direction = dire
         return
+
 
 class MetricObject(EinsteinTerm):
     """ A metric object which can have Einstein indices to be expanded, this is used to
@@ -199,12 +211,13 @@ class MetricObject(EinsteinTerm):
 
     """
     def __new__(cls, label, **kwargs):
-        ret = super(MetricObject,cls).__new__(cls, label)
+        ret = super(MetricObject, cls).__new__(cls, label)
         if 'time' in kwargs:
             ret.timecoordinate = True
         else:
             ret.timecoordinate = False
         return ret
+
 
 class DataObject(EinsteinTerm):
     """ Once parsed and expanded all the EinsteinTerms that are not constants and coordinates are converted
@@ -221,19 +234,23 @@ class DataObject(EinsteinTerm):
     """
     is_commutative = True
     is_Atom = True
+
     def __new__(cls, label, **kw_args):
         ret = super(DataObject, cls).__new__(cls, label, **kw_args)
-        #ret.location = [0]*cls.ndim
         return ret
+
     def copy(self):
         return self
+
     @property
     def free_symbols(self):
         return {self}
 
+
 from sympy.core import Expr, Tuple, Symbol, sympify, S
 from sympy.core.compatibility import is_sequence, string_types, NotIterable, range
 from sympy.core.cache import cacheit
+
 
 class DataSetBase(IndexedBase):
     """ Base object for converting a DataObject to an array on the block with specific dimensions of
@@ -254,13 +271,14 @@ class DataSetBase(IndexedBase):
     is_symbol = True
     is_Atom = True
     block = None
-    @cacheit # we cache it so that the changes to a particular dataset base are global and not local
-    def __new__(cls, label, shape =None, **kw_args):
+
+    @cacheit  # we cache it so that the changes to a particular dataset base are global and not local
+    def __new__(cls, label, shape=None, **kw_args):
         if not cls.block:
             raise ValueError("Set the block for DataSetBase")
         sym = label
         if shape is None:
-            #print cls.block, "yes"
+            # print cls.block, "yes"
             shape = list(cls.block.shape) + [Idx(cls.block.blockname)]
         else:
             shape = shape
@@ -269,33 +287,40 @@ class DataSetBase(IndexedBase):
         ret.blockname = cls.block.blockname
         ret.blocknumber = cls.block.blocknumber
         return ret
+
     def __hash__(self):
         h = hash(self._hashable_content())
         self._mhash = h
         return h
+
     def _hashable_content(self):
         return str(self.label) + self.blockname
+
     def __getitem__(cls, indices, **kw_args):
         if len(indices) == len(cls.shape) and indices[-1] == Idx(cls.blockname):
             pass
-        elif len(indices) == len(cls.shape) -1:
+        elif len(indices) == len(cls.shape) - 1:
             indices += [Idx(cls.blockname)]
-        elif len(indices) != len(cls.shape) -1:
+        elif len(indices) != len(cls.shape) - 1:
             raise IndexException("Rank mismatch.")
         return DataSet(cls, *indices)
+
     def _sympystr(self, p):
         """ For clarity the block number is printed"""
-        return "%s_B%s"%(str(self.label), str(self.blocknumber))
+        return "%s_B%s" % (str(self.label), str(self.blocknumber))
+
     def simplelabel(self):
         """Returns the base label in case we need the label as a string to modify and create a new one with modifications
         """
-        return "%s"%(str(self.label))
+        return "%s" % (str(self.label))
+
     @staticmethod
     def location():
         """ The location is the relative grid location, it is presently hard coded to the grid location.
         This is provided so that if in future staggered grid arrangement can be implemented
         """
         return [0 for i in range(DataSetBase.block.ndim)]
+
 
 class DataSet(Indexed):
     """ It is the Data set of a DatasetBase which is defined on a block.
@@ -314,23 +339,27 @@ class DataSet(Indexed):
     is_Symbol = True
     is_symbol = True
     is_Atom = True
+
     def __new__(cls, base, *indices, **kwargs):
         if not isinstance(base, DataSetBase):
             raise ValueError("Declare DatasetBase and instantiate a dataset")
         ret = Indexed.__new__(cls, base, *indices)
         return ret
+
     def _sympystr(self, p):
-        allinds = [i for i in self.indices if not isinstance(i,Idx)]
+        allinds = [i for i in self.indices if not isinstance(i, Idx)]
         indices = list(map(p.doprint, allinds))
         return "%s" % (p.doprint(self.base))
+
     def _pretty(self, printer):
         """Pretty Printing method. """
         from sympy.printing.pretty.stringpict import prettyForm
-        allinds = [i for i in self.indices if not isinstance(i,Idx)]
+        allinds = [i for i in self.indices if not isinstance(i, Idx)]
         pforms = [printer._print(a) for a in allinds]
         expr = prettyForm(*printer.join(",", pforms).parens(left="[", right="]"))
         expr = prettyForm(*expr.left(printer._print(self.base)))
         return expr
+
     @property
     def get_grid_indices(self):
         """ Returns the relative location of the dataset, as used in discretisation
@@ -347,13 +376,15 @@ class GridIndex(Indexed):
     is_Symbol = True
     is_symbol = True
     is_Atom = True
+
     def __new__(cls, base, *indices, **kwargs):
         if not isinstance(base, GridIndexedBase):
             raise ValueError("GridIndex base should be GridIndexedBase object")
         ret = Indexed.__new__(cls, base, *indices)
         return ret
-    #def free_symbols(self):
-        #return self
+    # def free_symbols(self):
+        # return self
+
 
 class GridIndexedBase(IndexedBase):
     """ Base object to locate the global index of the grid point NOT USED ANY MORE WARNING
@@ -362,27 +393,33 @@ class GridIndexedBase(IndexedBase):
     is_Symbol = True
     is_symbol = True
     is_Atom = True
+
     def __new__(cls, label, ndim, **kw_args):
         sym = label
-        pprint(sym); print type(sym)
-        ret = super(GridIndexedBase, cls).__new__(cls, sym, (1), **kw_args) # Shape would be of size ndim
+        pprint(sym)
+        print type(sym)
+        ret = super(GridIndexedBase, cls).__new__(cls, sym, (1), **kw_args)  # Shape would be of size ndim
         pprint(ret.shape)
         return ret
+
     def __hash__(self):
         h = hash(self._hashable_content())
         self._mhash = h
         return h
+
     def _hashable_content(self):
         return str(self.label)
+
     def __getitem__(cls, indices, **kw_args):
         if isinstance(indices, int):
             indices = [indices]
         if len(indices) != cls.shape:
             raise IndexException("Rank mismatch.")
         return GridIndex(cls, *indices)
+
     def _sympystr(self, p):
         """ For clarity the block number is printed"""
-        return "%s"%(str(self.label))
+        return "%s" % (str(self.label))
 
 
 class Grididx(Symbol):
@@ -395,6 +432,7 @@ class Grididx(Symbol):
     :returns: declared coordinate
     :rtype: CoordinateObject
     """
+
     def __new__(self, label, number, **assumptions):
         self._sanitize(assumptions, self)  # Remove any 'None's, etc.
         self.name = str(label) + str(number)
