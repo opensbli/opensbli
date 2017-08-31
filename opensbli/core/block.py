@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #    OpenSBLI: An automatic code generator for solving differential equations.
-#    Copyright (C) 2016 Satya P. Jammy 
+#    Copyright (C) 2016 Satya P. Jammy
 
 #    This file is part of OpenSBLI.
 
@@ -25,16 +25,20 @@ from sympy.matrices import *
 from .bcs import BoundaryConditionTypes
 from .opensbliequations import SimulationEquations
 from .opensbliobjects import ConstantObject, DataObject, DataSetBase
-#from .opensbliobjects import
+# from .opensbliobjects import
 from sympy import flatten
+
 
 class DataSetsToDeclare(object):
     """
     """
     datasetbases = []
+
+
 class KernelCounter():
     """Counter for the kernels
     """
+
     def __init__(self):
         self.kernel_counter = 0
 
@@ -48,7 +52,7 @@ class KernelCounter():
     def increase_kernel_counter(self):
         """
         """
-        self.kernel_counter = self.kernel_counter +1
+        self.kernel_counter = self.kernel_counter + 1
         return
 
     def store_kernel_counter(self):
@@ -64,10 +68,11 @@ class KernelCounter():
         return
 
 
-class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes): # BoundaryConditionTypes add this later
+class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes):  # BoundaryConditionTypes add this later
     """
     """
-    def __init__(self, ndim, block_number = None):
+
+    def __init__(self, ndim, block_number=None):
         if block_number:
             self.blocknumber = block_number
         else:
@@ -75,7 +80,7 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes): # BoundaryCo
         self.ndim = ndim
         KernelCounter.__init__(self)
         Grid.__init__(self)
-        #RationalCounter.__init__(self)
+        # RationalCounter.__init__(self)
         self.boundary_halos = [[set(), set()] for d in range(self.ndim)]
         self.block_datasets = {}
         self.constants = {}
@@ -161,10 +166,10 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes): # BoundaryCo
             eq.apply_boundary_conditions(self)
         # Get the classes for the constituent relations
         crs = self.get_constituent_equation_class
-        #for clas in self.list_of_equation_classes:
-            #if clas not in crs:
-                #print clas, "Exitting"
-                #exit()
+        # for clas in self.list_of_equation_classes:
+        # if clas not in crs:
+        # print clas, "Exitting"
+        # exit()
         # perform the temporal discretisation of the equations for all equation classes
         # Later move TD to equations.td
         temporal = self.get_temporal_schemes
@@ -177,7 +182,7 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes): # BoundaryCo
         """
         """
         kernels = []
-        for no,b in enumerate(self.boundary_types):
+        for no, b in enumerate(self.boundary_types):
             kernels += [self.apply_bc_direction(no, 0, arrays)]
             kernels += [self.apply_bc_direction(no, 1, arrays)]
         return kernels
@@ -221,21 +226,22 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes): # BoundaryCo
         """
         """
         temporal = []
-        for sc in  self.discretisation_schemes:
+        for sc in self.discretisation_schemes:
             if self.discretisation_schemes[sc].schemetype == "Temporal":
                 temporal += [self.discretisation_schemes[sc]]
         return temporal
+
     @property
     def collect_all_spatial_kernels(self):
         """
         """
         all_kernels = []
         for scheme in self.get_temporal_schemes:
-            for key, value in scheme.solution.iteritems(): # These are equation classes
-                if key.order >=0 and key.order <100: #Checks if the equation classes are part of the time loop
+            for key, value in scheme.solution.iteritems():  # These are equation classes
+                if key.order >= 0 and key.order < 100:  # Checks if the equation classes are part of the time loop
                     all_kernels += key.all_spatial_kernels
                 else:
-                    print 'NOPE' # Just checking
+                    print 'NOPE'  # Just checking
         return all_kernels
 
     def setio(self, list_of_ios):
@@ -270,10 +276,11 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes): # BoundaryCo
                 spatialschemes += [self.discretisation_schemes[sc]]
         from opensbli.core.scheme import CentralHalos_defdec
         halos = set([CentralHalos_defdec()])
-        #for s in spatialschemes:
-            #CentralHalos_defdec()
-            #halos.add(s.halotype)
+        # for s in spatialschemes:
+        # CentralHalos_defdec()
+        # halos.add(s.halotype)
         return halos
+
 
 def sort_constants(constants_dictionary):
     """
