@@ -55,7 +55,7 @@ class LatexWriter(LatexPrinter):
         :arg str s: a user-provided string.
         :returns: None
         """
-        self.f.write("\\noindent %s\\\\"%s)
+        self.f.write("\\noindent %s\\\\" % s)
         return
 
     def write_header(self, metadata):
@@ -99,13 +99,13 @@ class LatexWriter(LatexPrinter):
         self._settings['mode'] = mode
         self._settings['long_frac_ratio'] = 3
         self._settings['mul_symbol_latex'] = r" \,.\, "
-        #self._settings['mul_symbol_latex'] = \
-            #mul_symbol_table[self._settings['mul_symbol']]
+        # self._settings['mul_symbol_latex'] = \
+        # mul_symbol_table[self._settings['mul_symbol']]
 
         tex = Printer.doprint(self, expression)
 
         if self._settings['mode'] == 'plain':
-            output = r"\noindent$%s$\\"%tex
+            output = r"\noindent$%s$\\" % tex
         elif self._settings['mode'] == 'inline':
             output = r"$%s$" % tex
         elif self._settings['itex']:
@@ -114,44 +114,53 @@ class LatexWriter(LatexPrinter):
             env_str = self._settings['mode']
             output = r"\begin{%s}%s\end{%s}" % (env_str, tex, env_str)
         return output
+
     def _print_DataSetBase(self, expr):
-        tex = "%s{_{B%s}}"%(self._print(expr.label), self._print(expr.blocknumber))
+        tex = "%s{_{B%s}}" % (self._print(expr.label), self._print(expr.blocknumber))
         return tex
+
     def _print_DataSet(self, expr):
         ind = list(expr.indices)[:-1]
         tex = '{%s}' % self._print(expr.base)+'[{%s}]' % ','.join(map(self._print, ind))
         return tex
+
     def _print_Indexed(self, expr):
         tex = '{%s}' % self._print(expr.base)+'[{%s}]' % ','.join(map(self._print, expr.indices))
         return tex
+
     def _print_Pow(self, expr):
         base, exponent = expr.as_base_exp()
-        tex = '\left(%s \\right)^{%s}'%(self._print(base),self._print(exponent))
+        tex = '\left(%s \\right)^{%s}' % (self._print(base), self._print(exponent))
         return tex
+
     def _print_EinsteinTerm(self, expr):
         return str(expr)
 
     def _print_CentralDerivative(self, expr):
-        #return r'\left. %s \right|_{{%s }}' % (self._print(Derivative(*expr.args)), "Central")
+        # return r'\left. %s \right|_{{%s }}' % (self._print(Derivative(*expr.args)), "Central")
         return r'%s' % (self._print(Derivative(*expr.args)))
+
     def _print_MetricDerivative(self, expr):
         return r'\left. %s \right|_{{%s }}' % (self._print(Derivative(*expr.args)), "Metric")
+
     def _print_TemporalDerivative(self, expr):
         return r'\left. %s \right|_{{%s }}' % (self._print(Derivative(*expr.args)), "Temporal")
+
     def _print_WenoDerivative(self, expr):
         return r'\left. %s \right|_{{%s }}' % (self._print(Derivative(*expr.args)), "Weno")
+
     def _print_TenoDerivative(self, expr):
         return r'\left. %s \right|_{{%s }}' % (self._print(Derivative(*expr.args)), "Teno")
 
     def _print_KD(self, expr):
-        #print expr
-        #print expr._latex_no_arg(self)
-        #for arg in expr.args:
-            #print self._print(arg)
-        #exit()
-        return expr._latex_no_arg(self) + '_{%s}'%(' '.join([self._print(a) for a in expr.args]).replace('_',''))
+        # print expr
+        # print expr._latex_no_arg(self)
+        # for arg in expr.args:
+            # print self._print(arg)
+        # exit()
+        return expr._latex_no_arg(self) + '_{%s}' % (' '.join([self._print(a) for a in expr.args]).replace('_', ''))
 
-    def write_expression(self, expression, mode = None, substitutions={}):
+    def write_expression(self, expression, mode=None, substitutions={}):
         """ Convert a single expression or list of expressions to LaTeX format and then write it/them to file.
 
         :arg expression: a single SymPy expression of list of SymPy expressions to format and write.
@@ -177,6 +186,6 @@ class LatexWriter(LatexPrinter):
 
         output = ' \n'.join(output)
         output = ' \n'.join(textwrap.wrap(output, width=70, break_long_words=False))
-        output =  output + '\n\n'
+        output = output + '\n\n'
         self.f.write(output)
         return
