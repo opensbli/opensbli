@@ -3,17 +3,18 @@ from .opensblifunctions import *
 from opensbli.core import *
 from .grid import GridVariable
 from .opensbliequations import *
-from opensbli.utilities.helperfunctions import increment_dataset
+from opensbli.utilities.helperfunctions import increment_dataset as incr_dset
+from opensbli.physical_models.ns_physics import *
 from .scheme import Scheme
 
 
 
 class WenoHalos(object):
     def __init__(self, order, reconstruction=None):
-        # Check for the boundary types in the blocks and set the halo points
-        # self.halos = [[-scheme.order, scheme.order] for dim in range(block.ndim)]
+        """ Object for WENO halos.
+        arg: int: order: Order of the WENO scheme.
+        arg: bool: reconstruction: True if halos for a reconstruction. """
         k = int(0.5*(order+1))
-        # self.halos = [(-k, k+1)for dim in range(ndim)]
         if not reconstruction:
             self.halos = [-k, k+1]
         else:
@@ -186,7 +187,7 @@ class JS_smoothness(object):
                         shift_indices = [-r+m+shift, -r+n+shift]
                         func_product = fn.function_stencil_dictionary[shift_indices[0]]*fn.function_stencil_dictionary[shift_indices[1]]
                         local_smoothness += beta*func_product
-            # pprint(local_smoothness)
+            pprint(local_smoothness)
             # print "old: ", local_smoothness.count_ops()
             # local_smoothness = horner(local_smoothness)
             # print "new: ", local_smoothness.count_ops()
@@ -397,8 +398,8 @@ class Weno(Scheme):
             pass
         else:
             raise ValueError("The symbol provided should be either a list or symbols")
-
         for s in sym:
+            
             if isinstance(s, DataSetBase):
                 s = s.noblockname
             if s in self.required_constituent_relations_symbols.keys():
@@ -556,6 +557,8 @@ class Characteristic(EigenSystem):
         pre_process_equations += flatten(self.generate_equations_from_matrices(CF_matrix, characteristic_flux_vector))
         pre_process_equations += flatten(self.generate_equations_from_matrices(CS_matrix, characteristic_solution_vector))
 
+        pprint(derivatives)
+        # exit()
         for d in derivatives:
             required_symbols = required_symbols.union(d.atoms(DataSetBase))
         self.update_constituent_relation_symbols(required_symbols, direction)
@@ -637,7 +640,7 @@ class Characteristic(EigenSystem):
         CS_matrix = zeros(len(solution_vector), len(stencil_points))
         for j, val in enumerate(stencil_points):  # j in fv stencil matrix
             for i, flux in enumerate(solution_vector):
-                solution_vector_stencil[i, j] = increment_dataset(flux, direction, val)
+                solution_vector_stencil[i, j] = incr_dset(flux, direction, val)
                 CS_matrix[i, j] = GridVariable('CS_%d%d' % (i, j))
         grid_LEV = self.generate_grid_variable_LEV(direction, name)
         characteristic_solution_stencil = grid_LEV*solution_vector_stencil
@@ -656,7 +659,7 @@ class Characteristic(EigenSystem):
         CF_matrix = zeros(len(fv), len(stencil_points))
         for j, val in enumerate(stencil_points):  # j in fv stencil matrix
             for i, flux in enumerate(fv):
-                flux_stencil[i, j] = increment_dataset(flux, direction, val)
+                flux_stencil[i, j] = incr_dset(flux, direction, val)
                 CF_matrix[i, j] = GridVariable('CF_%d%d' % (i, j))
         grid_LEV = self.generate_grid_variable_LEV(direction, name)
         characteristic_flux_stencil = grid_LEV*flux_stencil
@@ -792,6 +795,66 @@ class SimpleAverage(object):
             b = d[loc2]
             avg_equations += [Eq(GridVariable('%s_%s' % (name_suffix, name)), (a+b)/2)]
         return avg_equations
+
+class RoeAverage(object):
+    def __init__(self, locations, ndim, physics=None):
+        self.locations = locations
+        self.ndim = ndim
+        if not physics:
+            self.NS = NSphysics(ndim)
+        else:
+            self.NS = physics
+        return
+    def get_dsets(self, dset_base):
+        loc = dset_base.location()
+        loc1, loc2 = loc[:], loc[:]
+        loc1[self.direction], loc2[self.direction] = loc[self.direction]+self.locations[0], loc[self.direction]+self.locations[1]
+        dset1, dset2 = dset_base[loc1], dset_base[loc2]
+        return dset1, dset2
+
+
+    def average(self, functions, direction, name_suffix):
+        self.direction = direction
+        eqns = []
+        avg_equations = []
+        evaluations = []
+        names = []
+        # Averaged density rho_hat = sqrt(rho_L*rho_R)
+        rho_base = self.NS.density().base
+        rho_L, rho_R = self.get_dsets(rho_base)
+        evaluations += [sqrt(rho_L*rho_R)]
+        grid_vars = [GridVariable('%s_%s' % (name_suffix, rho_base.simplelabel()))]
+        # Store inverse factor 1/(sqrt(rho_R)+sqrt(rho_L))
+        grid_vars += [GridVariable('%s_%s' % (name_suffix, 'inv_rho'))]
+        evaluations += [(sqrt(rho_R)+sqrt(rho_L))**(-1)]
+
+        # Average velocity components 
+        for i, velocity in enumerate(self.NS.velocity()):
+            velocity_base = velocity.base
+            vel_L, vel_R = self.get_dsets(velocity_base)
+            names += [velocity_base.simplelabel()]
+            evaluations += [(sqrt(rho_L)*vel_L+sqrt(rho_R)*vel_R)*grid_vars[1]]
+            grid_vars += [GridVariable('%s_%s' % (name_suffix, velocity_base.simplelabel()))]
+        # Averaged kinetic energy in terms of u0, u1, u2 grid variables
+        KE = Rational(1,2)*sum([u**2 for u in grid_vars[2:]])
+
+        # Calcualte enthalpy h = rhoE + P/rho
+        pressure_base = self.NS.pressure().base
+        P_L, P_R = self.get_dsets(pressure_base)
+        rhoE_base = self.NS.total_energy().base
+        rhoE_L, rhoE_R = self.get_dsets(rhoE_base)
+        H_L = rhoE_L + P_L/rho_L
+        H_R = rhoE_R + P_R/rho_R
+        roe_enthalpy = (sqrt(rho_L)*H_L+sqrt(rho_R)*H_R)*grid_vars[1]
+        # Average speed of sound
+        a_base = self.NS.speed_of_sound().base
+        roe_a = sqrt((self.NS.specific_heat_ratio()-1)*(roe_enthalpy - KE))
+        evaluations += [roe_a]
+        grid_vars += [GridVariable('%s_%s' % (name_suffix, a_base.simplelabel()))]
+
+        return [Eq(x,y) for (x,y) in zip(grid_vars, evaluations)]
+
+
 
 class LLFWeno(LLFCharacteristic, Weno):
     def __init__(self, eigenvalue, left_ev, right_ev, order, ndim, averaging=None):
