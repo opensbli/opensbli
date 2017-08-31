@@ -20,8 +20,9 @@
 from sympy.tensor import IndexedBase, Idx
 from .opensbliobjects import DataSetBase, Grididx, ConstantObject
 
-from sympy.core import Symbol,S, symbols
+from sympy.core import Symbol, S, symbols
 from .datatypes import *
+
 
 class WorkDataSet(object):
     """ Base object for using work arrays in the OpenSBLI framework. This contains different attributes to control the flow of work arrays in descritisation. This should be used in conjunction with a Simulation block see SimulationBlock .
@@ -33,13 +34,13 @@ class WorkDataSet(object):
     def __init__(self):
         """ Im not stupid
         """
-        self.work_name = 'wk%d' # Work array name
-        self.work_index = 0 # Index of the work array, this is update when ever a new work array is called
+        self.work_name = 'wk%d'  # Work array name
+        self.work_index = 0  # Index of the work array, this is update when ever a new work array is called
         self.stored_index = 0
-        self.dtype = None # Place holder to save dtype not used currently
+        self.dtype = None  # Place holder to save dtype not used currently
         return
 
-    def work_array(self, name = None, location=None):
+    def work_array(self, name=None, location=None):
         """ Sets up a opensbli DataSet, indexed by the relative location.
         By default the range of the data set is that of the the block
 
@@ -91,7 +92,7 @@ class WorkDataSet(object):
 
         """
         if not name:
-            base = self.work_name%self.work_index
+            base = self.work_name % self.work_index
         else:
             base = name
         ret = DataSetBase(base)
@@ -103,6 +104,7 @@ class WorkDataSet(object):
             location = [0 for i in range(self.ndim)]
         ret = ret[location]
         return ret
+
     @property
     def reset_work_index(self):
         """Resets the work index to zero. Used when we want to re-use work arrays
@@ -110,25 +112,29 @@ class WorkDataSet(object):
         """
         self.work_index = 0
         return
+
     @property
     def increase_work_index(self):
         """Increments the work array index by 1. This helps in setting up the next work array
         index, see the example below for usage
         """
-        self.work_index = self.work_index +1
+        self.work_index = self.work_index + 1
         return
+
     @property
     def store_work_index(self):
         """Stores the current work array index, see the example below for usage
         """
         self.stored_index = self.work_index
         return
+
     @property
     def reset_work_to_stored(self):
         """Resets the work array index to the index when the last ``store_work_index`` is called, see the example below for usage
         """
         self.work_index = self.stored_index
         return
+
 
 class Grid(WorkDataSet):
 
@@ -146,15 +152,15 @@ class Grid(WorkDataSet):
         # Instantiate WorkDataSet
         WorkDataSet.__init__(self)
 
-        shape = symbols('block%dnp0:%d'%(self.blocknumber, self.ndim), integer=True)
-        self.shape = [ConstantObject("%s"%s, integer=True) for s in shape]
+        shape = symbols('block%dnp0:%d' % (self.blocknumber, self.ndim), integer=True)
+        self.shape = [ConstantObject("%s" % s, integer=True) for s in shape]
         """Symbolic number of points
 
         :returns: Symbolic points of the instantiated grid
         :rtype: ConstantObject
 
         """
-        self.Idxed_shape = [Idx(Symbol('i%d'%dim, integer = True),(0, self.shape[dim])) for dim in range(self.ndim)]
+        self.Idxed_shape = [Idx(Symbol('i%d' % dim, integer=True), (0, self.shape[dim])) for dim in range(self.ndim)]
         """
         :returns: Symbolic points of the instantiated grid
         :rtype: Idx
@@ -172,7 +178,7 @@ class Grid(WorkDataSet):
         >>>
         >>>
         """
-        self.deltas = [ConstantObject("Delta%dblock%d"%(dire,self.blocknumber)) for dire in range(self.ndim)]
+        self.deltas = [ConstantObject("Delta%dblock%d" % (dire, self.blocknumber)) for dire in range(self.ndim)]
         """
         :returns: Grid spacing in all the dimensions
         :rtype: list of ConstantObject
@@ -188,9 +194,9 @@ class Grid(WorkDataSet):
         for d in self.deltas:
             CTD.add_constant(d)
         for s in self.shape:
-            CTD.add_constant(s, dtype = Int())
-        #GridIndexedBase.block = self
-        #g = Grididx('idx_B0')
+            CTD.add_constant(s, dtype=Int())
+        # GridIndexedBase.block = self
+        # g = Grididx('idx_B0')
         self.grid_indexes = [Grididx("idx", i) for i in range(self.ndim)]
         """ Name for the grid index loop in each dimension (instead if i,j,k we use idx[0:ndim])
 
@@ -220,12 +226,12 @@ class Grid(WorkDataSet):
         """Not used, these should be used for further optimisations
         """
         # Parameters for optimizations / different schemes for convective and viscous fluxes
-        self.store_derivatives = True # By default store derivatives is set to true
+        self.store_derivatives = True  # By default store derivatives is set to true
         self.derivatives_to_store = set()
-        self.group_derivatives = False # This is another way of reducing data transfer.
+        self.group_derivatives = False  # This is another way of reducing data transfer.
         self.local_variables = True
-        self.cns_type_code = False # This writes the code similat to traditional compressible NS
-        self.sbli_rhs_discretisation = False # this is a pilot implementation of SBLI RHS
+        self.cns_type_code = False  # This writes the code similat to traditional compressible NS
+        self.sbli_rhs_discretisation = False  # this is a pilot implementation of SBLI RHS
         return
 
 
