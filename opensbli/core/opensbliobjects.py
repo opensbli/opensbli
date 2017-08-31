@@ -283,7 +283,7 @@ class DataSetBase(IndexedBase):
         else:
             shape = shape
         ret = super(DataSetBase, cls).__new__(cls, sym, shape, **kw_args)
-        ret.noblockname = Symbol(str(label))
+        ret.noblockname = EinsteinTerm(str(label))
         ret.blockname = cls.block.blockname
         ret.blocknumber = cls.block.blocknumber
         return ret
