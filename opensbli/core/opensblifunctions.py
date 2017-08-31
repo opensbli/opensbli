@@ -17,37 +17,40 @@ from sympy.functions.elementary.piecewise import ExprCondPair
 from numpy import ndindex as mutidimindex
 from sympy.functions.special.tensor_functions import eval_levicivita
 
-#ndim = 2 # Testing change this
+# ndim = 2 # Testing change this
+
+
 def summation_apply(final_expr, sumindices):
     for k in sumindices:
-        final_expr = Sum(final_expr, (k,0, Symbol('ndim', integer=True)))
+        final_expr = Sum(final_expr, (k, 0, Symbol('ndim', integer=True)))
 
     return final_expr
+
 
 def expand_expr(expr, ndim):
     sumindices = expr.variables
     input_expr = expr.function
     # Expansion
     expanded_expr = 0
-    #pprint([input_expr, sumindices])
     for no, k in enumerate(sumindices):
         if no == 0:
             expanded_expr = 0
             input_expr = input_expr
         else:
             input_expr = expanded_expr
-            expanded_expr = 0 #  now do the expansion of the expanded expression
+            expanded_expr = 0  # now do the expansion of the expanded expression
         for dim in range(ndim):
             dictionary = {}
             for at in input_expr.atoms(EinsteinTerm):
                 dictionary[at] = at.apply_index(k, dim)
             expanded_expr += input_expr.xreplace(dictionary)
-    #pprint(expanded_expr)
+    # pprint(expanded_expr)
     return expanded_expr
+
 
 def expand_free_indices(expr, indices, ndim):
     shape = tuple([ndim for i in indices])
-    out = []#[expr for i in range(ndim**len(indices))]
+    out = []  # [expr for i in range(ndim**len(indices))]
     it = mutidimindex(shape)
     indices = list(indices)
     for i in it:
@@ -56,13 +59,13 @@ def expand_free_indices(expr, indices, ndim):
         linear_index = 0
         for no in range(len(indices)):
             local_map += [(indices[no], i[no])]
-            #linear_index += ndim*i[no]
         for at in local_expr.atoms(EinsteinTerm):
             evaluated = at.apply_multiple_indices(indices, local_map)
             local_expr = local_expr.replace(at, evaluated)
 
         out += [local_expr]
     return out
+
 
 class KD(Function):
     """ Handler for the built-in SymPy KroneckerDelta function. """
@@ -76,7 +79,7 @@ class KD(Function):
         No Contraction structure for the KD function
         """
         indices = flatten([p.get_indices() for p in self.args if p.get_indices])
-        indexed = IndexedBase("%s"%self.__class__.__name__)
+        indexed = IndexedBase("%s" % self.__class__.__name__)
         indexed = indexed[indices]
         indexed.expression = self
         indexed.is_commutative = False
@@ -93,7 +96,7 @@ class KD(Function):
     @staticmethod
     def _latex_no_arg(printer):
         return r'\delta'
-        
+
 
 class LC(Function):
     """ Handler for the built-in SymPy LeviCivita function. """
@@ -101,12 +104,13 @@ class LC(Function):
     @property
     def is_commutative(self):
         return False
+
     def structure(self):
         if len(self.args) != 3:
             raise ValueError("LeviCivita function should have only three indices.")
 
         indices = flatten([p.get_indices() for p in self.args if p.get_indices])
-        indexed_base = IndexedBase("%s"%self.__class__.__name__)
+        indexed_base = IndexedBase("%s" % self.__class__.__name__)
         indexed = indexed_base[tuple(indices)]
         indexed.expression = self
         indexed.is_commutative = False
@@ -122,14 +126,16 @@ class LC(Function):
                 args += [a]
         return eval_levicivita(*args)
 
+
 class EinsteinStructure(object):
     def apply_contraction(cls, contraction_dictionary, expr, reversesubs):
         outer = []
         replacements = {}
         # Traverse the contraction structure
+
         def _contraction_traverse(d1, outer, replacements):
             for key in d1:
-                if isinstance(key,Expr):
+                if isinstance(key, Expr):
                     continue
                 for term in d1[key]:
                     if term in d1:
@@ -139,8 +145,6 @@ class EinsteinStructure(object):
                     for val in d1[key]:
                         summation_notation = val
                         summation_notation = summation_apply(summation_notation, key)
-                        #for k in key:
-                            #summation_notation = Sum(summation_notation, (k,0, Symbol('ndim', integer=True)))
                         if val in replacements:
                             print (exist)
                             raise ValueError("The replacement object already exist this might cause errors")
@@ -180,36 +184,27 @@ class EinsteinStructure(object):
             else:
                 continue
         # Store the expressions for the indexed objects as they need to
-        #pprint(substits)
-        #pprint(expr)
+        # pprint(substits)
+        # pprint(expr)
         expr = expr.xreplace(obj_substitutions)
-        #pprint(expr)
-        #for key,val in substits.iteritems():
-            #pprint([key,val, val.expression])
-            #reversesubs[val] = val.expression
-        #pprint(reversesubs)
+        # pprint(expr)
+        # pprint(reversesubs)
         # get the contraction structure of the expression
-        #print(expr)
+        # print(expr)
         contraction_dictionary = (get_contraction_structure(expr))
         indices, dummies = get_indices(expr)
-        #pprint(["BEFORE APPLY",expr])
         expr = cls.apply_contraction(contraction_dictionary, expr, reversesubs)
-        #pprint(expr)
+        # pprint(expr)
         return expr, indices
-    def substitute_indexed(cls,indexedexpr):
+
+    def substitute_indexed(cls, indexedexpr):
         pot = preorder_traversal(indexedexpr)
         indexed_subs = {}
         indexedBaseSubs = {}
         einsteinobjectsubs = {}
-        # pprint(indexedexpr)
-
-        #for at in indexedexpr.atoms(EinsteinTerm):
-            #einsteinobjectsubs[at] = at.expression
-
         for p in pot:
             if isinstance(p, Indexed):
                 indexed_subs[p] = p.expression
-                #pprint([p, p.expression])
                 pot.skip()
             elif isinstance(p, IndexedBase):
                 indexedBaseSubs[p] = p.expression
@@ -222,8 +217,9 @@ class EinsteinStructure(object):
         indexedexpr = indexedexpr.xreplace(indexedBaseSubs)
 
         return indexedexpr
+
     def expand_summations(cls, expression, ndim):
-        #pprint(expression.atoms(Sum))
+        # pprint(expression.atoms(Sum))
         # To expand the summation notation. Do a postorder traversal of the tree
         pot = postorder_traversal(expression)
         to_expand = []
@@ -243,12 +239,13 @@ class EinsteinStructure(object):
         pot = preorder_traversal(expression)
         for p in pot:
             if isinstance(p, Sum):
-                #pprint(p,)
-                expression = expression.xreplace({p:expansion_subs[p]})
+                # pprint(p,)
+                expression = expression.xreplace({p: expansion_subs[p]})
                 pot.skip()
             else:
                 continue
         return expression
+
 
 class BasicDiscretisation(EinsteinStructure):
     @property
@@ -258,14 +255,17 @@ class BasicDiscretisation(EinsteinStructure):
         """
         objs = list(cls.args[0].atoms(DataSet))
         return objs
+
     @property
     def required_datasetbases(cls):
         objs = list(cls.args[0].atoms(DataSetBase)) + list(cls.work.atoms(DataSetBase))
         return list(set(objs))
+
     @property
     def required_constants(cls):
         constants = list(cls.args[0].atoms(ConstantObject))
         return constants
+
     @property
     def required_functions(cls):
         """
@@ -282,29 +282,33 @@ class BasicDiscretisation(EinsteinStructure):
                 newargs = [cls.args[0]] + [cls.args[n+1]]
                 subeval += [type(cls)(*newargs)]
         return subeval
+
     @property
     def order(cls):
         coordinates = len(cls.atoms(CoordinateObject))
-        #pprint([cls, coordinates])
         return len(cls.args)-1
+
     @property
     def is_homogeneous(cls):
         if len(set(cls.args[1:])) == 1:
             return True
         else:
             return False
+
     @property
     def is_store(cls):
         if hasattr(cls, 'store'):
             return cls.store
         else:
             return False
+
     @property
     def get_direction(cls):
         direction = []
         for args in cls.args[1:]:
             direction += [args.direction]
         return direction
+
     @property
     def _sanitise(cls):
         """ As of now CD(u0,x0,x1) --> CD(CD(u0,x0), x1)
@@ -315,15 +319,18 @@ class BasicDiscretisation(EinsteinStructure):
             args = [expr, arg]
             expr = type(cls)(*args)
         return expr
+
     @property
     def used_else_where(self):
         if hasattr(self, '_is_used'):
             return self._is_used
         else:
             return False
+
     def is_used(self, value):
         self._is_used = value
         return
+
     def update_work(cls, block):
         """
         For this we set the indices of the work array to be same as that of
@@ -349,7 +356,7 @@ class BasicDiscretisation(EinsteinStructure):
         """ calls the _structure function which returns the summation notation"""
         local_structure = []
         for arg in cls.args:
-            #pprint(arg)
+            # pprint(arg)
             expr, outer_indices = cls._structure(arg)
             local_structure += [(expr, outer_indices)]
         """
@@ -372,7 +379,7 @@ class BasicDiscretisation(EinsteinStructure):
         expr_args = []
         for ind in local_structure:
             a, b = ind
-            #pprint([a,list(b)])
+            # pprint([a,list(b)])
             expr_args += [a]
             all_outer_inds += list(b)
         final_expr = type(cls)(*expr_args)
@@ -385,34 +392,27 @@ class BasicDiscretisation(EinsteinStructure):
         if summations:
             final_expr = summation_apply(final_expr, summations)
         if inds:
-            indexedobj = IndexedBase("%s%s"%(cls.simple_name, cls.hashs(inds)))[tuple(inds)]
+            indexedobj = IndexedBase("%s%s" % (cls.simple_name, cls.hashs(inds)))[tuple(inds)]
         else:
-            indexedobj = IndexedBase("%s%s"%(cls.simple_name, cls.hashs()))
+            indexedobj = IndexedBase("%s%s" % (cls.simple_name, cls.hashs()))
         final_expr = cls.substitute_indexed(final_expr)
         indexedobj.expression = final_expr
-        #pprint(["EXPRESSION", cls,indexedobj, indexedobj.expression ])
         return indexedobj
+
 
 class Dot(Function, BasicDiscretisation):
 
     def __new__(cls, arg1, arg2):
         ret = super(Dot, cls).__new__(cls, arg1, arg2)
         return ret
-    #def structure(cls):
-        #"""
-        #This function is not dependant on _strcture
-        #"""
-        #indices = flatten([p.get_indices() for p in cls.args if p.get_indices])
-        #hashs = str(hash((type(cls).__name__,) + cls.args ))
-        #indexed = IndexedBase("%s%s"%(cls.__class__.__name__, hashs))
-        #indexed.expression = cls
-        #return
+
     @property
     def simple_name(self):
         return "Dot"
-    
+
     def value(self):
         return Mul(*self.args)
+
 
 """
 The structure for einstein expansion would be the following,
@@ -439,21 +439,22 @@ f. Create computations
 g. Update the original equations
 """
 from opensbli.utilities.helperfunctions import get_inverse_deltas
+
+
 class CentralDerivative(Function, BasicDiscretisation):
     """
     wrapper class to represent derivatives
     Sympy already have a "Derivative" class, thus double D
     """
-    #nargs = (2,3,4,5,6,7)
     def __new__(cls, expr, *args):
         args = tuple(flatten([expr] + list(args)))
         ret = super(CentralDerivative, cls).__new__(cls, *args, evaluate=False)
-        ret.store = True # By default all the derivatives are stored
+        ret.store = True  # By default all the derivatives are stored
         ret.local_evaluation = True
         return ret
 
     def doit(cls):
-        #print [arg==S.Zero for arg in cls.args]
+        # print [arg==S.Zero for arg in cls.args]
         if any(arg == S.Zero for arg in cls.args):
             return S.Zero
         elif len(set(cls.args)) == 1:
@@ -486,9 +487,9 @@ class CentralDerivative(Function, BasicDiscretisation):
                     expr = expr.replace(req, val)
                 form = form + weights[no]*expr
             if form == 0:
-                raise ValueError("Central derivative formula is zero for %s"%cls)
+                raise ValueError("Central derivative formula is zero for %s" % cls)
         else:
-            raise ValueError("The provided derivative is not homogeneous, %s"%cls)
+            raise ValueError("The provided derivative is not homogeneous, %s" % cls)
         if boundary:
             form = cls.modify_boundary_formula(form, block)
 
@@ -502,14 +503,15 @@ class CentralDerivative(Function, BasicDiscretisation):
         modifications = block.check_modify_central()
         dire = cls.get_direction[0]
         if dire in modifications:
-            #print "YES", dire, cls
+            # print "YES", dire, cls
             boundary_mods = [k for k in modifications[dire] if k]
             expression_condition_pairs = []
             for b in boundary_mods:
                 expression_condition_pairs += b.modification_scheme.expr_cond_pairs(cls.args[0], b.direction, b.side, cls.order, block)
             expression_condition_pairs += [ExprCondPair(form, True)]
-            form  = Piecewise(*expression_condition_pairs, **{'evaluate':False})
+            form = Piecewise(*expression_condition_pairs, **{'evaluate': False})
         return form
+
     def apply_boundary_derivative_modification(cls, block, scheme, work):
         """Apply the boundary modifications this returns a list of kernels if modification
         is required else returns an empty list
@@ -521,29 +523,30 @@ class CentralDerivative(Function, BasicDiscretisation):
         modifications = block.check_modify_central()
         kernels = []
         if dire in modifications:
-            #print "YES", dire, cls
+            # print "YES", dire, cls
             boundary_mods = [k for k in modifications[dire] if k]
             pprint(cls.args[0])
             for b in boundary_mods:
                 ker = Kernel(block)
                 ker.add_equation(expr)
-                ker.set_computation_name("Carpenter scheme %s "%(str(cls)))
+                ker.set_computation_name("Carpenter scheme %s " % (str(cls)))
                 ker.set_grid_range(block)
                 # modify the range to the number of points
                 expression_condition_pairs, ranges = b.modification_scheme.expr_cond_pairs(cls.args[0], b.direction, b.side, order, block)
                 ker.ranges[dire] = [ranges[0], ranges[-1]+1]
-                #expression_condition_pairs += b.modification_scheme.expr_cond_pairs(cls.args[0], b.direction, b.side, order, block)
                 expression_condition_pairs += [ExprCondPair(0, True)]
-                form  = Piecewise(*expression_condition_pairs, **{'evaluate':False})
+                form = Piecewise(*expression_condition_pairs, **{'evaluate': False})
                 ker.add_equation(Eq(work, form))
                 kernels += [ker]
         return kernels
+
     @property
     def simple_name(cls):
-        return "%s"%("CD")
+        return "%s" % ("CD")
+
     def _sympystr(self, p):
         args = list(map(p.doprint, self.args))
-        return "%s %s"%(self.simple_name, " ".join(args))
+        return "%s %s" % (self.simple_name, " ".join(args))
 
     def classical_strong_differentiabilty_transformation(cls, metric):
         direction = cls.get_direction
@@ -556,18 +559,20 @@ class CentralDerivative(Function, BasicDiscretisation):
 
         return transformed_der
 
+
 class WenoDerivative(Function, BasicDiscretisation):
 
     def __new__(cls, expr, *args):
         args = flatten([expr] + list(args))
         ret = super(WenoDerivative, cls).__new__(cls, *args, evaluate=False)
-        ret.store = True # By default all the derivatives are stored
+        ret.store = True  # By default all the derivatives are stored
         ret.reconstructions = []
         ret.local_evaluation = True
         return ret
+
     @property
     def simple_name(cls):
-        return "%s"%("WD")
+        return "%s" % ("WD")
 
     def _discretise_derivative(cls, block, scheme=None):
         """This would return the descritised derivative of the
@@ -595,10 +600,12 @@ class WenoDerivative(Function, BasicDiscretisation):
         else:
             self.reconstructions += [classes]
         return
+
     def create_reconstruction_work_array(self, block):
         self.reconstruction_work = block.work_array()
         block.increase_work_index
         return
+
     @property
     def evaluate_reconstruction(self):
 
@@ -606,9 +613,10 @@ class WenoDerivative(Function, BasicDiscretisation):
         for r in self.reconstructions:
             total += r.reconstructed_symbol
         return total
+
     def _sympystr(self, p):
         args = list(map(p.doprint, self.args))
-        return "%s %s"%(self.simple_name, " ".join(args))
+        return "%s %s" % (self.simple_name, " ".join(args))
 
     def classical_strong_differentiabilty_transformation(cls, metric):
         direction = cls.get_direction
@@ -621,18 +629,20 @@ class WenoDerivative(Function, BasicDiscretisation):
             metric_der = metric_der.subs(at, local_at)
         return metric_der
 
+
 class TenoDerivative(Function, BasicDiscretisation):
 
     def __new__(cls, expr, *args):
         args = flatten([expr] + list(args))
         ret = super(TenoDerivative, cls).__new__(cls, *args, evaluate=False)
-        ret.store = True # By default all the derivatives are stored
+        ret.store = True  # By default all the derivatives are stored
         ret.reconstructions = []
         ret.local_evaluation = True
         return ret
+
     @property
     def simple_name(cls):
-        return "%s"%("TD")
+        return "%s" % ("TD")
 
     def _discretise_derivative(cls, block, scheme=None):
         """This would return the descritised derivative of the
@@ -660,10 +670,12 @@ class TenoDerivative(Function, BasicDiscretisation):
         else:
             self.reconstructions += [classes]
         return
+
     def create_reconstruction_work_array(self, block):
         self.reconstruction_work = block.work_array()
         block.increase_work_index
         return
+
     @property
     def evaluate_reconstruction(self):
 
@@ -671,9 +683,10 @@ class TenoDerivative(Function, BasicDiscretisation):
         for r in self.reconstructions:
             total += r.reconstructed_symbol
         return total
+
     def _sympystr(self, p):
         args = list(map(p.doprint, self.args))
-        return "%s %s"%(self.simple_name, " ".join(args))
+        return "%s %s" % (self.simple_name, " ".join(args))
 
     def classical_strong_differentiabilty_transformation(cls, metric):
         direction = cls.get_direction
@@ -692,38 +705,43 @@ class TemporalDerivative(Function, BasicDiscretisation):
     def __new__(cls, expr, *args):
         args = flatten([expr] + list(args))
         ret = super(TemporalDerivative, cls).__new__(cls, *args, evaluate=False)
-        ret.store = True # By default all the derivatives are stored
+        ret.store = True  # By default all the derivatives are stored
         ret.local_evaluation = True
         return ret
+
     @property
     def simple_name(cls):
-        return "%s"%("TD")
+        return "%s" % ("TD")
+
     @property
     def time_advance_array(cls):
         return cls.args[0]
+
     def classical_strong_differentiabilty_transformation(cls, metric):
         # No change to the class
         return cls
+
 
 class OpenSBLIexpression(Equality, EinsteinStructure):
 
     def __new__(cls, expr):
         ret = super(OpenSBLIexpression, cls).__new__(cls, expr)
         return ret
+
     @property
     def simple_name(cls):
-        return "%s"%("Expr")
+        return "%s" % ("Expr")
+
 
 class MetricDerivative(Function, BasicDiscretisation):
     """
     wrapper class to represent derivatives
     Sympy already have a "Derivative" class, thus double D
     """
-    #nargs = (2,3,4,5,6,7)
     def __new__(cls, expr, *args):
         args = tuple(flatten([expr] + list(args)))
         ret = super(MetricDerivative, cls).__new__(cls, *args, evaluate=False)
-        ret.store = True # By default all the derivatives are stored
+        ret.store = True  # By default all the derivatives are stored
         return ret
 
     def _discretise_derivative(cls, scheme):
@@ -748,20 +766,20 @@ class MetricDerivative(Function, BasicDiscretisation):
                 for req in (cls.required_datasets):
                     loc = req.location[:]
                     loc[dire] = loc[dire] + p
-                    #pprint([loc, req.location])
                     val = req.get_location_dataset(loc)
                     expr = expr.replace(req, val)
                 form = form + weights[no]*expr
             if form == 0:
-                raise ValueError("Central derivative formula is zero for %s"%cls)
+                raise ValueError("Central derivative formula is zero for %s" % cls)
         else:
             raise ValueError("")
         return form
+
     @property
     def simple_name(cls):
-        return "%s"%("CD")
+        return "%s" % ("CD")
 
 
 localfuncs = (MetricDerivative, KD, CentralDerivative, WenoDerivative, TenoDerivative, TemporalDerivative, LC, Dot)
 simplifying_funcs = (KD, LC, Dot)
-local_objects = ( DataObject, CoordinateObject, ConstantObject, EinsteinTerm)
+local_objects = (DataObject, CoordinateObject, ConstantObject, EinsteinTerm)
