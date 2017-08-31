@@ -20,10 +20,11 @@ from opensbli.core.opensbliequations import NonSimulationEquations, Discretisati
 from opensbli.core.kernel import Kernel
 from .common import *
 
+
 class GridBasedInitialisation(Discretisation, NonSimulationEquations):
-    def __new__(cls, order = None, **kwargs):
-        ret = super(GridBasedInitialisation,cls).__new__(cls)
-        if order: # Local order if multiple instances of the class are declared on the block
+    def __new__(cls, order=None, **kwargs):
+        ret = super(GridBasedInitialisation, cls).__new__(cls)
+        if order:  # Local order if multiple instances of the class are declared on the block
             ret.order = order
         else:
             ret.order = 0
@@ -33,18 +34,21 @@ class GridBasedInitialisation(Discretisation, NonSimulationEquations):
         """
         ret.algorithm_place = [BeforeSimulationStarts()]
         return ret
+
     def __hash__(self):
         h = hash(self._hashable_content())
         self._mhash = h
         return h
+
     def _hashable_content(self):
         return "GridBasedInitialisation"
+
     def add_equations(cls, equation):
         #equation = cls._sanitise_equations(equation)
         if isinstance(equation, list):
             for no, eq in enumerate(equation):
                 eq = OpenSBLIEquation(eq.lhs, eq.rhs)
-                #eq.set_vector(no)
+                # eq.set_vector(no)
                 cls.equations += [eq]
         else:
             equation = OpenSBLIEquation(equation.lhs, equation.rhs)
@@ -52,14 +56,14 @@ class GridBasedInitialisation(Discretisation, NonSimulationEquations):
         return
 
     def spatial_discretisation(cls, schemes, block):
-        kernel1 = Kernel(block, computation_name = "Grid_based_initialisation%d"%cls.order)
+        kernel1 = Kernel(block, computation_name="Grid_based_initialisation%d" % cls.order)
         kernel1.set_grid_range(block)
         # Checking
-        #for eq in block.list_of_equation_classes:
-            #from opensbli.core.metrics import *
-            #if isinstance(eq, MetricsEquation):
-                #for k in eq.Kernels:
-                    #print k.computation_name, k.halo_ranges, k.ranges
+        # for eq in block.list_of_equation_classes:
+        # from opensbli.core.metrics import *
+        # if isinstance(eq, MetricsEquation):
+        # for k in eq.Kernels:
+        # print k.computation_name, k.halo_ranges, k.ranges
         for d in range(block.ndim):
             for sc in schemes:
                 if schemes[sc].schemetype == "Spatial":
@@ -69,11 +73,11 @@ class GridBasedInitialisation(Discretisation, NonSimulationEquations):
         kernel1.update_block_datasets(block)
         cls.Kernels = [kernel1]
         # Checking
-        #for eq in block.list_of_equation_classes:
-            #from opensbli.core.metrics import *
-            #if isinstance(eq, MetricsEquation):
-                #for k in eq.Kernels:
-                    #print k.computation_name, k.halo_ranges, k.ranges
+        # for eq in block.list_of_equation_classes:
+        # from opensbli.core.metrics import *
+        # if isinstance(eq, MetricsEquation):
+        # for k in eq.Kernels:
+        # print k.computation_name, k.halo_ranges, k.ranges
         return
 
     def apply_boundary_conditions(cls, block):
@@ -84,4 +88,3 @@ class GridBasedInitialisation(Discretisation, NonSimulationEquations):
 
 # class GridGeneration(Discretisation, NonSimulationEquations):
 #     def __new__(cls, )
-
