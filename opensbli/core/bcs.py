@@ -26,10 +26,12 @@ from opensbli.utilities.helperfunctions import increment_dataset
 from opensbli.core.opensbliequations import ConstituentRelations
 
 from opensbli.physical_models.ns_physics import *
-side_names  = {0:'left', 1:'right'}
+side_names = {0: 'left', 1: 'right'}
+
 
 class Exchange(object):
     pass
+
 
 class ModifyCentralDerivative(object):
     """ A place holder for the boundary conditions on which the central derivative should be modified"""
@@ -41,16 +43,17 @@ class ExchangeSelf(Exchange):
     """ Defines data exchange on the same block. """
 
     def __init__(self, block, direction, side):
-        ## Range of evaluation (i.e. the grid points, including the halo points, over which the computation should be performed).
+        # Range of evaluation (i.e. the grid points, including the halo points, over which the computation should be performed).
         self.computation_name = "exchange"
         self.block_number = block.blocknumber
         self.block_name = block.blockname
         self.direction = direction
         self.side = side_names[side]
         return
+
     @property
     def name(self):
-        return "%s%d"%(self.computation_name, self.number)
+        return "%s%d" % (self.computation_name, self.number)
 
     def set_arrays(self, arrays):
         self.transfer_arrays = flatten(arrays)
@@ -65,23 +68,27 @@ class ExchangeSelf(Exchange):
     def set_transfer_to(self, transfer):
         self.transfer_to = transfer
         return
+
     def set_transfer_size(self, size):
         self.transfer_size = size
         return
+
     @property
     def algorithm_node_name(self):
-        name = "Boundary_exchange_block_%d_direction%d_side%s"%(self.block_number,self.direction, self.side)
+        name = "Boundary_exchange_block_%d_direction%d_side%s" % (self.block_number, self.direction, self.side)
         return name
 
     def write_latex(self, latex):
-        latex.write_string("This is an exchange self kernel on variables %s\\\\"%', '.join([str(a) for a in self.transfer_arrays]))
+        latex.write_string("This is an exchange self kernel on variables %s\\\\" % ', '.join([str(a) for a in self.transfer_arrays]))
         return
+
     @property
     def opsc_code(self):
         """The string for calling the boundary condition in OPSC is update while creating
         the code for exchanging data
         """
         return [self.call_name]
+
 
 class BoundaryConditionTypes(object):
 
@@ -107,7 +114,8 @@ class BoundaryConditionTypes(object):
     def check_modify_central(self):
         modify = {}
         for no, val in enumerate(self.boundary_types):
-            left = val[0]; right = val[1]
+            left = val[0]
+            right = val[1]
             if isinstance(left, ModifyCentralDerivative):
                 if no in modify:
                     modify[no][0] = left
@@ -119,6 +127,8 @@ class BoundaryConditionTypes(object):
                 else:
                     modify[no] = [None, right]
         return modify
+
+
 class BoundaryConditionBase(object):
     def __init__(self, boundary_direction, side, plane):
         if plane:
@@ -172,6 +182,7 @@ class BoundaryConditionBase(object):
             from_side_factor = 1
             to_side_factor = -1
         return from_side_factor, to_side_factor
+
     def update_location(self, loc, increment):
         loc = [0 for i in range(self.ndim)]
 
@@ -180,14 +191,17 @@ class PeriodicBoundaryConditionBlock(BoundaryConditionBase):
     """
     Applies periodic boundary condition
     """
+
     def __init__(self, boundary_direction, side, plane=True):
         BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
         return
+
     def halos(self):
         return True
+
     def apply(self, arrays, boundary_direction, side, block):
         # Get the exchanges which form the computations.
-        exchange = self.get_exchange(arrays, boundary_direction,side, block)
+        exchange = self.get_exchange(arrays, boundary_direction, side, block)
         return exchange
 
     def get_exchange(self, arrays, boundary_direction, side, block):
@@ -214,33 +228,39 @@ class PeriodicBoundaryConditionBlock(BoundaryConditionBase):
         ex.number = ker.kernel_no
         return ex
 
+
 class LinearExtrapolateBoundaryConditionBlock(BoundaryConditionBase):
     """
     Applies 1st order linear extrapolation boundary condition.
     """
+
     def __init__(self, boundary_direction, side, plane=True):
         BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
         self.bc_name = 'LinearExtrapolate'
         return
+
     def halos(self):
         return True
+
     def apply(self, arrays, boundary_direction, side, block):
         halos, kernel = self.generate_boundary_kernel(boundary_direction, side, block, self.bc_name)
         from_side_factor, to_side_factor = self.set_side_factor(side)
         indices = [tuple([from_side_factor*t, to_side_factor*t]) for t in range(1, abs(halos[boundary_direction][side]) + 1)]
         grid_vars = [GridVariable('%sG' % str(i)) for i in flatten(arrays)]
-        boundary_values = [Eq(x,y) for x,y in zip(grid_vars, flatten(arrays))]
+        boundary_values = [Eq(x, y) for x, y in zip(grid_vars, flatten(arrays))]
         kernel.add_equation(boundary_values)
         arrs = flatten(arrays)
-        rhs_values = [2.0*i - j for i,j in zip(grid_vars, arrs)]
+        rhs_values = [2.0*i - j for i, j in zip(grid_vars, arrs)]
         equations = self.create_boundary_equations(boundary_direction, arrs, rhs_values, indices)
         kernel.add_equation(equations)
         kernel.update_block_datasets(block)
         return kernel
 
+
 class DirichletBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionBase):
     """Applies constant value Dirichlet boundary condition."""
-    def __init__(self, boundary_direction, side , equations, scheme= None, plane=True):
+
+    def __init__(self, boundary_direction, side, equations, scheme=None, plane=True):
         BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
         self.bc_name = 'Dirichlet'
         self.equations = equations
@@ -249,8 +269,10 @@ class DirichletBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCondition
         else:
             self.modification_scheme = scheme
         return
+
     def halos(self):
         return True
+
     def apply(self, arrays, boundary_direction, side, block):
         halos, kernel = self.generate_boundary_kernel(boundary_direction, side, block, self.bc_name)
         # Add halos across the boundary side only
@@ -258,6 +280,7 @@ class DirichletBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCondition
         kernel.add_equation(self.equations)
         kernel.update_block_datasets(block)
         return kernel
+
 
 class SymmetryBoundaryConditionBlock(BoundaryConditionBase):
     def __init__(self, boundary_direction, side, plane=True):
@@ -295,7 +318,10 @@ class SymmetryBoundaryConditionBlock(BoundaryConditionBase):
         kernel.update_block_datasets(block)
         return kernel
 
+
 from sympy.functions.elementary.piecewise import ExprCondPair
+
+
 class Carpenter(object):
     def __init__(self):
 
@@ -306,7 +332,7 @@ class Carpenter(object):
         return
 
     def function_points(self, expression, direction, side):
-        f_matrix = zeros(6,6)
+        f_matrix = zeros(6, 6)
         loc = list(list(expression.atoms(DataSet))[0].indices)
         for shift in range(6):
             func_points = []
@@ -316,31 +342,31 @@ class Carpenter(object):
                 for dset in expression.atoms(DataSet):
                     expression = expression.replace(dset, dset.base[new_loc])
                 func_points.append(expression)
-            f_matrix[:,shift] = func_points
+            f_matrix[:, shift] = func_points
         if side == 0:
-            f_matrix = f_matrix[:,0:4]
+            f_matrix = f_matrix[:, 0:4]
         elif side == 1:
-            f_matrix = f_matrix.transpose()[:,0:4]
+            f_matrix = f_matrix.transpose()[:, 0:4]
         else:
             raise NotImplementedError("Side must be 0 or 1")
         return f_matrix
 
     def weight_function_points(self, func_points, direction, order, block, side, char_BC=False):
         if order == 1:
-            h = S.One # The division of delta is now applied in central derivative to reduce the divisions
+            h = S.One  # The division of delta is now applied in central derivative to reduce the divisions
             if side == 1:
-                h = -S.One*h # Modify the first derivatives for side ==1
+                h = -S.One*h  # Modify the first derivatives for side ==1
             if char_BC:
-                weighted = h*(self.bc4_symbols[0,:]*func_points)
+                weighted = h*(self.bc4_symbols[0, :]*func_points)
             else:
-                weighted = zeros(4,1)
+                weighted = zeros(4, 1)
                 for i in range(4):
-                    weighted[i] = h*(self.bc4_coefficients[i,:]*func_points[:,i])
+                    weighted[i] = h*(self.bc4_coefficients[i, :]*func_points[:, i])
         elif order == 2:
-            h_sq = S.One # The division of delta**2 is now applied in central derivative to reduce the divisions
-            weighted = zeros(2,1)
+            h_sq = S.One  # The division of delta**2 is now applied in central derivative to reduce the divisions
+            weighted = zeros(2, 1)
             for i in range(2):
-                weighted[i] = h_sq*(self.bc4_2_coefficients[i,:]*func_points[0:5,i])
+                weighted[i] = h_sq*(self.bc4_2_coefficients[i, :]*func_points[0:5, i])
         else:
             raise NotImplementedError("Only 1st and 2nd derivatives implemented")
         return weighted
@@ -357,26 +383,26 @@ class Carpenter(object):
             start = block.ranges[direction][side] - 1
         ecs = []
         # Commenting out creating different kernels for the Carpenter bc's
-        #ranges = []
-        for no,d in enumerate(derivatives):
+        # ranges = []
+        for no, d in enumerate(derivatives):
             loc = start + mul_factor*no
-            #ranges += [loc] # Commenting out creating different kernels for the Carpenter bc's
-            ecs += [ExprCondPair(d, Equality(idx,loc))]
+            # ranges += [loc] # Commenting out creating different kernels for the Carpenter bc's
+            ecs += [ExprCondPair(d, Equality(idx, loc))]
         # Commenting out creating different kernels for the Carpenter bc's
         """if side != 0:
             ranges = list(reversed(ranges))"""
         return ecs
 
-    def expr_cond_pair_kernel(self, fn, direction, side, order,block):
+    def expr_cond_pair_kernel(self, fn, direction, side, order, block):
         """This was written for creating different carpenter kernels but keeping it as it cna be used
         later
         """
         ker = Kernel(block)
         ker.add_equation(expr)
-        ker.set_computation_name("Carpenter scheme %s "%(fn))
+        ker.set_computation_name("Carpenter scheme %s " % (fn))
         ker.set_grid_range(block)
-        # modify the range to the number of points 
-        ecs, ranges = self,expr_cond_pairs(fn, direction, side, order, block)
+        # modify the range to the number of points
+        ecs, ranges = self, expr_cond_pairs(fn, direction, side, order, block)
         ker.ranges[direction] = [ranges[0], ranges[-1]]
         return ker, ecs
 
@@ -397,7 +423,7 @@ class Carpenter(object):
         bc4_2 = Matrix([[35.0, -104.0, 114.0, -56.0, 11.0], [11.0, -20.0, 6.0, 4.0, -1.0]])/12.0
         for i in range(bc4_2.shape[0]):
             for j in range(bc4_2.shape[1]):
-                bc4_2[i,j] = nsimplify(bc4_2[i,j])
+                bc4_2[i, j] = nsimplify(bc4_2[i, j])
         return bc4_2
 
     def carp4_coefficients(self):
@@ -412,9 +438,9 @@ class Carpenter(object):
         al4_2 = [-(72.0*R2+720.0*R1+445.0)/1440.0, (1836.0*R2+14580.0*R1+7295.0)/2160.0, -(4104.0*R2+32400.0*R1+12785.0)/4320.0, (81.0*R2+675.0*R1+335.0)/540.0]
         al4_3 = [-(108.0*R2+756.0*R1+421.0)/1296.0, -(216.0*R2+2160.0*R1+655.0)/4320.0, (81.0*R2+675.0*R1+335.0)/540.0, -(216.0*R2+2160.0*R1-12085.0)/12960.0]
 
-        al4 = Matrix([al4_0,al4_1,al4_2,al4_3])
+        al4 = Matrix([al4_0, al4_1, al4_2, al4_3])
 
-        ar4_0 = [(-1.0)/2.0, -(864.0*R2+6480.0*R1+305.0)/4320.0, (216.0*R2+1620.0*R1+725.0)/540.0,-(864.0*R2+6480.0*R1+3335.0)/4320.0, 0.0, 0.0]
+        ar4_0 = [(-1.0)/2.0, -(864.0*R2+6480.0*R1+305.0)/4320.0, (216.0*R2+1620.0*R1+725.0)/540.0, -(864.0*R2+6480.0*R1+3335.0)/4320.0, 0.0, 0.0]
         ar4_1 = [(864.0*R2+6480.0*R1+305.0)/4320.0, 0.0, -(864.0*R2+6480.0*R1+2315.0)/1440.0, (108.0*R2+810.0*R1+415.0)/270.0, 0.0, 0.0]
         ar4_2 = [-(216.0*R2+1620.0*R1+725.0)/540.0, (864.0*R2+6480.0*R1+2315.0)/1440.0, 0.0, -(864.0*R2+6480.0*R1+785.0)/4320.0, -1.0/12.0, 0.0]
         ar4_3 = [(864.0*R2+6480.0*R1+3335.0)/4320.0, -(108.0*R2+810.0*R1+415.0)/270.0, (864.0*R2+6480.0*R1+785.0)/4320.0, 0.0, 8.0/12.0, -1.0/12.0]
@@ -428,8 +454,9 @@ class Carpenter(object):
         #         bc4[i,j] = nsimplify(bc4[i,j])
         return bc4
 
+
 class AdiabaticWallBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionBase):
-    def __init__(self, boundary_direction, side, equations=None, scheme = None,plane=True):
+    def __init__(self, boundary_direction, side, equations=None, scheme=None, plane=True):
         BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
         self.bc_name = 'AdiabaticWall'
         self.equations = equations
@@ -438,13 +465,14 @@ class AdiabaticWallBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCondi
         else:
             self.modification_scheme = scheme
         return
+
     def apply(self, arrays, boundary_direction, side, block):
         halos, kernel = self.generate_boundary_kernel(boundary_direction, side, block, self.bc_name)
         wall_eqns = []
         for ar in arrays:
             if isinstance(ar, list):
                 rhs = [0 for i in range(len(ar))]
-                wall_eqns += [Eq(x,y) for (x,y) in zip(ar, rhs)]
+                wall_eqns += [Eq(x, y) for (x, y) in zip(ar, rhs)]
         kernel.add_equation(wall_eqns)
         from_side_factor, to_side_factor = self.set_side_factor(side)
         rhs_eqns = []
@@ -461,11 +489,13 @@ class AdiabaticWallBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCondi
         kernel.update_block_datasets(block)
         return kernel
 
+
 def apply_modify_derivative(order, fn, bcs, block, value):
     return
 
+
 class IsothermalWallBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionBase):
-    def __init__(self, boundary_direction, side, equations, const_dict, scheme = None,plane=True):
+    def __init__(self, boundary_direction, side, equations, const_dict, scheme=None, plane=True):
         BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
         self.bc_name = 'IsothermalWall'
         self.const_dict = const_dict
@@ -475,6 +505,7 @@ class IsothermalWallBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCond
         else:
             self.modification_scheme = scheme
         return
+
     def apply(self, arrays, boundary_direction, side, block):
         kernel = Kernel(block, computation_name="Isothermal wall boundary dir%d side%d" % (boundary_direction, side))
         kernel.set_boundary_plane_range(block, boundary_direction, side)
@@ -490,7 +521,7 @@ class IsothermalWallBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCond
         cons_vars = [NS.density(), NS.momentum(), NS.total_energy()]
         base_loc = list(cons_vars[0].indices)
         # Set wall conditions, momentum zero, rhoE specified:
-        wall_eqns = [Eq(x,0) for x in NS.momentum()] + self.equations[:]
+        wall_eqns = [Eq(x, 0) for x in NS.momentum()] + self.equations[:]
         kernel.add_equation(wall_eqns)
         # Evaluate the wall pressure
         p0, gama, Minf = GridVariable('p0'), NS.specific_heat_ratio(), NS.mach_number()
@@ -500,7 +531,7 @@ class IsothermalWallBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCond
         for i in range(1, n_halos+1):
             new_loc = base_loc[:]
             new_loc[boundary_direction] += to_side_factor*i
-            T = self.convert_dataset_base_expr_to_datasets(NS.temperature(relation=True, conservative=True),new_loc)
+            T = self.convert_dataset_base_expr_to_datasets(NS.temperature(relation=True, conservative=True), new_loc)
             kernel.add_equation(Eq(GridVariable('T%d' % i), T))
 
         # Set rhoE RHS and reverse momentum components in the halos
@@ -527,10 +558,12 @@ class IsothermalWallBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCond
         kernel.update_block_datasets(block)
         return kernel
 
+
 class InletTransferBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionBase):
     """This is boundary condition should not be used until the user knows what he is doing. This is used for testing OpenSBLI
     """
-    def __init__(self, boundary_direction, side, equations = None, scheme = None,plane=True):
+
+    def __init__(self, boundary_direction, side, equations=None, scheme=None, plane=True):
         BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
         self.bc_name = 'InletTransfer'
         self.equations = equations
@@ -545,14 +578,14 @@ class InletTransferBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCondi
     def apply(self, arrays, boundary_direction, side, block):
         halos, kernel = self.generate_boundary_kernel(boundary_direction, side, block, self.bc_name)
         cons_vars = flatten(arrays)
-        equations = self.create_boundary_equations(boundary_direction, cons_vars, cons_vars, [(0,-1)])
+        equations = self.create_boundary_equations(boundary_direction, cons_vars, cons_vars, [(0, -1)])
         kernel.add_equation(equations)
         kernel.update_block_datasets(block)
         return kernel
 
 
 class InletPressureExtrapolateBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionBase):
-    def __init__(self, boundary_direction, side, equations = None, scheme = None,plane=True):
+    def __init__(self, boundary_direction, side, equations=None, scheme=None, plane=True):
         BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
         self.bc_name = 'InletPressureExtrapolate'
         self.equations = equations
@@ -577,8 +610,8 @@ class InletPressureExtrapolateBoundaryConditionBlock(ModifyCentralDerivative, Bo
         grid_vels_sq = [i**2 for i in grid_vels]
         eqns = [Eq(rhob, NS.density())]
         eqns += [Eq(grid_vels[i], Abs(u/NS.density())) for i, u in enumerate(NS.momentum())]
-        eqns += [Eq(pb,(gama-1)*(flatten(arrays)[-1] - 0.5*rhob*sum(flatten(grid_vels_sq))))]
-        eqns += [Eq(ab,(gama*pb/rhob)**0.5)]
+        eqns += [Eq(pb, (gama-1)*(flatten(arrays)[-1] - 0.5*rhob*sum(flatten(grid_vels_sq))))]
+        eqns += [Eq(ab, (gama*pb/rhob)**0.5)]
         kernel.add_equation(eqns)
         locations = [-1, 0]
         inlet_vel = grid_vels[boundary_direction]
@@ -588,16 +621,16 @@ class InletPressureExtrapolateBoundaryConditionBlock(ModifyCentralDerivative, Bo
             rhs_values = [increment_dataset(lhs, boundary_direction, value) for value in locations]
             ecs += [ExprCondPair(rhs_values[0], GreaterThan(inlet_vel, ab))]
             ecs += [ExprCondPair(rhs_values[1], True)]
-            kernel.add_equation(Eq(lhs, Piecewise(*ecs, **{'evaluate':False})))
+            kernel.add_equation(Eq(lhs, Piecewise(*ecs, **{'evaluate': False})))
         # Conditions set in the halos in rhoE
         rhs_rhoE = pb/(gama-1.0) + 0.5*rhob*sum(grid_vels_sq)
         locations = [-i-1 for i in range(abs(halos[0][0]))]
         lhs_rhoE = [increment_dataset(NS.total_energy(), boundary_direction, value) for value in locations]
         for i, lhs in enumerate(lhs_rhoE):
             ecs = []
-            ecs += [ExprCondPair(lhs, GreaterThan(inlet_vel, ab))] # lhs == rhs
+            ecs += [ExprCondPair(lhs, GreaterThan(inlet_vel, ab))]  # lhs == rhs
             ecs += [ExprCondPair(NS.total_energy(), True)]
-            kernel.add_equation(Eq(lhs, Piecewise(*ecs, **{'evaluate':False})))
+            kernel.add_equation(Eq(lhs, Piecewise(*ecs, **{'evaluate': False})))
         kernel.update_block_datasets(block)
         return kernel
 
@@ -605,7 +638,8 @@ class InletPressureExtrapolateBoundaryConditionBlock(ModifyCentralDerivative, Bo
 class OutletTransferBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionBase):
     """This is boundary condition should not be used until the user knows what he is doing. This is used for testing OpenSBLI
     """
-    def __init__(self, boundary_direction, side, equations = None, scheme = None,plane=True):
+
+    def __init__(self, boundary_direction, side, equations=None, scheme=None, plane=True):
         BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
         self.bc_name = 'OutletTransfer'
         self.equations = equations
@@ -622,7 +656,7 @@ class OutletTransferBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCond
         cons_vars = flatten(arrays)
         n_halos = abs(halos[boundary_direction][side])
         for i in range(n_halos+1):
-            equations = self.create_boundary_equations(boundary_direction, cons_vars, cons_vars, [(i,-1)])
+            equations = self.create_boundary_equations(boundary_direction, cons_vars, cons_vars, [(i, -1)])
             kernel.add_equation(equations)
         kernel.update_block_datasets(block)
         return kernel
@@ -706,7 +740,6 @@ class OutletTransferBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCond
 
 
 #         return
-
 
 
 #     def create_conditionals(self, conditions):
