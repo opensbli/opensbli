@@ -1,8 +1,12 @@
 
-from .opensblifunctions import CentralDerivative
-from .kernel import *
+from opensbli.core.opensblifunctions import CentralDerivative
+from opensbli.core.kernel import Kernel
 from opensbli.core.scheme import Central
 from opensbli.utilities.helperfunctions import increasing_order, decreasing_order
+from opensbli.core.opensbliobjects import ConstantObject
+from sympy import pprint, flatten, Eq, postorder_traversal
+from opensbli.core.grid import GridVariable
+from opensbli.core.latex import LatexWriter
 
 
 class Store_some_original(Central):
@@ -76,7 +80,7 @@ class Store_some_original(Central):
         descritised_equations = equations[:]
         cds = self.get_local_function(equations)
         grid_variable_evaluations = []
-        no_of_non_store = 0
+        # no_of_non_store = 0
         # local_kernels = {}
         if cds:
             gridvars = [GridVariable('localeval_%d' % i) for i in range(len(cds))]
@@ -181,7 +185,7 @@ class Store_some_level2(Central):
         descritised_equations = equations[:]
         cds = self.get_local_function(equations)
         grid_variable_evaluations = []
-        no_of_non_store = 0
+        # no_of_non_store = 0
         if cds:
             gridvars = [GridVariable('localeval_%d' % i) for i in range(len(cds))]
             for der in sorted(cds, cmp=decreasing_order):
@@ -208,7 +212,7 @@ class Store_some_optimisation(Central):
         self.set_halos(block)  # THis is important
         pprint(type_of_eq)
         equations = flatten(type_of_eq.equations)
-        residual_arrays = [eq.residual for eq in equations]
+        # residual_arrays = [eq.residual for eq in equations]
         # equations = [e._sanitise_equation for e in equations]
         self.required_constituent_relations = {}
         cds = self.get_local_function(equations)
@@ -260,7 +264,6 @@ class Store_some_optimisation(Central):
         return homogenous_ders, non_homogenous_ders
 
     def find_inner(self, CD):
-        expr = CD.copy()
         inner_cds = []
 
         pot = postorder_traversal(CD)
@@ -351,7 +354,7 @@ class RA_optimisation(Central):
         cds = self.get_local_function(equations)
         descritised_equations = equations[:]
         # pprint(cds)
-        work_arry_subs = {}
+        # work_arry_subs = {}
         if cds:
             for der in sorted(cds, cmp=decreasing_order):
                 self.update_range_of_constituent_relations(der, block)
@@ -411,7 +414,7 @@ class SN_optimisation(Central):
         cds = self.get_local_function(equations)
         descritised_equations = equations[:]
         # pprint(cds)
-        work_arry_subs = {}
+        # work_arry_subs = {}
         local_eq = []
         if cds:
             gvs = [GridVariable("localeval_%d" % i) for i in range(len(cds))]
@@ -495,7 +498,7 @@ class SN_optimisation_level_2(Central):
         cds = self.get_local_function(equations)
         descritised_equations = equations[:]
         # pprint(cds)
-        work_arry_subs = {}
+        # work_arry_subs = {}
         local_eq = []
         if cds:
             gvs = [GridVariable("leval_%d" % i) for i in range(len(cds))]
@@ -572,7 +575,7 @@ class RA_optimisation_level_2(Central):
         cds = self.get_local_function(equations)
         descritised_equations = equations[:]
         # pprint(cds)
-        work_arry_subs = {}
+        # work_arry_subs = {}
         if cds:
             for der in sorted(cds, cmp=decreasing_order):
                 self.update_range_of_constituent_relations(der, block)
@@ -633,7 +636,7 @@ class RA_optimisation_level_3(Central):
         cds = self.get_local_function(equations)
         descritised_equations = equations[:]
         # pprint(cds)
-        work_arry_subs = {}
+        # work_arry_subs = {}
         if cds:
             for der in sorted(cds, cmp=decreasing_order):
                 self.update_range_of_constituent_relations(der, block)
@@ -694,7 +697,7 @@ class Hybrid_RA_SN(Central):
         cds = self.get_local_function(equations)
         descritised_equations = equations[:]
         # pprint(cds)
-        work_arry_subs = {}
+        # work_arry_subs = {}
         if cds:
             for der in sorted(cds, cmp=decreasing_order):
                 self.update_range_of_constituent_relations(der, block)
