@@ -13,9 +13,10 @@ def increment_dataset(expression, direction, value):
     for dset in expression.atoms(DataSet):
         loc = list(dset.indices)
         loc[direction] = loc[direction] + value
-        new_dset =  dset.base[loc]
+        new_dset = dset.base[loc]
         expression = expression.replace(dset, new_dset)
     return expression
+
 
 def dot(v1, v2):
     out = 0
@@ -28,6 +29,7 @@ def dot(v1, v2):
             raise ValueError("")
     else:
         return v1*v2
+
 
 def decreasing_order(s1, s2):
     return cmp(len(s2.atoms(CoordinateObject)), len(s1.atoms(CoordinateObject)))
@@ -46,8 +48,9 @@ def sort_funcitons(fns, increasing_order=True):
     else:
         return (sorted(fns, cmp=decreasing_order))
 
+
 def get_inverse_deltas(delta):
-    from  opensbli.core.codegeneration.opsc import rc
+    from opensbli.core.codegeneration.opsc import rc
     if delta in rc.existing:
         return rc.existing[delta]
     else:
