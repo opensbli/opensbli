@@ -188,6 +188,7 @@ class CoordinateObject(EinsteinTerm):
             ret.timecoordinate = True
         else:
             ret.timecoordinate = False
+        ret.is_coordinate = True
         return ret
 
     def get_coordinate_type(cls):
