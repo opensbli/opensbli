@@ -17,7 +17,9 @@ class KernelCounter():
 
     def __init__(self):
         self.kernel_counter = 0
+        self.stored_counter = 0
 
+    @property
     def reset_kernel_counter(self):
         """
         """
@@ -31,12 +33,14 @@ class KernelCounter():
         self.kernel_counter = self.kernel_counter + 1
         return
 
+    @property
     def store_kernel_counter(self):
         """
         """
         self.stored_counter = self.kernel_counter
         return
 
+    @property
     def reset_kernel_to_stored(self):
         """
         """
