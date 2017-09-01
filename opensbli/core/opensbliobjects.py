@@ -345,7 +345,6 @@ class DataSet(Indexed):
         return ret
 
     def _sympystr(self, p):
-        allinds = [i for i in self.indices if not isinstance(i, Idx)]
         return "%s" % (p.doprint(self.base))
 
     def _pretty(self, printer):
