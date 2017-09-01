@@ -54,9 +54,9 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes):  # BoundaryC
 
     def __init__(self, ndim, block_number=None):
         if block_number:
-            self.blocknumber = block_number
+            self.__blocknumber = block_number
         else:
-            self.blocknumber = 0
+            self.__blocknumber = 0
         self.ndim = ndim
         KernelCounter.__init__(self)
         Grid.__init__(self)
@@ -76,10 +76,13 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes):  # BoundaryC
         """
         return 'opensbliblock%02d' % self.blocknumber
 
-    def set_block_number(self, number):
-        """
-        """
-        self.blocknumber = number
+    @property
+    def blocknumber(self):
+        return self.__blocknumber
+
+    @blocknumber.setter
+    def blocknumber(self, number):
+        self.__blocknumber = number
         return
 
     def set_block_boundaries(self, bclist):
