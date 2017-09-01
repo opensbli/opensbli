@@ -171,10 +171,10 @@ class Grid(WorkDataSet):
         """
         # Add the constants to ConstantsToDeclare
         from .kernel import ConstantsToDeclare as CTD
-        for d in self.deltas:
-            CTD.add_constant(d)
         for s in self.shape:
             CTD.add_constant(s, dtype=Int())
+        for d in self.deltas:
+            CTD.add_constant(d)
         # GridIndexedBase.block = self
         # g = Grididx('idx_B0')
         self.grid_indexes = [Grididx("idx", i) for i in range(self.ndim)]

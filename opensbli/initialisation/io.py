@@ -68,7 +68,7 @@ class iohdf5(opensbliIO):
         name = "opensbli_output"
         code = ['char name[80];']
         # generate file name
-        code += ['sprintf(name, \"%s_%d.h5\", iter);' % name]
+        code += ['sprintf(name, \"%s_%%d.h5\", iter);' % name]
         dataset_write = []
         for ar in cls.arrays:
             block_name = ar.base.blockname

@@ -1,22 +1,14 @@
 #!/usr/bin/env python
-import sys
-from math import ceil
-
-# Import local utility functions
-from sympy import *
-from opensbli.core import *
-from opensbli.core.bcs import *
-from opensbli.physical_models.euler_eigensystem import *
-from opensbli.initialisation import *
-
+# Import all the functions from opensbli
+from opensbli import *
+from opensbli.core.weno_opensbli import *
+import copy
 
 def dt(dx, c):
     """ Given a grid spacing dx and the wave speed c, return the value of dt such that the CFL condition is respected. """
     courant_number = 0.2
     return (dx*courant_number)/c
 
-
-BUILD_DIR = os.getcwd()
 
 # Problem dimension
 ndim = 1
