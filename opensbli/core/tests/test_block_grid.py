@@ -55,4 +55,10 @@ def test_workaray_block0_2d(block0_2d):
     return
 
 def test_kernel_counter_block(block0_2d):
+    block0_2d.increase_kernel_counter
+    assert block0_2d.kernel_counter == 1    
+    block0_2d.increase_kernel_counter
+    assert block0_2d.kernel_counter == 2
+    block0_2d.reset_kernel_counter
+    assert block0_2d.kernel_counter == 0
     return
