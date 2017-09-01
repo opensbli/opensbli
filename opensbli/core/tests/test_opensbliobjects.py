@@ -1,0 +1,63 @@
+import os
+import pytest
+from sympy import pprint, Idx, srepr
+from opensbli.core.opensbliobjects import *
+
+@pytest.fixture
+def scalar():
+	return EinsteinTerm('u')
+
+@pytest.fixture
+def vector():
+	return EinsteinTerm('u_i')
+
+@pytest.fixture
+def tensor():
+	return EinsteinTerm('u_i_j')
+
+def test_EinsteinTerm(scalar, vector, tensor):
+	# Check properties of the EinsteinTerm
+	assert scalar.name == 'u'
+	assert vector.name == 'u_i'
+	assert tensor.name == 'u_i_j'
+	# Check indices
+	assert len(scalar.get_indices()) == 0
+	assert len(vector.get_indices()) == 1
+	assert len(tensor.get_indices()) == 2
+	# Check base names
+	assert scalar.get_base() == 'u'
+	assert vector.get_base() == 'u'
+	assert tensor.get_base() == 'u'
+	# Check indices are of the correct type
+	assert type(scalar.get_indices()) == list
+	assert type(vector.get_indices()[0]) == Idx
+	assert type(tensor.get_indices()[0]) == Idx
+	assert type(tensor.get_indices()[1]) == Idx
+	# Check string represenation of the structure
+	assert srepr(scalar.structure()) == "EinsteinTerm('u')"
+	assert srepr(vector.structure()) == "Indexed(IndexedBase(Symbol('u')), Idx(Symbol('i', integer=True)))"
+	assert srepr(tensor.structure()) == "Indexed(IndexedBase(Symbol('u')), Idx(Symbol('i', integer=True)), Idx(Symbol('j', integer=True)))"
+	# Check indices are applied correctly
+	assert srepr(vector.apply_index(vector.indices[0], 3)) == "EinsteinTerm('u3')"
+	assert srepr(tensor.apply_index(tensor.indices[0], 4)) == "EinsteinTerm('u4_j')"
+	# Check application of one index hasn't changed the other
+	a = tensor.apply_index(tensor.indices[1], 4)
+	assert a.indices[0] == tensor.indices[0]
+	a = tensor.apply_index(tensor.indices[0], 5)
+	assert a.indices[0] == tensor.indices[1]
+	assert srepr(tensor.apply_index(tensor.indices[1], 5)) == "EinsteinTerm('u_i5')"
+	# Check multi indices are applied correctly, ## check for python3 zip 
+	assert srepr(tensor.apply_multiple_indices(tensor.indices, (zip(tensor.indices, [5,6])))) == "EinsteinTerm('u56')"
+
+
+
+	return
+
+
+
+
+
+
+
+if __name__ == '__main__':
+    pytest.main(os.path.abspath(__file__))
