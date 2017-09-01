@@ -1,22 +1,11 @@
 #!/usr/bin/env python
-import sys
-import os
-from math import ceil
+# Import all the functions from opensbli
+from opensbli import *
+from opensbli.core.weno_opensbli import *
+import copy
 
-# Import local utility functions
-# import opensbli as base
-from opensbli.core import *
-from opensbli.core.bcs import *
-from opensbli.physical_models.euler_eigensystem import *
-from sympy import *
-from opensbli.initialisation import *
 
 ndim = 2
-weno_order = '5Z'
-Euler_eq = EulerEquations(ndim)
-ev_dict, LEV_dict, REV_dict = Euler_eq.generate_eig_system()
-Avg = SimpleAverage([0, 1])
-LLF = LLFCharacteristic(ev_dict, LEV_dict, REV_dict, weno_order, ndim, Avg)
 
 sc1 = "**{\'scheme\':\'Weno\'}"
 # Define the compresible Navier-Stokes equations in Einstein notation.
@@ -62,6 +51,16 @@ eqns = eq.expand(speed_of_sound, ndim, coordinate_symbol, substitutions, constan
 constituent.add_equations(eqns)
 
 schemes = {}
+# Local LaxFredirich scheme for weno 
+weno_order = '5Z'
+# Generate the Eigen system for the Euler equations
+Euler_eq = EulerEquations(ndim)
+ev_dict, LEV_dict, REV_dict = Euler_eq.generate_eig_system()
+# Averaging procedure to be used for the eigen system evaluation
+Avg = SimpleAverage([0, 1])
+# LLF scheme
+LLF = LLFWeno(ev_dict, LEV_dict, REV_dict, weno_order, ndim, Avg)
+# Add to schemes
 schemes[LLF.name] = LLF
 rk = RungeKutta(3)
 schemes[rk.name] = rk
