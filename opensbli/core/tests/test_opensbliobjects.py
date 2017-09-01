@@ -1,7 +1,9 @@
 import os
 import pytest
-from sympy import pprint, Idx, srepr, Indexed
-from opensbli.core.opensbliobjects import CoordinateObject, ConstantObject, Constant, EinsteinTerm, ConstantIndexed
+from sympy import Idx, srepr, Indexed
+from opensbli.core.opensbliobjects import CoordinateObject, ConstantObject, Constant, EinsteinTerm,\
+    ConstantIndexed, MetricObject, DataObject, DataSetBase, DataSet, IndexedBase
+from opensbli.core.block import SimulationBlock
 
 
 @pytest.fixture
@@ -33,18 +35,97 @@ def time_coordinate():
 def constant():
     return ConstantObject('a')
 
+
 @pytest.fixture
 def constant_indexed():
     return ConstantIndexed('a', Idx('i', 3))
 
 
+@pytest.fixture
+def metric():
+    return MetricObject('xi')
+
+
+@pytest.fixture
+def data_obj():
+    return DataObject('p')
+
+
+@pytest.fixture
+def local_block():
+    return SimulationBlock(3, block_number=0)
+
+
+@pytest.fixture
+def datasetbase():
+    return DataSetBase('rho')
+
+
+def test_DataSet(local_block, datasetbase):
+    dataset = datasetbase[[0, 0, 0]]
+    # Check grid indices
+    assert dataset.get_grid_indices == [0, 0, 0]
+    # Check type
+    assert isinstance(dataset, Indexed) is True
+    return
+
+
+def test_DataSetBase(local_block, datasetbase):
+    # Check type
+    assert isinstance(datasetbase, IndexedBase)
+    # Check DataSetBase offset
+    assert datasetbase._offset == 0
+    # Check blockname and number
+    assert datasetbase.blockname == local_block.blockname
+    assert datasetbase.blocknumber == local_block.blocknumber
+    # Check block independent name
+    assert datasetbase.noblockname == EinsteinTerm('rho')
+    # Check shape, for ndim = 3
+    assert len(datasetbase._shape) == 4
+    # Check simplelabel, SymPy string and hashable content
+    assert datasetbase.simplelabel() == 'rho'
+    # Should this have the p input argument?
+    assert datasetbase._sympystr(None) == 'rho_B0'
+    assert datasetbase._hashable_content() == 'rhoopensbliblock00'
+    # Check default indices are zeros
+    assert datasetbase.location() == [0, 0, 0]
+    # Check DataSetBase converts to a DataSet
+    dset = datasetbase[[1, 2, 3]]
+    assert isinstance(dset, DataSet) is True
+    return
+
+
+def test_DataObject(data_obj):
+    # Check DataObject is not a coordinate or constant
+    assert data_obj.is_constant is False
+    assert data_obj.is_coordinate is False
+    # Check free_symbols
+    assert DataObject('p') in data_obj.free_symbols
+    assert type(data_obj.free_symbols) is set
+    # Check DataObject is an EinsteinTerm
+    assert isinstance(data_obj, EinsteinTerm) is True
+    return
+
+
+def test_MetricObject(metric):
+    # Check metric is not a time coordinate
+    assert metric.timecoordinate is False
+    return
+
+
 def test_ConstantIndexed(constant_indexed):
-    ## NOT FINISHED YET
     # Check constant has an index
     assert len(constant_indexed.indices) is not 0
     # Check upper and lower bounds of the index
     assert constant_indexed.indices[0].lower == 0
     assert constant_indexed.indices[0].upper == 2
+    # Check it is a constant
+    assert constant_indexed.is_constant is True
+    # Check type of index is Idx
+    assert isinstance(constant_indexed.location[0], Idx) is True
+    # Check object is Indexed and Constant
+    assert isinstance(constant_indexed, Indexed) is True
+    assert isinstance(constant_indexed, Constant) is True
     return
 
 
