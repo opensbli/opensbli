@@ -15,6 +15,41 @@ def vector():
 def tensor():
 	return EinsteinTerm('u_i_j')
 
+@pytest.fixture
+def spatial_coordinate():
+	return CoordinateObject('x_i')
+
+@pytest.fixture
+def time_coordinate():
+	return CoordinateObject('t', **{'time': True})
+
+@pytest.fixture
+def constant():
+	return ConstantObject('a')
+
+def test_ConstantObject(constant):
+	# Check constant has no indices
+	assert len(constant.indices) == 0
+	# Check it is constant
+	assert constant.is_constant == True
+	# Check it is not a coordinate
+	assert constant.is_coordinate == False
+	# Check name
+	assert constant.name == 'a'
+	return
+
+def test_CoordinateObject(spatial_coordinate, time_coordinate):
+	# Check these objects are coordinates
+	assert spatial_coordinate.is_coordinate == True
+	assert time_coordinate.is_coordinate == True
+	# Check indices
+	assert len(spatial_coordinate.indices) == 1
+	assert len(time_coordinate.indices) == 0
+	# Check if time coordinate attribute
+	assert spatial_coordinate.timecoordinate == False
+	assert time_coordinate.timecoordinate == True
+	return
+
 def test_EinsteinTerm(scalar, vector, tensor):
 	# Check properties of the EinsteinTerm
 	assert scalar.name == 'u'
@@ -48,9 +83,6 @@ def test_EinsteinTerm(scalar, vector, tensor):
 	assert srepr(tensor.apply_index(tensor.indices[1], 5)) == "EinsteinTerm('u_i5')"
 	# Check multi indices are applied correctly, ## check for python3 zip 
 	assert srepr(tensor.apply_multiple_indices(tensor.indices, (zip(tensor.indices, [5,6])))) == "EinsteinTerm('u56')"
-
-
-
 	return
 
 
