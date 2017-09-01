@@ -3,13 +3,9 @@ import sys, os
 from math import ceil
 
 # Import local utility functions
-#import opensbli as base
-from opensbli.core import *
-from opensbli.core.bcs import *
-from opensbli.physical_models.euler_eigensystem import *
-from sympy import *
-from opensbli.initialisation import *
-from opensbli.utilities.gridgen import *
+from opensbli import *
+import copy
+from opensbli.core.weno_opensbli import *
 
 ndim = 2
 weno_order = '5Z'
@@ -17,7 +13,7 @@ weno_order = '5Z'
 Euler_eq = EulerEquations(ndim)
 ev_dict, LEV_dict, REV_dict = Euler_eq.generate_eig_system()
 Avg = SimpleAverage([0, 1])
-LLF = LLFCharacteristic(ev_dict, LEV_dict, REV_dict, weno_order, ndim, Avg)
+LLF = LLFWeno(ev_dict, LEV_dict, REV_dict, weno_order, ndim, Avg)
 
 sc1 = "**{\'scheme\':\'Weno\'}"
 # Define the compresible Navier-Stokes equations in Einstein notation.
@@ -183,19 +179,19 @@ block.discretise()
 # [np0, np1], [L0, L1]
 
 # Pass in block and required solution vector arrays to the grid gen
-arrays = simulation_eq.time_advance_arrays
+#arrays = simulation_eq.time_advance_arrays
 
-pprint(block.block_datasets)
+#pprint(block.block_datasets)
 
-init_grid = Initialise_Solution_On_Grid([400, 800], [350, 115], arrays, block)
+#init_grid = Initialise_Solution_On_Grid([400, 800], [350, 115], arrays, block)
 # Direction 0, side 0, uniform, stretch factor 0 (no stretching)
 # init_grid.apply_asymmetric_stretching(0, 0, 0)
 # # Direction 1, side 0, stretch factor 5
 # init_grid.apply_asymmetric_stretching(1, 0, 5.0)
 
-init_grid.read_sbli_soln()
+#init_grid.read_sbli_soln()
 # init_grid.create_2D_meshgrid()
-init_grid.add_coordinate_halos()
+#init_grid.add_coordinate_halos()
 
 
 # init_grid.output_hdf5()
@@ -208,9 +204,9 @@ init_grid.add_coordinate_halos()
 # names = ['rho', 'rhou0', 'rhou1', 'rhoE']
 # variables = [rho_arr, rhou_arr, rhov_arr, rhoE_arr]
 # init_grid.set_solutions(names, variables)
-init_grid.add_solution_halos()
+#init_grid.add_solution_halos()
 
-init_grid.output_hdf5()
+#init_grid.output_hdf5()
 
 alg = TraditionalAlgorithmRK(block)
 SimulationDataType.set_datatype(Double)

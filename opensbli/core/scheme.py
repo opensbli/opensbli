@@ -187,66 +187,65 @@ class Central(Scheme):
         classify_parameter = ConstantObject("Re")
         self.required_constituent_relations = {}
         viscous, convective = self.classify_equations_on_parameter(equations, classify_parameter)
-        convective_grouped = self.group_by_direction(convective)
-        # Create equations for evaluation of derivatives
-        for key, value in convective_grouped.iteritems():
-            for v in value:
-                v.update_work(block)
-        local_evaluations_group = {}
-        function_expressions_group = {}
-        # Process the convective derivatives, this requires grouping of equations
-        subs_conv = {}
-        for key, value in convective_grouped.iteritems():
-            local_evaluations_group[key] = []
-            ev_ker = Kernel(block)
-            ev_ker.set_computation_name("Convective terms group %d" % key)
-            ev_ker.set_grid_range(block)
-            block.store_work_index
-            local = []
-            for v in value:
-                self.update_range_of_constituent_relations(v, block)
-                if len(v.required_datasets) > 1:
-                    wk = block.work_array()
-                    block.increase_work_index
-                    expr = Eq(wk, v.args[0])
-                    ev_ker.add_equation(expr)
-                    ev_ker.set_halo_range(key, 0, self.halotype)
-                    ev_ker.set_halo_range(key, 1, self.halotype)
-                    v1 = v.subs(v.args[0], wk)
-                else:
-                    v1 = v
-                expr = Eq(v.work, v1._discretise_derivative(self, block))
-                # pprint(expr)
-                ker = Kernel(block)
-                ker.add_equation(expr)
-                ker.set_computation_name("Convective %s " % (v))
-                ker.set_grid_range(block)
-                # pprint(ker.__dict__)
-                # expr.work = v.work
-                local += [ker]
-                # create any Boundary modification kernels Reverted back
-                # local += v1.apply_boundary_derivative_modification(block, self, v.work)
-                subs_conv[v] = v.work
-            # pprint(ev_ker.__dict__)
-            if ev_ker.equations:
-                local_evaluations_group[key] += [ev_ker]
-            function_expressions_group[key] = local
-            block.reset_work_to_stored
-        # To do evaluate the convective residuals
         kernels = []
-        # Convective evaluation
-        for key, value in local_evaluations_group.iteritems():
-            kernels += value + function_expressions_group[key]
-        # Create convective residual
+        convective_grouped = self.group_by_direction(convective)
+        if convective_grouped:
+            # Create equations for evaluation of derivatives
+            for key, value in convective_grouped.iteritems():
+                for v in value:
+                    v.update_work(block)
+            local_evaluations_group = {}
+            function_expressions_group = {}
+            # Process the convective derivatives, this requires grouping of equations
+            subs_conv = {}
+            for key, value in convective_grouped.iteritems():
+                local_evaluations_group[key] = []
+                ev_ker = Kernel(block)
+                ev_ker.set_computation_name("Convective terms group %d" % key)
+                ev_ker.set_grid_range(block)
+                block.store_work_index
+                local = []
+                for v in value:
+                    self.update_range_of_constituent_relations(v, block)
+                    if len(v.required_datasets) > 1:
+                        wk = block.work_array()
+                        block.increase_work_index
+                        expr = Eq(wk, v.args[0])
+                        ev_ker.add_equation(expr)
+                        ev_ker.set_halo_range(key, 0, self.halotype)
+                        ev_ker.set_halo_range(key, 1, self.halotype)
+                        v1 = v.subs(v.args[0], wk)
+                    else:
+                        v1 = v
+                    expr = Eq(v.work, v1._discretise_derivative(self, block))
+                    # pprint(expr)
+                    ker = Kernel(block)
+                    ker.add_equation(expr)
+                    ker.set_computation_name("Convective %s " % (v))
+                    ker.set_grid_range(block)
+                    # pprint(ker.__dict__)
+                    # expr.work = v.work
+                    local += [ker]
+                    # create any Boundary modification kernels Reverted back
+                    # local += v1.apply_boundary_derivative_modification(block, self, v.work)
+                    subs_conv[v] = v.work
+                # pprint(ev_ker.__dict__)
+                if ev_ker.equations:
+                    local_evaluations_group[key] += [ev_ker]
+                function_expressions_group[key] = local
+                block.reset_work_to_stored
+            # Convective evaluation
+            for key, value in local_evaluations_group.iteritems():
+                kernels += value + function_expressions_group[key]
+            # Create convective residual
 
-        convective_descritised = convective[:]
+            convective_descritised = convective[:]
 
-        for no, c in enumerate(convective_descritised):
-            convective_descritised[no] = convective_descritised[no].subs(subs_conv)
-
-        conv_residual_kernel = self.create_residual_kernel(residual_arrays, convective_descritised, block)
-        conv_residual_kernel.set_computation_name("Convective residual ")
-        kernels += [conv_residual_kernel]
+            for no, c in enumerate(convective_descritised):
+                convective_descritised[no] = convective_descritised[no].subs(subs_conv)
+            conv_residual_kernel = self.create_residual_kernel(residual_arrays, convective_descritised, block)
+            conv_residual_kernel.set_computation_name("Convective residual ")
+            kernels += [conv_residual_kernel]        
         # reset the work index of blocks
         block.reset_work_index
         # Discretise the viscous fluxes. This is straight forward as we need not modify anything
