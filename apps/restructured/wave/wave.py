@@ -36,7 +36,7 @@ constants = ["c_j"]
 coordinate_symbol = "x"
 
 simulation_eq = SimulationEquations()
-eq = Equation()
+eq = EinsteinEquation()
 eqns = eq.expand(wave, ndim, coordinate_symbol, substitutions, constants)
 simulation_eq.add_equations(eqns)
 

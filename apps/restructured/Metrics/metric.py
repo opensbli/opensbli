@@ -33,9 +33,9 @@ constants = ["Re", "Pr", "gama", "Minf", "mu"]
 # Create a simulation equation class
 simulation_eq = SimulationEquations()
 # Add mass, momentum and Energy
-simulation_eq.add_equations(Equation().expand(mass, ndim, coordinate_symbol, substitutions, constants))
-simulation_eq.add_equations(Equation().expand(momentum, ndim, coordinate_symbol, substitutions, constants))
-simulation_eq.add_equations(Equation().expand(energy, ndim, coordinate_symbol, substitutions, constants))
+simulation_eq.add_equations(EinsteinEquation().expand(mass, ndim, coordinate_symbol, substitutions, constants))
+simulation_eq.add_equations(EinsteinEquation().expand(momentum, ndim, coordinate_symbol, substitutions, constants))
+simulation_eq.add_equations(EinsteinEquation().expand(energy, ndim, coordinate_symbol, substitutions, constants))
 latex = LatexWriter()
 original = flatten(simulation_eq.equations)
 latex.open('./equation_transformations.tex')
@@ -57,9 +57,9 @@ temperature = "Eq(T, p*gama*Minf*Minf/(rho))"
 # Create a constituent relations class
 constituent = ConstituentRelations()
 # Add the equations
-constituent.add_equations(Equation().expand(velocity, ndim, coordinate_symbol, substitutions, constants))
-constituent.add_equations(Equation().expand(pressure, ndim, coordinate_symbol, substitutions, constants))
-constituent.add_equations(Equation().expand(temperature, ndim, coordinate_symbol, substitutions, constants))
+constituent.add_equations(EinsteinEquation().expand(velocity, ndim, coordinate_symbol, substitutions, constants))
+constituent.add_equations(EinsteinEquation().expand(pressure, ndim, coordinate_symbol, substitutions, constants))
+constituent.add_equations(EinsteinEquation().expand(temperature, ndim, coordinate_symbol, substitutions, constants))
 
 # Create a simulation
 block = SimulationBlock(ndim, block_number=0)

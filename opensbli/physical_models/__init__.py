@@ -26,4 +26,4 @@ LOG.addHandler(_HANDLER)
 del(_HANDLER)
 LOG.setLevel(logging.DEBUG)  # Default to DEBUG level.
 
-from opensbli.physical_models import *
+from .euler_eigensystem import *

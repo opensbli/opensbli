@@ -386,11 +386,9 @@ class TraditionalAlgorithmRK(object):
         """ Add the spatial kernels to the temporal solution i.e temporalscheme.solution
         """
         print "Writing algorithm \n\n"
-        fname = './algorithm.tex'
+        fname = 'algorithm.tex'
         latex = LatexWriter()
-        latex.open(fname)
-        metadata = {"title": "Algorithm for the equations", "author": "Jammy", "institution": ""}
-        latex.write_header(metadata)
+        latex.open(fname, "Algorithm for the equations")
         if self.MultiBlock:
             raise NotImplementedError("")
         else:
@@ -466,7 +464,6 @@ class TraditionalAlgorithmRK(object):
             self.prg.add_components(timed_tloop)
             self.prg.add_components(after_time)
             self.prg.write_latex(latex)
-        latex.write_footer()
         latex.close()
         return
 

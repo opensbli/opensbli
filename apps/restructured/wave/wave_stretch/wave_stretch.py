@@ -40,7 +40,7 @@ metriceq.genreate_transformations(ndim, coordinate_symbol, [(True, False)], 1)
 
 
 simulation_eq = SimulationEquations()
-eq = Equation()
+eq = EinsteinEquation()
 eqns = eq.expand(wave, ndim, coordinate_symbol, substitutions, constants)
 simulation_eq.add_equations(eqns)
 simulation_eq.apply_metrics(metriceq)

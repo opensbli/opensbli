@@ -3,7 +3,7 @@
 from opensbli.core.opensbliobjects import DataObject, ConstantObject, DataSetBase
 from sympy import S, Rational
 from opensbli.utilities.helperfunctions import dot
-from opensbli.core.parsing import Equation
+from opensbli.core.parsing import EinsteinEquation
 
 
 class Physics(object):
@@ -50,7 +50,7 @@ class PhysicsVariable(object):
 
 
 class NSphysics(Physics):
-    eqobject = Equation()
+    eqobject = EinsteinEquation()
 
     def __init__(self, ndim, **settings):
         self.ndim = ndim

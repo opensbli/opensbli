@@ -52,7 +52,7 @@ viscosity = "Eq(mu, (T**(1.5)*(1.0+110.4/288.0)/(T+110.4/288.0)))"
 
 
 simulation_eq = SimulationEquations()
-eq = Equation()
+eq = EinsteinEquation()
 eqns = eq.expand(mass, ndim, coordinate_symbol, substitutions, constants)
 simulation_eq.add_equations(eqns)
 
@@ -74,7 +74,7 @@ constituent.add_equations(eqns)
 eqns = eq.expand(speed_of_sound, ndim, coordinate_symbol, substitutions, constants)
 constituent.add_equations(eqns)
 
-constituent.add_equations(Equation().expand(temperature, ndim, coordinate_symbol, substitutions, constants))
+constituent.add_equations(EinsteinEquation().expand(temperature, ndim, coordinate_symbol, substitutions, constants))
 
 eqns = eq.expand(viscosity, ndim, coordinate_symbol, substitutions, constants)
 constituent.add_equations(eqns)

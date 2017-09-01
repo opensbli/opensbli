@@ -1,4 +1,4 @@
-from opensbli.core.parsing import Equation
+from opensbli.core.parsing import EinsteinEquation
 from sympy import Eq, zeros, flatten, Matrix, pprint, Function, S, Equality, Wild, WildFunction
 from opensbli.initialisation.common import BeforeSimulationStarts
 from opensbli.core.opensbliequations import NonSimulationEquations, Discretisation, Solution, OpenSBLIEquation, DataSet
@@ -249,14 +249,14 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
         return
 
     def full3D_FD_transformation(cls, coordinate_symbol):
-        eq = Equation()
+        eq = EinsteinEquation()
         fd_fn = "Eq(Der(f, %s_i), MetricDer(f,%s_i))" % (coordinate_symbol, coordinate_symbol)
         cls.general_function = CoordinateObject('f')
         fdfn = eq.expand(fd_fn, cls.ndim, coordinate_symbol, substitutions=[], constants=[], Metric=None)
         return fdfn
 
     def full3D_SD_transformation(cls, coordinate_symbol):
-        eq = Equation()
+        eq = EinsteinEquation()
         sd_fn = "Eq(Der(f, %s_i,%s_j), MetricDer(MetricDer(f,%s_i), %s_j))" % (coordinate_symbol, coordinate_symbol, coordinate_symbol, coordinate_symbol)
         sdfn = eq.expand(sd_fn, cls.ndim, coordinate_symbol, substitutions=[], constants=[], Metric=None)
         return sdfn

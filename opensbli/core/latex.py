@@ -2,6 +2,7 @@ from sympy import Derivative
 from sympy.printing.latex import LatexPrinter, Printer
 import textwrap
 import logging
+import os
 LOG = logging.getLogger(__name__)
 
 
@@ -9,13 +10,21 @@ class LatexWriter(LatexPrinter):
 
     """ Handles writing of equations and arbitrary strings in LaTeX format. """
 
-    def open(self, path):
+    def open(self, path, title):
         """ Open the LaTeX file for writing.
 
         :arg str path: the path to the LaTeX file.
         :returns: None
         """
-        self.f = open(path, "w")
+        dir = "./" + "latex_output"
+        if not os.path.exists(dir):
+            os.makedirs(dir)
+        file_path = dir + '/' + path
+        if os.path.exists(file_path):
+            print ("The latex file %s already exists overwriting it" % file_path)
+        self.f = open(file_path, "w")
+        self.title = title
+        self.write_header
         return
 
     def close(self):
@@ -23,6 +32,7 @@ class LatexWriter(LatexPrinter):
 
         :returns: None
         """
+        self.write_footer
         self.f.close()
         return
 
@@ -35,7 +45,8 @@ class LatexWriter(LatexPrinter):
         self.f.write("\\noindent %s\\\\" % s)
         return
 
-    def write_header(self, metadata):
+    @property
+    def write_header(self):
         """ Write the header of the LaTeX article file.
 
         :arg dict metadata: a dictionary containing the title, author and institution.
@@ -44,17 +55,17 @@ class LatexWriter(LatexPrinter):
 
         header = []
         header.append('\\documentclass{article}')
-        header.append('\\title{%s}\n\\author{%s\\\\ %s}' % (metadata["title"], metadata["author"], metadata["institution"]))
+        header.append('\\title{%s}\n\\author{Satya P Jammy \& OpenSBLI developers team}' % (self.title))
         header.append('\\date{\\today}')
         header.append('\\usepackage{color}\n\\usepackage{amsmath}\n\\usepackage{breqn}')
         header.append('\\begin{document}')
         header.append('\\maketitle')
         header.append('')
         header = '\n'.join(header)
-
         self.f.write(header)
         return
 
+    @property
     def write_footer(self):
         """ Write the footer of the LaTeX article file.
 

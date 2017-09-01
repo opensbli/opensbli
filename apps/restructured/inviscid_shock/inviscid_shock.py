@@ -41,7 +41,7 @@ pressure = "Eq(p, (gama-1)*(rhoE - rho*(1/2)*(KD(_i,_j)*u_i*u_j)))"
 speed_of_sound = "Eq(a, (gama*p/rho)**0.5)"
 
 simulation_eq = SimulationEquations()
-eq = Equation()
+eq = EinsteinEquation()
 eqns = eq.expand(mass, ndim, coordinate_symbol, substitutions, constants)
 simulation_eq.add_equations(eqns)
 

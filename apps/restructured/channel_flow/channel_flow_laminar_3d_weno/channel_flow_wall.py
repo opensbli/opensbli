@@ -1,90 +1,89 @@
 #!/usr/bin/env python
-import sys
-import os
-from math import ceil
+# Import all the functions from opensbli
+from opensbli import *
+from opensbli.core.weno_opensbli import *
+import copy
 
-# Import local utility functions
-# import opensbli as base
-from opensbli.core import *
-from opensbli.core.bcs import *
-from opensbli.initialisation import *
-from opensbli.physical_models.euler_eigensystem import *
-
-BUILD_DIR = os.getcwd()
 # Problem dimension
 ndim = 3
 
-weno_order = '5Z'
-# weno_order = 3
-Euler_eq = EulerEquations(ndim)
-ev_dict, LEV_dict, REV_dict = Euler_eq.generate_eig_system()
-Avg = SimpleAverage([0, 1])
-LLF = LLFCharacteristic(ev_dict, LEV_dict, REV_dict, weno_order, ndim, Avg)
-
 # Define the compresible Navier-Stokes equations in Einstein notation.
+# Only the convective terms are solved using Weno scheme 
 sc1 = "**{\'scheme\':\'Weno\'}"
-mass = "Eq(Der(rho, t), - Conservative(rho*u_j, x_j, %s))" % sc1
-momentum = "Eq(Der(rhou_i, t), -Conservative(rhou_i*u_j + KD(_i,_j)*p,x_j , %s) + Der(tau_i_j, x_j) - KD(_i,_j)*c_j )" % (sc1)
-energy = "Eq(Der(rhoE, t), - Conservative((p+rhoE)*u_j,x_j, %s) - Dot(c_j, u_j) + Der(q_j, x_j) + Der(u_i*tau_i_j, x_j) )" % (sc1)
-equations = [mass, momentum, energy]
+mass = "Eq(Der(rho, t), - Conservative(rho*u_j, x_j,%s))" % sc1
+momentum = "Eq(Der(rhou_i, t), -Conservative(rhou_i*u_j + KD(_i,_j)*p,x_j ,%s) + Der(tau_i_j, x_j) - KD(_i,_j)*c_j )" % (sc1)
+energy = "Eq(Der(rhoE, t), - Conservative((p+rhoE)*u_j,x_j,%s) - Dot(c_j, u_j) + Der(q_j, x_j) + Der(u_i*tau_i_j, x_j) )" % (sc1)
 
+# Substitutions used in the equations
 stress_tensor = "Eq(tau_i_j, (1.0/Re)*(Der(u_i,x_j)+ Der(u_j,x_i)- (2/3)* KD(_i,_j)* Der(u_k,x_k)))"
 heat_flux = "Eq(q_j, (1.0/((gama-1)*Minf*Minf*Pr*Re))*Der(T,x_j))"
+
 substitutions = [stress_tensor, heat_flux]
 
-constants = ["Re", "Pr", "gama", "Minf", "mu", "c_j"]
+# Constants that are used
+constants = ["Re", "Pr", "gama", "Minf", "mu"]
+
+# symbol for the coordinate system in the equations 
 coordinate_symbol = "x"
 
-# metriceq = MetricsEquation()
-# metriceq.genreate_transformations(ndim, coordinate_symbol, [(False, False), (True, False), (False, False)], 3)
-
+# Constituent relations used in the system
 velocity = "Eq(u_i, rhou_i/rho)"
 pressure = "Eq(p, (gama-1)*(rhoE - rho*(1/2)*(KD(_i,_j)*u_i*u_j)))"
-speed_of_sound = "Eq(a, (gama*p/rho)**0.5)"
 temperature = "Eq(T, p*gama*Minf*Minf/(rho))"
-viscosity = "Eq(mu, T**(2/3))"
 
-formulas = [velocity, pressure, temperature]
+# Instantiate EinsteinEquation class for expanding the Einstein indices in the equations
+einstein_eq = EinsteinEquation()
 
+# Expand the simulation equations, for this create a simulation equations class
 simulation_eq = SimulationEquations()
-eq = Equation()
-eqns = eq.expand(mass, ndim, coordinate_symbol, substitutions, constants)
+
+# Expand mass and add the expanded equations to the simulation equations
+eqns = einstein_eq.expand(mass, ndim, coordinate_symbol, substitutions, constants)
 simulation_eq.add_equations(eqns)
 
-eqns = eq.expand(momentum, ndim, coordinate_symbol, substitutions, constants)
+# Expand momentum add the expanded equations to the simulation equations
+eqns = einstein_eq.expand(momentum, ndim, coordinate_symbol, substitutions, constants)
 simulation_eq.add_equations(eqns)
 
-eqns = eq.expand(energy, ndim, coordinate_symbol, substitutions, constants)
+# Expand energy equation add the expanded equations to the simulation equations
+eqns = einstein_eq.expand(energy, ndim, coordinate_symbol, substitutions, constants)
 simulation_eq.add_equations(eqns)
 
-# simulation_eq.apply_metrics(metriceq)
+# Expand the constituent relations and them to the constituent relations class
+constituent = ConstituentRelations() # Instantiate constituent relations object
 
-# latex = LatexWriter()
-# latex.open('./equation_transformations.tex')
-# metadata = {"title": "Transformations of the equations in OpenSBLI framework", "author": "Satya P Jammy", "institution": "University of Southampton"}
-# latex.write_header(metadata)
-# for no, eq in enumerate(flatten(simulation_eq.equations)):
-#    latex.write_expression(eq)
-# latex.write_footer()
-# latex.close()
-
-constituent = ConstituentRelations()
-eqns = eq.expand(velocity, ndim, coordinate_symbol, substitutions, constants)
+# Expand momentum add the expanded equations to the constituent relations
+eqns = einstein_eq.expand(velocity, ndim, coordinate_symbol, substitutions, constants)
 constituent.add_equations(eqns)
 
-eqns = eq.expand(pressure, ndim, coordinate_symbol, substitutions, constants)
+# Expand pressure add the expanded equations to the constituent relations
+eqns = einstein_eq.expand(pressure, ndim, coordinate_symbol, substitutions, constants)
 constituent.add_equations(eqns)
 
-eqns = eq.expand(speed_of_sound, ndim, coordinate_symbol, substitutions, constants)
+# Expand temperature add the expanded equations to the constituent relations
+eqns = einstein_eq.expand(temperature, ndim, coordinate_symbol, substitutions, constants)
 constituent.add_equations(eqns)
 
-eqns = eq.expand(temperature, ndim, coordinate_symbol, substitutions, constants)
-constituent.add_equations(eqns)
+# Write the expanded equations to a Latex file with a given name and titile
+latex = LatexWriter()
+latex.open('equations.tex', "Einstein Expansion of the simulation equations")
+latex.write_string("Simulation equations\n")
+for index, eq in enumerate(flatten(simulation_eq.equations)):
+    latex.write_expression(eq)
 
+latex.write_string("Constituent relations\n")
+for index, eq in enumerate(flatten(constituent.equations)):
+    latex.write_expression(eq)
+
+latex.close()
+
+# Create a simulation block
 block = SimulationBlock(ndim, block_number=0)
 
+# Local dictionary for parsing the expressions
 local_dict = {"block": block, "GridVariable": GridVariable, "DataObject": DataObject}
 
+# Initial conditions as strings
 x0 = "Eq(DataObject(x0), block.deltas[0]*block.grid_indexes[0])"
 x1 = "Eq(DataObject(x1), block.deltas[1]*block.grid_indexes[1])"
 x2 = "Eq(DataObject(x2), block.deltas[2]*block.grid_indexes[2])"
@@ -111,26 +110,39 @@ rhou2 = "Eq(DataObject(rhou2), r*u2)"
 rhoE = "Eq(DataObject(rhoE), p/(gama-1) + 0.5* r*(u0**2 + u1**2 + u2**2))"
 eqns = [x0, x1, x2, u0, u1, u2, p, r, rho, rhou0, rhou1, rhou2, rhoE]
 
+# parse the initial conditions
 initial_equations = [parse_expr(eq, local_dict=local_dict) for eq in eqns]
 pprint(initial_equations)
 initial = GridBasedInitialisation()
 initial.add_equations(initial_equations)
 
-
+# Create a schemes dictionary to be used for discretisation
 schemes = {}
+# Central scheme for spatial discretisation and add to the schemes dictionary
 cent = Central(4)
 schemes[cent.name] = cent
-schemes[LLF.name] = LLF
+# RungeKutta scheme for temporal discretisation and add to the schemes dictionary
 rk = RungeKutta(3)
 schemes[rk.name] = rk
+# Local LaxFredirich scheme for weno 
+weno_order = '5Z'
+# Generate the Eigen system for the Euler equations
+Euler_eq = EulerEquations(ndim)
+ev_dict, LEV_dict, REV_dict = Euler_eq.generate_eig_system()
+# Averaging procedure to be used for the eigen system evaluation
+Avg = SimpleAverage([0, 1])
+# LLF scheme
+LLF = LLFWeno(ev_dict, LEV_dict, REV_dict, weno_order, ndim, Avg)
+# Add to schemes
+schemes[LLF.name] = LLF
 
 boundaries = []
-# Periodic boundaries in x direction
+# Periodic boundaries in x0 direction
 direction = 0
 boundaries += [PeriodicBoundaryConditionBlock(direction, 0)]
 boundaries += [PeriodicBoundaryConditionBlock(direction, 1)]
 
-# Isothermal wall in y direction
+# Isothermal wall in x1 direction
 direction = 1
 rhoEd = "Eq(DataObject(rhoE), DataObject(rho)/((gama-1)*gama*Minf*Minf))"
 rhoEd = parse_expr(rhoEd, local_dict=local_dict)
@@ -139,19 +151,26 @@ lower_wall_eq = [rhoEd]
 boundaries += [IsothermalWallBoundaryConditionBlock(direction, 0, upper_wall_eq, local_dict)]
 boundaries += [IsothermalWallBoundaryConditionBlock(direction, 1, lower_wall_eq, local_dict)]
 
-# Periodic boundaries in z direction
+# Periodic boundaries in x2 direction
 direction = 2
 boundaries += [PeriodicBoundaryConditionBlock(direction, 0)]
 boundaries += [PeriodicBoundaryConditionBlock(direction, 1)]
 
+# set the boundaries for the block
 block.set_block_boundaries(boundaries)
-# metric = copy.deepcopy(metriceq)
-# block.set_equations([copy.deepcopy(constituent),copy.deepcopy(simulation_eq), metric, initial])
+# set the equations to be solved on the block
 block.set_equations([copy.deepcopy(constituent), copy.deepcopy(simulation_eq), initial])
+# set the discretisation schemes 
 block.set_discretisation_schemes(schemes)
 
+# Discretise the equations on the block
 block.discretise()
 
+# create an algorithm from the discretised computations, this writes the file algorithm.tex in latex_output directory
 alg = TraditionalAlgorithmRK(block)
+
+# set the simulation data type, for more information on the datatypes see opensbli.core.datatypes
 SimulationDataType.set_datatype(Double)
+
+# Write the code for the algorithm
 OPSC(alg)

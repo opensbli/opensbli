@@ -76,10 +76,7 @@ class Skew(AppliedUndef):
     def __new__(cls, *args, **kwargs):
         ret = super(Skew, cls).__new__(cls, *args)
         ret.options = kwargs
-        # pprint(ret)
         ret = ret.applys()
-        pprint(ret)
-        # exit()
         return ret
 
     def applys(cls):
@@ -362,9 +359,9 @@ class MetricDer(AppliedUndef, ParsingSchemes):
             expr = cls.remove_fn(expr)
             expr = cls.set_schemes(expr)
             pprint(expr)
-            expr, free_indices = Equation()._structure(expr)
-            expr = Equation().substitute_indexed(expr)
-            expanded_lhs = Equation().expand_summations(expr, 3)
+            expr, free_indices = EinsteinEquation()._structure(expr)
+            expr = EinsteinEquation().substitute_indexed(expr)
+            expanded_lhs = EinsteinEquation().expand_summations(expr, 3)
             if free_indices:
                 expanded_equations = expand_free_indices(expanded_lhs, free_indices, 3)
             pprint(srepr(expanded_equations[0]))
@@ -373,9 +370,9 @@ class MetricDer(AppliedUndef, ParsingSchemes):
             # new = cls.remove_fn(new)
             # new = cls.remove_fn(new)
             # new = cls.set_schemes(new)
-            # new, free_indices = Equation()._structure(new)
-            # new = Equation().substitute_indexed(new)
-            # expanded_lhs = Equation().expand_summations(new, 3)
+            # new, free_indices = EinsteinEquation()._structure(new)
+            # new = EinsteinEquation().substitute_indexed(new)
+            # expanded_lhs = EinsteinEquation().expand_summations(new, 3)
             # if free_indices:
             # expanded_equations = expand_free_indices(expanded_lhs, free_indices, 3)
             # pprint(new)
@@ -385,7 +382,7 @@ class MetricDer(AppliedUndef, ParsingSchemes):
         return expr
 
 
-class Equation(EinsteinStructure):
+class EinsteinEquation(EinsteinStructure):
 
     """ Describes an equation that is to be solved. """
 
