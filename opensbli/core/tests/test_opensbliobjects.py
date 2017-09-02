@@ -170,10 +170,12 @@ def test_EinsteinTerm(scalar, vector, tensor):
     assert tensor.get_base() == 'u'
     # Check indices are of the correct type
     assert type(scalar.get_indices()) == list
-    assert type(vector.get_indices()[0]) == Idx
-    assert type(tensor.get_indices()[0]) == Idx
-    assert type(tensor.get_indices()[1]) == Idx
-    # Check string represenation of the structure
+    # No indices for scalar objects
+    assert len(scalar.get_indices()) == 0
+    ## Check all the indices of vector and tensor are type Idx
+    assert [isinstance(ind, Idx) for ind in vector.get_indices()] == [True]
+    assert [isinstance(ind, Idx) for ind in tensor.get_indices()] == [True]*2
+    # Check string represenation of the structure used for Einstein expansion
     assert srepr(scalar.structure()) == "EinsteinTerm('u')"
     assert srepr(vector.structure()) == "Indexed(IndexedBase(Symbol('u')), Idx(Symbol('i', integer=True)))"
     assert srepr(tensor.structure()) == "Indexed(IndexedBase(Symbol('u')), Idx(Symbol('i', integer=True)), Idx(Symbol('j', integer=True)))"
