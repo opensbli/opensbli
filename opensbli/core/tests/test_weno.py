@@ -5,13 +5,17 @@ from sympy import Idx, srepr, Indexed, pprint, Matrix, flatten, Symbol, Equality
 from sympy.core.numbers import Zero
 from opensbli.core.opensbliobjects import EinsteinTerm, DataSet, DataSetBase
 from opensbli.core.block import SimulationBlock
-from opensbli.core.weno_opensbli import LLFCharacteristic, LLFWeno, EigenSystem, Characteristic, SimpleAverage, RoeAverage
+from opensbli.core.weno_opensbli import LLFCharacteristic, LLFWeno, Weno, EigenSystem, Characteristic,\
+    SimpleAverage, RoeAverage, WenoHalos, LeftWenoReconstructionVariable, RightWenoReconstructionVariable, ConfigureWeno
 from opensbli.physical_models.euler_eigensystem import EulerEquations
 
 # Testing in 3D
 ndim = 3
 # Locations for averaging
 locations = [0, 1]
+# WENO scheme order and k
+weno_order = 3
+k = 2
 
 
 @pytest.fixture
@@ -44,6 +48,69 @@ def simple_avg():
 @pytest.fixture
 def roe_avg():
     return RoeAverage(locations, ndim)
+
+
+@pytest.fixture
+def weno_main():
+    return Weno(weno_order)
+
+
+@pytest.fixture
+def weno_config():
+    return ConfigureWeno(k, 1)
+
+
+@pytest.fixture
+def weno_halos():
+    return WenoHalos(weno_order)
+
+
+@pytest.fixture
+def weno_reconstruction_halos():
+    return WenoHalos(weno_order, reconstruction=True)
+
+
+def test_halos(weno_halos, weno_reconstruction_halos):
+    # Check halo values
+    assert weno_halos.halos == [-k, k+1]
+    assert weno_reconstruction_halos.halos == [-1, 1]
+    return
+
+
+def test_WenoConfig(weno_config):
+    return
+
+
+def test_Weno(weno_main):
+    # Check order
+    assert weno_main.order == 3
+    assert weno_main.k == 2
+    # Check halo type
+    assert isinstance(weno_main.halotype, WenoHalos) is True
+    # Check right and left reconstructions are present in the [right, left] order
+    assert isinstance(weno_main.reconstruction_classes[0], RightWenoReconstructionVariable)
+    assert isinstance(weno_main.reconstruction_classes[1], LeftWenoReconstructionVariable)
+    # Checking attributes of the WENO reconstruction variables
+    right = weno_main.reconstruction_classes[0]
+    left = weno_main.reconstruction_classes[1]
+    assert len(right.alpha_evaluated) == k
+    assert len(right.alpha_symbols) == k
+    assert len(right.omega_evaluated) == k
+    assert len(right.omega_symbols) == k
+    assert len(right.smoothness_indicators) == k
+    assert len(right.smoothness_symbols) == k
+    assert len(right.stencil_points) == weno_order
+    assert len(right.func_points) == weno_order
+    assert len(left.alpha_evaluated) == k
+    assert len(left.alpha_symbols) == k
+    assert len(left.omega_evaluated) == k
+    assert len(left.omega_symbols) == k
+    assert len(left.smoothness_indicators) == k
+    assert len(left.smoothness_symbols) == k
+    assert len(left.stencil_points) == weno_order
+    assert len(left.func_points) == weno_order
+
+    return
 
 
 def test_RoeAverage(roe_avg):

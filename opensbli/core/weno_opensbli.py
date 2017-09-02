@@ -41,7 +41,6 @@ class ConfigureWeno(object):
         self.c_rj = self.generate_eno_coefficients(k)
         self.c2_rj = self.generate_eno_coefficients(2*k-1)
         self.opt_weights = self.generate_optimal_weights()
-        print self.opt_weights
         return
 
     @property
@@ -187,12 +186,7 @@ class JS_smoothness(object):
                         shift_indices = [-r+m+shift, -r+n+shift]
                         func_product = fn.function_stencil_dictionary[shift_indices[0]]*fn.function_stencil_dictionary[shift_indices[1]]
                         local_smoothness += beta*func_product
-            pprint(local_smoothness)
-            # print "old: ", local_smoothness.count_ops()
-            # local_smoothness = horner(local_smoothness)
-            # print "new: ", local_smoothness.count_ops()
-            # pprint(local_smoothness)
-            # print "\n\n"
+            #pprint(local_smoothness)
             fn.smoothness_indicators += [local_smoothness]
         return
 
