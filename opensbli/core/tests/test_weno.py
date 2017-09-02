@@ -3,12 +3,15 @@ import pytest
 from opensbli.core.grid import GridVariable
 from sympy import Idx, srepr, Indexed, pprint, Matrix, flatten, Symbol, Equality
 from sympy.core.numbers import Zero
-from opensbli.core.opensbliobjects import EinsteinTerm, DataSet
+from opensbli.core.opensbliobjects import EinsteinTerm, DataSet, DataSetBase
 from opensbli.core.block import SimulationBlock
 from opensbli.core.weno_opensbli import LLFCharacteristic, LLFWeno, EigenSystem, Characteristic, SimpleAverage, RoeAverage
 from opensbli.physical_models.euler_eigensystem import EulerEquations
 
+# Testing in 3D
 ndim = 3
+# Locations for averaging
+locations = [0, 1]
 
 
 @pytest.fixture
@@ -35,19 +38,44 @@ def characteristic():
 
 @pytest.fixture
 def simple_avg():
-    return SimpleAverage([0, 1])
+    return SimpleAverage(locations)
 
 
 @pytest.fixture
 def roe_avg():
-    return RoeAverage([0, 1], ndim)
+    return RoeAverage(locations, ndim)
 
 
 def test_RoeAverage(roe_avg):
+    required = [EinsteinTerm('rho'), EinsteinTerm('a')] + [EinsteinTerm('u%d' % i) for i in range(ndim)]
+    eqns = roe_avg.average(required, 1, 'AVG')
+    # Check equations are being created with only [0,1] locations
+    locs = [DataSetBase('u')[[0, locations[0], 0]].indices, DataSetBase('u')[[0, locations[1], 0]].indices]
+    for eq in eqns:
+        assert isinstance(eq, Equality)
+        for dset in eq.atoms(DataSet):
+            assert dset.indices in locs
+        # Check LHS are all GridVariable
+        assert isinstance(eq.lhs, GridVariable) is True
+    # Check the output of get_dsets function
+    dset1, dset2 = roe_avg.get_dsets(DataSetBase('u'))
+    assert dset1.indices == locs[0]
+    assert dset2.indices == locs[1]
     return
 
 
 def test_SimpleAverage(simple_avg):
+    required = [EinsteinTerm('rho'), EinsteinTerm('a')] + [EinsteinTerm('u%d' % i) for i in range(ndim)]
+    name = 'test'
+    eqns = simple_avg.average(required, 1, name)
+    # Check equations are being created with only [0,1] locations
+    locs = [DataSetBase('u')[[0, locations[0], 0]].indices, DataSetBase('u')[[0, locations[1], 0]].indices]
+    for eq in eqns:
+        assert isinstance(eq, Equality)
+        for dset in eq.atoms(DataSet):
+            assert dset.indices in locs
+        # Check LHS are all GridVariable
+        assert isinstance(eq.lhs, GridVariable) is True
     return
 
 
