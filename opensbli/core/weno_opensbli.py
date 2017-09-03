@@ -1,4 +1,5 @@
 from sympy import IndexedBase, Symbol, pprint, Rational, solve, interpolating_poly, integrate, Eq, sqrt, zeros, Abs, Float, Matrix, flatten, Max, diag, Function
+from sympy.core.numbers import Zero
 from opensbli.core.opensblifunctions import WenoDerivative
 from opensbli.core.opensbliobjects import EinsteinTerm, DataSetBase, ConstantObject
 from opensbli.core.opensbliequations import SimulationEquations
@@ -368,7 +369,6 @@ class Weno(Scheme):
         arg: object: kernel: The current computational kernel.
         """
         for d in derivatives:
-            pprint(d)
             for rv in d.reconstructions:
                 if isinstance(rv, type(self.reconstruction_classes[1])):
                     original_rv = self.reconstruction_classes[1]
@@ -406,7 +406,7 @@ class Weno(Scheme):
         arg: object: block: The current block."""
         crs = {}
         for key in self.required_constituent_relations_symbols:
-            pprint([key, self.required_constituent_relations_symbols[key]])
+            # pprint([key, self.required_constituent_relations_symbols[key]])
             kernel = Kernel(block, computation_name="CR%s" % key)
             kernel.set_grid_range(block)
             for direction in self.required_constituent_relations_symbols[key]:
@@ -548,14 +548,11 @@ class Characteristic(EigenSystem):
         pre_process_equations += flatten(self.generate_equations_from_matrices(CF_matrix, characteristic_flux_vector))
         pre_process_equations += flatten(self.generate_equations_from_matrices(CS_matrix, characteristic_solution_vector))
 
-        pprint(derivatives)
-        # exit()
         for d in derivatives:
             required_symbols = required_symbols.union(d.atoms(DataSetBase))
         self.update_constituent_relation_symbols(required_symbols, direction)
 
         if hasattr(self, 'flux_split') and self.flux_split:
-            print ("Characteristic flux splitting scheme")
             max_wavespeed_matrix, pre_process_equations = self.create_max_characteristic_wave_speed(pre_process_equations, direction)
             # self.split_fluxes(CF_matrix, CS_matrix, max_wavespeed_matrix)
             positive_flux = Rational(1, 2)*(CF_matrix + max_wavespeed_matrix*CS_matrix)
@@ -566,6 +563,10 @@ class Characteristic(EigenSystem):
             self.generate_left_reconstruction_variables(negative_flux, derivatives)
         else:
             raise NotImplementedError("Only flux splitting is implemented in characteristic.")
+        # Remove '0' entries from pre_process_equations
+        for eqn in pre_process_equations[:]:
+            if isinstance(eqn, Zero) is True:
+                pre_process_equations.remove(eqn)
         kernel.add_equation(pre_process_equations)
         return
 
@@ -701,6 +702,7 @@ class LLFCharacteristic(Characteristic):
                 self.interpolate_reconstruction_variables(derivatives, kernel)
                 block.set_block_boundary_halos(key, 0, self.halotype)
                 block.set_block_boundary_halos(key, 1, self.halotype)
+                self.post_process(derivatives, kernel)
                 type_of_eq.Kernels += [kernel]
             if grouped:
                 type_of_eq.Kernels += [self.evaluate_residuals(block, eqs, all_derivatives_evaluated_locally)]
