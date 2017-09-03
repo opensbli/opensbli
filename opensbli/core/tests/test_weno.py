@@ -1,26 +1,56 @@
 import os
 import pytest
 from opensbli.core.grid import GridVariable
-from sympy import Idx, srepr, Indexed, pprint, Matrix, flatten, Symbol, Equality
+from sympy import srepr, Indexed, pprint, Matrix, flatten, Equality
 from sympy.core.numbers import Zero
-from opensbli.core.opensbliobjects import EinsteinTerm, DataSet, DataSetBase
+from opensbli.core.parsing import EinsteinEquation
+from opensbli.core.opensbliequations import SimulationEquations
+from opensbli.core.opensbliobjects import EinsteinTerm, DataSet, DataSetBase, CoordinateObject
 from opensbli.core.block import SimulationBlock
-from opensbli.core.weno_opensbli import LLFCharacteristic, LLFWeno, Weno, EigenSystem, Characteristic,\
+from opensbli.core.weno_opensbli import LLFWeno, Weno, EigenSystem,\
     SimpleAverage, RoeAverage, WenoHalos, LeftWenoReconstructionVariable, RightWenoReconstructionVariable, ConfigureWeno
 from opensbli.physical_models.euler_eigensystem import EulerEquations
+from opensbli.core.kernel import Kernel
+from opensbli.core.opensblifunctions import WenoDerivative
+from opensbli.physical_models.ns_physics import NSphysics
 
 # Testing in 3D
 ndim = 3
 # Locations for averaging
 locations = [0, 1]
-# WENO scheme order and k
-weno_order = 3
+# WENO scheme order and k, currently WENO3
 k = 2
+weno_order = 2*k-1
 
 
 @pytest.fixture
 def local_block():
-    return SimulationBlock(ndim, blocknumber=0)
+    return SimulationBlock(ndim)
+
+
+@pytest.fixture
+def local_kernel():
+    return Kernel(local_block(), computation_name="WENO test")
+
+
+@pytest.fixture
+def solution_vector():
+    NS = NSphysics(ndim)
+    return flatten([NS.density(), flatten(NS.momentum()), NS.total_energy()])
+
+
+@pytest.fixture
+def local_weno_derivatives():
+    ids = solution_vector()[0].indices
+    p = DataSetBase('p')[ids]
+    rhoE = DataSetBase('rhoE')[ids]
+    u0 = DataSetBase('u0')[ids]
+    rhou0, rhou1, rhou2 = DataSetBase('rhou0')[ids], DataSetBase('rhou1')[ids], DataSetBase('rhou2')[ids]
+    x0 = CoordinateObject('x0')
+    x0.direction = 0
+    flux = [WenoDerivative(rhou0, x0), WenoDerivative(p+rhou0*u0, x0), WenoDerivative(rhou1*u0, x0),
+            WenoDerivative(rhou2*u0, x0), WenoDerivative((p+rhoE)*u0, x0)]
+    return flux
 
 
 @pytest.fixture
@@ -35,9 +65,9 @@ def eig_system():
 
 
 @pytest.fixture
-def characteristic():
-    ev_dict, LEV_dict, REV_dict = euler_eq().generate_eig_system()
-    return Characteristic(ev_dict, LEV_dict, REV_dict)
+def llfweno():
+    return LLFWeno(eig_system().eigen_value, eig_system().left_eigen_vector,
+                   eig_system().right_eigen_vector, weno_order, ndim, simple_avg())
 
 
 @pytest.fixture
@@ -70,6 +100,99 @@ def weno_reconstruction_halos():
     return WenoHalos(weno_order, reconstruction=True)
 
 
+@pytest.fixture
+def local_sim_equations():
+    sc1 = "**{\'scheme\':\'Weno\'}"
+    mass = "Eq(Der(rho,t), - Conservative(rhou_j,x_j,%s))" % sc1
+    momentum = "Eq(Der(rhou_i,t) , -Conservative(rhou_i*u_j + KD(_i,_j)*p,x_j , %s))" % sc1
+    energy = "Eq(Der(rhoE,t), - Conservative((p+rhoE)*u_j,x_j, %s))" % sc1
+    eq = EinsteinEquation()
+    coordinate_symbol = "x"
+    base_eqns = [mass, momentum, energy]
+    for i, base in enumerate(base_eqns):
+        base_eqns[i] = eq.expand(base, ndim, coordinate_symbol, [], [])
+    simulation_eq = SimulationEquations()
+    for eqn in base_eqns:
+        simulation_eq.add_equations(eqn)
+    return simulation_eq
+
+
+def test_LLFWeno(llfweno, solution_vector, local_weno_derivatives, local_kernel, local_sim_equations):
+    # Tests Characteristic LLFCharacteristic and LLFWeno together, decouple classes later
+
+    # Characteristic methods
+    # Check pre-process equations are being stored to the provided kernel
+    direction = 0
+    llfweno.pre_process(direction, local_weno_derivatives, solution_vector, local_kernel)
+    assert len(local_kernel.equations) is not 0
+    # Check pre-process LHS are all GridVariables
+    for eq in local_kernel.equations:
+        assert isinstance(eq.lhs, GridVariable)
+    # Check post-process LHS are all GridVariables
+    for eq in local_kernel.equations:
+        assert isinstance(eq.lhs, GridVariable)
+    # Check WENO is a spatial scheme with direction taken from the inputs
+    assert llfweno.schemetype == 'Spatial'
+    assert llfweno.direction == direction
+    # Check post process is creating GridVariables
+    # This needs the derivatives to have reconstruction_work attribute, need to finish 
+    ## Might have been from post_process error
+    # for derivative in local_weno_derivatives:
+    #     derivative.create_reconstruction_work_array(local_block())
+    # llfweno.interpolate_reconstruction_variables(local_weno_derivatives, local_kernel)
+    # llfweno.post_process(local_weno_derivatives, local_kernel)
+
+    # Check CS Matrix creation
+    req_points = sorted(list(set(llfweno.reconstruction_classes[0].func_points + llfweno.reconstruction_classes[1].func_points)))
+    stencil, mat = llfweno.solution_vector_to_characteristic(solution_vector, direction, 'test')
+    # Check the shape of CS matrix and their datatypes
+    assert mat.shape == (ndim+2, len(req_points))
+    for item in flatten(mat):
+        assert isinstance(item, GridVariable) is True
+    # Check only the required points are being used in the CS equations
+    for item in flatten(stencil):
+        for dsets in item.atoms(DataSet):
+            assert dsets.indices[direction] in req_points
+    # Check CF Matrix creation
+    stencil, mat = llfweno.flux_vector_to_characteristic(local_weno_derivatives, direction, 'test')
+    # Check the shape of CF matrix and their datatypes
+    assert mat.shape == (ndim+2, len(req_points))
+    for item in flatten(mat):
+        assert isinstance(item, GridVariable) is True
+    # Check only the required points are being used in the CS equations
+    for item in flatten(stencil):
+        for dsets in item.atoms(DataSet):
+            assert dsets.indices[direction] in req_points
+
+    # LLFCharacteristic methods
+    # Check wave speed grid variables are being created, there should be ndim+2 of them
+    mat, eqns = llfweno.create_max_characteristic_wave_speed(local_kernel.equations, direction)
+    mat = [i for i in flatten(mat) if isinstance(i, GridVariable)]
+    assert len(mat) == ndim + 2
+    # Check flux splitting is being used
+    assert llfweno.flux_split is True
+
+    # LLFWeno methods
+    # Check WENO grouping is working correctly
+    input_eqns = flatten(local_sim_equations.equations[:])
+    grouped_eqns = llfweno.group_by_direction(input_eqns)
+    # Check all directions are present
+    assert grouped_eqns.keys() == [i for i in range(ndim)]
+    # Check the grouping only has derivatives for that direction and that they are WenoDerivatives of correct number
+    for dire in [i for i in range(ndim)]:
+        assert len(grouped_eqns[dire]) == ndim + 2
+        for derivative in grouped_eqns[dire]:
+            assert isinstance(derivative, WenoDerivative) is True
+            assert isinstance(derivative.args[-1], CoordinateObject) is True
+            assert derivative.args[-1].direction == dire
+    # Check WENO reconstruction halos are [-1, 1]
+    assert llfweno.reconstruction_halotype(weno_order).halos == [-1, 1]
+
+    # Need to fix this
+    # llfweno.discretise(local_sim_equations, local_block())
+    return
+
+
 def test_halos(weno_halos, weno_reconstruction_halos):
     # Check halo values
     assert weno_halos.halos == [-k, k+1]
@@ -78,6 +201,17 @@ def test_halos(weno_halos, weno_reconstruction_halos):
 
 
 def test_WenoConfig(weno_config):
+    # Check there are the correct number of weights
+    assert len(weno_config.opt_weights) == k
+    assert len(weno_config.c_rj) == k**2
+    # Check symbolic dictionary is being created correctly
+    points, sym_dict = weno_config.generate_symbolic_function_points
+    for index, fn in sym_dict.iteritems():
+        assert fn.args[-1] == index
+        assert fn in points
+        assert isinstance(fn, Indexed) is True
+    # Check optimal weights sum to 1 as required
+    assert sum([d for d in weno_config.opt_weights.values()]) == 1
     return
 
 
@@ -109,7 +243,6 @@ def test_Weno(weno_main):
     assert len(left.smoothness_symbols) == k
     assert len(left.stencil_points) == weno_order
     assert len(left.func_points) == weno_order
-
     return
 
 
@@ -143,18 +276,6 @@ def test_SimpleAverage(simple_avg):
             assert dset.indices in locs
         # Check LHS are all GridVariable
         assert isinstance(eq.lhs, GridVariable) is True
-    return
-
-
-def test_Characteristic(characteristic):
-    return
-
-
-def test_LLFCharacteristic():
-    return
-
-
-def test_LLFWeno():
     return
 
 
