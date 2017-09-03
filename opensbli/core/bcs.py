@@ -177,32 +177,39 @@ class PeriodicBoundaryConditionBlock(BoundaryConditionBase):
 
     def apply(self, arrays, boundary_direction, side, block):
         # Get the exchanges which form the computations.
-        exchange = self.get_exchange(arrays, boundary_direction, side, block)
+        if self.full_plane:
+            exchange = self.get_exchange_plane(arrays, boundary_direction, side, block)
         return exchange
 
-    def get_exchange(self, arrays, boundary_direction, side, block):
+    def get_exchange_plane(self, arrays, boundary_direction, side, block):
         """ Create the exchange computations which copy the block point values to/from the periodic domain boundaries. """
 
         # Create a kernel this is a neater way to implement the transfers
         ker = Kernel(block)
         halos = ker.get_plane_halos(block)
-        transfer_from = [halos[d][0] for d in range(block.ndim)]
-        transfer_to = [halos[d][0] for d in range(block.ndim)]
-        if side == 0:
-            transfer_from[boundary_direction] = block.Idxed_shape[boundary_direction].lower
-            transfer_to[boundary_direction] = block.Idxed_shape[boundary_direction].upper
-        else:
-            transfer_from[boundary_direction] = block.Idxed_shape[boundary_direction].upper + halos[boundary_direction][0]
-            transfer_to[boundary_direction] = block.Idxed_shape[boundary_direction].lower + halos[boundary_direction][0]
-        transfer_size = [block.Idxed_shape[dire].upper + block.Idxed_shape[dire].lower + abs(halos[dire][0]) + abs(halos[dire][1]) for dire in range(block.ndim)]
-        transfer_size[boundary_direction] = abs(halos[boundary_direction][side])
+        size, from_location, to_location = self.get_transfers(boundary_direction, side, block.Idxed_shape, halos)
         ex = ExchangeSelf(block, boundary_direction, side)
-        ex.set_transfer_size(transfer_size)
-        ex.set_transfer_from(transfer_from)
-        ex.set_transfer_to(transfer_to)
+        ex.set_transfer_size(size)
+        ex.set_transfer_from(from_location)
+        ex.set_transfer_to(to_location)
         ex.set_arrays(arrays)
         ex.number = ker.kernel_no
         return ex
+
+    def get_transfers(self, boundary_direction, side, idx, halos):
+        transfer_from = [d[0] for d in halos]
+        transfer_to = [d[0] for d in halos]
+        if side == 0:
+            transfer_from[boundary_direction] = idx[boundary_direction].lower
+            transfer_to[boundary_direction] = idx[boundary_direction].upper
+        else:
+            transfer_from[boundary_direction] = idx[boundary_direction].upper + halos[boundary_direction][0]
+            transfer_to[boundary_direction] = idx[boundary_direction].lower + halos[boundary_direction][0]
+
+        transfer_size = Matrix([i.upper + i.lower for i in idx]) + \
+            Matrix([abs(dire[0]) + abs(dire[1]) for dire in halos])
+        transfer_size[boundary_direction] = abs(halos[boundary_direction][side])
+        return transfer_size, transfer_from, transfer_to
 
 
 class LinearExtrapolateBoundaryConditionBlock(BoundaryConditionBase):
