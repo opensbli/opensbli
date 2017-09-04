@@ -126,6 +126,12 @@ class BoundaryConditionBase(object):
         return expression
 
     def generate_boundary_kernel(self, direction, side, block, bc_name):
+        if self.full_plane:
+            return self.bc_plane_kernel(direction, side, block, bc_name)
+        else:
+            return self.arbitarary_bc_plane_kernel(direction, side, block, bc_name)
+
+    def bc_plane_kernel(self, direction, side, block, bc_name):
         kernel = Kernel(block, computation_name="%s boundary dir%d side%d" % (bc_name, direction, side))
         kernel.set_boundary_plane_range(block, direction, side)
         halos = kernel.get_plane_halos(block)
