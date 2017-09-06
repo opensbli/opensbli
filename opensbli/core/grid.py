@@ -12,7 +12,7 @@ class WorkDataSet(object):
     """
 
     def __init__(self):
-        """ Im not stupid
+        """
         """
         self.work_name = 'wk%d'  # Work array name
         self.work_index = 0  # Index of the work array, this is update when ever a new work array is called
