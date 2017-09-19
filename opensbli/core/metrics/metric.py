@@ -55,9 +55,7 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
     def latex_debug_start(self):
         self.latex_file = LatexWriter()
         latex = self.latex_file
-        latex.open('./metric_transformations.tex')
-        metadata = {"title": "Transformations of the equations in OpenSBLI framework", "author": "Satya P Jammy", "institution": "University of Southampton"}
-        latex.write_header(metadata)
+        latex.open('./metric_transformations.tex','Transformations of the equations in OpenSBLI framework')
         latex.write_string("The Cartesian coordinates system is (%s)" % (','.join([str(s) for s in self.cartesian_coordinates])))
         latex.write_string("The Curvilinear coordinate system is vector is (%s)" % (','.join([str(s) for s in self.curvilinear_coordinates])))
         if any(self.curvilinear_metric):
@@ -67,7 +65,6 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
 
     def latex_debug_end(self):
         latex = self.latex_file
-        latex.write_footer()
         latex.close()
         return
 
