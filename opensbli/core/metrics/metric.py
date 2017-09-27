@@ -273,6 +273,8 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
         return
 
     def spatial_discretisation(cls, schemes, block):
+
+        print "here"
         (Solution, cls).__init__(cls)
         if any(cls.curvilinear_metric):
             raise NotImplementedError("Handling curvilinear coordinates for the evaluation of metrics is not applied")
@@ -285,13 +287,16 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
         cls.requires = {}
         block.store_work_index  # store the work array index
         for no, sc in enumerate(spatialschemes):
+            print sc
             # TODO discretise the First derivatives and then apply BC's then discretise Second derivatives
             cls.equations = block.dataobjects_to_datasets_on_block(cls.fdequations)  # First derivatives
             cls.create_residual_arrays()
+            schemes[sc].discretise(cls, block)
             schemes[sc].required_constituent_relations = {}
             cls.apply_periodic_bc(block)
             cls.equations = block.dataobjects_to_datasets_on_block(cls.sdequations)  # Second derivatives
             cls.create_residual_arrays()
+            schemes[sc].discretise(cls, block)
             schemes[sc].required_constituent_relations = {}
             schemes[sc].required_constituent_relations = {}
         for k in cls.Kernels:

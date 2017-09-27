@@ -11,8 +11,6 @@ def spline(x, y, n, y_start, y_end):
     arg: float: y_end: Value of the first derivative to enforce at y'(n-1).
     returns: ndarray: d2y: Array of values for the second derivative spline.
     """
-    print type(x)
-    exit()
     u, d2y = np.zeros_like(y), np.zeros_like(y)
     if (y_start > 0.99e30):  # Boundary condition set to natural
         d2y[0], u[0] = 0, 0
