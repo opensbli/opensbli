@@ -1,4 +1,5 @@
 from opensbli.core.opensbliobjects import DataSet, CoordinateObject
+import h5py
 
 
 def increment_dataset(expression, direction, value):
@@ -58,3 +59,31 @@ def get_inverse_deltas(delta):
         inv_delta_name = rc.get_next_rational_constant(delta)
         rc.name = name
         return inv_delta_name
+
+def set_hdf5_metadata(dset, halos, npoints, block):
+    """ Function to set hdf5 metadata required by OPS to a dataset. """
+    d_m = [halos[0], halos[0]]
+    d_p = [halos[1], halos[1]]
+    dset.attrs.create("d_p", d_p, dtype="int32")
+    dset.attrs.create("d_m", d_m, dtype="int32")
+    dset.attrs.create("dim", [1], dtype="int32")
+    dset.attrs.create("ops_type", u"ops_dat",dtype="S7")
+    dset.attrs.create("block_index", [0], dtype="int32")
+    dset.attrs.create("base", [0 for i in range(block.ndim)], dtype="int32")
+    dset.attrs.create("type", u"double",dtype="S15")
+    dset.attrs.create("block", u"%s" % block.blockname,dtype="S25")
+    dset.attrs.create("size", npoints, dtype="int32")
+    return
+
+def output_hdf5(array, array_name, halos, npoints, block):
+    """ Creates an HDF5 file for reading in data to a simulation, 
+    sets the metadata required by the OPS library. """
+    with h5py.File('data.h5', 'w') as hf:
+        # Set atttributes for group
+        g1 = hf.create_group(block.blockname)
+        g1.attrs.create("dims", [block.ndim], dtype="int32")
+        g1.attrs.create("ops_type", u"ops_block",dtype="S9")
+        g1.attrs.create("index", [0], dtype="int32")
+        dset = g1.create_dataset('%s_B0' % array_name, data=array)
+        set_hdf5_metadata(dset, halos, npoints, block)
+    return
