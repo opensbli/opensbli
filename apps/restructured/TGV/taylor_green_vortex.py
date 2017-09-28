@@ -22,7 +22,7 @@ substitutions = [stress_tensor, heat_flux]
 # Constants that are used
 constants = ["Re", "Pr", "gama", "Minf", "mu"]
 
-# symbol for the coordinate system in the equations 
+# symbol for the coordinate system in the equations
 coordinate_symbol = "x"
 
 # Constituent relations used in the system
@@ -49,7 +49,7 @@ eqns = einstein_eq.expand(energy, ndim, coordinate_symbol, substitutions, consta
 simulation_eq.add_equations(eqns)
 
 # Expand the constituent relations and them to the constituent relations class
-constituent = ConstituentRelations() # Instantiate constituent relations object
+constituent = ConstituentRelations()  # Instantiate constituent relations object
 
 # Expand momentum add the expanded equations to the constituent relations
 eqns = einstein_eq.expand(velocity, ndim, coordinate_symbol, substitutions, constants)
@@ -125,7 +125,7 @@ for direction in range(ndim):
 block.set_block_boundaries(boundaries)
 # set the equations to be solved on the block
 block.set_equations([copy.deepcopy(constituent), copy.deepcopy(simulation_eq), initial])
-# set the discretisation schemes 
+# set the discretisation schemes
 block.set_discretisation_schemes(schemes)
 
 # Discretise the equations on the block
