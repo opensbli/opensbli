@@ -1,18 +1,16 @@
-import argparse
 import numpy
-from math import pi, exp, cos, sin
 import matplotlib.pyplot as plt
 import h5py
 import glob
 import sys
 import os.path
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-#from sympy import *
 import matplotlib.cm as cm
 import matplotlib.transforms as transforms
 
 
 plt.style.use('classic')
+
 
 # Matplotlib settings for publication-ready figures
 try:
@@ -20,6 +18,7 @@ try:
     exec(f.read())
 except:
     pass
+
 
 def contour_local(fig, levels0, label, x, y, variable):
     ax1 = fig.add_subplot(1, 1, 1, aspect='equal')
@@ -29,9 +28,10 @@ def contour_local(fig, levels0, label, x, y, variable):
     divider = make_axes_locatable(ax1)
     cax1 = divider.append_axes("right", size="5%", pad=0.05)
     ticks_at = numpy.linspace(levels0[0], levels0[-1], 10)
-    cbar = plt.colorbar(CS, cax=cax1, ticks=ticks_at,format='%.3f')
+    cbar = plt.colorbar(CS, cax=cax1, ticks=ticks_at, format='%.3f')
     cbar.ax.set_ylabel(r"$%s$" % label, fontsize=20)
     return
+
 
 def read_file(fname):
     # Read in the simulation output
@@ -43,9 +43,9 @@ def read_file(fname):
     group = f["opensbliblock00"]
     return f, group
 
-def extract_data(group, lhalo, rhalo, k):
 
-    #linear dimensions of the dataset
+def extract_data(group, lhalo, rhalo, k):
+    # linear dimensions of the dataset
     np = group["rho_B0"].shape
     rho = group["rho_B0"].value
     rhou = group["rhou0_B0"].value
@@ -71,7 +71,8 @@ def extract_data(group, lhalo, rhalo, k):
     M = u/a
     T = 1.4*4*p/rho
     Cf = group["Cf_B0"].value[0]
-    return x, y, rho, u, v, rhoE, p, M, T, Cf 
+    return x, y, rho, u, v, rhoE, p, M, T, Cf
+
 
 def load_SBLI_data():
     markus_cf = numpy.loadtxt('./SBLI_DATA/markus_cf.txt')
@@ -79,6 +80,7 @@ def load_SBLI_data():
     markus_x = numpy.loadtxt('./SBLI_DATA/markus_x.txt')
     markus_pwall = numpy.loadtxt('./SBLI_DATA/markus_pwall.txt')
     return markus_cf, exact_cf, markus_x, markus_pwall
+
 
 def initial_profile(u, x, y, lhalo, rhalo):
     f, group1 = read_file('initial.h5')
@@ -93,26 +95,26 @@ def initial_profile(u, x, y, lhalo, rhalo):
     bl_end = 100
     for i in range(0, 10):
 
-        plt.plot(u[0:bl_end,i*fact], y[0:bl_end,i*fact], '-k', label="Solution")
-        plt.plot(u_in[0:bl_end,i*fact], y[0:bl_end,i*fact], '--r', label="Initial condition")
+        plt.plot(u[0:bl_end, i*fact], y[0:bl_end, i*fact], '-k', label="Solution")
+        plt.plot(u_in[0:bl_end, i*fact], y[0:bl_end, i*fact], '--r', label="Initial condition")
 
-        plt.title(r'Boundary layer profile at $x_0$ = %d' % x[0,i*fact], fontsize=20)
-        plt.xlim([0,1.2])
+        plt.title(r'Boundary layer profile at $x_0$ = %d' % x[0, i*fact], fontsize=20)
+        plt.xlim([0, 1.2])
         plt.legend(loc="best")
         plt.savefig("bl_velocity_%d.pdf" % i, bbox_inches='tight')
         plt.clf()
     plt.ioff()
     fig, axs = plt.subplots(nrows=3, ncols=2, sharey=True, figsize=(12, 16))
     # axs[0].set_ylabel(r'$x_1$', fontsize=20)
-    print u[1,:]
+    print u[1, :]
     axs = numpy.ndarray.flatten(axs)
 
-    for i in range(0,6):
-        xval = x[0,(i+1)*fact]
+    for i in range(0, 6):
+        xval = x[0, (i+1)*fact]
         print xval
-        print u[1,(i+1)*fact]
-        axs[i].plot(u[0:bl_end,(i+1)*fact], y[0:bl_end,(i+1)*fact], '-k', label="Solution")
-        axs[i].plot(u_in[0:bl_end,(i+1)*fact], y[0:bl_end,(i+1)*fact], '--r', label="Initial condition")
+        print u[1, (i+1)*fact]
+        axs[i].plot(u[0:bl_end, (i+1)*fact], y[0:bl_end, (i+1)*fact], '-k', label="Solution")
+        axs[i].plot(u_in[0:bl_end, (i+1)*fact], y[0:bl_end, (i+1)*fact], '--r', label="Initial condition")
         axs[i].xaxis.set_ticks(numpy.linspace(0, 1.2, 4))
         axs[i].set_xlabel(r'$u_0$', fontsize=24)
         axs[i].set_ylabel(r'$x_1$', fontsize=24)
@@ -126,21 +128,23 @@ def initial_profile(u, x, y, lhalo, rhalo):
     plt.subplots_adjust(wspace=0.2, hspace=0.4)
 
     # plt.xlabel(r'$u_0$ velocity', fontsize=20)
-    # plt.ylabel(r'$x_1$', fontsize=20) 
+    # plt.ylabel(r'$x_1$', fontsize=20)
     fig.savefig("profile_comparison.pdf", bbox_inches='tight')
     f.close()
     return
+
 
 def line_graphs(x, variable, name):
     if name == "u":
         plt.axhline(y=0.0, linestyle='--', color='k')
 
-    plt.plot(x[1,:], variable)
+    plt.plot(x[1, :], variable)
     plt.xlabel(r'$x_0$', fontsize=20)
     plt.ylabel(r'$%s$ at wall' % name, fontsize=20)
     plt.savefig("wall_%s.pdf" % name, bbox_inches='tight')
     plt.clf()
     return
+
 
 def SBLI_comparison(x, Cf, P):
     # Skin friction plot
@@ -152,21 +156,22 @@ def SBLI_comparison(x, Cf, P):
     x0 = 0.5*Re/scale**2
     delta = 0.1
     # Calculate local Reynolds number for all x
-    Rex = Rex0 + Re*x[1,:]
+    Rex = Rex0 + Re*x[1, :]
 
     # plt.plot(markus_x, exact_cf, label='Flat plate exact')
     fig = plt.figure()
     ax = fig.add_subplot(111)
-    ax.plot(markus_x, markus_cf, color='r', linestyle='--',  marker='o' ,markevery=15, markersize=5, label='Reference')
+    ax.plot(markus_x, markus_cf, color='r', linestyle='--', marker='o', markevery=15, markersize=5,
+            label='Reference')
 
-    ax.plot(x[1,:], Cf, color='k', label='OpenSBLI')
+    ax.plot(x[1, :], Cf, color='k', label='OpenSBLI')
     ax.axhline(y=0.0, linestyle='--', color='k')
 
     ax.set_xlabel(r'$x_0$', fontsize=20)
     ax.set_ylabel(r'$C_f$', fontsize=20)
     # ax.set_title('Skin friction')
     plt.legend(loc="best")
-    ax.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+    ax.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
     fig.savefig('skin_friction.pdf', bbox_inches='tight')
     fig.clf()
 
@@ -176,21 +181,22 @@ def SBLI_comparison(x, Cf, P):
     dx = -0.040
     dy = 0
     offset = transforms.ScaledTranslation(dx, dy,
-    fig.dpi_scale_trans)
+                                          fig.dpi_scale_trans)
     shadow_transform = ax.transData + offset
-    ax.plot(x[1,:], Cf, transform=shadow_transform, lw=1, label='Shifted')
+    ax.plot(x[1, :], Cf, transform=shadow_transform, lw=1, label='Shifted')
     ax.axhline(y=0.0, linestyle='--', color='k')
 
     ax.set_xlabel(r'$x_0$', fontsize=20)
     ax.set_ylabel(r'$C_f$', fontsize=20)
     ax.set_title('Shifted skin friction')
     plt.legend(loc="best")
-    ax.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+    ax.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
     fig.savefig('shifted_skin_friction.pdf', bbox_inches='tight')
     fig.clf()
 
-    plt.plot(markus_x, markus_pwall, color='r', linestyle='--',  marker='o' ,markevery=15, markersize=5,label='Reference')
-    plt.plot(x[1,:], P[0,:]/P[0,0], color='k',label="OpenSBLI")
+    plt.plot(markus_x, markus_pwall, color='r', linestyle='--', marker='o', markevery=15, markersize=5,
+             label='Reference')
+    plt.plot(x[1, :], P[0, :]/P[0, 0], color='k', label="OpenSBLI")
     # linestyle='', marker='o',markevery=10)
     plt.xlabel(r'$x_0$', fontsize=20)
     plt.ylabel(r'$\frac{P_w}{P_1}$', fontsize=22)
@@ -199,12 +205,11 @@ def SBLI_comparison(x, Cf, P):
     plt.savefig("wall_pressure.pdf", bbox_inches='tight')
     plt.clf()
 
-    # ## Write out Cf and P to text:
+    # Write out Cf and P to text:
     # numpy.savetxt('cf.txt', Cf)
     # numpy.savetxt('x.txt', x[1,:])
     # numpy.savetxt('pwall.txt', P[0,:]/P[0,0])
     return
-
 
 
 def plot(fname, n_levels):
@@ -232,18 +237,18 @@ def plot(fname, n_levels):
     initial_profile(u, x, y, 5, 5)
     plt.clf()
     # Line plots1
-    variables = [rho[0,:], u[1,:], P[0,:]/P[0,0]]
+    variables = [rho[0, :], u[1, :], P[0, :]/P[0, 0]]
     names = ["\\rho", "u", "P"]
     for var, name in zip(variables, names):
         line_graphs(x, var, name)
     # Inlet temperature profile
-    plt.semilogy(T[:,0], y[:,0])
+    plt.semilogy(T[:, 0], y[:, 0])
     plt.ylabel('x1')
     plt.xlabel('T at inlet')
     plt.savefig("temperature.pdf", bbox_inches='tight')
     plt.clf()
     # V velocity at top boundary
-    plt.plot(x[1,:], v[-2,:])
+    plt.plot(x[1, :], v[-2, :])
     plt.xlabel('x0')
     plt.ylabel('V velocity at top boundary')
     plt.savefig("V_top.pdf", bbox_inches='tight')
@@ -253,9 +258,9 @@ def plot(fname, n_levels):
     SBLI_comparison(x, Cf, P)
     f.close()
 
+
 fname = "opensbli.h5"
 plot(fname, 25)
 
 # if(__name__ == "__main__"):
 #     plot("./")
-
