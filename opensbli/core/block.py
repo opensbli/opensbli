@@ -2,6 +2,7 @@ from opensbli.core.grid import Grid
 from sympy import pprint
 from opensbli.core.bcs import BoundaryConditionTypes
 from opensbli.core.opensbliobjects import ConstantObject, DataObject, DataSetBase
+from opensbli.core.opensbliequations import ConstituentRelations
 from sympy import flatten
 
 
@@ -192,6 +193,15 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes):  # BoundaryC
         for eq in self.list_of_equation_classes:
             block_eq = self.dataobjects_to_datasets_on_block(eq.equations)
             eq.equations = block_eq
+        self.sort_equation_classes
+        return
+
+    @property
+    def sort_equation_classes(self):
+        for no, eq in enumerate(self.list_of_equation_classes):
+            if isinstance(eq, ConstituentRelations):
+                cr = self.list_of_equation_classes.pop(no)
+                self.list_of_equation_classes.insert(0, cr)
         return
 
     def set_discretisation_schemes(self, schemes):
@@ -204,10 +214,9 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes):  # BoundaryC
     def get_constituent_equation_class(self):
         """
         """
-        from .opensbliequations import ConstituentRelations as CR
         CR_classes = []
         for sc in self.list_of_equation_classes:
-            if isinstance(sc, CR):
+            if isinstance(sc, ConstituentRelations):
                 CR_classes += [sc]
         return CR_classes
 

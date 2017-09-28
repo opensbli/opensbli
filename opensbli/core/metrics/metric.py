@@ -55,7 +55,7 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
     def latex_debug_start(self):
         self.latex_file = LatexWriter()
         latex = self.latex_file
-        latex.open('./metric_transformations.tex','Transformations of the equations in OpenSBLI framework')
+        latex.open('./metric_transformations.tex', 'Transformations of the equations in OpenSBLI framework')
         latex.write_string("The Cartesian coordinates system is (%s)" % (','.join([str(s) for s in self.cartesian_coordinates])))
         latex.write_string("The Curvilinear coordinate system is vector is (%s)" % (','.join([str(s) for s in self.curvilinear_coordinates])))
         if any(self.curvilinear_metric):
@@ -273,8 +273,6 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
         return
 
     def spatial_discretisation(cls, schemes, block):
-
-        print "here"
         (Solution, cls).__init__(cls)
         if any(cls.curvilinear_metric):
             raise NotImplementedError("Handling curvilinear coordinates for the evaluation of metrics is not applied")
@@ -287,8 +285,7 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
         cls.requires = {}
         block.store_work_index  # store the work array index
         for no, sc in enumerate(spatialschemes):
-            print sc
-            # TODO discretise the First derivatives and then apply BC's then discretise Second derivatives
+            # discretise the First derivatives and then apply BC's then discretise Second derivatives
             cls.equations = block.dataobjects_to_datasets_on_block(cls.fdequations)  # First derivatives
             cls.create_residual_arrays()
             schemes[sc].discretise(cls, block)
@@ -314,6 +311,7 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
 
     def apply_periodic_bc(self, block):
         arrays = self.FD_metrics[:] + [self.detJ]
+        arrays = [a for a in arrays if isinstance(a, DataObject)]
         arrays = block.dataobjects_to_datasets_on_block(arrays)
         from opensbli.core.bcs import PeriodicBoundaryConditionBlock as pbc
         modify = {}
