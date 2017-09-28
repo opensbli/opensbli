@@ -1,12 +1,8 @@
-import os
-from sympy import pprint
-import numpy as np
-
 
 def substitute_parameters(simulation_name, constants, values, dsets, hdf5=False):
     file_path = "./%s.cpp" % simulation_name
     substitutions = dict(zip(constants, values))
-    pprint(substitutions)
+    print(substitutions)
     with open(file_path) as f:
         s = f.read()
     with open(file_path, 'w') as f:
@@ -29,7 +25,7 @@ def substitute_parameters(simulation_name, constants, values, dsets, hdf5=False)
                 for dset in dsets:
                     new_str += 'ops_fetch_dat_hdf5_file(%s_B0, "%s.h5");\n' % (dset, simulation_name)
                 new_str += ops_exit
-
+        
         s = s.replace(ops_exit, new_str)
         f.write(s)
     return

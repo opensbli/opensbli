@@ -4,10 +4,12 @@ from opensbli import *
 from opensbli.core.weno_opensbli import *
 import copy
 
+
 def dt(dx, c):
     """ Given a grid spacing dx and the wave speed c, return the value of dt such that the CFL condition is respected. """
     courant_number = 0.2
     return (dx*courant_number)/c
+
 
 # Problem dimension
 ndim = 1

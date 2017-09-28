@@ -1,9 +1,8 @@
 """ Reads in the 1D wave equation solution data, written by the OPS dat writer,
 and plots the scalar field 'phi'. """
 
-import argparse
 import numpy
-from math import pi, exp, cos, sin
+from math import pi, sin
 import matplotlib.pyplot as plt
 import h5py
 import glob
@@ -16,12 +15,13 @@ try:
     exec(f.read())
 except:
     pass
-    
+
+
 def plot(path):
     # Number of grid points
     nx = 200
-    
-     # Number of halo nodes at each end
+
+    # Number of halo nodes at each end
     halo = 5
 
     # Read in the simulation output
@@ -31,17 +31,17 @@ def plot(path):
         sys.exit(1)
     f = h5py.File(dump[-1], 'r')
     group = f["opensbliblock00"]
-    
+
     phi = group["phi_B0"].value
     x = group["x0_B0"].value
-    
+
     # Ignore the 2 halo nodes at either end of the domain
     phi = phi[halo:nx+halo]
     x = x[halo:nx+halo]
 
     # Grid spacing
-    dx = 1.0/(nx);
-    
+    dx = 1.0/(nx)
+
     # Coordinate array
     x = numpy.zeros(nx)
     phi_initial = numpy.zeros(nx)
@@ -54,9 +54,9 @@ def plot(path):
         # Initial condition
         phi_initial[i] = sin(2*pi*x[i])
         # Analytical solution
-        phi_analytical[i] = sin(2*pi*(x[i]+0.5)) # Phi should be a sin wave shifted to the right by x = 0.5 (since the wave speed is 0.5 m/s and we've simulated until T = 1.0 s).
+        phi_analytical[i] = sin(2*pi*(x[i]+0.5))  # Phi should be a sin wave shifted to the right by x = 0.5 (since the wave speed is 0.5 m/s and we've simulated until T = 1.0 s).
         phi_error[i] = abs(phi_analytical[i] - phi[i])
-    
+
     plt.clf()
 
     plt.plot(x, phi_error, "-k", label=r"Absolute error in $\phi(x,\ t=1)$")
@@ -72,7 +72,8 @@ def plot(path):
     plt.ylabel(r"Wave amplitude $\phi$")
     plt.legend()
     plt.savefig("phi.pdf", bbox_inches='tight')
-    
+
     plt.clf()
+
 
 plot('.')
