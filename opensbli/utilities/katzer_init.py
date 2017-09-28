@@ -1,5 +1,5 @@
 from opensbli.utilities.numerical_functions import spline, splint
-from sympy import pprint, Eq, Piecewise
+from sympy import Eq, Piecewise
 from scipy.integrate import odeint
 import numpy as np
 import numpy.polynomial.polynomial as poly
@@ -14,6 +14,7 @@ plt.style.use('classic')
 
 
 class Boundary_layer_profile(object):
+
     def __init__(self, xmach, Pr, gama, Tw, Re, length, npoints, beta):
         self.y, self.u, self.T, self.scale = self.generate_boundary_layer_profile(xmach, Pr, gama, Tw, Re)
         self.Re = Re
@@ -166,6 +167,7 @@ class Boundary_layer_profile(object):
 
 
 class Initialise_Katzer(object):
+
     def __init__(self, npoints, lengths, directions, beta, n_coeffs, block):
         self.block = block
         self.directions = directions
@@ -206,7 +208,7 @@ class Initialise_Katzer(object):
 
     def form_equation(self, variable, name, coefficients, direction, edge):
         powers = [i for i in range(np.size(coefficients))][::-1]
-        eqn = sum([coeff*GridVariable('x1')**power for (coeff,power) in zip(coefficients,powers)])
+        eqn = sum([coeff*GridVariable('x1')**power for (coeff, power) in zip(coefficients, powers)])
         idx = self.idxs[direction]
         eqn = Eq(GridVariable('%s' % name), Piecewise((eqn, idx < edge), (variable[edge], True)))
         return eqn
@@ -223,7 +225,7 @@ class Initialise_Katzer(object):
         eqn6 = Eq(DataObject('rhou0'), rhou0)
         eqn7 = Eq(DataObject('rhou1'), rhou1)
         gama, Minf = ConstantObject("gama"), ConstantObject("Minf")
-        eqn8 = Eq(DataObject('rhoE'), rho*T/(gama*(gama-1)*Minf**2) + 0.5*(rhou0**2 + rhou1**2)/rho) 
+        eqn8 = Eq(DataObject('rhoE'), rho*T/(gama*(gama-1)*Minf**2) + 0.5*(rhou0**2 + rhou1**2)/rho)
         self.eqns += [eqn1, eqn2, eqn3, eqn4, eqn5, eqn6, eqn7, eqn8]
         return
 
