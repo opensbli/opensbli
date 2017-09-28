@@ -13,13 +13,6 @@ import matplotlib.transforms as transforms
 
 plt.style.use('classic')
 
-# Matplotlib settings for publication-ready figures
-# try:
-#     f = open(os.path.expanduser('./rcparams.py'), 'r')
-#     exec(f.read())
-# except:
-#     pass
-
 def contour_local(fig, levels0, label, x, y, variable):
     ax1 = fig.add_subplot(1, 1, 1, aspect='equal')
     ax1.set_xlabel(r"$x_0$", fontsize=20)
@@ -51,11 +44,10 @@ def plot(files, n_levels, min_val, max_val):
         np = group["rho_B0"].shape
         rho = group["rho_B0"].value
         rho = rho[5:-5, 5:-5]
-        x = numpy.linspace(-0.5, 0.5, np[0]-10)
-        y = numpy.linspace(-0.5, 0.5, np[1]-10)
-        xx, yy = numpy.meshgrid(x, y)
+        x, y = group["x0_B0"].value, group["x1_B0"].value
+        x, y = x[5:-5, 5:-5], y[5:-5, 5:-5]
         fig = plt.figure()
-        contour_local(fig, levels, "\\rho", xx, yy, rho)
+        contour_local(fig, levels, "\\rho", x, y, rho)
         # plt.savefig("./images/kh_image%s.png" % num, bbox_inches='tight', dpi=300)
         plt.savefig("kh_output.pdf", bbox_inches='tight', dpi=300)
         plt.clf()

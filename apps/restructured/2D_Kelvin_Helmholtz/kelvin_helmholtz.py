@@ -62,13 +62,14 @@ local_dict = {"block": block, "GridVariable": GridVariable, "DataObject": DataOb
 
 # Initial conditions as strings
 
-x0 = "Eq(GridVariable(x0), -0.5+block.deltas[0]*block.grid_indexes[0])"
-x1 = "Eq(GridVariable(x1), -0.5+block.deltas[1]*block.grid_indexes[1])"
+x0 = "Eq(DataObject(x0), -0.5+block.deltas[0]*block.grid_indexes[0])"
+x1 = "Eq(DataObject(x1), -0.5+block.deltas[1]*block.grid_indexes[1])"
 
 name = 'random_nums'
-d_in = "Eq(GridVariable(d), Piecewise((1.0 ,x1<-0.25),(1.0, x1>0.25),(2.0,True)))"
-u0_in = "Eq(GridVariable(u0),  Piecewise((-0.5 ,x1<-0.25),(-0.5, x1>0.25),(0.5+0.01*(DataObject(random_nums)-0.5),True)))"
-u1_in = "Eq(GridVariable(u1),Piecewise((0 ,x1<-0.25),(0, x1>0.25),(0.01*(DataObject(%s)-0.5),True)))" % name
+x1c = "Eq(GridVariable(x1c), DataObject(x1))"
+d_in = "Eq(GridVariable(d), Piecewise((1.0 ,x1c<-0.25),(1.0, x1c>0.25),(2.0,True)))"
+u0_in = "Eq(GridVariable(u0),  Piecewise((-0.5 ,x1c<-0.25),(-0.5, x1c>0.25),(0.5+0.01*(DataObject(random_nums)-0.5),True)))"
+u1_in = "Eq(GridVariable(u1),Piecewise((0 ,x1c<-0.25),(0, x1c>0.25),(0.01*(DataObject(%s)-0.5),True)))" % name
 p_in = "Eq(GridVariable(p), 2.5)"
 
 rho = "Eq(DataObject(rho), d)"
@@ -76,7 +77,7 @@ rhou0 = "Eq(DataObject(rhou0), d*u0)"
 rhou1 = "Eq(DataObject(rhou1), d*u1)"
 rhoE = "Eq(DataObject(rhoE), p/(gama-1) + 0.5* d *(u0**2+u1**2))"
 
-eqns = [x0, x1, d_in, u0_in, u1_in, p_in, rho, rhou0, rhou1, rhoE]
+eqns = [x0, x1, x1c, d_in, u0_in, u1_in, p_in, rho, rhou0, rhou1, rhoE]
 initial_equations = [parse_expr(eq, local_dict=local_dict) for eq in eqns]
 initial = GridBasedInitialisation()
 initial.add_equations(initial_equations)
@@ -90,6 +91,7 @@ alg = TraditionalAlgorithmRK(block)
 SimulationDataType.set_datatype(Double)
 OPSC(alg)
 # Random number generation for the initial condition
+# Change grid size here if desired
 halos = [-5, 5]
 npoints = [512, 512]
 # Generate the initial white noise seeding

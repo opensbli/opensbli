@@ -13,13 +13,8 @@ def substitute_parameters(simulation_name, constants, values, dsets, hdf5=False)
         for const, value in substitutions.iteritems():
             old_str = const + '=Input;'
             if old_str in s:
-                if isinstance(value, int):
-                    new_str = const + ' = %d;' % value
-                elif isinstance(value, float):
-                    new_str = const + ' = %.16f;' % value
+                new_str = const + ' = %s' % value + ';'
                 s = s.replace(old_str, new_str)
-        # f.write(s)
-        # Temporary output dats
 
         ops_exit = 'ops_exit();'
         if not hdf5:
@@ -39,12 +34,9 @@ def substitute_parameters(simulation_name, constants, values, dsets, hdf5=False)
         f.write(s)
     return
 
-
-
-
 if __name__ == "__main__":
     constants = ['gama', 'Minf', 'dt', 'niter', 'block0np0', 'block0np1', 'Delta0block0', 'Delta1block0', 'TENO_CT', 'eps']
-    values = [1.4, 2.0, 0.0001, 50000, 512, 512, 1.0/512, 1.0/512, 1e-5, 1e-15]
+    values = ['1.4', '2.0', '0.0001', '50000', '512', '512', '1.0/block0np0', '1.0/block0np1', '1e-5', '1e-15']
     simulation_name = 'opensbli'
-    dsets = ['rho', 'rhou0', 'rhou1', 'rhoE']
+    dsets = ['rho', 'rhou0', 'rhou1', 'rhoE', 'x0', 'x1']
     substitute_parameters(simulation_name, constants, values, dsets, True)
