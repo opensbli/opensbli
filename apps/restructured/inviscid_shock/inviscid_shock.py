@@ -72,8 +72,8 @@ local_dict = {"block": block, "GridVariable": GridVariable, "DataObject": DataOb
 for con in constants:
     local_dict[con] = ConstantObject(con)
 # Initial conditions
-x0 = parse_expr("Eq(GridVariable(x0), block.deltas[0]*block.grid_indexes[0])", local_dict=local_dict)
-x1 = parse_expr("Eq(GridVariable(x1), block.deltas[1]*block.grid_indexes[1])", local_dict=local_dict)
+x0 = parse_expr("Eq(DataObject(x0), block.deltas[0]*block.grid_indexes[0])", local_dict=local_dict)
+x1 = parse_expr("Eq(DataObject(x1), block.deltas[1]*block.grid_indexes[1])", local_dict=local_dict)
 
 
 rho = parse_expr("Eq(DataObject(rho), d)", local_dict=local_dict)
@@ -88,7 +88,7 @@ u1_in = parse_expr("Eq(GridVariable(u1), 0.0)", local_dict=local_dict)
 p_in = parse_expr("Eq(GridVariable(p), 1.0/(gama*Minf**2.0))", local_dict=local_dict)  # p = 1/(gama*Minf^2)
 
 initial = GridBasedInitialisation()
-initial.add_equations([d_in, u0_in, u1_in, p_in, rho, rhou0, rhou1, rhoE])
+initial.add_equations([x0, x1, d_in, u0_in, u1_in, p_in, rho, rhou0, rhou1, rhoE])
 
 boundaries = [[0, 0] for t in range(ndim)]
 # Left Dirchlet at x= 0, inlet conditions
@@ -115,17 +115,19 @@ pre_shock_pressure = 1.0/(1.4*4.0)
 post_shock_pressure = pre_shock_pressure * 1.18646663
 shock_loc = parse_expr("Eq(GridVariable(shock_loc), 40.0)", local_dict=local_dict)
 
-d = "Eq(GridVariable(d), Piecewise((1.0 ,x0<shock_loc),(1.129734572, x0>=shock_loc),(1.0,True)))"
-u0 = "Eq(GridVariable(u0), Piecewise((1.0 ,x0<shock_loc),(0.9667023804242755, x0>=shock_loc),(1.0,True)))"
-u1 = "Eq(GridVariable(u1), Piecewise((0.0 ,x0<shock_loc),(-0.052106102140246795, x0>=shock_loc),(1.0,True)))"
-p = "Eq(GridVariable(p), Piecewise( (%f,x0<shock_loc),(%f, x0>=shock_loc),(1.0,True)))" % (pre_shock_pressure, post_shock_pressure)
+x = "Eq(GridVariable(x), DataObject(x0))"
+d = "Eq(GridVariable(d), Piecewise((1.0 ,x<shock_loc),(1.129734572, x>=shock_loc),(1.0,True)))"
+u0 = "Eq(GridVariable(u0), Piecewise((1.0 ,x<shock_loc),(0.9667023804242755, x>=shock_loc),(1.0,True)))"
+u1 = "Eq(GridVariable(u1), Piecewise((0.0 ,x<shock_loc),(-0.052106102140246795, x>=shock_loc),(1.0,True)))"
+p = "Eq(GridVariable(p), Piecewise( (%f,x<shock_loc),(%f, x>=shock_loc),(1.0,True)))" % (pre_shock_pressure, post_shock_pressure)
 
+x = parse_expr(x, local_dict=local_dict)
 d = parse_expr(d, local_dict=local_dict)
 u0 = parse_expr(u0, local_dict=local_dict)
 u1 = parse_expr(u1, local_dict=local_dict)
 p = parse_expr(p, local_dict=local_dict)
 
-upper_eqns = [x0, shock_loc, d, u0, u1, p, rho, rhou0, rhou1, rhoE]
+upper_eqns = [x, shock_loc, d, u0, u1, p, rho, rhou0, rhou1, rhoE]
 boundaries[direction][side] = DirichletBoundaryConditionBlock(direction, side, upper_eqns)
 
 block.set_block_boundaries(boundaries)
