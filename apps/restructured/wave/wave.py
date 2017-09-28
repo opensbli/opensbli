@@ -9,7 +9,6 @@ def dt(dx, c):
     courant_number = 0.2
     return (dx*courant_number)/c
 
-
 # Problem dimension
 ndim = 1
 
@@ -39,26 +38,27 @@ block.sbli_rhs_discretisation = True
 
 boundaries = []
 # Create boundaries, one for each side per dimension
-for direction in range(ndim):
+for direction in [0]:
     boundaries += [PeriodicBoundaryConditionBlock(direction, 0)]
     boundaries += [PeriodicBoundaryConditionBlock(direction, 1)]
+local_dict = {"block": block, "GridVariable": GridVariable, "DataObject": DataObject}
 
 block.set_block_boundaries(boundaries)
 
 # Initial conditions
 local_dict = {"block": block, "GridVariable": GridVariable, "DataObject": DataObject}
-phi = parse_expr("Eq(DataObject(phi), sin(2.0*pi*(block.grid_indexes[0])*block.deltas[0]))", local_dict=local_dict)
+x0 = parse_expr("Eq(DataObject(x0), block.deltas[0]*block.grid_indexes[0])", local_dict=local_dict)
+phi = parse_expr("Eq(DataObject(phi), sin(2.0*pi*DataObject(x0)))", local_dict=local_dict)
 initial = GridBasedInitialisation()
-initial.add_equations([phi])
+initial.add_equations([x0, phi])
 
-kwargs = {'iotype': "Write"}
-h5 = iohdf5(save_every=100, **kwargs)
-h5.add_arrays(simulation_eq.time_advance_arrays)
+# kwargs = {'iotype': "Write"}
+# h5 = iohdf5(save_every=0, **kwargs)
+# h5.add_arrays(simulation_eq.time_advance_arrays)
 
 simulation = copy.deepcopy(simulation_eq)
-block.set_equations([simulation, initial])
-block.setio(copy.deepcopy(h5))
-
+block.set_equations([initial, simulation])
+# block.setio(copy.deepcopy(h5))
 
 schemes = {}
 cent = Central(4)
