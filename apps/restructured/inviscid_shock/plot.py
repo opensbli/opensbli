@@ -1,18 +1,16 @@
-import argparse
 import numpy
-from math import pi, exp, cos, sin
 import matplotlib.pyplot as plt
 import h5py
 import glob
 import sys
 import os.path
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-#from sympy import *
+# from sympy import *
 import matplotlib.cm as cm
-import matplotlib.transforms as transforms
 
 
 plt.style.use('classic')
+
 
 # Matplotlib settings for publication-ready figures
 try:
@@ -20,6 +18,7 @@ try:
     exec(f.read())
 except:
     pass
+
 
 def contour_local(fig, levels0, label, x, y, variable):
     ax1 = fig.add_subplot(1, 1, 1, aspect='equal')
@@ -29,9 +28,10 @@ def contour_local(fig, levels0, label, x, y, variable):
     divider = make_axes_locatable(ax1)
     cax1 = divider.append_axes("right", size="5%", pad=0.05)
     ticks_at = numpy.linspace(levels0[0], levels0[-1], 10)
-    cbar = plt.colorbar(CS, cax=cax1, ticks=ticks_at,format='%.3f')
+    cbar = plt.colorbar(CS, cax=cax1, ticks=ticks_at, format='%.3f')
     cbar.ax.set_ylabel(r"$%s$" % label, fontsize=20)
     return
+
 
 def read_file(fname):
     # Read in the simulation output
@@ -43,9 +43,9 @@ def read_file(fname):
     group = f["opensbliblock00"]
     return f, group
 
-def extract_data(group, lhalo, rhalo, k):
 
-    #linear dimensions of the dataset
+def extract_data(group, lhalo, rhalo, k):
+    # linear dimensions of the dataset
     np = group["rho_B0"].shape
     rho = group["rho_B0"].value
     rhou = group["rhou0_B0"].value
@@ -70,16 +70,18 @@ def extract_data(group, lhalo, rhalo, k):
     T = 1.4*4*p/rho
     return x, y, rho, u, v, rhoE, p, M, T
 
+
 def line_graphs(x, variable, name):
     if name == "u":
         plt.axhline(y=0.0, linestyle='--', color='k')
 
-    plt.plot(x[1,:], variable)
+    plt.plot(x[1, :], variable)
     plt.xlabel(r'$x_0$', fontsize=20)
     plt.ylabel(r'$%s$ at wall' % name, fontsize=20)
     plt.savefig("wall_%s.pdf" % name, bbox_inches='tight')
     plt.clf()
     return
+
 
 def plot(fname, n_levels):
     f, group1 = read_file(fname)
@@ -101,23 +103,24 @@ def plot(fname, n_levels):
         plt.clf()
 
     # Line plots1
-    variables = [rho[0,:], u[1,:], P[0,:]/P[0,0]]
+    variables = [rho[0, :], u[1, :], P[0, :]/P[0, 0]]
     names = ["\\rho", "u", "P"]
     for var, name in zip(variables, names):
         line_graphs(x, var, name)
     # Inlet temperature profile
-    plt.semilogy(T[:,0], y[:,0])
+    plt.semilogy(T[:, 0], y[:, 0])
     plt.ylabel('x1')
     plt.xlabel('T at inlet')
     plt.savefig("temperature.pdf", bbox_inches='tight')
     plt.clf()
     # V velocity at top boundary
-    plt.plot(x[1,:], v[-2,:])
+    plt.plot(x[1, :], v[-2, :])
     plt.xlabel('x0')
     plt.ylabel('V velocity at top boundary')
     plt.savefig("V_top.pdf", bbox_inches='tight')
     plt.clf()
     f.close()
+
 
 fname = "opensbli.h5"
 plot(fname, 25)
