@@ -90,7 +90,7 @@ for direction in range(ndim):
 
 
 schemes = {}
-# Local LaxFredirich scheme for weno 
+# Local LaxFredirich scheme for weno
 weno_order = '5Z'
 # Generate the Eigen system for the Euler equations
 Euler_eq = EulerEquations(ndim)
