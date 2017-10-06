@@ -6,26 +6,41 @@ import numpy.polynomial.polynomial as poly
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 from opensbli.initialisation import GridBasedInitialisation
-from opensbli.core.kernel import Kernel
 from opensbli.core.opensbliobjects import DataObject, ConstantObject
 from opensbli.core.grid import GridVariable
+import warnings
 
 plt.style.use('classic')
 
 
 class Boundary_layer_profile(object):
-
     def __init__(self, xmach, Pr, gama, Tw, Re, length, npoints, beta):
+        """ Performs a similarity solution (Viscous fluid flow, F.White 1974),
+        to obtain u and T profiles for a laminar compressible boundary-layer.
+        arg: float: xmach: Free-stream Mach numnber.
+        arg: float: Pr: Prandtl number.
+        arg: float: gama: Ratio of specific heats.
+        arg: float: Tw: Wall temperature, use -1 for adibatic wall conditions.
+        arg: float: Re: Free-stream Reynolds number.
+        arg: float: length: Doman length in the wall-normal direction.
+        arg: int: npoints: Number of points in the wall-normal direction.
+        arg: float: beta: Value of the stretching factor for non-uniform grids.
+        """
         self.y, self.u, self.T, self.scale = self.generate_boundary_layer_profile(xmach, Pr, gama, Tw, Re)
         self.Re = Re
         self.interpolate(length, npoints, beta)
         self.n = np.size(self.y)
         return
 
-    def interpolate(self, Ly, npoints, beta):
+    def interpolate(self, domain_length, npoints, beta):
+        """ Interpolates the boundary-layer data to new coordinates.
+        arg: float: domain_length: Length of the new coordinate domain.
+        arg: int: npoints: Number of points in the new coordinates.
+        arg: float: beta: Value of the stretching factor for stretched coordinates.
+        returns: None. """
         eta = np.linspace(0, 1, npoints)
-        # y_full = np.linspace(0, Ly, npoints)
-        y_full = Ly*np.sinh(beta*eta)/np.sinh(beta)
+        # y_full = np.linspace(0, domain_length, npoints)
+        y_full = domain_length*np.sinh(beta*eta)/np.sinh(beta)
         y, u, T = self.y[:], self.u[:], self.T[:]
         n = self.n
         d2y_u = spline(y, u, n, 0, 0)
@@ -33,17 +48,21 @@ class Boundary_layer_profile(object):
         u_full, T_full = np.zeros_like(y_full), np.zeros_like(y_full)
         n_full = np.size(u_full)
         for i in range(n_full):
-            # Stop spline interpolation if at the edge of the boundary-layer
             if (y_full[i] < y[-1]):
                 u_full[i] = splint(y, u, d2y_u, n, y_full[i])
                 T_full[i] = splint(y, T, d2y_T, n, y_full[i])
-            else:
+            else:  # Stop spline interpolation if we are at the edge of the boundary-layer
                 u_full[i] = u_full[i-1]
                 T_full[i] = T_full[i-1]
         self.y, self.u, self.T = y_full, u_full, T_full
         return
 
     def compbl(self, v, p=None):
+        """ Sets up the system of equations to be integrated by odeint.
+        arg: ndarray: v: Solution vector.
+        arg: None: p: Empty dummy argument required by the odeint function.
+        returns: list: dv: System of equations.
+        """
         suth = self.suth
         c = np.sqrt(v[3])*(1.0+suth)/(v[3]+suth)
         dcdg = 1.0/(2.0*np.sqrt(v[3])) - np.sqrt(v[3])/(v[3]+suth)
@@ -144,6 +163,13 @@ class Boundary_layer_profile(object):
         return y, u, T, scale
 
     def integrate_boundary_layer(self, n):
+        """ Integrates the boundary-layer and calculates the scale factor from displacement thickness
+        arg: int: n: Iteration number from the iterative solver.
+        returns: ndarray: y: Wall normal coordinates.
+        returns: ndarray: u: Streamwise velocity component profile.
+        returns: ndarray: T: Temperature profile.
+        returns: float: scale: Scale factor of the boundary-layer.
+        """
         sumd, record_z = 0, 0
         z = np.zeros(n+1)
         d_eta = self.eta[1]*0.5
@@ -168,81 +194,232 @@ class Boundary_layer_profile(object):
 
 class Initialise_Katzer(object):
 
-    def __init__(self, npoints, lengths, directions, beta, n_coeffs, block):
+    def __init__(self, npoints, lengths, directions, beta, n_coeffs, block, coordinate_strings):
+        """ Generates the initialiastion equations for the boundary-layer profile.
+        arg: list: npoints: Numerical values of the number of points in each direction.
+        arg: list: lengths: Numerical values of the problem dimensions.
+        arg: list: directions: Integer values of the problem directions.
+        arg: float: beta: Stretching factor for stretched grids.
+        arg: int: n_coeffs: Desired number of coefficients for the polynomial fit.
+        arg: object: block: OpenSBLI SimulationBlock.
+        """
         self.block = block
         self.directions = directions
         self.idxs = block.grid_indexes
         self.npoints = npoints
         self.lengths = lengths
-        self.beta = beta
+        self.betas = beta
         self.n_coeffs = n_coeffs
+        self.Tinf = 1.0
+        self.Tw = 1.67619431
+        self.coordinate_strings = coordinate_strings
+        self.initial = self.generate_initial_condition()
         return
 
-    def main(self):
+    def generate_initial_condition(self):
         # Load u, T profile
         y, u, T, rho, n = self.load_compbl()
-        # y, u, T, rho, n = load_similarity(115.0, 255, 5.0)
-        x, y_stretch = self.generate_coordinates(self.npoints, self.lengths, y, self.beta)
-        # Interpolate u, T, rho onto the grid
-        u_new = self.interpolate_onto_grid(y, y_stretch, u, 0.51425, 0)
-        T_new = self.interpolate_onto_grid(y, y_stretch, T, 0, 0)
-        rho_new = 1.0/T_new
-        rhou_new = rho_new*u_new
-        # Solve continuity equation to obtain rhov
-        rhov_new = self.solve_continuity(x, y_stretch, u_new, rho_new)
-        edge = self.find_edge_of_bl(u_new)
-        # Obtain polynomial fit coefficients
         n_coeffs = self.n_coeffs
-        if len(self.directions) == 1:
+        # y, u, T, rho, n = load_similarity(115.0, 255, 5.0)
+        tolerance = 1e-9
+        npoints, lengths, betas = self.npoints, self.lengths, self.betas
+        if len(self.directions) == 1:  # 2D Katzer and 3D spanwise periodic Katzer
             direction = 1
-            rhou_coeffs = self.generate_poly_coefficients(y_stretch, rhou_new, edge, n_coeffs)
-            rhov_coeffs = self.generate_poly_coefficients(y_stretch, rhov_new, edge, n_coeffs)
-            T_coeffs = self.generate_poly_coefficients(y_stretch, T_new, edge, n_coeffs)
-            self.generate_2D_equations([rhou_new, rhov_new, T_new], [rhou_coeffs, rhov_coeffs, T_coeffs], direction, edge)
-        elif len(self.directions) == 2:
-            pass
+            # Uniform [0, 1] values to perform grid stretching
+            eta = np.linspace(0, 1, npoints[direction])
+            coordinates = self.generate_coordinates(npoints, lengths, betas, eta, y)
+            x, y_stretch = coordinates[0], coordinates[1]
+            # Interpolate u, T, rho onto the grid
+            u_new = self.interpolate_onto_grid(y, y_stretch, u, 0.51425, 0)
+            T_new = self.interpolate_onto_grid(y, y_stretch, T, 0, 0)
+            rho_new = 1.0/T_new
+            rhou_new = rho_new*u_new
+            # Solve continuity equation to obtain rhov
+            rhov_new = self.solve_continuity(x, y_stretch, u_new, rho_new)
+            edge = self.find_edge_of_bl(u_new, tolerance)
+            # Obtain polynomial fit coefficients
+            rhou_coeffs = self.fit_polynomial(y_stretch, rhou_new, edge, n_coeffs)
+            rhov_coeffs = self.fit_polynomial(y_stretch, rhov_new, edge, n_coeffs)
+            T_coeffs = self.fit_polynomial(y_stretch, T_new, edge, n_coeffs)
+            self.generate_one_wall_equations([rhou_new, rhov_new, T_new], [rhou_coeffs, rhov_coeffs, T_coeffs], direction, edge)
+        elif len(self.directions) == 2:  # 3D with one side wall in x2
+            directions = [1, 2]
+            z = np.linspace(0, lengths[2], npoints[2])
+            edges, coeffs, profiles, normal_coeffs, normal_profiles = [], [], [], [], []
+            for dire in directions:
+                # Uniform [0, 1] values to perform grid stretching
+                eta = np.linspace(0, 1, npoints[dire])
+                coordinates = self.generate_coordinates(npoints, lengths, betas, eta, y, z)
+                x, y_stretch, z_stretch = coordinates[0], coordinates[1], coordinates[2]
+                # Interpolate u, and T onto the grid
+                u_new = self.interpolate_onto_grid(y, coordinates[dire], u, 0.51425, 0)
+                T_new = self.interpolate_onto_grid(y, coordinates[dire], T, 0, 0)
+                # Temperature scaling function in region [0, 1]
+                g = self.temperature_scaling(T_new)
+                rho_new = 1.0/T_new
+                rhou_new = rho_new*u_new
+                # Solve continuity equation to obtain rho*wall_normal_velocity
+                rho_vel_normal = self.solve_continuity(x, coordinates[dire], u_new, rho_new)
+                profiles.append([rhou_new, T_new])
+                normal_profiles.append(rho_vel_normal)
+                edge = self.find_edge_of_bl(u_new, tolerance)
+                edges.append(edge)
+                # Obtain polynomial fit coefficients
+                rhou_coeffs = self.fit_polynomial(coordinates[dire], rhou_new, edge, n_coeffs)
+                g_coeffs = self.fit_polynomial(coordinates[dire], g, edge, n_coeffs)
+                rho_vel_normal_coeffs = self.fit_polynomial(coordinates[dire], rho_vel_normal, edge, n_coeffs)
+                coeffs.append([rhou_coeffs, g_coeffs])
+                normal_coeffs.append(rho_vel_normal_coeffs)
+            self.generate_two_wall_equations(profiles, coeffs, directions, edges, normal_profiles, normal_coeffs)
         else:
             raise NotImplementedError("Boundary layer initialisation is only implemented for 1 or two walls.")
+        # Output the initialisation
+        initial = GridBasedInitialisation()
+        initial.add_equations(self.coordinate_strings + self.eqns)
+        return initial
 
-        return
+    def temperature_scaling(self, temp_profile):
+        """ Computes the temperature profile between [0,1]
+        args: ndarray: temp_profile: Temperature profile values between wall temperature and freestream.
+        returns: ndarray: g: Temperature profile ranging from 0 to 1. """
+        g = (temp_profile - self.Tw)/(self.Tinf - self.Tw)
+        return g
 
     def form_equation(self, variable, name, coefficients, direction, edge):
+        """ Creates the piecewise equations for the cases of 2D and 3D span-periodic boundary-layer profiles.
+        arg: ndarray: variable: Array of values for a given flow variable, used to obtain the free-stream value.
+        arg: string: name: Name of the variable.
+        arg: ndarray: coefficients: Coefficients for the polynomial fit.
+        arg: int: direction: Spatial direction to apply the equation to.
+        arg: int: edge: Grid index for the edge of the boundary-layer.
+        returns: Eq: eqn: OpenSBLI equation to add to the initialisation kernel.
+        """
         powers = [i for i in range(np.size(coefficients))][::-1]
         eqn = sum([coeff*GridVariable('x1')**power for (coeff, power) in zip(coefficients, powers)])
         idx = self.idxs[direction]
         eqn = Eq(GridVariable('%s' % name), Piecewise((eqn, idx < edge), (variable[edge], True)))
         return eqn
 
-    def generate_2D_equations(self, data, coeffs, direction, edge):
+    def form_mixed_equation(self, profiles, names, coefficients, directions, edges, normal_profiles, normal_coeffs):
+        """ Generates the equations for the 3D SBLI sidewall case.
+        arg: list: profiles: Arrays of values for the rhou and [0,1] temperature profiles.
+        arg: list: names: Variable names as strings.
+        arg: list: coefficients: Coefficients for the polynomial fit for rhou and temperature profiles.
+        arg: list: directions: Directions that contain a wall.
+        arg: list: edges: Indices for the boundary layer edges in each direction.
+        arg: list: normal_profiles: Arrays of values for the rhov and rhow profiles.
+        arg: list: normal_coeffs: Coefficients for the polynomial fit for rhov and rhow.
+        returns: list: piecewise_eqns: Piecewise initialisation equations to be added to the initialisation class."""
+        idx0, idx1 = self.idxs[directions[0]], self.idxs[directions[1]]
+        # Assuming we have the same number of poly coefficients in each direction, change later if required
+        powers = [i for i in range(np.size(coefficients[0][0]))][::-1]
+        # Loop over rhou, and T profiles
+        piecewise_eqns = []
+        # Create rhou profiles
+        eqn1 = sum([coeff*GridVariable('x%d' % directions[0])**power for (coeff, power) in zip(coefficients[0][0], powers)])
+        eqn2 = sum([coeff*GridVariable('x%d' % directions[1])**power for (coeff, power) in zip(coefficients[1][0], powers)])  # profiles[0][max(edges)]
+        u_var1, u_var2 = GridVariable('%s_1' % names[0]), GridVariable('%s_2' % names[0])
+        freestream_value = np.max([profiles[0][0][edges[0]], profiles[1][0][edges[1]]])
+        freestream_value = 1.0
+        piecewise_eqns.append(Eq(u_var1, Piecewise((eqn1, idx0 < edges[0]), (freestream_value, True))))
+        piecewise_eqns.append(Eq(u_var2, Piecewise((eqn2, idx1 < edges[1]), (freestream_value, True))))
+        piecewise_eqns.append(Eq(GridVariable('%s' % names[0]), u_var1*u_var2))
+        # Create T profiles, g = (T-Tw)/(Tinf - Tw) ---> T = g*(Tinf-Tw) + Tw
+        Tw = ConstantObject('Twall')
+        eqn1 = sum([coeff*GridVariable('x%d' % directions[0])**power for (coeff, power) in zip(coefficients[0][1], powers)])
+        eqn2 = sum([coeff*GridVariable('x%d' % directions[1])**power for (coeff, power) in zip(coefficients[1][1], powers)])  # profiles[0][max(edges)]
+        T_var1, T_var2 = GridVariable('%s_1' % names[1]), GridVariable('%s_2' % names[1])
+        freestream_value = np.max([profiles[0][1][edges[0]], profiles[1][1][edges[1]]])
+        freestream_value = 1.0
+        piecewise_eqns.append(Eq(T_var1, Piecewise((eqn1, idx0 < edges[0]), (freestream_value, True))))
+        piecewise_eqns.append(Eq(T_var2, Piecewise((eqn2, idx1 < edges[1]), (freestream_value, True))))
+        piecewise_eqns.append(Eq(GridVariable('%s' % names[1]), T_var1*T_var2*(freestream_value - Tw) + Tw))
+        # Create normal velocity component profiles, rhov:
+        Lx2 = ConstantObject('Lx2')
+        eqn1 = sum([coeff*GridVariable('x%d' % directions[0])**power for (coeff, power) in zip(normal_coeffs[0], powers)])
+        temp1 = GridVariable('%s' % names[2])
+        rhov_inf = normal_profiles[0][edges[0]]*u_var2  # Multiplying by rhou from the other direction
+        piecewise_eqns.append(Eq(temp1, Piecewise((eqn1*u_var2, idx0 < edges[0]), (rhov_inf, True))))
+        # rhow:
+        eqn2 = sum([coeff*GridVariable('x%d' % directions[1])**power for (coeff, power) in zip(normal_coeffs[1], powers)])
+        temp2 = GridVariable('%s' % names[3])
+        # rhow should reduce to zero at the symmetry plane
+        rhow_inf = normal_profiles[1][edges[1]]*(1 - GridVariable('x2')/Lx2)*u_var1  #Multiplying by rhou from the other direction
+        piecewise_eqns.append(Eq(temp2, Piecewise((eqn2*u_var1, idx1 < edges[1]), (rhow_inf, True))))
+        return piecewise_eqns
+
+    def generate_one_wall_equations(self, data, coeffs, direction, edge):
+        """ Generates the equations for 2D SBLI and 3D span-periodic cases.
+        arg: list: data: Profile arrays for rhou0, rhou1 and temperature.
+        arg: list: coeffs: Coefficients for the polynomial fits.
+        arg: list: direction: Direction normal to the wall.
+        arg: int: edge: Grid index for the edge of the boundary-layer."""
         self.eqns = [Eq(GridVariable('x%d' % direction), DataObject('x%d' % direction))]
-        eqn1 = self.form_equation(data[0], 'rhou0', coeffs[0], direction, edge)
-        eqn2 = self.form_equation(data[1], 'rhou1', coeffs[1], direction, edge)
-        eqn3 = self.form_equation(data[2], 'T', coeffs[2], direction, edge)
+        rhou0_eqn = self.form_equation(data[0], 'rhou0', coeffs[0], direction, edge)
+        rhou1_eqn = self.form_equation(data[1], 'rhou1', coeffs[1], direction, edge)
+        T_eqn = self.form_equation(data[2], 'T', coeffs[2], direction, edge)
         # Set conservative values
         rho, rhou0, rhou1, T = GridVariable('rho'), GridVariable('rhou0'), GridVariable('rhou1'), GridVariable('T')
-        eqn4 = Eq(rho, 1.0/T)
-        eqn5 = Eq(DataObject('rho'), rho)
-        eqn6 = Eq(DataObject('rhou0'), rhou0)
-        eqn7 = Eq(DataObject('rhou1'), rhou1)
+        rho_eqn = Eq(rho, 1.0/T)
+        rho_store = Eq(DataObject('rho'), rho)
+        rhou0_store = Eq(DataObject('rhou0'), rhou0)
+        rhou1_store = Eq(DataObject('rhou1'), rhou1)
         gama, Minf = ConstantObject("gama"), ConstantObject("Minf")
-        eqn8 = Eq(DataObject('rhoE'), rho*T/(gama*(gama-1)*Minf**2) + 0.5*(rhou0**2 + rhou1**2)/rho)
-        self.eqns += [eqn1, eqn2, eqn3, eqn4, eqn5, eqn6, eqn7, eqn8]
+        rhoE_store = Eq(DataObject('rhoE'), rho*T/(gama*(gama-1)*Minf**2) + 0.5*(rhou0**2 + rhou1**2)/rho)
+        self.eqns += [rhou0_eqn, rhou1_eqn, T_eqn, rho_eqn, rho_store, rhou0_store, rhou1_store, rhoE_store]
+        if self.block.ndim == 3:  # Periodic case, rhow = 0
+            self.eqns += [Eq(DataObject('rhou2'), 0.0)]
         return
 
-    def create_initial_condition(self):
-        initial = GridBasedInitialisation()
-
-        initial.add_equations([])
-        return initial
+    def generate_two_wall_equations(self, profiles, coeffs, directions, edges, normal_profile, normal_coeffs):
+        """ Generates the equations for 2D SBLI and 3D span-periodic cases.
+        arg: list: profiles: Profile arrays for rhou0 and temperature.
+        arg: list: coeffs: Coefficients for the polynomial fits.
+        arg: list: directions: Directions normal to the wall.
+        arg: list: edges: Grid indexes for the edge of the boundary-layer.
+        arg: list: normal_profile: Profile for the wall normal velocity components.
+        arg: list: normal_coeffs: Coefficients for the wall normal polynomial fit."""
+        # Create GridVariables of the boundary-layer independent variables x1, x2
+        self.eqns = [Eq(GridVariable('x%d' % direction), DataObject('x%d' % direction)) for direction in directions]
+        names = ['rhou0', 'T', 'rhou1', 'rhou2']
+        # Create the piecewise equations formed from the boundary layers
+        bl_equations = self.form_mixed_equation(profiles, names, coeffs, directions, edges, normal_profile, normal_coeffs)
+        # rhou0, T, rhou1, rhou2 = bl_equations[0], bl_equations[1], bl_equations[2], bl_equations[3]
+        # Set conservative values
+        rho, rhou0, rhou1, rhou2, T = GridVariable('rho'), GridVariable('rhou0'), GridVariable('rhou1'), GridVariable('rhou2'), GridVariable('T')
+        rho_eqn = Eq(rho, 1.0/T)
+        rho_store = Eq(DataObject('rho'), rho)
+        rhou0_store = Eq(DataObject('rhou0'), rhou0)
+        rhou1_store = Eq(DataObject('rhou1'), rhou1)
+        rhou2_store = Eq(DataObject('rhou2'), rhou2)
+        gama, Minf = ConstantObject("gama"), ConstantObject("Minf")
+        rhoE_store = Eq(DataObject('rhoE'), rho*T/(gama*(gama-1)*Minf**2) + 0.5*(rhou0**2 + rhou1**2 + rhou2**2)/rho)
+        self.eqns += bl_equations + [rho_eqn, rho_store, rhou0_store, rhou1_store, rhou2_store, rhoE_store]
+        return
 
     def function_to_fit(self, x, a, b, c, d):
+        """
+        General form of an equation to fit to the data, to obtain the coefficients.
+        """
         # return a*np.exp(-c*(x-b))+d
         return a*x**3 + b*x**2 + c*x + d
 
     def fit_polynomial(self, coords, variable, bl_edge, n_coeffs):
+        """ Fits a polynomial to the input data, coefficients are returned.
+        arg: ndarray: coords: Independent variable of the input data.
+        arg: ndarray: variable: Dependent variable of the input data.
+        arg: int: bl_edge: Array index at the edge of the boundary-layer.
+        arg: int: n_coeffs: Desired number of coefficients for the polynomial.
+        returns: ndarray: coeffs: Coefficients of the polynomial fit.
+        """
         coords = coords[0:bl_edge]
         variable = variable[0:bl_edge]
-        coeffs = poly.polyfit(coords, variable, n_coeffs)
+        with warnings.catch_warnings():
+            warnings.filterwarnings('error')
+            try:
+                coeffs = poly.polyfit(coords, variable, n_coeffs)
+            except np.RankWarning:
+                print "Poorly conditioned fit"
         ffit = poly.polyval(coords, coeffs)
         plt.plot(coords, ffit, label='fit')
         plt.plot(coords, variable, label='original_data')
@@ -260,17 +437,25 @@ class Initialise_Katzer(object):
         plt.plot(coords, variable, 'k-', label='original_data')
         plt.legend()
         # plt.show()
-        print popt, pcov
+        # print popt, pcov
         return
 
-    def solve_continuity(self, x, y_stretch, u, rho):
+    def solve_continuity(self, x, y, u, rho):
+        """
+        Solves the continuity equation to obtain the wall normal velocity profile.
+        arg: ndarray: x: Independent coordinate values.
+        arg: ndarray: y: Dependent coordinate values.
+        arg: ndarray: u: Streamwise velocity component values.
+        arg: ndarray: rho: Density values.
+        returns: ndarray: rhov: Array of values for the wall normal velocity components.
+        """
         # Grid offset delta to form derivative approximation
-        n = np.size(y_stretch)
-        ya2 = y_stretch[:]
+        n = np.size(y)
+        ya2 = y[:]
         delta, scale, re = 0.1, 2.316725, 950.0
         rex0 = 0.5*(re/scale)**2
         x0 = 0.5*re/scale**2
-        drudx, rhov = np.zeros_like(y_stretch), np.zeros_like(y_stretch)
+        drudx, rhov = np.zeros_like(y), np.zeros_like(y)
         # Local Reynolds number scaling to obtain a v profile
         sqrex = np.sqrt(rex0 + re*x[0])
         delsx = np.sqrt(2.0)*scale*(x0+x[0])/sqrex
@@ -301,34 +486,58 @@ class Initialise_Katzer(object):
         rho, n = 1.0/T, np.size(y)
         return y, u, T, rho, n
 
-    def generate_coordinates(self, npoints, lengths, y, beta):
-        # Uniform in x for now
+    def generate_coordinates(self, npoints, lengths, betas, eta, y, z=None):
+        """ Creates the coordinate arrays.
+        arg: list: npoints: Number of points in each direction.
+        arg: list: lengths: Domain length in each direction.
+        arg: list: betas: Stretch factors in each direction.
+        arg: ndarray: eta: Uniform values between [0,1] used for stretching.
+        arg: ndarray: y: Coordinate values in the y direction.
+        arg: ndarray: z: Coordinate values in the z direction.
+        returns: list: coordinates: List of arrays containing the coordinate values."""
         x = np.linspace(0, lengths[0], npoints[0])
-        eta = np.linspace(0, 1, npoints[1])
-        y_stretch = y[-1]*np.sinh(beta*eta)/np.sinh(beta)
-        return x, y_stretch
+        if self.block.ndim == 2:
+            by = betas[0]
+            y_stretch = y[-1]*np.sinh(by*eta)/np.sinh(by)
+            coordinates = [x, y_stretch]
+        elif self.block.ndim == 3:
+            by, bz = betas[0], betas[1]
+            y_stretch = y[-1]*np.sinh(by*eta)/np.sinh(by)
+            z_stretch = z[-1]*np.sinh(bz*eta)/np.sinh(bz)
+            coordinates = [x, y_stretch, z_stretch]
+        return coordinates
+
+    def generate_uniform_coordinates(self, npoints, lengths, betas, y, z=None):
+        coordinates = []
+        for i in range(len(npoints)):
+            coordinates.append(np.linspace(0, lengths[i], npoints[i]))
+        return coordinates
 
     def interpolate_onto_grid(self, y_in, y_out, var_in, y0, yn):
         # Create interpolating second derivative spline
         # n = size of the original data
         n = np.size(y_in)
+        n_out = np.size(y_out)
         d2y = spline(y_in, var_in, n, y0, yn)
         # Array for variable interpolated onto the grid
         var_out = np.zeros_like(y_out)
-        for i in range(n):
+        for i in range(n_out):
             var_out[i] = splint(y_in, var_in, d2y, n, y_out[i])
         return var_out
 
-    def generate_poly_coefficients(self, coordinates, variable, end_of_bl, n_coeffs):
-        coeffs = self.fit_polynomial(coordinates, variable, end_of_bl, n_coeffs)
-        return coeffs
-
-    def find_edge_of_bl(self, variable):
-        i = 1
-        while np.abs(variable[i]-variable[i-1]) > 1e-16:
-            i += 1
-        print "edge is :", i
-        return i
+    def find_edge_of_bl(self, variable, tolerance):
+        """ Finds the edge of the boundary layer and returns the index of that grid point.
+        arg: ndarray: variable: Array of values for a given flow variable.
+        arg: float: tolerance: Stopping tolerance for the difference between two successive grid points.
+        returns: int: index: Index of the boundary-layer edge."""
+        index = 1
+        while np.abs(variable[index]-variable[index-1]) > tolerance:
+            index += 1
+        return index
 
     def freestream_value(self, variable, index):
+        """ Returns the value of a flow variable for a given grid index.
+        arg: ndarray: variable: Array of values for a given flow variable.
+        arg: index: Array index to use.
+        returns: float: variable[index]: Value of the flow variable at that index."""
         return variable[index]
