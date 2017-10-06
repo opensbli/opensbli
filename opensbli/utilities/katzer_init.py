@@ -250,7 +250,7 @@ class Initialise_Katzer(object):
                 # Uniform [0, 1] values to perform grid stretching
                 eta = np.linspace(0, 1, npoints[dire])
                 coordinates = self.generate_coordinates(npoints, lengths, betas, eta, y, z)
-                x, y_stretch, z_stretch = coordinates[0], coordinates[1], coordinates[2]
+                x, y_stretch = coordinates[0], coordinates[1]
                 # Interpolate u, and T onto the grid
                 u_new = self.interpolate_onto_grid(y, coordinates[dire], u, 0.51425, 0)
                 T_new = self.interpolate_onto_grid(y, coordinates[dire], T, 0, 0)
@@ -344,7 +344,7 @@ class Initialise_Katzer(object):
         eqn2 = sum([coeff*GridVariable('x%d' % directions[1])**power for (coeff, power) in zip(normal_coeffs[1], powers)])
         temp2 = GridVariable('%s' % names[3])
         # rhow should reduce to zero at the symmetry plane
-        rhow_inf = normal_profiles[1][edges[1]]*(1 - GridVariable('x2')/Lx2)*u_var1  #Multiplying by rhou from the other direction
+        rhow_inf = normal_profiles[1][edges[1]]*(1 - GridVariable('x2')/Lx2)*u_var1  # Multiplying by rhou from the other direction
         piecewise_eqns.append(Eq(temp2, Piecewise((eqn2*u_var1, idx1 < edges[1]), (rhow_inf, True))))
         return piecewise_eqns
 
