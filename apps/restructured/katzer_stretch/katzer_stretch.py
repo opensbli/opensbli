@@ -110,9 +110,8 @@ metriceq.genreate_transformations(ndim, coordinate_symbol, [(False, False), (Tru
 simulation_eq.apply_metrics(metriceq)
 
 # latex = LatexWriter()
-# latex.open('./equations.tex')
+# latex.open('./equations.tex', {})
 # metadata = {"title": "Einstein Expansion of hybrid TENO", "author": "David", "institution": ""}
-# latex.write_header(metadata)
 # latex.write_string("Simulation equations\n")
 # for index, eq in enumerate(flatten(simulation_eq.equations)):
 #     if isinstance(eq, Equality):
@@ -122,16 +121,13 @@ simulation_eq.apply_metrics(metriceq)
 # for index, eq in enumerate(flatten(constituent.equations)):
 #     if isinstance(eq, Equality):
 #         latex.write_expression(eq)
-# latex.write_footer()
 # latex.close()
 
-# Create x1 coordinates
-initial = GridBasedInitialisation()
-# Call the new polynomial based katzer initialisation, stretch factor 5 with 20 coefficients for the polynomial
-init_katzer = Initialise_Katzer([609, 255], [400.0, 115.0], [1], 5.0, 20, block)
-init_katzer.main()
-# Add gridx0 back in after
-initial.add_equations([gridx0, gridx1] + init_katzer.eqns)
+# Perform initial condition
+coordinate_evaluation = [gridx0, gridx1]
+# Call the new polynomial based katzer initialisation, stretch factor 3 with 17 coefficients for the polynomial
+init_katzer = Initialise_Katzer([609, 255], [400.0, 115.0], [1], [5.0], 17, block, coordinate_evaluation)
+initial = init_katzer.initial
 
 block.set_block_boundaries(boundaries)
 
@@ -143,11 +139,6 @@ block.set_equations([CR, sim_eq, initial, metriceq])
 block.set_discretisation_schemes(schemes)
 block.discretise()
 
-# k = Kernel(block)
-# k.add_equation(Eq(DataSetBase('x0'), DataSetBase('x0'), evaluate=False))
-# k.add_equation(Eq(DataSetBase('x1'), DataSetBase('x1'), evaluate=False))
-
-# k.update_block_datasets(block)
 alg = TraditionalAlgorithmRK(block)
 SimulationDataType.set_datatype(Double)
 OPSC(alg)
