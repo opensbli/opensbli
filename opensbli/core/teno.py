@@ -5,7 +5,7 @@ from opensbli.core.kernel import Kernel
 from opensbli.core.grid import GridVariable
 # from opensbli.utilities.helperfunctions import increment_dataset as incr_dset
 from opensbli.core.scheme import Scheme
-from opensbli.core.weno_opensbli import LLFCharacteristic
+from opensbli.core.weno_opensbli import LLFCharacteristic, ShockCapturing
 from opensbli.core.kernel import ConstantsToDeclare as CTD
 
 
@@ -504,7 +504,7 @@ class RightTenoReconstructionVariable(TenoReconstructionVariable):
         return
 
 
-class Teno(Scheme):
+class Teno(Scheme, ShockCapturing):
     """ Main TENO class."""
 
     def __init__(self, order, **kwargs):

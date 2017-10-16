@@ -333,7 +333,7 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
             for dire in modify:
                 boundary_mods = [k for k in modify[dire] if k]
                 for b in boundary_mods:
-                    self.Kernels += [b.apply(arrays, b.direction, b.side, block)]
+                    self.Kernels += [b.apply(arrays, block)]
 
         return
 

@@ -187,7 +187,7 @@ class JS_smoothness(object):
                         shift_indices = [-r+m+shift, -r+n+shift]
                         func_product = fn.function_stencil_dictionary[shift_indices[0]]*fn.function_stencil_dictionary[shift_indices[1]]
                         local_smoothness += beta*func_product
-            #pprint(local_smoothness)
+            # pprint(local_smoothness)
             fn.smoothness_indicators += [local_smoothness]
         return
 
@@ -327,7 +327,11 @@ class WenoJS(object):
         return
 
 
-class Weno(Scheme):
+class ShockCapturing(object):
+    pass
+
+
+class Weno(Scheme, ShockCapturing):
     """ Main WENO class. Performs the Jiang-Shu WENO reconstruction procedure. Refer to the reference:
     'Essentially Non-Oscillatory and Weighted Essentially Non-Oscillatory schemes for Hyperbolic Conservation
     laws. Shu (1997). The alpha & omega quantities follow the description from this paper."""
@@ -578,11 +582,11 @@ class Characteristic(EigenSystem):
         post_process_equations = []
         averaged_suffix_name = self.averaged_suffix_name
         avg_REV_values = self.convert_matrix_to_grid_variable(self.right_eigen_vector[self.direction], averaged_suffix_name)
-        grid_REV = self.generate_grid_variable_REV(self.direction, averaged_suffix_name)
-        self.REV_store[self.direction] = grid_REV
-        post_process_equations += flatten(self.generate_equations_from_matrices(grid_REV, avg_REV_values))
+        # grid_REV = self.generate_grid_variable_REV(self.direction, averaged_suffix_name)
+        # self.REV_store[self.direction] = grid_REV
+        # post_process_equations += flatten(self.generate_equations_from_matrices(grid_REV, avg_REV_values))
         reconstructed_characteristics = Matrix([d.evaluate_reconstruction for d in derivatives])
-        reconstructed_flux = grid_REV*reconstructed_characteristics
+        reconstructed_flux = avg_REV_values*reconstructed_characteristics
         reconstructed_work = [d.reconstruction_work for d in derivatives]
         post_process_equations += [Eq(x, y) for x, y in zip(reconstructed_work, reconstructed_flux)]
         kernel.add_equation(post_process_equations)

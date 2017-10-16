@@ -181,7 +181,7 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes):  # BoundaryC
     def apply_bc_direction(self, direction, side, arrays):
         """
         """
-        kernel = self.boundary_types[direction][side].apply(arrays, direction, side, self)
+        kernel = self.boundary_types[direction][side].apply(arrays, self)
         return kernel
 
     def set_equations(self, list_of_equations):
