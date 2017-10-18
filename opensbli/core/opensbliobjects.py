@@ -3,6 +3,7 @@ from sympy.tensor import Idx, IndexedBase, Indexed
 from sympy import pprint
 from sympy.tensor.indexed import IndexException
 from sympy.core.cache import cacheit
+from opensbli.core.datatypes import SimulationDataType
 
 
 class EinsteinTerm(Symbol):
@@ -144,7 +145,25 @@ class ConstantObject(EinsteinTerm, Constant):
     def __new__(cls, label, **kwargs):
         ret = super(ConstantObject, cls).__new__(cls, label, **kwargs)
         ret.is_constant = True
+        ret.is_input = True
+        ret.dtype = None
+        ret._value = "Input"
         return ret
+    
+    @property
+    def value(self):
+        """Conver the dataobjects to datasets"""
+        return self._value
+    
+    @value.setter
+    def value(self, numerical_value, dtype=None):
+        self.is_input = False
+        self._value = numerical_value
+        if dtype:
+                self.dtype = dtype
+            else:
+                self.dtype = SimulationDataType()
+        return
 
 
 class ConstantIndexed(Indexed, Constant):
@@ -162,6 +181,7 @@ class ConstantIndexed(Indexed, Constant):
             indices = flatten([indices])
         ret = Indexed.__new__(cls, base, *indices)
         ret.is_constant = True
+        ret.in_line_array = False
         return ret
 
     @property
