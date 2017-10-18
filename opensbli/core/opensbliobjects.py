@@ -146,10 +146,19 @@ class ConstantObject(EinsteinTerm, Constant):
         ret = super(ConstantObject, cls).__new__(cls, label, **kwargs)
         ret.is_constant = True
         ret.is_input = True
-        ret.dtype = None
+        ret._datatype = SimulationDataType()
         ret._value = "Input"
         return ret
     
+
+    @property
+    def datatype(self):
+        return self._datatype
+
+    @datatype.setter
+    def datatype(self, dtype):
+        self._datatype = dtype
+
     @property
     def value(self):
         """Conver the dataobjects to datasets"""
@@ -160,9 +169,9 @@ class ConstantObject(EinsteinTerm, Constant):
         self.is_input = False
         self._value = numerical_value
         if dtype:
-                self.dtype = dtype
-            else:
-                self.dtype = SimulationDataType()
+            self.datatype = dtype
+        else:
+            self.datatype = SimulationDataType()
         return
 
 
@@ -181,8 +190,36 @@ class ConstantIndexed(Indexed, Constant):
             indices = flatten([indices])
         ret = Indexed.__new__(cls, base, *indices)
         ret.is_constant = True
-        ret.in_line_array = False
+        ret.inline_array = False
+        ret.is_input = True
+        ret._datatype = SimulationDataType()
+        ret._value = ["Input" for i in range(ret.shape[0])]
         return ret
+
+    @property
+    def datatype(self):
+        return self._datatype
+
+    @datatype.setter
+    def datatype(self, dtype):
+        self._datatype = dtype
+
+    @property
+    def value(self):
+        """Conver the dataobjects to datasets"""
+        return self._value
+    
+    @value.setter
+    def value(self, numerical_values, dtype=None):
+        self.is_input = False
+        if len(numerical_values) != len(self.value):
+            raise ValueError("Values for ConstantIndexed should be of length of the constants.")
+        self._value = numerical_values
+        if dtype:
+            self.datatype = dtype
+        else:
+            self.datatype = SimulationDataType()
+        return
 
     @property
     def location(cls):

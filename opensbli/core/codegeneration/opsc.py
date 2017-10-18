@@ -31,8 +31,9 @@ class RationalCounter():
         name = self.name % self.rational_counter
         self.increase_rational_counter
         ret = ConstantObject(name)
+        ret.value = numerical_value
         self.existing[numerical_value] = ret
-        CTD.add_constant(ret, value=numerical_value)
+        CTD.add_constant(ret)
         return ret
 
 
@@ -328,14 +329,14 @@ class OPSC(object):
 
     def before_main(self, algorithm):
         out = ['#include <stdlib.h> \n#include <string.h> \n#include <math.h>']
-        for d in CTD.constants:
-            if isinstance(d, ConstantObject):
-                out += ["%s %s;" % (d.dtype.opsc(), d)]
-            elif isinstance(d, ConstantIndexed):
-                indices = ''
-                for s in d.shape:
-                    indices = indices + '[%d]' % s
-                out += ["%s %s%s;" % (d.dtype.opsc(), d.base.label, indices)]
+        # for d in CTD.constants:
+        #     if isinstance(d, ConstantObject):
+        #         out += ["%s %s;" % (d.datatype.opsc(), d)]
+        #     elif isinstance(d, ConstantIndexed):
+        #         indices = ''
+        #         for s in d.shape:
+        #             indices = indices + '[%d]' % s
+        #         out += ["%s %s%s;" % (d.datatype.opsc(), d.base.label, indices)]
         for b in algorithm.block_descriptions:
             out += ['#define OPS_%dD' % b.ndim]
         out += ['#include \"ops_seq.h\"']
@@ -500,20 +501,29 @@ class OPSC(object):
             raise NotImplementedError("")
 
     def define_constants(self, c):
+        # Fix spacing on constant declarations %s=%s
         if isinstance(c, ConstantObject):
-            if c.value:
-                return [WriteString("%s=%s;" % (str(c), ccode(c.value, settings={'rational': True})))]
+            if not isinstance(c.value, str):
+                return [WriteString("%s %s = %s;" % (c.datatype.opsc(), str(c), ccode(c.value, settings={'rational': True})))]
             else:
-                return [WriteString("%s=%s;" % (str(c), "Input"))]
+                return [WriteString("%s %s=%s;" % (c.datatype.opsc(), str(c), c.value))]
         elif isinstance(c, ConstantIndexed):
             out = []
             if c.value:
                 if len(c.shape) == 1:
-                    for i in range(c.shape[0]):
-                        out += [WriteString("%s[%d]=%s;" % (str(c.base.label), i, ccode(c.value[i], settings={'rational': True})))]
+                    if c.inline_array:
+                        values = [ccode(c.value[i], settings={'rational': True}) for i in range(c.shape[0])]
+                        return [WriteString("%s %s[] = {%s};" % (c.datatype.opsc(), c.base.label, ', '.join(values)))]
+                    else:
+                        indices = ''
+                        for s in c.shape:
+                            indices = indices + '[%d]' % s
+                        out += [WriteString("%s %s%s;" % (c.datatype.opsc(), c.base.label, indices))]
+                        for i in range(c.shape[0]):
+                            out += [WriteString("%s[%d] = %s;" % (str(c.base.label), i, ccode(c.value[i], settings={'rational': True})))]
+                        return out
                 else:
                     raise NotImplementedError("Indexed constant declaration is done for only one ")
-                return out
             else:
                 raise NotImplementedError("")
         else:
@@ -522,7 +532,7 @@ class OPSC(object):
 
     def declare_ops_constants(self, c):
         if isinstance(c, ConstantObject):
-            return [WriteString("ops_decl_const(\"%s\" , 1, \"%s\", &%s);" % (str(c), c.dtype.opsc(), str(c)))]
+            return [WriteString("ops_decl_const(\"%s\" , 1, \"%s\", &%s);" % (str(c), c.datatype.opsc(), str(c)))]
         elif isinstance(c, ConstantIndexed):
             return []
         return

@@ -406,11 +406,16 @@ class RungeKutta(Scheme):
         cls.nloops = 2
         cls.stage = Idx('stage', order)
         cls.solution_coeffs = ConstantIndexed('rkold', cls.stage)
+        cls.solution_coeffs.inline_array = True
         cls.stage_coeffs = ConstantIndexed('rknew', cls.stage)
+        cls.stage_coeffs.inline_array = True
         from .kernel import ConstantsToDeclare as CTD
-        coeffs = cls.get_coefficients
-        CTD.add_constant(cls.solution_coeffs, value=coeffs[cls.solution_coeffs])
-        CTD.add_constant(cls.stage_coeffs, value=coeffs[cls.stage_coeffs])
+        # Update coefficient values
+        cls.get_coefficients
+        # cls.solution_coeffs.value = coeffs[cls.solution_coeffs]
+        # cls.stage_coeffs
+        CTD.add_constant(cls.solution_coeffs)
+        CTD.add_constant(cls.stage_coeffs)
         cls.solution = {}
         if constant_dt:
             raise NotImplementedError("")
@@ -428,9 +433,11 @@ class RungeKutta(Scheme):
 
         if cls.order == 3:
             coeffs = {}
-            coeffs[cls.solution_coeffs] = [Rational(1.0, 4.0), Rational(3.0, 20), Rational(3.0, 5.0)]
-            coeffs[cls.stage_coeffs] = [Rational(2, 3), Rational(5, 12), Rational(3, 5)]
-        return coeffs
+            # coeffs[cls.solution_coeffs] = [Rational(1.0, 4.0), Rational(3.0, 20), Rational(3.0, 5.0)]
+            cls.solution_coeffs.value = [Rational(1.0, 4.0), Rational(3.0, 20), Rational(3.0, 5.0)]
+            # coeffs[cls.stage_coeffs] = [Rational(2, 3), Rational(5, 12), Rational(3, 5)]
+            cls.stage_coeffs.value = [Rational(2, 3), Rational(5, 12), Rational(3, 5)]
+        return 
 
     def __str__(cls):
         return "%s" % (cls.__class__.__name__)

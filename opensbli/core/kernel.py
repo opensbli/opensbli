@@ -34,23 +34,25 @@ class ConstantsToDeclare(object):
 
     @staticmethod
     def add_constant(const, value=None, dtype=None):
-        if value and const not in ConstantsToDeclare.constants:
-            c = constant_attributes(const)
-            c.is_input = False
-            if dtype:
-                c.dtype = dtype
-            else:
-                c.dtype = SimulationDataType()
-            c.value = value
-            ConstantsToDeclare.constants += [c]
-        elif const not in ConstantsToDeclare.constants:
-            c = constant_attributes(const)
-            # c.is_input = False
-            if dtype:
-                c.dtype = dtype
-            else:
-                c.dtype = SimulationDataType()
-            ConstantsToDeclare.constants += [c]
+        # if value and const not in ConstantsToDeclare.constants:
+        #     c = constant_attributes(const)
+        #     c.is_input = False
+        #     if dtype:
+        #         c.dtype = dtype
+        #     else:
+        #         c.dtype = SimulationDataType()
+        #     c.value = value
+        #     ConstantsToDeclare.constants += [c]
+        # elif const not in ConstantsToDeclare.constants:
+        #     c = constant_attributes(const)
+        #     # c.is_input = False
+        #     if dtype:
+        #         c.dtype = dtype
+        #     else:
+        #         c.dtype = SimulationDataType()
+        #     ConstantsToDeclare.constants += [c]
+        if const not in ConstantsToDeclare.constants:
+            ConstantsToDeclare.constants += [const]
         # print c.__dict__
         return
 

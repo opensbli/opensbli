@@ -451,7 +451,9 @@ class TraditionalAlgorithmRK(object):
                         in_time += [cond]
                     else:
                         raise NotImplementedError("In Nonsimulation equations")
-            CTD.add_constant(ConstantObject('niter'), dtype=Int())
+            niter_symbol = ConstantObject('niter')
+            niter_symbol.datatype = Int()
+            CTD.add_constant(niter_symbol)
             tloop = DoLoop(temporal_iteration)
             tloop.add_components(temporal_start)
             tloop.add_components(innerloop)
