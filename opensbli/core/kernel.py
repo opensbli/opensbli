@@ -261,20 +261,39 @@ class Kernel(object):
 
     def write_latex(self, latex):
         latex.write_string('The kernel is %s' % self.computation_name)
-        halo_m, halo_p = get_min_max_halo_values(self.halo_ranges)
-        range_of_eval = [[0, 0] for r in range(self.ndim)]
+        range_of_eval = self.total_range()
+        #halo_m, halo_p = get_min_max_halo_values(self.halo_ranges)
+        #range_of_eval = [[0, 0] for r in range(self.ndim)]
         # print self.computation_name, self.halo_ranges
         # print halo_m, halo_p
         # print range_of_eval
-        for d in range(self.ndim):
-            range_of_eval[d][0] = self.ranges[d][0] + halo_m[d]
-            range_of_eval[d][1] = self.ranges[d][1] + halo_p[d]
+        #for d in range(self.ndim):
+            #range_of_eval[d][0] = self.ranges[d][0] + halo_m[d]
+            #range_of_eval[d][1] = self.ranges[d][1] + halo_p[d]
         latex.write_string('The ranges are %s' % (','.join([str(d) for d in flatten(range_of_eval)])))
         # latex.write_string('. The range of evaluation is  %s \\ \n\n the halo ranges are %s'%(self.ranges, self.halo_ranges))
         for index, eq in enumerate(self.equations):
             if isinstance(eq, Equality):
                 latex.write_expression(eq)
         return
+
+    def total_range(self):
+        range_of_eval = []
+        if isinstance(self.halo_ranges, ConstantIndexed) and isinstance(self.ranges, ConstantIndexed):
+            ranges = self.ranges.value_access_c
+            halos = self.halo_ranges.value_access_c            
+            for a in list(zip(ranges, halos)):
+                range_of_eval += [' + '.join(a)]
+        elif isinstance(self.halo_ranges, ConstantIndexed) or isinstance(self.ranges, ConstantIndexed):
+            raise NotImplementedError("handling ranges and halo_ranges of different types is not implemented")
+        else:
+            halo_m, halo_p = get_min_max_halo_values(self.halo_ranges)
+            range_of_eval = [[0, 0] for r in range(self.ndim)]
+            for d in range(self.ndim):
+                range_of_eval[d][0] = self.ranges[d][0] + halo_m[d]
+                range_of_eval[d][1] = self.ranges[d][1] + halo_p[d]
+            range_of_eval = flatten(range_of_eval)
+        return range_of_eval
 
     @property
     def opsc_code(self):
@@ -285,12 +304,13 @@ class Kernel(object):
         inouts = ins.intersection(outs)
         ins = ins.difference(inouts)
         outs = outs.difference(inouts)
-        halo_m, halo_p = get_min_max_halo_values(self.halo_ranges)
-        range_of_eval = [[0, 0] for r in range(self.ndim)]
+        #halo_m, halo_p = get_min_max_halo_values(self.halo_ranges)
+        #range_of_eval = [[0, 0] for r in range(self.ndim)]
         # print self.computation_name, self.ranges, self.halo_ranges
-        for d in range(self.ndim):
-            range_of_eval[d][0] = self.ranges[d][0] + halo_m[d]
-            range_of_eval[d][1] = self.ranges[d][1] + halo_p[d]
+        #for d in range(self.ndim):
+            #range_of_eval[d][0] = self.ranges[d][0] + halo_m[d]
+            #range_of_eval[d][1] = self.ranges[d][1] + halo_p[d]
+        range_of_eval = self.total_range()
         dtype = 'int'
         iter_name = "iteration_range_%d" % (self.kernel_no)
         iter_name_code = ['%s %s[] = {%s};' % (dtype, iter_name, ', '.join([str(s) for s in flatten(range_of_eval)]))]

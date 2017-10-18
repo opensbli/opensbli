@@ -406,9 +406,7 @@ class RungeKutta(Scheme):
         cls.nloops = 2
         cls.stage = Idx('stage', order)
         cls.solution_coeffs = ConstantIndexed('rkold', cls.stage)
-        cls.solution_coeffs.inline_array = True
         cls.stage_coeffs = ConstantIndexed('rknew', cls.stage)
-        cls.stage_coeffs.inline_array = True
         from .kernel import ConstantsToDeclare as CTD
         # Update coefficient values
         cls.get_coefficients

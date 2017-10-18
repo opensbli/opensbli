@@ -190,7 +190,7 @@ class ConstantIndexed(Indexed, Constant):
             indices = flatten([indices])
         ret = Indexed.__new__(cls, base, *indices)
         ret.is_constant = True
-        ret.inline_array = False
+        ret.inline_array = True
         ret.is_input = True
         ret._datatype = SimulationDataType()
         ret._value = ["Input" for i in range(ret.shape[0])]
@@ -220,6 +220,10 @@ class ConstantIndexed(Indexed, Constant):
         else:
             self.datatype = SimulationDataType()
         return
+    
+    @property
+    def value_access_c(self):
+        return ["%s[%d]" % (self.base, i) for i in range(0, len(self.value))]
 
     @property
     def location(cls):

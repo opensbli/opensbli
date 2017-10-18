@@ -1,6 +1,8 @@
 from sympy import flatten, Eq, zeros, Matrix, eye, S, sqrt, Equality, MatrixSymbol, nsimplify, Abs, Piecewise, GreaterThan, Float
-from opensbli.core.kernel import Kernel
-from opensbli.core.opensbliobjects import DataSet
+from sympy import Idx
+from opensbli.core.kernel import Kernel, ConstantsToDeclare
+from opensbli.core.opensbliobjects import DataSet, ConstantIndexed
+from opensbli.core.datatypes import Int
 from opensbli.core.grid import GridVariable
 from opensbli.physical_models.ns_physics import NSphysics
 from opensbli.utilities.helperfunctions import dot, get_min_max_halo_values, increment_dataset
@@ -133,19 +135,31 @@ class BoundaryConditionBase(object):
             return self.arbitrary_bc_plane_kernel(block, bc_name)
 
     def arbitrary_bc_plane_kernel(self, block, bc_name):
-        direction, side, split_direction = self.direction, self.side, self.split_direction
-        kernel = Kernel(block, computation_name="%s boundary dir%d side%d" % (bc_name, direction, side))
-        kernel = self.set_kernel_range(kernel, block)
+        direction, side, split_number = self.direction, self.side, self.split_number
+        kernel = Kernel(block, computation_name="split bc direction-%d side-%d split-%d" % (direction, side, split_number))
+        print kernel.computation_name
+        numbers = Idx('no', 2*block.ndim)
+        ranges = ConstantIndexed('split_range_%d%d%d'%(direction, side, split_number), numbers)
+        ranges.datatype = Int()
+        kernel.ranges = ranges
+        halo_ranges = ConstantIndexed('split_halo_range_%d%d%d'%(direction, side, split_number), numbers)
+        halo_ranges.datatype = Int()
+        kernel.halo_ranges = halo_ranges
+        ConstantsToDeclare.add_constant(ranges)
+        ConstantsToDeclare.add_constant(halo_ranges)
+        #exit()
+        #kernel = self.set_kernel_range(kernel, block)
         halo_values = self.get_halo_values(block)
-        print "Halo values:", halo_values
-        print "Kernel ranges: ", kernel.ranges
+        #print "Halo values:", halo_values
+        #print "Kernel ranges: ", kernel.ranges
         # Add the halos to the kernel in directions not equal to boundary or split direction
-        print direction, split_direction
-        for i in [x for x in range(block.ndim) if x not in [direction, split_direction]]:
-            kernel.halo_ranges[i][0] = block.boundary_halos[i][0]
-            kernel.halo_ranges[i][1] = block.boundary_halos[i][1]
+        #print direction, split_direction
+        #for i in [x for x in range(block.ndim) if x not in [direction, split_direction]]:
+            #kernel.halo_ranges[i][0] = block.boundary_halos[i][0]
+            #kernel.halo_ranges[i][1] = block.boundary_halos[i][1]
         print "\n\n\n"
         print "Kernel halo ranges", kernel.halo_ranges
+        #exit()
         return halo_values, kernel
 
     def set_kernel_range(self, kernel, block):
@@ -222,12 +236,17 @@ class SplitBoundaryConditionBlock(BoundaryConditionBase):
         self.bc_types = bcs
         self.split_direction = split_direction
         return
+    
+    def pre_process_bc(self):
+        return
 
     def apply(self, arrays, block):
         kernels = []
         for no, bc in enumerate(self.bc_types):
             bc.full_plane = False
-            bc.split_direction, bc.no = self.split_direction, no
+            bc.split_direction, bc.split_number = self.split_direction, no
+            print type(bc)
+            #exit()
             kernels.append(bc.apply(arrays, block))
         return kernels
 
