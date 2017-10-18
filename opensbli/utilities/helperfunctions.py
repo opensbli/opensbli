@@ -2,6 +2,22 @@ from opensbli.core.opensbliobjects import DataSet, CoordinateObject
 import h5py
 
 
+def get_min_max_halo_values(halos):
+    halo_m = []
+    halo_p = []
+    for direction in range(len(halos)):
+        if halos[direction][0]:
+            hal = [d.get_halos(0) for d in halos[direction][0]]
+            halo_m += [min(hal)]
+        else:
+            halo_m += [0]
+        if halos[direction][1]:
+            hal = [d.get_halos(1) for d in halos[direction][1]]
+            halo_p += [max(hal)]
+        else:
+            halo_p += [0]
+    return halo_m, halo_p
+
 def increment_dataset(expression, direction, value):
     """ Increments an expression containing datasets by the given increment and direction.
     arg: object: expression: A SymPy expression containing datasets to have their indices updated.

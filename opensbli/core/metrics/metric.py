@@ -336,3 +336,8 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
             if isinstance(kernel, Kernel):
                 kernel.update_block_datasets(block)
         return
+
+    def apply_boundary_conditions(cls, block):
+        """ Used to fit in the abstraction, boundary conditions are applied for each equation class passed to block and discretised.
+        Later once metrics are not part of the eqaution classes, this can be removed. """
+        return

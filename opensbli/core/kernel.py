@@ -5,6 +5,7 @@ from opensbli.core.opensbliobjects import DataSetBase, DataSet, ConstantIndexed,
 from opensbli.core.grid import GridVariable, Grididx
 from opensbli.core.datatypes import SimulationDataType
 from sympy.core.function import _coeff_isneg
+from opensbli.utilities.helperfunctions import get_min_max_halo_values
 import copy
 
 
@@ -140,66 +141,8 @@ class Kernel(object):
             self.ranges += [local_range]
         return
 
-    def set_grid_range_for_halo_loop(self, direction, side, block):
-        self.set_grid_range_to_zero(block)
-        self.ranges[direction] = [block.ranges[direction][side]]*2
-        print self.ranges, "setting halo loop"
-        return
-
-    # def get_max_halos(self, direction, side, block):
-        # halos = block.boundary_halos[direction][side]
-        # print halos
-        # total_halos = 0
-        # for h in halos:
-        # total_halos = Max(total_halos, h.get_halos(side))
-        # total_halos = self.mulfactor[side]*total_halos
-        # return total_halos
-
-    def get_max_halos(self, direction, side, block):
-        halos = block.boundary_halos
-        halo_m = []
-        halo_p = []
-        for direction in range(len(halos)):
-            if halos[direction][0]:
-                hal = [d.get_halos(0) for d in halos[direction][0]]
-                halo_m += [min(hal)]
-            else:
-                halo_m += [0]
-            if halos[direction][1]:
-                hal = [d.get_halos(1) for d in halos[direction][1]]
-                halo_p += [max(hal)]
-            else:
-                halo_p += [0]
-        if side == 0:
-            return halo_m[direction]
-        elif side == 1:
-            return halo_p[direction]
-
-    def get_plane_halos(self, block):
-        plane_halos = []
-        for no, d in enumerate(block.boundary_halos):
-            direction_halos = []
-            direction_halos += [self.get_max_halos(no, 0, block)]
-            direction_halos += [self.get_max_halos(no, 1, block)]
-            plane_halos += [direction_halos]
-        return plane_halos
-
-    def set_boundary_plane_range(self, block, direction, side):
-        self.ranges = block.ranges[:]
-        if side == 0:
-            left = 0
-            right = 1
-        elif side == 1:
-            left = -1
-            right = 0
-        self.ranges[direction] = [block.ranges[direction][side]+left, block.ranges[direction][side]+right]
-        return
-
-    def set_range(self, ranges):
-        self.ranges = ranges  # NOT REQUIRED
-        return
-
     def set_halo_range(self, direction, side, types):
+        # Rename, halos for a certain kernel
         # if not self.halo_ranges[direction][side]:
             # self.halo_ranges[direction][side] = set([types])
         # else:
@@ -211,6 +154,8 @@ class Kernel(object):
         return
 
     def merge_halo_range(self, halo_range):
+        # Required in future for merging 2 kernels
+        # Merge the halo ranges for 2 kernels, doesn't check any eqautions
         for direction in range(len(self.halo_ranges)):
             self.halo_ranges[direction][0] = self.halo_ranges[direction][0] | halo_range[direction][0]
             self.halo_ranges[direction][1] = self.halo_ranges[direction][1] | halo_range[direction][1]
@@ -314,18 +259,14 @@ class Kernel(object):
 
     def write_latex(self, latex):
         latex.write_string('The kernel is %s' % self.computation_name)
-        from .codegeneration.opsc import get_min_max_halo_values
         halo_m, halo_p = get_min_max_halo_values(self.halo_ranges)
         range_of_eval = [[0, 0] for r in range(self.ndim)]
-        # print self.computation_name, self.ranges, self.halo_ranges
+        # print self.computation_name, self.halo_ranges
+        # print halo_m, halo_p
+        # print range_of_eval
         for d in range(self.ndim):
             range_of_eval[d][0] = self.ranges[d][0] + halo_m[d]
             range_of_eval[d][1] = self.ranges[d][1] + halo_p[d]
-        if self.computation_name == 'Dirichlet boundary dir1 side1':
-            pprint(self.halo_ranges)
-            pprint([halo_m, halo_p])
-            pprint(self.ranges)
-            # exit()
         latex.write_string('The ranges are %s' % (','.join([str(d) for d in flatten(range_of_eval)])))
         # latex.write_string('. The range of evaluation is  %s \\ \n\n the halo ranges are %s'%(self.ranges, self.halo_ranges))
         for index, eq in enumerate(self.equations):
@@ -342,7 +283,6 @@ class Kernel(object):
         inouts = ins.intersection(outs)
         ins = ins.difference(inouts)
         outs = outs.difference(inouts)
-        from .codegeneration.opsc import get_min_max_halo_values
         halo_m, halo_p = get_min_max_halo_values(self.halo_ranges)
         range_of_eval = [[0, 0] for r in range(self.ndim)]
         # print self.computation_name, self.ranges, self.halo_ranges

@@ -2,9 +2,8 @@ from sympy import flatten, Eq, zeros, Matrix, eye, S, sqrt, Equality, MatrixSymb
 from opensbli.core.kernel import Kernel
 from opensbli.core.opensbliobjects import DataSet
 from opensbli.core.grid import GridVariable
-from opensbli.utilities.helperfunctions import increment_dataset
 from opensbli.physical_models.ns_physics import NSphysics
-from opensbli.utilities.helperfunctions import dot
+from opensbli.utilities.helperfunctions import dot, get_min_max_halo_values, increment_dataset
 from sympy.functions.elementary.piecewise import ExprCondPair
 from opensbli.core.weno_opensbli import ShockCapturing
 side_names = {0: 'left', 1: 'right'}
@@ -115,7 +114,7 @@ class BoundaryConditionBase(object):
         if plane:
             self.full_plane = True
         else:
-            raise ValueError("")
+            self.full_plane = False
         self.direction = boundary_direction
         self.side = side
         self.equations = None
@@ -131,18 +130,62 @@ class BoundaryConditionBase(object):
         if self.full_plane:
             return self.bc_plane_kernel(block, bc_name)
         else:
-            return self.arbitarary_bc_plane_kernel(block, bc_name)
+            return self.arbitrary_bc_plane_kernel(block, bc_name)
+
+    def arbitrary_bc_plane_kernel(self, block, bc_name):
+        direction, side, split_direction = self.direction, self.side, self.split_direction
+        kernel = Kernel(block, computation_name="%s boundary dir%d side%d" % (bc_name, direction, side))
+        kernel = self.set_kernel_range(kernel, block)
+        halo_values = self.get_halo_values(block)
+        print "Halo values:", halo_values
+        print "Kernel ranges: ", kernel.ranges
+        # Add the halos to the kernel in directions not equal to boundary or split direction
+        print direction, split_direction
+        for i in [x for x in range(block.ndim) if x not in [direction, split_direction]]:
+            kernel.halo_ranges[i][0] = block.boundary_halos[i][0]
+            kernel.halo_ranges[i][1] = block.boundary_halos[i][1]
+        print "\n\n\n"
+        print "Kernel halo ranges", kernel.halo_ranges
+        return halo_values, kernel
+
+    def set_kernel_range(self, kernel, block):
+        """ Sets the boundary condition kernel ranges based on direction and side.
+        arg: object: kernel: Computational boundary condition kernel.
+        arg: object: block: The SimulationBlock the boundary conditions are used on.
+        returns: object: kernel: The computational kernel with updated ranges."""
+        side, direction = self.side, self.direction
+        kernel.ranges = block.ranges[:]
+        if side == 0:
+            left = 0
+            right = 1
+        elif side == 1:
+            left = -1
+            right = 0
+        kernel.ranges[direction] = [block.ranges[direction][side]+left, block.ranges[direction][side]+right]
+        return kernel
+
+    def get_halo_values(self, block):
+        """ Gets the maximum numerical halo values.
+        arg: object: block: The SimulationBlock the boundary conditions are used on.
+        returns: list: halo_values: Numerical values of the halos in all directions."""
+        halo_values = []
+        halo_objects = block.boundary_halos
+        for i in range(len(halo_objects)):
+            halo_m, halo_p = get_min_max_halo_values(halo_objects)
+            halo_m, halo_p = halo_m[0], halo_p[0]
+            halo_values.append([halo_m, halo_p])
+        return halo_values
 
     def bc_plane_kernel(self, block, bc_name):
         direction, side = self.direction, self.side
         kernel = Kernel(block, computation_name="%s boundary dir%d side%d" % (bc_name, direction, side))
-        kernel.set_boundary_plane_range(block, direction, side)
-        halos = kernel.get_plane_halos(block)
+        kernel = self.set_kernel_range(kernel, block)
+        halo_values = self.get_halo_values(block)
         # Add the halos to the kernel in directions not equal to boundary direction
         for i in [x for x in range(block.ndim) if x != direction]:
             kernel.halo_ranges[i][0] = block.boundary_halos[i][0]
             kernel.halo_ranges[i][1] = block.boundary_halos[i][1]
-        return halos, kernel
+        return halo_values, kernel
 
     def create_boundary_equations(self, left_arrays, right_arrays, transfer_indices):
         direction = self.direction
@@ -173,6 +216,22 @@ class BoundaryConditionBase(object):
         return from_side_factor, to_side_factor
 
 
+class SplitBoundaryConditionBlock(BoundaryConditionBase):
+    def __init__(self, boundary_direction, side, bcs, split_direction, plane=False):
+        BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
+        self.bc_types = bcs
+        self.split_direction = split_direction
+        return
+
+    def apply(self, arrays, block):
+        kernels = []
+        for no, bc in enumerate(self.bc_types):
+            bc.full_plane = False
+            bc.split_direction, bc.no = self.split_direction, no
+            kernels.append(bc.apply(arrays, block))
+        return kernels
+
+
 class PeriodicBoundaryConditionBlock(BoundaryConditionBase):
     """
     Applies periodic boundary condition
@@ -196,7 +255,7 @@ class PeriodicBoundaryConditionBlock(BoundaryConditionBase):
 
         # Create a kernel this is a neater way to implement the transfers
         ker = Kernel(block)
-        halos = ker.get_plane_halos(block)
+        halos = self.get_halo_values(block)
         size, from_location, to_location = self.get_transfers(block.Idxed_shape, halos)
         ex = ExchangeSelf(block, self.direction, self.side)
         ex.set_transfer_size(size)
@@ -423,9 +482,9 @@ class Carpenter(object):
         # Form inverse and convert to rational
         al4_inv = al4.inv()
         bc4 = al4_inv*ar4
-        for i in range(bc4.shape[0]):
-            for j in range(bc4.shape[1]):
-                bc4[i, j] = nsimplify(bc4[i, j])
+        # for i in range(bc4.shape[0]):
+        #     for j in range(bc4.shape[1]):
+        #         bc4[i, j] = nsimplify(bc4[i, j])
         return bc4
 
 
@@ -461,7 +520,7 @@ class IsothermalWallBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCond
             from_side_factor, to_side_factor = self.set_side_factor()
             for i in range(1, n_halos+1):
                 new_loc = base_loc[:]
-                new_loc[self.side] += to_side_factor*i
+                new_loc[self.direction] += to_side_factor*i
                 T = self.convert_dataset_base_expr_to_datasets(NS.temperature(relation=True, conservative=True), new_loc)
                 kernel.add_equation(Eq(GridVariable('T%d' % i), T))
 

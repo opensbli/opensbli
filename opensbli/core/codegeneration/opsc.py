@@ -14,23 +14,6 @@ LOG = logging.getLogger(__name__)
 BUILD_DIR = os.getcwd()
 
 
-def get_min_max_halo_values(halos):
-    halo_m = []
-    halo_p = []
-    for direction in range(len(halos)):
-        if halos[direction][0]:
-            hal = [d.get_halos(0) for d in halos[direction][0]]
-            halo_m += [min(hal)]
-        else:
-            halo_m += [0]
-        if halos[direction][1]:
-            hal = [d.get_halos(1) for d in halos[direction][1]]
-            halo_p += [max(hal)]
-        else:
-            halo_p += [0]
-    return halo_m, halo_p
-
-
 class RationalCounter():
 
     # Counter for the kernels

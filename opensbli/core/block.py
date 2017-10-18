@@ -174,8 +174,12 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes):  # BoundaryC
         """
         kernels = []
         for no, b in enumerate(self.boundary_types):
-            kernels += [self.apply_bc_direction(no, 0, arrays)]
-            kernels += [self.apply_bc_direction(no, 1, arrays)]
+            for side in [0,1]:
+                k = self.apply_bc_direction(no, side, arrays)
+                if isinstance(k, list):
+                    kernels += k
+                else:
+                    kernels += [k]
         return kernels
 
     def apply_bc_direction(self, direction, side, arrays):
