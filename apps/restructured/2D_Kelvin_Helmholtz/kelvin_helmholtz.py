@@ -82,6 +82,12 @@ initial_equations = [parse_expr(eq, local_dict=local_dict) for eq in eqns]
 initial = GridBasedInitialisation()
 initial.add_equations(initial_equations)
 
+kwargs = {'iotype': "Write"}
+h5 = iohdf5(save_every=10000, **kwargs)
+h5.add_arrays(simulation_eq.time_advance_arrays)
+h5.add_arrays([DataObject('x0'), DataObject('x1')])
+block.setio(copy.deepcopy(h5))
+
 # Set equations on the block and discretise
 block.set_equations([constituent, initial, simulation_eq])
 block.discretise()

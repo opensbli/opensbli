@@ -52,10 +52,9 @@ schemes[rk.name] = rk
 
 local_dict = {"block": block, "GridVariable": GridVariable, "DataObject": DataObject}
 
-local_dict['Lx1'] = ConstantObject('Lx1')
+local_dict['Lx1'], local_dict['by'] = ConstantObject('Lx1'), ConstantObject('by')
 gridx0 = parse_expr("Eq(DataObject(x0), block.deltas[0]*block.grid_indexes[0])", local_dict=local_dict)
-# gridx1 = parse_expr("Eq(DataObject(x1), block.deltas[1]*block.grid_indexes[1])", local_dict=local_dict)
-gridx1 = parse_expr("Eq(DataObject(x1), Lx1*sinh(5.0*block.deltas[1]*block.grid_indexes[1]/Lx1)/sinh(5.0))", local_dict=local_dict)
+gridx1 = parse_expr("Eq(DataObject(x1), Lx1*sinh(by*block.deltas[1]*block.grid_indexes[1]/Lx1)/sinh(by))", local_dict=local_dict)
 
 x_loc = parse_expr("Eq(GridVariable(x0), block.deltas[0]*block.grid_indexes[0])", local_dict=local_dict)
 
@@ -130,6 +129,12 @@ init_katzer = Initialise_Katzer([609, 255], [400.0, 115.0], [1], [5.0], 17, bloc
 initial = init_katzer.initial
 
 block.set_block_boundaries(boundaries)
+
+kwargs = {'iotype': "Write"}
+h5 = iohdf5(save_every=10000, **kwargs)
+h5.add_arrays(simulation_eq.time_advance_arrays)
+h5.add_arrays([DataObject('x0'), DataObject('x1')])
+block.setio(copy.deepcopy(h5))
 
 sim_eq = copy.deepcopy(simulation_eq)
 CR = copy.deepcopy(constituent)

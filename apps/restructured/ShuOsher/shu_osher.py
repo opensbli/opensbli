@@ -105,6 +105,12 @@ rk = RungeKutta(3)
 schemes[rk.name] = rk
 
 block.set_block_boundaries(boundaries)
+kwargs = {'iotype': "Write"}
+h5 = iohdf5(save_every=10000, **kwargs)
+h5.add_arrays(simulation_eq.time_advance_arrays)
+# h5.add_arrays([DataObject('x0')])
+block.setio(copy.deepcopy(h5))
+
 block.set_equations([copy.deepcopy(constituent), copy.deepcopy(simulation_eq), initial])
 block.set_discretisation_schemes(schemes)
 

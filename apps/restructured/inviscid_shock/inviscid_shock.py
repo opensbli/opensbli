@@ -101,7 +101,7 @@ boundaries[direction][side] = DirichletBoundaryConditionBlock(direction, side, i
 # Right extrapolation at outlet
 direction = 0
 side = 1
-boundaries[direction][side] = LinearExtrapolateBoundaryConditionBlock(direction, side)
+boundaries[direction][side] = OutletTransferBoundaryConditionBlock(direction, side)
 
 # Bottom inviscid wall
 direction = 1
@@ -131,6 +131,13 @@ upper_eqns = [x, shock_loc, d, u0, u1, p, rho, rhou0, rhou1, rhoE]
 boundaries[direction][side] = DirichletBoundaryConditionBlock(direction, side, upper_eqns)
 
 block.set_block_boundaries(boundaries)
+
+kwargs = {'iotype': "Write"}
+h5 = iohdf5(save_every=10000, **kwargs)
+h5.add_arrays(simulation_eq.time_advance_arrays)
+h5.add_arrays([DataObject('x0'), DataObject('x1')])
+block.setio(copy.deepcopy(h5))
+
 block.set_equations([copy.deepcopy(constituent), copy.deepcopy(simulation_eq), initial])
 block.set_discretisation_schemes(schemes)
 

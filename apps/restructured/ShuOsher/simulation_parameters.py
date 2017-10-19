@@ -1,5 +1,5 @@
 
-def substitute_parameters(simulation_name, constants, values, dsets, hdf5=False):
+def substitute_parameters(simulation_name, constants, values):
     file_path = "./%s.cpp" % simulation_name
     substitutions = dict(zip(constants, values))
     print(substitutions)
@@ -11,29 +11,12 @@ def substitute_parameters(simulation_name, constants, values, dsets, hdf5=False)
             if old_str in s:
                 new_str = const + ' = %s' % value + ';'
                 s = s.replace(old_str, new_str)
-
-        ops_exit = 'ops_exit();'
-        if not hdf5:
-            if ops_exit in s:
-                new_str = ''
-                for dset in dsets:
-                    new_str += 'ops_print_dat_to_txtfile(%s_B0, "%s.dat");\n' % (dset, dset)
-                new_str += ops_exit
-        if hdf5:
-            if ops_exit in s:
-                new_str = 'ops_fetch_block_hdf5_file(%sblock00, "%s.h5");\n' % (simulation_name, simulation_name)
-                for dset in dsets:
-                    new_str += 'ops_fetch_dat_hdf5_file(%s_B0, "%s.h5");\n' % (dset, simulation_name)
-                new_str += ops_exit
-
-        s = s.replace(ops_exit, new_str)
         f.write(s)
     return
 
 
 if __name__ == "__main__":
     constants = ['gama', 'Minf', 'dt', 'niter', 'block0np0', 'Delta0block0']
-    values = ['1.4', '0.1', '2e-4', 'ceil(1.8/dt)', '1600', '10.0/(block0np0-1)']
+    values = ['1.4', '0.1', '0.0002', 'ceil(1.8/dt)', '1600', '10.0/(block0np0-1)']
     simulation_name = 'opensbli'
-    dsets = ['rho', 'rhou0', 'rhoE']
-    substitute_parameters(simulation_name, constants, values, dsets, True)
+    substitute_parameters(simulation_name, constants, values)

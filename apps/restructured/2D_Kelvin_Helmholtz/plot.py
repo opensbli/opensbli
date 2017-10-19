@@ -57,7 +57,7 @@ def plot(files, n_levels, min_val, max_val):
 # fnums = [i*100 for i in range(1,601)]
 # fnames = ["./movies/opensbli_%d.h5" % i for i in fnums]
 fnums = [0]
-fnames = ["./movies/opensbli_45000.h5"]
-fnames = ["./opensbli.h5"]
+# fnames = ["./movies/opensbli_45000.h5"]
+fnames = ["./opensbli_output.h5"]
 files = zip(fnums, fnames)
 plot(files, 20, 0.5, 2.4)

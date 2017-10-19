@@ -99,7 +99,7 @@ def plot(fname, n_levels):
         print levels
         fig = plt.figure()
         contour_local(fig, levels, "%s" % name, x, y, var)
-        plt.savefig("katzer_%s.pdf" % name, bbox_inches='tight')
+        plt.savefig("fig_%s.pdf" % name, bbox_inches='tight')
         plt.clf()
 
     # Line plots1
@@ -122,5 +122,5 @@ def plot(fname, n_levels):
     f.close()
 
 
-fname = "opensbli.h5"
+fname = "opensbli_output.h5"
 plot(fname, 25)

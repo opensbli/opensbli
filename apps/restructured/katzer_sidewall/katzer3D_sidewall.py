@@ -4,7 +4,7 @@ from opensbli.utilities.katzer_init import *
 from opensbli.core.weno_opensbli import SimpleAverage
 from opensbli.core.teno import LLFTeno
 from opensbli.physical_models.euler_eigensystem import *
-from opensbli.initialisation import GridBasedInitialisation
+from opensbli.initialisation import GridBasedInitialisation, iohdf5
 import copy
 
 ndim = 3
@@ -83,9 +83,10 @@ side = 1
 rho = parse_expr("Eq(DataObject(rho), Piecewise((1.129734572, (x0)>40.0), (1.00000596004, True)))", local_dict=local_dict)
 rhou0 = parse_expr("Eq(DataObject(rhou0), Piecewise((1.0921171, (x0)>40.0), (1.00000268202, True)))", local_dict=local_dict)
 rhou1 = parse_expr("Eq(DataObject(rhou1), Piecewise((-0.058866065, (x0)>40.0), (0.00565001630205, True)))", local_dict=local_dict)
+rhou2 = parse_expr("Eq(DataObject(rhou2), 0.0)", local_dict=local_dict)
 rhoE = parse_expr("Eq(DataObject(rhoE), Piecewise((1.0590824, (x0)>40.0), (0.94644428042, True)))", local_dict=local_dict)
 
-upper_eqns = [x_loc, rho, rhou0, rhou1, rhoE]
+upper_eqns = [x_loc, rho, rhou0, rhou1, rhou2, rhoE]
 boundaries[direction][side] = DirichletBoundaryConditionBlock(direction, side, upper_eqns)
 
 direction = 2
@@ -132,14 +133,22 @@ CR = copy.deepcopy(constituent)
 # Perform initial condition
 coordinate_evaluation = [gridx0, gridx1, gridx2]
 # Call the new polynomial based katzer initialisation, stretch factor 3 with 17 coefficients for the polynomial
-init_katzer = Initialise_Katzer([600, 500, 150], [400.0, 115.0, 50.0], [1, 2], [3.0, 3.0], 17, block, coordinate_evaluation)
+init_katzer = Initialise_Katzer([400, 400, 100], [400.0, 115.0, 57.5], [1, 2], [3.0, 3.0], 17, block, coordinate_evaluation)
 initial = init_katzer.initial
+# Arrays to write out to file
+kwargs = {'iotype': "Write"}
+h5 = iohdf5(save_every=20000, **kwargs)
+h5.add_arrays(simulation_eq.time_advance_arrays)
+h5.add_arrays([DataObject('x0'), DataObject('x1'), DataObject('x2')])
+block.setio(copy.deepcopy(h5))
 
 # Set equations on the block and discretise
 block.set_equations([sim_eq, CR, initial, metriceq])
 block.set_discretisation_schemes(schemes)
 block.discretise()
 
+
 alg = TraditionalAlgorithmRK(block)
 SimulationDataType.set_datatype(Double)
 OPSC(alg)
+

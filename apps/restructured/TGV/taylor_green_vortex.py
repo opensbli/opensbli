@@ -123,6 +123,12 @@ for direction in range(ndim):
 
 # set the boundaries for the block
 block.set_block_boundaries(boundaries)
+# set the IO class to write out arrays
+kwargs = {'iotype': "Write"}
+h5 = iohdf5(save_every=10000, **kwargs)
+h5.add_arrays(simulation_eq.time_advance_arrays)
+# h5.add_arrays([DataObject('x0'), DataObject('x1'), DataObject('x2')])
+block.setio(copy.deepcopy(h5))
 # set the equations to be solved on the block
 block.set_equations([copy.deepcopy(constituent), copy.deepcopy(simulation_eq), initial])
 # set the discretisation schemes

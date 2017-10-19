@@ -74,5 +74,5 @@ def plot(fname, n_levels):
     f.close()
 
 
-fname = "opensbli.h5"
+fname = "opensbli_output.h5"
 plot(fname, 25)
