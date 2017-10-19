@@ -1,14 +1,7 @@
 #!/usr/bin/env python
 # Import all the functions from opensbli
 from opensbli import *
-from opensbli.core.weno_opensbli import *
 import copy
-
-
-def dt(dx, c):
-    """ Given a grid spacing dx and the wave speed c, return the value of dt such that the CFL condition is respected. """
-    courant_number = 0.2
-    return (dx*courant_number)/c
 
 
 # Problem dimension
@@ -55,9 +48,8 @@ initial = GridBasedInitialisation()
 initial.add_equations([x0, phi])
 
 kwargs = {'iotype': "Write"}
-h5 = iohdf5(save_every=10000, **kwargs)
-h5.add_arrays(simulation_eq.time_advance_arrays)
-h5.add_arrays([DataObject('x0')])
+output_arrays = simulation_eq.time_advance_arrays + [DataObject('x0')]
+h5 = iohdf5(arrays=output_arrays, **kwargs)
 
 simulation = copy.deepcopy(simulation_eq)
 block.set_equations([initial, simulation])
