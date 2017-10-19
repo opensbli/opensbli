@@ -17,10 +17,10 @@ class iohdf5(opensbliIO):
         ret.order = 0
         ret.group_number = cls.group_number
         cls.increase_io_group_number()
+        ret.arrays = []
         if arrays:
             ret.add_arrays(arrays)
-        else:
-            ret.arrays = None
+
         if kwargs:
             ret.kwargs = {}
             for key in kwargs:
@@ -44,7 +44,7 @@ class iohdf5(opensbliIO):
         return
 
     def add_arrays(cls, arrays):
-        cls.arrays = flatten(arrays)
+        cls.arrays += flatten(arrays)
         return
 
     def write_latex(cls, latex):
@@ -64,13 +64,15 @@ class iohdf5(opensbliIO):
             raise ValueError("Cant classify HDF5io")
         return code
 
-    def hdf5write_opsc_code(cls):
+    def hdf5write_opsc_code(self):
         name = "opensbli_output"
         code = ['char name[80];']
-        # generate file name
-        code += ['sprintf(name, \"%s_%%d.h5\", iter);' % name]
+        if self.dynamic_fname:
+            code += ['sprintf(name, \"%s_%%06d.h5\", %s);' % (name, self.control_parameter)]
+        else:
+            code += ['sprintf(name, \"%s.h5\");' % name]
         dataset_write = []
-        for ar in cls.arrays:
+        for ar in self.arrays:
             block_name = ar.base.blockname
             dataset_write += ['ops_fetch_dat_hdf5_file(%s, name);' % (ar)]
 

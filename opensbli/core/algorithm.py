@@ -6,6 +6,7 @@ from opensbli.core.opensbliequations import SimulationEquations, NonSimulationEq
 from opensbli.core.opensbliobjects import Constant, DataSetBase, ConstantObject
 from opensbli.core.datatypes import Int
 from opensbli.initialisation.common import BeforeSimulationStarts, AfterSimulationEnds, InTheSimulation
+import copy
 
 
 class Loop(object):
@@ -441,13 +442,20 @@ class TraditionalAlgorithmRK(object):
             for io in b.InputOutput:
                 for place in io.algorithm_place:
                     if isinstance(place, BeforeSimulationStarts):
-                        before_time += [io]
+                        io_copy = copy.deepcopy(io)
+                        io_copy.dynamic_fname = False
+                        before_time += [io_copy]
                     elif isinstance(place, AfterSimulationEnds):
-                        after_time += [io]
+                        io_copy = copy.deepcopy(io)
+                        io_copy.dynamic_fname = False
+                        after_time += [io_copy]
                     elif isinstance(place, InTheSimulation):
                         t = (Equality(temporal_iteration % place.frequency, 0))
                         cond = Condition(t)
-                        cond.add_components(io)
+                        io_copy = copy.deepcopy(io)
+                        io_copy.dynamic_fname = True
+                        io_copy.control_parameter = temporal_iteration
+                        cond.add_components(io_copy)
                         in_time += [cond]
                     else:
                         raise NotImplementedError("In Nonsimulation equations")

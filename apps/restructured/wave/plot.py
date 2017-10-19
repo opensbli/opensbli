@@ -25,7 +25,7 @@ def plot(path):
     halo = 5
 
     # Read in the simulation output
-    dump = glob.glob(path + "/opensbli.h5")
+    dump = glob.glob(path + "/opensbli_output.h5")
     if not dump or len(dump) > 1:
         print "Error: No dump file found, or more than one dump file found."
         sys.exit(1)

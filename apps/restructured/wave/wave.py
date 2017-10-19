@@ -54,13 +54,14 @@ phi = parse_expr("Eq(DataObject(phi), sin(2.0*pi*DataObject(x0)))", local_dict=l
 initial = GridBasedInitialisation()
 initial.add_equations([x0, phi])
 
-# kwargs = {'iotype': "Write"}
-# h5 = iohdf5(save_every=0, **kwargs)
-# h5.add_arrays(simulation_eq.time_advance_arrays)
+kwargs = {'iotype': "Write"}
+h5 = iohdf5(save_every=10000, **kwargs)
+h5.add_arrays(simulation_eq.time_advance_arrays)
+h5.add_arrays([DataObject('x0')])
 
 simulation = copy.deepcopy(simulation_eq)
 block.set_equations([initial, simulation])
-# block.setio(copy.deepcopy(h5))
+block.setio(copy.deepcopy(h5))
 
 schemes = {}
 cent = Central(4)
