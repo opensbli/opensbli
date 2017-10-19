@@ -1,10 +1,11 @@
 """This contains the Physics Object for Navier-Stokes equations
 """
+from opensbli.core.grid import GridVariable
 from opensbli.core.opensbliobjects import DataObject, ConstantObject, DataSetBase
-from sympy import S, Rational
+from sympy import S, Rational, pprint, Eq
 from opensbli.utilities.helperfunctions import dot
 from opensbli.core.parsing import EinsteinEquation
-
+import itertools
 
 class Physics(object):
     """A base class defining physical model's that are to be used for
@@ -165,3 +166,114 @@ class NSphysics(Physics):
             return [m.variable for m in self._momentum]
         else:
             raise NotImplementedError("")
+
+
+class StatsVariable(object):
+    def __init__(self, var):
+        if not isinstance(var, DataObject):
+            raise ValueError("")
+        self._variable = var
+        self._relation = None
+        self._conservative_relation = None
+        return
+
+    @property
+    def relation(self):
+        """Conver the dataobjects to datasets"""
+        return self._relation
+
+    @relation.setter
+    def relation(self, formula):
+        self._relation = formula
+        return
+
+    @property
+    def conservative_relation(self):
+        return self._conservative_relation
+
+    @conservative_relation.setter
+    def conservative_relation(self, formula):
+        self._conservative_relation = formula
+
+    @property
+    def variable(self):
+        # returns the dataset of the current variable at the location
+        dsetbase = self.datasetbase
+        return dsetbase[dsetbase.location()]
+
+    @property
+    def datasetbase(self):
+        return DataSetBase(self._variable)
+
+
+class NSPhysics_Stats(NSphysics, StatsVariable):
+    def __init__(self, ndim, **settings):
+        NSphysics.__init__(self, ndim)
+        self.ndim = ndim
+        # Create the components required for stats
+        self.create_stat_components(**settings)
+        self.niter = ConstantObject('niter')
+        # Equations to initialise stat arrays to zeros
+        self.init = self.init_stats()
+        # During time loop stat collection equations
+        self.collection = self.stat_collection()
+        # Reynolds or Favre averaging after the simulation
+        self.average = self.favre_average()
+        # self.average = self.reynolds_average()
+        return
+
+    def create_stat_components(self, **settings):
+        # rho mean equation
+        self._rho_mean = StatsVariable(DataObject('rhomean'))
+        self._rho_mean.relation = self._rho_mean.variable + self._density.relation
+        # momentum component means
+        self._momentum_means = [StatsVariable(DataObject('rhou%dmean' % i)) for i in range(self.ndim)]
+        for no, component in enumerate(self._momentum_means):
+            component.relation = component.variable + self._momentum[no].variable
+        # Create mean Reynolds stresses
+        indices = [i for i in range(self.ndim)]
+        stress_components = sorted(set(tuple(sorted(t)) for t in set(itertools.product(indices, indices))), key=lambda element: (element[0], element[1]))
+        self._reynolds_stress_means = [StatsVariable(DataObject('rhou%d%dmean' % (i, j))) for (i,j) in stress_components]
+        for no, indices in enumerate(stress_components):
+            self._reynolds_stress_means[no].relation = self._reynolds_stress_means[no].variable + \
+                                                        (self._momentum[indices[0]].variable*self._momentum[indices[1]].variable)/self._density.variable
+        return
+
+
+
+    def init_stats(self):
+        equations = [Eq(self._rho_mean.variable, 0.0)]
+        equations += [Eq(mean.variable, 0.0) for mean in self._momentum_means]
+        equations += [Eq(mean.variable, 0.0) for mean in self._reynolds_stress_means]
+        print "\n\n\n"
+        for eqn in equations:
+            pprint(eqn)
+        return equations
+
+    def stat_collection(self):
+        equations = [Eq(self._rho_mean.variable, self._rho_mean.relation)]
+        equations += [Eq(mean.variable, mean.relation) for mean in self._momentum_means]
+        equations += [Eq(mean.variable, mean.relation) for mean in self._reynolds_stress_means]
+        print "\n\n\n"
+        for eqn in equations:
+            pprint(eqn)
+        return
+
+    def reynolds_average(self):
+        equations = [Eq(self._rho_mean.variable, self._rho_mean.variable/self.niter)]
+        equations += [Eq(mean.variable, mean.variable/(self.niter)) for mean in self._momentum_means]
+        equations += [Eq(mean.variable, mean.variable/(self.niter)) for mean in self._reynolds_stress_means]
+
+        return
+
+    def favre_average(self):
+        equations = [Eq(self._rho_mean.variable, self._rho_mean.variable/self.niter)]
+        equations += [Eq(GridVariable('rmean'), self._rho_mean.variable)]
+        equations += [Eq(mean.variable, mean.variable/(self.niter*GridVariable('rmean'))) for mean in self._momentum_means]
+        equations += [Eq(mean.variable, mean.variable/(self.niter*GridVariable('rmean'))) for mean in self._reynolds_stress_means]
+        print "\n\n\n"
+        for eqn in equations:
+            pprint(eqn)
+        return equations
+
+
