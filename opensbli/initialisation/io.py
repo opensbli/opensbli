@@ -29,10 +29,10 @@ class iohdf5(opensbliIO):
             # Default IO type is write to hdf5
             ret.kwargs = {'iotype': "write"}
         ret.algorithm_place = []
-        ret.get_alogorithm_location(save_every=save_every)
+        ret.get_algorithm_location(save_every=save_every)
         return ret
 
-    def get_alogorithm_location(cls, save_every):
+    def get_algorithm_location(cls, save_every):
         if save_every:
             cls.algorithm_place += [InTheSimulation(save_every)]
         if cls.kwargs['iotype'] == "write":
