@@ -48,12 +48,15 @@ initial = GridBasedInitialisation()
 initial.add_equations([x0, phi])
 
 kwargs = {'iotype': "Write"}
-output_arrays = simulation_eq.time_advance_arrays + [DataObject('x0')]
+output_arrays = simulation_eq.time_advance_arrays
 h5 = iohdf5(arrays=output_arrays, **kwargs)
+
+kwargs['name'] = 'grid.h5'
+grid_h5 = iohdf5(arrays=[DataObject('x0')], **kwargs)
 
 simulation = copy.deepcopy(simulation_eq)
 block.set_equations([initial, simulation])
-block.setio(copy.deepcopy(h5))
+block.setio([h5, grid_h5])
 
 schemes = {}
 cent = Central(4)

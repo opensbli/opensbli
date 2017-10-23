@@ -65,19 +65,32 @@ class iohdf5(opensbliIO):
         return code
 
     def hdf5write_opsc_code(self):
-        name = "opensbli_output"
-        code = ['char name[80];']
-        if self.dynamic_fname:
-            code += ['sprintf(name, \"%s_%%06d.h5\", %s);' % (name, self.control_parameter)]
+        code = []
+        if "name" in self.kwargs:
+            if '.h5' in self.kwargs["name"]:
+                name = self.kwargs["name"]
+            elif '.' in self.kwargs["name"]:
+                raise ValueError("")
+            else:
+                name = self.kwargs["name"] + '.h5'
+            if self.dynamic_fname:
+                raise ValueError("dynamic fname not allowed ")
+            filename = "\"%s\"" % name
         else:
-            code += ['sprintf(name, \"%s.h5\");' % name]
+            name = "opensbli_output"
+            code += ['char name[80];']
+            if self.dynamic_fname:
+                code += ['sprintf(name, \"%s_%%06d.h5\", %s);' % (name, self.control_parameter)]
+            else:
+                code += ['sprintf(name, \"%s.h5\");' % name]
+            filename = "name"
         dataset_write = []
         for ar in self.arrays:
             block_name = ar.base.blockname
-            dataset_write += ['ops_fetch_dat_hdf5_file(%s, name);' % (ar)]
+            dataset_write += ['ops_fetch_dat_hdf5_file(%s, %s);' % (ar, filename)]
 
         # generate the block name
-        code += ['ops_fetch_block_hdf5_file(%s,name);' % (block_name)] + dataset_write
+        code += ['ops_fetch_block_hdf5_file(%s, %s);' % (block_name, filename)] + dataset_write
         return code
 
     def hdf5read_opsc_code(cls):
