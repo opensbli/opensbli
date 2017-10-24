@@ -329,14 +329,15 @@ class OPSC(object):
 
     def before_main(self, algorithm):
         out = ['#include <stdlib.h> \n#include <string.h> \n#include <math.h>']
-        # for d in CTD.constants:
-        #     if isinstance(d, ConstantObject):
-        #         out += ["%s %s;" % (d.datatype.opsc(), d)]
-        #     elif isinstance(d, ConstantIndexed):
-        #         indices = ''
-        #         for s in d.shape:
-        #             indices = indices + '[%d]' % s
-        #         out += ["%s %s%s;" % (d.datatype.opsc(), d.base.label, indices)]
+        for d in CTD.constants:
+            if isinstance(d, ConstantObject):
+                out += ["%s %s;" % (d.datatype.opsc(), d)]
+            elif isinstance(d, ConstantIndexed):
+                if not d.inline_array:
+                    indices = ''
+                    for s in d.shape:
+                        indices = indices + '[%d]' % s
+                    out += ["%s %s%s;" % (d.datatype.opsc(), d.base.label, indices)]
         for b in algorithm.block_descriptions:
             out += ['#define OPS_%dD' % b.ndim]
         out += ['#include \"ops_seq.h\"']
@@ -504,9 +505,9 @@ class OPSC(object):
         # Fix spacing on constant declarations %s=%s
         if isinstance(c, ConstantObject):
             if not isinstance(c.value, str):
-                return [WriteString("%s %s = %s;" % (c.datatype.opsc(), str(c), ccode(c.value, settings={'rational': True})))]
+                return [WriteString("%s = %s;" % (str(c), ccode(c.value, settings={'rational': True})))]
             else:
-                return [WriteString("%s %s=%s;" % (c.datatype.opsc(), str(c), c.value))]
+                return [WriteString("%s=%s;" % (str(c), c.value))]
         elif isinstance(c, ConstantIndexed):
             out = []
             if c.value:
@@ -518,7 +519,7 @@ class OPSC(object):
                         indices = ''
                         for s in c.shape:
                             indices = indices + '[%d]' % s
-                        out += [WriteString("%s %s%s;" % (c.datatype.opsc(), c.base.label, indices))]
+                        out += [WriteString("%s %s%s;" % (c.base.label, indices))]
                         for i in range(c.shape[0]):
                             out += [WriteString("%s[%d] = %s;" % (str(c.base.label), i, ccode(c.value[i], settings={'rational': True})))]
                         return out
