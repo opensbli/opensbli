@@ -97,6 +97,12 @@ class Discretisation(object):
         cls.equations = out
         return
 
+    def write_latex(self, latex):
+        latex.write_string('The euqations are %s' % type(self).__name__)
+        for eq in flatten(self.equations):
+            latex.write_expression(eq)
+        return
+
 
 class OpenSBLIEquation(Equality):
     is_Equality = True
