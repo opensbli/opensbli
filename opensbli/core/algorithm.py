@@ -450,11 +450,11 @@ class TraditionalAlgorithmRK(object):
                         io_copy.dynamic_fname = False
                         after_time += [io_copy]
                     elif isinstance(place, InTheSimulation):
-                        t = (Equality(temporal_iteration % place.frequency, 0))
+                        t = (Equality(temporal_iteration + 1 % place.frequency, 0))
                         cond = Condition(t)
                         io_copy = copy.deepcopy(io)
                         io_copy.dynamic_fname = True
-                        io_copy.control_parameter = temporal_iteration
+                        io_copy.control_parameter = temporal_iteration + 1
                         cond.add_components(io_copy)
                         in_time += [cond]
                     else:
