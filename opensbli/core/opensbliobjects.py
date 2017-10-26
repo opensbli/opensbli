@@ -150,6 +150,13 @@ class ConstantObject(EinsteinTerm, Constant):
         ret._value = "Input"
         return ret
     
+    def __hash__(self):
+        h = hash(self._hashable_content())
+        self._mhash = h
+        return h
+
+    def _hashable_content(self):
+        return str(self.name)
 
     @property
     def datatype(self):
@@ -208,6 +215,10 @@ class ConstantIndexed(Indexed, Constant):
     def value(self):
         """Conver the dataobjects to datasets"""
         return self._value
+
+    @property
+    def name(self):
+        return str(self.base)
     
     @value.setter
     def value(self, numerical_values, dtype=None):
@@ -355,13 +366,21 @@ class DataSetBase(IndexedBase):
     def _hashable_content(self):
         return str(self.label) + self.blockname
 
-    def __getitem__(cls, indices, **kw_args):
+    def check_index(cls, indices):
         if len(indices) == len(cls.shape) and indices[-1] == Idx(cls.blockname):
             pass
         elif len(indices) == len(cls.shape) - 1:
+            if isinstance(indices, tuple):
+                indices = list(indices)
             indices += [Idx(cls.blockname)]
         elif len(indices) != len(cls.shape) - 1:
             raise IndexException("Rank mismatch.")
+        return indices
+
+
+
+    def __getitem__(cls, indices, **kw_args):
+        indices = cls.check_index(indices)
         return DataSet(cls, *indices)
 
     def _sympystr(self, p):
@@ -402,6 +421,7 @@ class DataSet(Indexed):
     def __new__(cls, base, *indices, **kwargs):
         if not isinstance(base, DataSetBase):
             raise ValueError("Declare DatasetBase and instantiate a dataset")
+        indices = base.check_index(indices)
         ret = Indexed.__new__(cls, base, *indices)
         return ret
 
