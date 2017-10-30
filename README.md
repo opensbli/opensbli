@@ -5,7 +5,7 @@ OpenSBLI is an automatic code generator which expands a set of equations written
 ## Getting started
 
 ### Dependencies
-First ensure that  satisfied:
+First ensure that the following dependencies are satisfied:
 #### Core code-generation:
 The following dependencies are required for generating a code and running a simulation:
 
@@ -16,11 +16,13 @@ The following dependencies are required for generating a code and running a simu
 * OPS (to target the generated OPSC code towards different backends) [OPS project's repository](https://github.com/gihanmudalige/OPS).
 
 #### Testing and documentation:
+
 * pytest (for running the test suite)
 * python-flake8 (for linting the code base)
 * Sphinx (to build the documentation)
 
 #### Postprocessing:
+
 * Matplotlib for plot scripts
 * python-h5py
 
