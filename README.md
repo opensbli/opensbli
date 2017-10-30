@@ -8,6 +8,7 @@ OpenSBLI is an automatic code generator which expands a set of equations written
 First ensure that  satisfied:
 #### Core code-generation:
 The following dependencies are required for generating a code and running a simulation:
+
 * Python 2.7
 * Sympy >= 1.0
 * Numpy
