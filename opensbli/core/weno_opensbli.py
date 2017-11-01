@@ -386,7 +386,7 @@ class Weno(Scheme, ShockCapturing):
 
     def update_constituent_relation_symbols(self, sym, direction):
         """ Function to take the set of required quantities from the constituent relations in symbolic form
-         and update the directions in which they are used.
+        and update the directions in which they are used.
         arg: set: sym: Set of required symbols.
         arg: int: direction: The axis on which WENO is being applied to (x0, x1 ..)."""
         if isinstance(sym, Symbol):

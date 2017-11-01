@@ -13,6 +13,7 @@ class Discretisation(object):
     3. Local_evaluations this returns a list of evluations that should be performed for
     the Discretisation of any equations
     """
+
     @property
     def required_datasets(cls):
         """By the time this function is called all the functions such as
@@ -179,16 +180,16 @@ class SimulationEquations(Discretisation, Solution):
     on the fly.
     2. If stored and contain any dependant derivatives then these should be replaced
     by the inner derivatives
-        example, CD(u0,x0,x1) --> CD(CD(u0,x0),x1)
-        CD(u0,x0,x0) should not be replaced
+    example, CD(u0,x0,x1) --> CD(CD(u0,x0),x1)
+    CD(u0,x0,x0) should not be replaced
 
     This should have the following functions
     a. converting the DataObjects to DataSet
     b. Applying the functions (KD, LC etc..)
     c. Applying derivatives (value)
     a. required functions (spatial and temporal)
-
     """
+ 
     def __new__(cls, order=None, **kwargs):
         ret = super(SimulationEquations, cls).__new__(cls)
         if order:
