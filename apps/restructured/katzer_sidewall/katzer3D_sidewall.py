@@ -51,12 +51,6 @@ gridx2 = parse_expr("Eq(DataObject(x2), Lx2*sinh(bz*block.deltas[2]*block.grid_i
 
 x_loc = parse_expr("Eq(GridVariable(x0), block.deltas[0]*block.grid_indexes[0])", local_dict=local_dict)
 
-
-rho = parse_expr("Eq(DataObject(rho), d)", local_dict=local_dict)
-rhou0 = parse_expr("Eq(DataObject(rhou0), d*u0)", local_dict=local_dict)
-rhou1 = parse_expr("Eq(DataObject(rhou1), d*u1)", local_dict=local_dict)
-rhoE = parse_expr("Eq(DataObject(rhoE), p/(gama-1) + 0.5* d *(u0**2+u1**2))", local_dict=local_dict)
-
 boundaries = [[0, 0] for t in range(ndim)]
 # Left pressure extrapolation at x= 0, inlet conditions
 direction = 0
@@ -83,11 +77,17 @@ side = 1
 rho = parse_expr("Eq(DataObject(rho), Piecewise((1.129734572, (x0)>40.0), (1.00000596004, True)))", local_dict=local_dict)
 rhou0 = parse_expr("Eq(DataObject(rhou0), Piecewise((1.0921171, (x0)>40.0), (1.00000268202, True)))", local_dict=local_dict)
 rhou1 = parse_expr("Eq(DataObject(rhou1), Piecewise((-0.058866065, (x0)>40.0), (0.00565001630205, True)))", local_dict=local_dict)
-rhou2 = parse_expr("Eq(DataObject(rhou2), 0.0)", local_dict=local_dict)
+# rhou2 = parse_expr("Eq(DataObject(rhou2), 0.0)", local_dict=local_dict)
 rhoE = parse_expr("Eq(DataObject(rhoE), Piecewise((1.0590824, (x0)>40.0), (0.94644428042, True)))", local_dict=local_dict)
 
+dset = DataSet(DataSetBase('rhou2'), 0,0,0)
+new_dset = increment_dataset(dset, 1, -1)
+rhou2 = Eq(dset, new_dset)
+pprint(rhou2.rhs.indices)
 upper_eqns = [x_loc, rho, rhou0, rhou1, rhou2, rhoE]
-boundaries[direction][side] = DirichletBoundaryConditionBlock(direction, side, upper_eqns)
+
+bcs = [DirichletBoundaryConditionBlock(direction, side, upper_eqns), OutletTransferBoundaryConditionBlock(direction, side)]
+boundaries[direction][side] = SplitBoundaryConditionBlock(direction, side, bcs)
 
 direction = 2
 side = 0
@@ -133,14 +133,23 @@ CR = copy.deepcopy(constituent)
 # Perform initial condition
 coordinate_evaluation = [gridx0, gridx1, gridx2]
 # Call the new polynomial based katzer initialisation, stretch factor 3 with 17 coefficients for the polynomial
-init_katzer = Initialise_Katzer([400, 400, 100], [400.0, 115.0, 57.5], [1, 2], [3.0, 3.0], 17, block, coordinate_evaluation)
+Re, xMach = 950, 2.0
+## Ensure the grid size passed to the initialisation routine matches the grid sizes used in the simulation parameters
+grid_size = [400, 400, 100]
+grid_lengths = [400.0, 115.0, 57.5]
+stretching_factors = [3.0, 3.0]
+stretch_directions = [False, True, True] # Stretched in x1, x2 directions, uniform in x0
+n_poly_coefficients = 17
+init_katzer = Initialise_Katzer(grid_size, grid_lengths, stretch_directions, stretching_factors, n_poly_coefficients, block, coordinate_evaluation, Re, xMach)
 initial = init_katzer.initial
 # Arrays to write out to file
 kwargs = {'iotype': "Write"}
-h5 = iohdf5(save_every=20000, **kwargs)
-h5.add_arrays(simulation_eq.time_advance_arrays)
-h5.add_arrays([DataObject('x0'), DataObject('x1'), DataObject('x2')])
-block.setio(copy.deepcopy(h5))
+output_arrays = simulation_eq.time_advance_arrays
+h5 = iohdf5(save_every=10000, arrays=output_arrays, **kwargs)
+
+kwargs['name'] = 'grid.h5'
+grid_h5 = iohdf5(arrays=[DataObject('x0'), DataObject('x1'), DataObject('x2')], **kwargs)
+block.setio([h5, grid_h5])
 
 # Set equations on the block and discretise
 block.set_equations([sim_eq, CR, initial, metriceq])

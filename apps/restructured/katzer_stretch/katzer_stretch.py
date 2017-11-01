@@ -108,24 +108,18 @@ metriceq = MetricsEquation()
 metriceq.genreate_transformations(ndim, coordinate_symbol, [(False, False), (True, False)], 2)
 simulation_eq.apply_metrics(metriceq)
 
-# latex = LatexWriter()
-# latex.open('./equations.tex', {})
-# metadata = {"title": "Einstein Expansion of hybrid TENO", "author": "David", "institution": ""}
-# latex.write_string("Simulation equations\n")
-# for index, eq in enumerate(flatten(simulation_eq.equations)):
-#     if isinstance(eq, Equality):
-#         latex.write_expression(eq)
-
-# latex.write_string("Constituent relations\n")
-# for index, eq in enumerate(flatten(constituent.equations)):
-#     if isinstance(eq, Equality):
-#         latex.write_expression(eq)
-# latex.close()
-
 # Perform initial condition
 coordinate_evaluation = [gridx0, gridx1]
-# Call the new polynomial based katzer initialisation, stretch factor 3 with 17 coefficients for the polynomial
-init_katzer = Initialise_Katzer([609, 255], [400.0, 115.0], [1], [5.0], 17, block, coordinate_evaluation)
+# Call the new polynomial based katzer initialisation, stretch factor 5.0 with 17 coefficients for the polynomial
+# Reynolds number and Mach number for the initial profile
+Re, xMach = 950, 2.0
+## Ensure the grid size passed to the initialisation routine matches the grid sizes used in the simulation parameters
+grid_size = [609, 255]
+grid_lengths = [400.0, 115.0]
+stretching_factors = [5.0]
+stretch_directions = [False, True] # Stretched in x1 direction, uniform in x0
+n_poly_coefficients = 17
+init_katzer = Initialise_Katzer(grid_size, grid_lengths, stretch_directions, stretching_factors, n_poly_coefficients, block, coordinate_evaluation, Re, xMach)
 initial = init_katzer.initial
 
 block.set_block_boundaries(boundaries)
