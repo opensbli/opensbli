@@ -154,9 +154,7 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
         # term_subs = [CentralDerivative(a.args[0]*b/self.detJ , a.args[1:])  for a in l for b in l1]
         # expr = self.detJ*expr.subs(dict(zip(terms, term_subs))) # substitute
         term_subs = [CentralDerivative(a.args[0]*b*self.detJ, a.args[1:]) for a in l for b in l1]
-        pprint(expr)
         expr = expr.subs(dict(zip(terms, term_subs)))/self.detJ  # substitute
-        pprint(expr)
         # WARNING check this expression
         return expr
 
@@ -294,8 +292,6 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
             schemes[sc].discretise(cls, block)
             schemes[sc].required_constituent_relations = {}
             schemes[sc].required_constituent_relations = {}
-        for k in cls.Kernels:
-            print k.computation_name
         cls.process_kernels(block)
         block.reset_work_to_stored  # reset the work array index on the block
         return

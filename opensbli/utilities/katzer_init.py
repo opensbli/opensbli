@@ -164,7 +164,7 @@ class Boundary_layer_profile(object):
         print "The wall temperature is :", self.Twall
         y, u, T, scale_factor = self.integrate_boundary_layer(nstep)
         self.scale_factor = scale_factor
-        print "Scale factor is :", self.scale_factor 
+        print "The scale factor is :", self.scale_factor 
         return y, u, T, scale_factor
 
     def integrate_boundary_layer(self, n):
@@ -210,6 +210,7 @@ class Initialise_Katzer(object):
         arg: float: Re: Reynolds number.
         arg: float: xMach: Free-stream Mach number
         """
+        print "Polynomial boundary-layer initialiastion called with Re = %f, Mach = %f." % (Re, xMach)
         self.block = block
         if len(directions) != block.ndim:
             raise ValueError("Length of the stretching ")

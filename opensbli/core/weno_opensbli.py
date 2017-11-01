@@ -477,8 +477,6 @@ class EigenSystem(object):
         arg: str: name: Base name to use for the GridVariables
         returns: mat: The matrix updated to contain GridVariables."""
         syms = list(mat.atoms(EinsteinTerm).difference(mat.atoms(ConstantObject)))
-        print type(syms[0])
-        print str(syms[0])
         new_syms = [GridVariable('%s_%s' % (name, str(sym))) for sym in syms]
         substitutions = dict(zip(syms, new_syms))
         mat = mat.subs(substitutions)
@@ -732,6 +730,7 @@ class LLFCharacteristic(Characteristic):
 class SimpleAverage(object):
     def __init__(self, locations):
         self.locations = locations
+        print "Simple averaging is being used for the characteristic system"
         return
 
     def average(self, functions, direction, name_suffix):
@@ -757,6 +756,7 @@ class SimpleAverage(object):
 
 class RoeAverage(object):
     def __init__(self, locations, ndim, physics=None):
+        print "Roe averaging is being used for the characteristic system"
         self.locations = locations
         self.ndim = ndim
         if not physics:
@@ -815,6 +815,7 @@ class RoeAverage(object):
 class LLFWeno(LLFCharacteristic, Weno):
     def __init__(self, eigenvalue, left_ev, right_ev, order, ndim, averaging=None):
         LLFCharacteristic.__init__(self, eigenvalue, left_ev, right_ev, order, ndim, averaging)
+        print "A WENO scheme of order %s is being used for shock capturing." % str(order)
         Weno.__init__(self, order)
         return
 

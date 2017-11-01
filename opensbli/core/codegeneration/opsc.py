@@ -232,6 +232,7 @@ class OPSC(object):
             # code = indent_code(code)
             f.write('\n'.join(code))
             f.close()
+            print "Successfully generated OPS C code"
         return
 
     def wrap_long_lines(self, code_lines):

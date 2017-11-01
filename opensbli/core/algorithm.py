@@ -2,7 +2,7 @@ from opensbli.core.block import SimulationBlock as SB
 from sympy import flatten, pprint, Idx, Equality
 from opensbli.core.latex import LatexWriter
 from opensbli.core.kernel import ConstantsToDeclare as CTD
-from opensbli.core.opensbliequations import SimulationEquations, NonSimulationEquations
+from opensbli.core.opensbliequations import SimulationEquations, NonSimulationEquations, ConstituentRelations
 from opensbli.core.opensbliobjects import Constant, DataSetBase, ConstantObject
 from opensbli.core.datatypes import Int
 from opensbli.initialisation.common import BeforeSimulationStarts, AfterSimulationEnds, InTheSimulation
@@ -386,7 +386,7 @@ class TraditionalAlgorithmRK(object):
     def spatial_solution(self, blocks):
         """ Add the spatial kernels to the temporal solution i.e temporalscheme.solution
         """
-        print "Writing algorithm \n\n"
+        print "Writing algorithm"
         fname = 'algorithm.tex'
         latex = LatexWriter()
         latex.open(fname, "Algorithm for the equations")
@@ -422,9 +422,9 @@ class TraditionalAlgorithmRK(object):
                         # else:
                         # raise NotImplementedError("In Nonsimulation equations")
                     else:
-                        print "NOT classified", type(key)
-            pprint(non_simulation_eqs)
-            pprint(sorted(non_simulation_eqs, cmp=self.comapre_no_sims))
+                        if not isinstance(key, ConstituentRelations):
+                            print "NOT classified", type(key)
+                            raise ValueError("Equations class can not be classified: %s" % key)
             for key in sorted(non_simulation_eqs, cmp=self.comapre_no_sims):
                 for place in key.algorithm_place:
                     if isinstance(place, BeforeSimulationStarts):

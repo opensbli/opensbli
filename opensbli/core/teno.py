@@ -442,7 +442,6 @@ class TenoReconstructionVariable(object):
     def update_quantities(self, original):
         """ Updates the quantities required by TENO in the reconstruction variable.
         arg: object: original: Reconstruction object variable, either left or right reconstruction."""
-        print "Reconstruction variable: ", self.name
         self.smoothness_symbols += [GridVariable('%s%s' % (s, self.name)) for s in original.smoothness_symbols]
         self.alpha_symbols += [GridVariable('%s_%s' % (s, self.name)) for s in original.alpha_symbols]
         self.inv_alpha_sum_symbols += [GridVariable('%s_%s' % (s, self.name)) for s in original.inv_alpha_sum_symbols]
@@ -550,10 +549,7 @@ class Teno(Scheme, ShockCapturing):
         arg: object: kernel: The current computational kernel.
         """
         for d in derivatives:
-            pprint(d)
-            pprint(d.reconstructions)
             for rv in d.reconstructions:
-                print type(rv)
                 if isinstance(rv, type(self.reconstruction_classes[1])):
                     original_rv = self.reconstruction_classes[1]
                 elif isinstance(rv, type(self.reconstruction_classes[0])):
@@ -590,7 +586,7 @@ class Teno(Scheme, ShockCapturing):
         arg: object: block: The current block."""
         crs = {}
         for key in self.required_constituent_relations_symbols:
-            pprint([key, self.required_constituent_relations_symbols[key]])
+            # pprint([key, self.required_constituent_relations_symbols[key]])
             kernel = Kernel(block, computation_name="CR%s" % key)
             kernel.set_grid_range(block)
             for direction in self.required_constituent_relations_symbols[key]:
@@ -603,6 +599,7 @@ class Teno(Scheme, ShockCapturing):
 class LLFTeno(LLFCharacteristic, Teno):
     def __init__(self, eigenvalue, left_ev, right_ev, order, ndim, averaging=None):
         LLFCharacteristic.__init__(self, eigenvalue, left_ev, right_ev, order, ndim, averaging)
+        print "A TENO scheme of order %s is being used for shock capturing" % str(order)
         Teno.__init__(self, order)
         return
 
