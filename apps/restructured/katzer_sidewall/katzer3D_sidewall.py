@@ -86,8 +86,12 @@ rhou2 = Eq(dset, new_dset)
 pprint(rhou2.rhs.indices)
 upper_eqns = [x_loc, rho, rhou0, rhou1, rhou2, rhoE]
 
-bcs = [DirichletBoundaryConditionBlock(direction, side, upper_eqns), OutletTransferBoundaryConditionBlock(direction, side)]
-boundaries[direction][side] = SplitBoundaryConditionBlock(direction, side, bcs)
+# Split BC
+# bcs = [DirichletBoundaryConditionBlock(direction, side, upper_eqns), OutletTransferBoundaryConditionBlock(direction, side)]
+# boundaries[direction][side] = SplitBoundaryConditionBlock(direction, side, bcs)
+
+# Dirichlet only shock generator on top boundary
+boundaries[direction][side] = DirichletBoundaryConditionBlock(direction, side, upper_eqns)
 
 direction = 2
 side = 0
