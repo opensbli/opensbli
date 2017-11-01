@@ -105,10 +105,10 @@ class Central(Scheme):
         a. Find all the Function of type(self.name)
         b. Add all the DataSetBases required to the type_of_eq
         c. Create Equations for the evaluation ro create Kernels of each function depending on the grid/block
-            control parameters
+        control parameters
         d. Set the range of evaluation of the DataSetBases
         e. Update the Descritised equations in type_of_eq by substituting the equations with respective
-            work array or discretised formula
+        work array or discretised formula
         """
         # Check if it is similar to compressible Navier stokes equations
         # if type_of_eq.

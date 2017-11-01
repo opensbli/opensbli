@@ -104,13 +104,13 @@ class Der(AppliedUndef, ParsingSchemes):
     a. The basic Index structure for each of the derivative and conservative functions
     are processes. Now each Class will have its own index structure evaluation
     b. In simple terms evaluate the Der structure
-        i.e Der(u_i,x_j) should be converted to diff(u_i(x_j), x_j)
-        and Der(T, x_j,x_j) should be converted to diff(diff(T(x_j),x_j),x_j)
+    i.e Der(u_i,x_j) should be converted to diff(u_i(x_j), x_j)
+    and Der(T, x_j,x_j) should be converted to diff(diff(T(x_j),x_j),x_j)
     c. Der(mu*Der(u_i,x_j), x_i) should give
     if mu is constant: then
-        mu*Derivative(u_i,x_j,x_i)
+    mu*Derivative(u_i,x_j,x_i)
     else:
-        mu*Derivative(u_i,x_j,x_i) + Derivative(u_i,x_j)* Derivative(mu ,x_i)
+    mu*Derivative(u_i,x_j,x_i) + Derivative(u_i,x_j)* Derivative(mu ,x_i)
     its simple to write an evaluation method
 
     """
@@ -383,6 +383,8 @@ class MetricDer(AppliedUndef, ParsingSchemes):
 
 
 class EinsteinEquation(EinsteinStructure):
+    
+    optional_subs_dict = {}
 
     """ Describes an equation that is to be solved. """
 
@@ -471,6 +473,7 @@ class EinsteinEquation(EinsteinStructure):
         for at in (equation.atoms(Function)):
             if (hasattr(at, 'value')):
                 equation = equation.subs(at, at.value())
+        equation = equation.subs(self.optional_subs_dict)
         return equation
 
     def convert_to_data_sets(self, equation):
