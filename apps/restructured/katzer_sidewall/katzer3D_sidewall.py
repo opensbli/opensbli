@@ -80,7 +80,7 @@ rhou1 = parse_expr("Eq(DataObject(rhou1), Piecewise((-0.058866065, (x0)>40.0), (
 # rhou2 = parse_expr("Eq(DataObject(rhou2), 0.0)", local_dict=local_dict)
 rhoE = parse_expr("Eq(DataObject(rhoE), Piecewise((1.0590824, (x0)>40.0), (0.94644428042, True)))", local_dict=local_dict)
 
-dset = DataSet(DataSetBase('rhou2'), 0,0,0)
+dset = block.location_dataset('rhou2')
 new_dset = increment_dataset(dset, 1, -1)
 rhou2 = Eq(dset, new_dset)
 pprint(rhou2.rhs.indices)
