@@ -361,7 +361,7 @@ class DataSetBase(IndexedBase):
     
     @property
     def blockname(self):
-        return "%s_block%d" %(_projectname, self.blocknumber)
+        return "%sblock%02d" %(_projectname, self.blocknumber)
 
     @property
     def noblockname(self):
