@@ -40,7 +40,7 @@ block = SimulationBlock(ndim, block_number=0)
 weno_order = '5Z'
 Euler_eq = EulerEquations(ndim)
 ev_dict, LEV_dict, REV_dict = Euler_eq.generate_eig_system()
-Avg = RoeAverage([0, 1], ndim)
+Avg = RoeAverage([0, 1])
 LLF = LLFWeno(ev_dict, LEV_dict, REV_dict, weno_order, ndim, Avg)
 
 schemes = {}

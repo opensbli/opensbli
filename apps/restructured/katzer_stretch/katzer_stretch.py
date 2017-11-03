@@ -41,7 +41,7 @@ block = SimulationBlock(ndim, block_number=0)
 teno_order = 5
 Euler_eq = EulerEquations(ndim)
 ev_dict, LEV_dict, REV_dict = Euler_eq.generate_eig_system()
-Avg = RoeAverage([0, 1], ndim)
+Avg = RoeAverage([0, 1])
 LLF = LLFTeno(ev_dict, LEV_dict, REV_dict, teno_order, ndim, Avg)
 schemes = {}
 schemes[LLF.name] = LLF
