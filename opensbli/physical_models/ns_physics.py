@@ -13,6 +13,8 @@ class Physics(object):
 
 
 class PhysicsVariable(object):
+    blocknumber = None
+    shape = None
     def __init__(self, var):
         if not isinstance(var, DataObject):
             raise ValueError("")
@@ -43,18 +45,20 @@ class PhysicsVariable(object):
     def variable(self):
         # returns the dataset of the current variable at the location
         dsetbase = self.datasetbase
-        return dsetbase[dsetbase.location()]
+        return dsetbase[dsetbase.location]
 
     @property
     def datasetbase(self):
-        return DataSetBase(self._variable)
+        return DataSetBase(self._variable, self.shape, self.blocknumber)
 
 
 class NSphysics(Physics):
     eqobject = EinsteinEquation()
 
-    def __init__(self, ndim, **settings):
-        self.ndim = ndim
+    def __init__(self, block, **settings):
+        self.ndim = block.ndim
+        PhysicsVariable.blocknumber = block.blocknumber
+        PhysicsVariable.shape = block.shape
         self.set_names(**settings)
         return
 

@@ -543,58 +543,6 @@ class Teno(Scheme, ShockCapturing):
             self.reconstruction_classes[no] = RV
         return
 
-    def interpolate_reconstruction_variables(self, derivatives, kernel):
-        """ Perform the TENO interpolation on the reconstruction variables.
-        arg: list: derivatives: A list of the TENO derivatives to be computed.
-        arg: object: kernel: The current computational kernel.
-        """
-        for d in derivatives:
-            for rv in d.reconstructions:
-                if isinstance(rv, type(self.reconstruction_classes[1])):
-                    original_rv = self.reconstruction_classes[1]
-                elif isinstance(rv, type(self.reconstruction_classes[0])):
-                    original_rv = self.reconstruction_classes[0]
-                else:
-                    raise ValueError("Reconstruction must be left or right")
-                rv.update_quantities(original_rv)
-                rv.add_evaluations_to_kernel(kernel)
-        return
-
-    def update_constituent_relation_symbols(self, sym, direction):
-        """ Function to take the set of required quantities from the constituent relations in symbolic form
-        and update the directions in which they are used.
-        arg: set: sym: Set of required symbols.
-        arg: int: direction: The axis on which TENO is being applied to (x0, x1 ..)."""
-        if isinstance(sym, Symbol):
-            sym = [sym]
-        elif isinstance(sym, list) or isinstance(sym, set):
-            pass
-        else:
-            raise ValueError("The symbol provided should be either a list or symbols")
-
-        for s in sym:
-            if isinstance(s, DataSetBase):
-                s = s.noblockname
-            if s in self.required_constituent_relations_symbols.keys():
-                self.required_constituent_relations_symbols[s] += [direction]
-            else:
-                self.required_constituent_relations_symbols[s] = [direction]
-        return
-
-    def generate_constituent_relations_kernels(self, block):
-        """ Generates constituent relation kernels on the block.
-        arg: object: block: The current block."""
-        crs = {}
-        for key in self.required_constituent_relations_symbols:
-            # pprint([key, self.required_constituent_relations_symbols[key]])
-            kernel = Kernel(block, computation_name="CR%s" % key)
-            kernel.set_grid_range(block)
-            for direction in self.required_constituent_relations_symbols[key]:
-                kernel.set_halo_range(direction, 0, self.halotype)
-                kernel.set_halo_range(direction, 1, self.halotype)
-            crs[DataSetBase(str(key))[DataSetBase.location()]] = kernel
-        return crs
-
 
 class LLFTeno(LLFCharacteristic, Teno):
     def __init__(self, eigenvalue, left_ev, right_ev, order, ndim, averaging=None):

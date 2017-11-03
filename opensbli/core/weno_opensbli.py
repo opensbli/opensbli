@@ -211,7 +211,6 @@ class WenoReconstructionVariable(object):
     def update_quantities(self, original):
         """ Updates the quantities required by WENO in the reconstruction variable.
         arg: object: original: Reconstruction object variable, either left or right reconstruction."""
-        print "Reconstruction variable: ", self.name
         self.smoothness_symbols += [GridVariable('%s%s' % (s, self.name)) for s in original.smoothness_symbols]
         self.alpha_symbols += [GridVariable('%s_%s' % (s, self.name)) for s in original.alpha_symbols]
         self.omega_symbols += [GridVariable('%s_%s' % (s, self.name)) for s in original.omega_symbols]
@@ -328,44 +327,6 @@ class WenoJS(object):
 
 
 class ShockCapturing(object):
-    pass
-
-
-class Weno(Scheme, ShockCapturing):
-    """ Main WENO class. Performs the Jiang-Shu WENO reconstruction procedure. Refer to the reference:
-    'Essentially Non-Oscillatory and Weighted Essentially Non-Oscillatory schemes for Hyperbolic Conservation
-    laws. Shu (1997). The alpha & omega quantities follow the description from this paper."""
-
-    def __init__(self, order, **kwargs):
-        """ :arg: int order: Numerical order of the WENO scheme (3,5,...). """
-        Scheme.__init__(self, "WenoDerivative", order)
-        self.schemetype = "Spatial"
-        if order == '5Z':
-            # WenoZ only defined for fifth order
-            self.k = 3
-            self.order = 5
-            WT = WenoZ(self.k)
-        else:
-            self.k = int(0.5*(order+1))
-            self.order = order
-            WT = WenoJS(self.k)
-        JS = JS_smoothness(self.k)
-        self.halotype = WenoHalos(self.order)
-        self.required_constituent_relations_symbols = {}
-        # Generate smoothness coefficients and store configurations for left and right reconstructions.
-        self.reconstruction_classes = [RightWenoReconstructionVariable('right'), LeftWenoReconstructionVariable('left')]
-        # Populate the quantities required by WENO for the left and right reconstruction variable.
-        for no, side in enumerate([1, -1]):
-            WenoConfig = ConfigureWeno(self.k, side)
-            RV = self.reconstruction_classes[no]
-            RV.func_points = sorted(set(WenoConfig.func_points))
-            RV.stencil_points, RV.function_stencil_dictionary = WenoConfig.generate_symbolic_function_points
-            JS.generate_function_smoothness_indicators(RV)
-            WT.generate_alphas(RV, WenoConfig)
-            WT.generate_omegas(RV, WenoConfig)
-            WT.generate_reconstruction(RV, WenoConfig)
-            self.reconstruction_classes[no] = RV
-        return
 
     def interpolate_reconstruction_variables(self, derivatives, kernel):
         """ Perform the TENO interpolation on the reconstruction variables.
@@ -416,8 +377,46 @@ class Weno(Scheme, ShockCapturing):
             for direction in self.required_constituent_relations_symbols[key]:
                 kernel.set_halo_range(direction, 0, self.halotype)
                 kernel.set_halo_range(direction, 1, self.halotype)
-            crs[DataSetBase(str(key))[DataSetBase.location()]] = kernel
+            crs[block.location_dataset(key)] = kernel
         return crs
+
+
+
+class Weno(Scheme, ShockCapturing):
+    """ Main WENO class. Performs the Jiang-Shu WENO reconstruction procedure. Refer to the reference:
+    'Essentially Non-Oscillatory and Weighted Essentially Non-Oscillatory schemes for Hyperbolic Conservation
+    laws. Shu (1997). The alpha & omega quantities follow the description from this paper."""
+
+    def __init__(self, order, **kwargs):
+        """ :arg: int order: Numerical order of the WENO scheme (3,5,...). """
+        Scheme.__init__(self, "WenoDerivative", order)
+        self.schemetype = "Spatial"
+        if order == '5Z':
+            # WenoZ only defined for fifth order
+            self.k = 3
+            self.order = 5
+            WT = WenoZ(self.k)
+        else:
+            self.k = int(0.5*(order+1))
+            self.order = order
+            WT = WenoJS(self.k)
+        JS = JS_smoothness(self.k)
+        self.halotype = WenoHalos(self.order)
+        self.required_constituent_relations_symbols = {}
+        # Generate smoothness coefficients and store configurations for left and right reconstructions.
+        self.reconstruction_classes = [RightWenoReconstructionVariable('right'), LeftWenoReconstructionVariable('left')]
+        # Populate the quantities required by WENO for the left and right reconstruction variable.
+        for no, side in enumerate([1, -1]):
+            WenoConfig = ConfigureWeno(self.k, side)
+            RV = self.reconstruction_classes[no]
+            RV.func_points = sorted(set(WenoConfig.func_points))
+            RV.stencil_points, RV.function_stencil_dictionary = WenoConfig.generate_symbolic_function_points
+            JS.generate_function_smoothness_indicators(RV)
+            WT.generate_alphas(RV, WenoConfig)
+            WT.generate_omegas(RV, WenoConfig)
+            WT.generate_reconstruction(RV, WenoConfig)
+            self.reconstruction_classes[no] = RV
+        return
 
 
 class EigenSystem(object):
@@ -495,18 +494,24 @@ class EigenSystem(object):
                 equations[no] = Eq(v, rhs_matrix[no])
         return equations
 
-    def convert_symbolic_to_dataset(self, symbolics, location, direction):
+    def convert_symbolic_to_dataset(self, symbolics, location, direction, block):
         """ Converts symbolic terms to DataSets.
         arg: object: symbolics: Expression containing Symbols to be converted into DataSets.
         arg: int: location: The integer location to apply to the DataSet.
         arg: int: direction: The integer direction (axis) of the DataSet to apply the location to.
         returns: object: symbolics: The original expression updated to be in terms of DataSets rather than Symbols."""
         symbols = symbolics.atoms(EinsteinTerm).difference(symbolics.atoms(ConstantObject))
-        dsets = [DataSetBase(s) for s in symbols]
-        loc = DataSetBase.location()
-        loc[direction] = loc[direction] + location
-        location_datasets = [d[loc] for d in dsets]
-        substitutions = dict(zip(symbols, location_datasets))
+        #dsets = [block.create_datasetbase(s) for s in symbols]
+        substitutions = {}
+        for s in symbols:
+            dest = block.create_datasetbase(s)
+            loc = dest.location
+            loc[direction] = loc[direction] + location
+            substitutions[s] = dest[loc]
+        #loc = DataSetBase.location()
+        #loc[direction] = loc[direction] + location
+        #location_datasets = [d[loc] for d in dsets]
+        #substitutions = dict(zip(symbols, location_datasets))
         return symbolics.subs(substitutions)
 
 
@@ -522,7 +527,7 @@ class Characteristic(EigenSystem):
         self.REV_store = {}
         return
 
-    def pre_process(self, direction, derivatives, solution_vector, kernel):
+    def pre_process(self, direction, derivatives, solution_vector, kernel, block):
         """ Performs the transformation of the derivatives into characteristic space using the eigensystems provided to Characteristic. Flux splitting is then applied
         to the characteristic variables in preparation for the WENO interpolation. Required quantities are added to pre_process_equations.
         arg: int: direction: Integer direction to apply the characteristic decomposition and WENO (x0, x1, ...).
@@ -534,7 +539,7 @@ class Characteristic(EigenSystem):
         required_symbols = self.get_symbols_in_ev(direction).union(self.get_symbols_in_LEV(direction)).union(self.get_symbols_in_REV(direction))
         averaged_suffix_name = 'AVG_%d' % direction
         self.averaged_suffix_name = averaged_suffix_name
-        averaged_equations = self.average(required_symbols, direction, averaged_suffix_name)
+        averaged_equations = self.average(required_symbols, direction, averaged_suffix_name, block)
         pre_process_equations += averaged_equations
         # Eigensystem based on averaged quantities
         avg_LEV_values = self.convert_matrix_to_grid_variable(self.left_eigen_vector[direction], averaged_suffix_name)
@@ -555,7 +560,7 @@ class Characteristic(EigenSystem):
         self.update_constituent_relation_symbols(required_symbols, direction)
 
         if hasattr(self, 'flux_split') and self.flux_split:
-            max_wavespeed_matrix, pre_process_equations = self.create_max_characteristic_wave_speed(pre_process_equations, direction)
+            max_wavespeed_matrix, pre_process_equations = self.create_max_characteristic_wave_speed(pre_process_equations, direction, block)
             # self.split_fluxes(CF_matrix, CS_matrix, max_wavespeed_matrix)
             positive_flux = Rational(1, 2)*(CF_matrix + max_wavespeed_matrix*CS_matrix)
             negative_flux = Rational(1, 2)*(CF_matrix - max_wavespeed_matrix*CS_matrix)
@@ -659,12 +664,12 @@ class LLFCharacteristic(Characteristic):
         self.flux_split = True
         return
 
-    def create_max_characteristic_wave_speed(self, pre_process_equations, direction):
+    def create_max_characteristic_wave_speed(self, pre_process_equations, direction, block):
         stencil_points = sorted(list(set(self.reconstruction_classes[0].func_points + self.reconstruction_classes[1].func_points)))
         ev = self.eigen_value[direction]
         out = zeros(*ev.shape)
         for p in stencil_points:
-            location_ev = self.convert_symbolic_to_dataset(ev, p, direction)
+            location_ev = self.convert_symbolic_to_dataset(ev, p, direction, block)
             for no, val in enumerate(location_ev):
                 out[no] = Max(out[no], Abs(val))
         max_wave_speed = self.generate_grid_variable_ev(direction, 'max')
@@ -700,7 +705,7 @@ class LLFCharacteristic(Characteristic):
                 # WENO reconstruction should be evaluated for extra point on each side
                 kernel.set_halo_range(key, 0, reconstruction_halos)
                 kernel.set_halo_range(key, 1, reconstruction_halos)
-                self.pre_process(key, derivatives, flatten(type_of_eq.time_advance_arrays), kernel)
+                self.pre_process(key, derivatives, flatten(type_of_eq.time_advance_arrays), kernel, block)
                 self.interpolate_reconstruction_variables(derivatives, kernel)
                 block.set_block_boundary_halos(key, 0, self.halotype)
                 block.set_block_boundary_halos(key, 1, self.halotype)
@@ -733,7 +738,7 @@ class SimpleAverage(object):
         print "Simple averaging is being used for the characteristic system"
         return
 
-    def average(self, functions, direction, name_suffix):
+    def average(self, functions, direction, name_suffix, block):
         """Performs simple average.
         arg: functions: List of function (Symbols) to apply averaging on.
         arg: locations: Relative index used for averaging (e.g. [0,1] for i and i+1)
@@ -742,8 +747,8 @@ class SimpleAverage(object):
         avg_equations = []
         for f in functions:
             name = f.get_base()
-            d = DataSetBase(name)
-            loc = [0 for i in range(DataSetBase.block.ndim)]
+            d = DataSetBase(name, block.shape, block.blocknumber)
+            loc = d.location
             loc1 = loc[:]
             loc2 = loc[:]
             loc1[direction] = loc[direction] + self.locations[0]
@@ -755,59 +760,60 @@ class SimpleAverage(object):
 
 
 class RoeAverage(object):
-    def __init__(self, locations, ndim, physics=None):
+    def __init__(self, locations, physics=None):
         print "Roe averaging is being used for the characteristic system"
         self.locations = locations
-        self.ndim = ndim
-        if not physics:
-            self.NS = NSphysics(ndim)
-        else:
-            self.NS = physics
+        self.physics = physics
         return
 
     def get_dsets(self, dset_base):
-        loc = dset_base.location()
+        loc = dset_base.location
         loc1, loc2 = loc[:], loc[:]
         loc1[self.direction], loc2[self.direction] = loc[self.direction]+self.locations[0], loc[self.direction]+self.locations[1]
         dset1, dset2 = dset_base[loc1], dset_base[loc2]
         return dset1, dset2
 
-    def average(self, functions, direction, name_suffix):
+    def average(self, functions, direction, name_suffix, block):
         self.direction = direction
         evaluations = []
         names = []
         # Averaged density rho_hat = sqrt(rho_L*rho_R)
-        rho_base = self.NS.density().base
+        if self.physics:
+            physics = self.physics
+        else:
+            physics = NSphysics(block)
+        #exit()
+        rho_base = physics.density().base
         rho_L, rho_R = self.get_dsets(rho_base)
         evaluations += [sqrt(rho_L*rho_R)]
-        grid_vars = [GridVariable('%s_%s' % (name_suffix, rho_base.simplelabel()))]
+        grid_vars = [GridVariable('%s_%s' % (name_suffix, rho_base.label))]
         # Store inverse factor 1/(sqrt(rho_R)+sqrt(rho_L))
         grid_vars += [GridVariable('%s_%s' % (name_suffix, 'inv_rho'))]
         evaluations += [(sqrt(rho_R)+sqrt(rho_L))**(-1)]
 
         # Average velocity components
-        for i, velocity in enumerate(self.NS.velocity()):
+        for i, velocity in enumerate(physics.velocity()):
             velocity_base = velocity.base
             vel_L, vel_R = self.get_dsets(velocity_base)
-            names += [velocity_base.simplelabel()]
+            names += [velocity_base.label]
             evaluations += [(sqrt(rho_L)*vel_L+sqrt(rho_R)*vel_R)*grid_vars[1]]
-            grid_vars += [GridVariable('%s_%s' % (name_suffix, velocity_base.simplelabel()))]
+            grid_vars += [GridVariable('%s_%s' % (name_suffix, velocity_base.label))]
         # Averaged kinetic energy in terms of u0, u1, u2 grid variables
         KE = Rational(1, 2)*sum([u**2 for u in grid_vars[2:]])
 
         # Calcualte enthalpy h = rhoE + P/rho
-        pressure_base = self.NS.pressure().base
+        pressure_base = physics.pressure().base
         P_L, P_R = self.get_dsets(pressure_base)
-        rhoE_base = self.NS.total_energy().base
+        rhoE_base = physics.total_energy().base
         rhoE_L, rhoE_R = self.get_dsets(rhoE_base)
         H_L = rhoE_L + P_L/rho_L
         H_R = rhoE_R + P_R/rho_R
         roe_enthalpy = (sqrt(rho_L)*H_L+sqrt(rho_R)*H_R)*grid_vars[1]
         # Average speed of sound
-        a_base = self.NS.speed_of_sound().base
-        roe_a = sqrt((self.NS.specific_heat_ratio()-1)*(roe_enthalpy - KE))
+        a_base = physics.speed_of_sound().base
+        roe_a = sqrt((physics.specific_heat_ratio()-1)*(roe_enthalpy - KE))
         evaluations += [roe_a]
-        grid_vars += [GridVariable('%s_%s' % (name_suffix, a_base.simplelabel()))]
+        grid_vars += [GridVariable('%s_%s' % (name_suffix, a_base.label))]
 
         return [Eq(x, y) for (x, y) in zip(grid_vars, evaluations)]
 

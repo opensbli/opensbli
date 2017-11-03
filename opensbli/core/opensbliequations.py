@@ -232,7 +232,7 @@ class SimulationEquations(Discretisation, Solution):
     def create_residual_arrays(cls, block):
         for no, eq in enumerate(flatten(cls.equations)):
             if not hasattr(eq, 'residual'):
-                eq.residual = DataSetBase('Residual%d' % no)[[0 for i in range(block.ndim)]]
+                eq.residual = block.location_dataset('Residual%d' % no)
         return
 
     def zero_residuals_kernel(cls, block):

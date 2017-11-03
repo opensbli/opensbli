@@ -75,7 +75,7 @@ class WorkDataSet(object):
             base = self.work_name % self.work_index
         else:
             base = name
-        ret = DataSetBase(base)
+        ret = DataSetBase(base, self.shape, self.blocknumber)
         if location:
             if len(location) != self.ndim:
                 raise ValueError("")

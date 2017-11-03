@@ -67,7 +67,6 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes):  # BoundaryC
         self.constants = {}
         self.Rational_constants = {}
         self.block_stencils = {}
-        DataSetBase.block = self
         self.InputOutput = []
         return
 
@@ -116,7 +115,7 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes):  # BoundaryC
         for no, eq in enumerate(all_equations):
             consts = consts.union(eq.atoms(ConstantObject))
             for d in eq.atoms(DataObject):
-                new = DataSetBase(d)[[0 for i in range(self.ndim)]]
+                new = block.location_dataset(d)
                 eq = eq.subs({d: new})
             all_equations[no] = eq
         # Convert all equations into the format of input equations WARNING crude way
@@ -169,6 +168,16 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes):  # BoundaryC
                 self.discretisation_schemes[t.name].discretise(eq, self)
         return
 
+    def create_datasetbase(self, name):
+        return DataSetBase(str(name), self.shape, self.blocknumber)
+
+    def location_dataset(self, name):
+        if isinstance(name, DataSetBase):
+            return name[name.location]
+        else:
+            base = self.create_datasetbase(name)
+            return base[base.location]
+
     def apply_boundary_conditions(self, arrays):
         """
         """
@@ -192,7 +201,6 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes):  # BoundaryC
         """
         """
         self.list_of_equation_classes = list_of_equations
-        DataSetBase.block = self
         # Convert the equations into block datasets
         for eq in self.list_of_equation_classes:
             block_eq = self.dataobjects_to_datasets_on_block(eq.equations)

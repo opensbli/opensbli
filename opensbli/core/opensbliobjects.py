@@ -5,6 +5,7 @@ from sympy.tensor.indexed import IndexException
 from sympy.core.cache import cacheit
 from opensbli.core.datatypes import SimulationDataType
 
+_projectname = "opensbli"
 
 class EinsteinTerm(Symbol):
 
@@ -340,44 +341,41 @@ class DataSetBase(IndexedBase):
     is_Symbol = True
     is_symbol = True
     is_Atom = True
-    block = None
 
     @cacheit  # we cache it so that the changes to a particular dataset base are global and not local
-    def __new__(cls, label, shape=None, **kw_args):
-        if not cls.block:
-            raise ValueError("Set the block for DataSetBase")
+    def __new__(cls, label, shape, blocknumber, **kw_args):
+        #if not cls.block:
+            #raise ValueError("Set the block for DataSetBase")
         sym = label
         if shape is None:
-            # print cls.block, "yes"
-            shape = list(cls.block.shape) + [Idx(cls.block.blockname)]
-        else:
-            shape = shape
+            raise ValueError("Dataset base requires shape of the block")
         ret = super(DataSetBase, cls).__new__(cls, sym, shape, **kw_args)
-        ret.noblockname = EinsteinTerm(str(label))
-        ret.blockname = cls.block.blockname
-        ret.blocknumber = cls.block.blocknumber
+        ret.blocknumber = blocknumber
+        ret._args = tuple(list(ret._args) + [Idx(blocknumber)])
         return ret
 
     def __hash__(self):
         h = hash(self._hashable_content())
         self._mhash = h
         return h
+    
+    @property
+    def blockname(self):
+        return "%s_block%d" %(_projectname, self.blocknumber)
+
+    @property
+    def noblockname(self):
+        return EinsteinTerm(str(self.label))
 
     def _hashable_content(self):
         return str(self.label) + self.blockname
 
     def check_index(cls, indices):
-        if len(indices) == len(cls.shape) and indices[-1] == Idx(cls.blockname):
+        if len(indices) == len(cls.shape):
             pass
-        elif len(indices) == len(cls.shape) - 1:
-            if isinstance(indices, tuple):
-                indices = list(indices)
-            indices += [Idx(cls.blockname)]
-        elif len(indices) != len(cls.shape) - 1:
+        elif len(indices) != len(cls.shape):
             raise IndexException("Rank mismatch.")
         return indices
-
-
 
     def __getitem__(cls, indices, **kw_args):
         indices = cls.check_index(indices)
@@ -392,12 +390,12 @@ class DataSetBase(IndexedBase):
         """
         return "%s" % (str(self.label))
 
-    @staticmethod
-    def location():
+    @property
+    def location(self):
         """ The location is the relative grid location, it is presently hard coded to the grid location.
         This is provided so that if in future staggered grid arrangement can be implemented
         """
-        return [0 for i in range(DataSetBase.block.ndim)]
+        return [0 for i in range(len(self.shape))]
 
 
 class DataSet(Indexed):

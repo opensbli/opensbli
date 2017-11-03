@@ -523,7 +523,7 @@ class IsothermalWallBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCond
         halos, kernel = self.generate_boundary_kernel(block, self.bc_name)
         n_halos = abs(halos[self.direction][self.side])
         # Using Navier Stokes physics object, create conservative variables
-        NS = NSphysics(block.ndim)
+        NS = NSphysics(block)
         cons_vars = [NS.density(), NS.momentum(), NS.total_energy()]
         base_loc = list(cons_vars[0].indices)
         # Set wall conditions, momentum zero, rhoE specified:
@@ -608,7 +608,7 @@ class InletPressureExtrapolateBoundaryConditionBlock(ModifyCentralDerivative, Bo
         direction = self.direction
         halos, kernel = self.generate_boundary_kernel(block, self.bc_name)
         # Using Navier Stokes physics object, create conservative variables
-        NS = NSphysics(block.ndim)
+        NS = NSphysics(block)
         cons_vars = [NS.density(), NS.momentum(), NS.total_energy()]
         # Evaluation of pressure, density, speed of sound on the boundary
         pb, rhob, ab = GridVariable('pb'), GridVariable('rhob'), GridVariable('ab')
