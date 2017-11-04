@@ -6,6 +6,7 @@ from opensbli.core.grid import GridVariable, Grididx
 from opensbli.core.datatypes import SimulationDataType
 from sympy.core.function import _coeff_isneg
 from opensbli.utilities.helperfunctions import get_min_max_halo_values
+from opensbli.core.datatypes import Int
 import copy
 
 
@@ -56,6 +57,20 @@ class ConstantsToDeclare(object):
         # print c.__dict__
         return
 
+    @staticmethod
+    def update_constant_value(const_index, value):
+        ConstantsToDeclare.constants[const_index]._value = value
+        return
+    
+    @staticmethod
+    def get_constant(name):
+        pprint([type(c.name) for c in ConstantsToDeclare.constants])
+        pprint(type(name))
+        index = [c.name for c in ConstantsToDeclare.constants].index(name)
+        return ConstantsToDeclare.constants[index]
+
+
+
 
 def copy_block_attributes(block, otherclass):
     """
@@ -72,6 +87,7 @@ class StencilObject(object):
         self.name = name
         self.stencil = stencil
         self.ndim = ndim
+        self.dtype = Int()
         return
 
     def sort_stencil_indices(self):
@@ -240,6 +256,17 @@ class Kernel(object):
             if eq.atoms(Grididx):
                 return True
         return False
+    
+    @property
+    def grid_index_name(self):
+        grid_id = set()
+        for eq in self.equations:
+            grid_id = grid_id.union(eq.atoms(Grididx))
+        if len(grid_id) > 1:
+            print grid_id
+            raise ValueError("Grid indices should be consistent.")
+
+        return list(grid_id)[0]
 
     def get_stencils(self):
         """ Returns the stencils for the datasets used in the kernel
@@ -311,21 +338,21 @@ class Kernel(object):
             #range_of_eval[d][0] = self.ranges[d][0] + halo_m[d]
             #range_of_eval[d][1] = self.ranges[d][1] + halo_p[d]
         range_of_eval = self.total_range()
-        dtype = 'int'
+        dtype = Int().opsc()
         iter_name = "iteration_range_%d" % (self.kernel_no)
         iter_name_code = ['%s %s[] = {%s};' % (dtype, iter_name, ', '.join([str(s) for s in flatten(range_of_eval)]))]
         code = []
-        # pprint(self.stencil_names)
+        sim_dtype = SimulationDataType.opsc()
         code += ['ops_par_loop(%s, \"%s\", %s, %s, %s' % (name, self.computation_name, block_name, self.ndim, iter_name)]
         for i in ins:
-            code += ['ops_arg_dat(%s, %d, %s, \"%s\", %s)' % (i, 1, self.stencil_names[i], "double", self.opsc_access['ins'])]  # WARNING dtype
+            code += ['ops_arg_dat(%s, %d, %s, \"%s\", %s)' % (i, 1, self.stencil_names[i], sim_dtype, self.opsc_access['ins'])]  # WARNING dtype
         for o in outs:
-            code += ['ops_arg_dat(%s, %d, %s, \"%s\", %s)' % (o, 1, self.stencil_names[o], "double", self.opsc_access['outs'])]  # WARNING dtype
+            code += ['ops_arg_dat(%s, %d, %s, \"%s\", %s)' % (o, 1, self.stencil_names[o], sim_dtype, self.opsc_access['outs'])]  # WARNING dtype
         for io in inouts:
-            code += ['ops_arg_dat(%s, %d, %s, \"%s\", %s)' % (io, 1, self.stencil_names[io], "double", self.opsc_access['inouts'])]  # WARNING dtype
+            code += ['ops_arg_dat(%s, %d, %s, \"%s\", %s)' % (io, 1, self.stencil_names[io], sim_dtype, self.opsc_access['inouts'])]  # WARNING dtype
         if self.IndexedConstants:
             for c in self.IndexedConstants:
-                code += ["ops_arg_gbl(&%s, %d, \"%s\", %s)" % (c, 1, "double", self.opsc_access['ins'])]
+                code += ["ops_arg_gbl(&%s, %d, \"%s\", %s)" % (c, 1, sim_dtype, self.opsc_access['ins'])]
         if self.grid_indices_used:
             code += ["ops_arg_idx()"]
         code = [',\n'.join(code) + ');\n\n']  # WARNING dtype

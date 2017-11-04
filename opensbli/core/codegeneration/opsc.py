@@ -166,7 +166,7 @@ def ccode(expr, settings={}):
         code = code_print.doprint(expr.lhs) \
             + ' = ' + OPSCCodePrinter(settings).doprint(expr.rhs)
         if isinstance(expr.lhs, GridVariable):
-            code = "double " + code  # WARNING dtype
+            code = '%s ' % SimulationDataType.opsc() + code  # WARNING dtype
         return code
     else:
         return OPSCCodePrinter(settings).doprint(expr)
@@ -275,10 +275,10 @@ class OPSC(object):
 
     def kernel_header(self, tuple_list):
         code = []
-        dtype = "double"  # WARNING dtype
+        dtype = SimulationDataType.opsc()
         for key, val in (tuple_list):
             code += [self.ops_headers[val] % (dtype, key)]
-        code = ','.join(code)
+        code = ', '.join(code)
         return code
 
     def kernel_computation_opsc(self, kernel):
@@ -296,11 +296,12 @@ class OPSC(object):
             for i in kernel.IndexedConstants:
                 header_dictionary += [tuple([(i.base), 'input'])]
         if kernel.grid_indices_used:
-            kerel_index = ", const int *idx"  # WARNING hard coded here
+            # print kernel.grid_index_name
+            kernel_index = ", const int *idx"  # WARNING hard coded here
         else:
-            kerel_index = ''
+            kernel_index = ''
         # print header_dictionary
-        out = ["void %s(" % kernel.kernelname + self.kernel_header(header_dictionary) + kerel_index + ')' + '\n{']
+        out = ["void %s(" % kernel.kernelname + self.kernel_header(header_dictionary) + kernel_index + ')' + '\n{']
         # all_dataset_inps = [str(i) for i in all_dataset_inps]
         ops_accs = [OPSAccess(no) for no in range(len(all_dataset_inps))]
         OPSCCodePrinter.dataset_accs_dictionary = dict(zip(all_dataset_inps, ops_accs))
@@ -399,7 +400,7 @@ class OPSC(object):
 
     def ops_stencils_declare(self, s):
         out = []
-        dtype = 'int'  # WARNING dtype
+        dtype = s.dtype.opsc()
         name = s.name + 'temp'
         sorted_stencil = s.sort_stencil_indices()
         out = [self.declare_inline_array(dtype, name, [st for st in flatten(sorted_stencil) if not isinstance(st, Idx)])]
@@ -579,16 +580,16 @@ class OPSC(object):
         if dset.dtype:
             dtype = dset.dtype
         else:
-            dtype = self.dtype
-        value = WriteString("%s* value = NULL;" % dtype)
+            dtype = SimulationDataType.dtype()
+        value = WriteString("%s* value = NULL;" % dtype.opsc())
 
         fname = 'data.h5'
         if dset.read_from_hdf5:
             temp = '%s = ops_decl_dat_hdf5(%s, 1, \"%s\", \"%s\", \"%s\");' % (dset,
-                                                                               dset.block_name, dtype, dset, fname)
+                                                                               dset.block_name, dtype.opsc(), dset, fname)
         else:
             temp = '%s = ops_decl_dat(%s, 1, size, base, halo_m, halo_p, value, \"%s\", \"%s\");' % (dset,
-                                                                                                     dset.block_name, dtype, dset)
+                                                                                                     dset.block_name, dtype.opsc(), dset)
         temp = WriteString(temp)
         declaration = WriteString("ops_dat %s;" % dset)
         out = [declaration, WriteString("{"), halo_p, halo_m, sizes, base, value, temp, WriteString("}")]
