@@ -270,11 +270,13 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
             eq.residual = eq.lhs
         return
 
-    def spatial_discretisation(cls, schemes, block):
+    def spatial_discretisation(cls, block):
         (Solution, cls).__init__(cls)
         if any(cls.curvilinear_metric):
             raise NotImplementedError("Handling curvilinear coordinates for the evaluation of metrics is not applied")
         spatialschemes = []
+        # Get the schemes on the block
+        schemes = block.discretisation_schemes
         for sc in schemes:
             if schemes[sc].schemetype == "Spatial":
                 spatialschemes += [sc]

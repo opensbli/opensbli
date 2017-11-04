@@ -6,19 +6,15 @@ from sympy import Equality, Function, pprint, srepr
 
 
 class Discretisation(object):
-    """
-    This should contain the following
-    1. Required_datasets these are the required data sets used in the simulations
-    2. Required_constants these are the required constants for the SimulationEquations
-    3. Local_evaluations this returns a list of evluations that should be performed for
-    the Discretisation of any equations
-    """
+    """Contains the functions used in various equation classes of OpenSBLI, to perform
+    discretisation. """
 
     @property
     def required_datasets(cls):
-        """By the time this function is called all the functions such as
-        KD, LC, DOT etc.. should be evaluated
-        """
+        """Returns the set of all datasets in the equations of a class.
+        
+        :return: a set of DataSet
+        :rtype: set(DataSet) """
         objs = []
         for eq in flatten(cls.equations):
             objs += list(eq.atoms(DataSet))
@@ -27,6 +23,10 @@ class Discretisation(object):
 
     @property
     def required_constants(cls):
+        """Returns the set of all constants in the equations.
+        
+        :return: a set of constants
+        :rtype: set(ConstantObject) """
         constants = []
         for eq in flatten(cls.equations):
             constants += list(eq.atoms(ConstantObject))
@@ -35,6 +35,7 @@ class Discretisation(object):
 
     @property
     def required_functions_local(cls):
+        """Helper funciton to evaluate the required finctions."""
         cds = []
         for eq in flatten(cls.equations):
             pot = preorder_traversal(eq)
@@ -49,24 +50,23 @@ class Discretisation(object):
 
     @property
     def required_functions(cls):
-        """
-        Returns all the functions to be evaluated
-        """
+        """Returns all the functions in the equations.
+        
+        :return: a set of functions 
+        :rtype: set(CentralDerivative, WenoDerivative, TemporalDerivative, etc.) """
         fns = cls.required_functions_local
         allfns = flatten([[fn, fn.required_functions] for fn in fns])
         allfns = set(allfns)
         return allfns
 
-    def apply_CentralDerivative(cls):
-        """
-        This creates a list of central derivatives with
-        """
-        fns = cls.required_functions
-        for fn in fns:
-            pass
-        return
-
     def _sanitise_equations(cls, equation):
+        """Sanitises the equation. Finds the non homogenous functions and replace them with
+        a funciton(function) approach. 
+        
+        .. note:
+            **Example**\n
+            CentralDerivative(u0, x0, x1) is transformed to CetralDerivative(CentralDerivative(u0, x0), x1)
+        """
         fns = []
         replacements = {}
         if isinstance(equation, list):
@@ -86,6 +86,10 @@ class Discretisation(object):
         return equation
 
     def apply_metrics(cls, metriceqclass):
+        """Applies the metric transformation for the equations in the class using the metric class provided
+        
+        :param MetricsEquation metriceqclass: see :class:`.MetricsEquation` 
+        :return: None"""
         out = []
         for eq in cls.equations:
             if isinstance(eq, list):
@@ -99,13 +103,42 @@ class Discretisation(object):
         return
 
     def write_latex(self, latex):
+        """Writes the latex form of the equations in the class to the file
+        
+        :param LatexWriter latex"""
         latex.write_string('The euqations are %s' % type(self).__name__)
         for eq in flatten(self.equations):
             latex.write_expression(eq)
         return
 
+    def convert_to_dictionary(self, relations):
+        """Helper function to convert a list of relations to a dictionary"""
+        output_dictionary = {}
+        for r in relations:
+            output_dictionary[r.lhs] = r.rhs
+        return output_dictionary
+
+    def add_equations(self, equation):
+        """Adds the equations to the class
+        
+        :param equation: a list of equations or a single equation to be added to the class"""
+        if isinstance(equation, list):
+            local = []
+            for no, eq in enumerate(equation):
+                eq = OpenSBLIEquation(eq.lhs, eq.rhs)
+                eq.set_vector(no)
+                local += [eq]
+            self.equations += [local]
+        else:
+            equation = OpenSBLIEquation(equation.lhs, equation.rhs)
+            self.equations += [equation]
+        return
+
+
+
 
 class OpenSBLIEquation(Equality):
+    """A wrapper around SymPy's Equality class to provide more flexibility in the future"""
     is_Equality = True
 
     def __new__(cls, lhs, rhs):
@@ -135,6 +168,7 @@ class OpenSBLIEquation(Equality):
 
 
 class Solution(object):
+    """An object to store the symbolic kernels generated while applying the numerical method to the equations"""
     def __init__(self):
         # Kernels would be spatial kernels
         self.Kernels = []
@@ -145,13 +179,7 @@ class Solution(object):
 
 
 class OpenSBLIExpression(Expr):
-    """
-    This represents each and every Discretisation expression
-    for example, to evaluate CD((p+rhoE)*u0, x0)
-    will have two expressions
-    a. to evaluate work = (p+rhoE)*u0
-    b. to evaluate next_work = CD(work, x0)
-
+    """A temporary wrapper class over SymPy expression class. Not used currently.
     """
     def __new__(cls, expr):
         ret = Expr.__new__(cls, expr)
@@ -163,31 +191,9 @@ class OpenSBLIExpression(Expr):
 
 
 class SimulationEquations(Discretisation, Solution):
-    """
-    To proceed
-    We will create solution equations, these are nothing but the
-    steps required to solve the equations. For example,
-    to solve say continuity equation, we already have (rhou0:ndim)
-    so the equations would be
-    Eq(CD(rhou0,x0), ITS descritised formula)
-    similarly, for the momentum equation
-    or, the best way would be create an object for evaluating for each and every
-    term of the equation CD / WD, TD
-    CD(rhou0,x0,x0) --> is an evaluation object already have function (CD).
-    It should give you requires
-
-    1. mark all the derivatives to be stored or to be evaluated
-    on the fly.
-    2. If stored and contain any dependant derivatives then these should be replaced
-    by the inner derivatives
-    example, CD(u0,x0,x1) --> CD(CD(u0,x0),x1)
-    CD(u0,x0,x0) should not be replaced
-
-    This should have the following functions
-    a. converting the DataObjects to DataSet
-    b. Applying the functions (KD, LC etc..)
-    c. Applying derivatives (value)
-    a. required functions (spatial and temporal)
+    """Class for the simulation equations. This performs the discretisation of the equations.
+    
+    :param int order: priority in the algorithm if multiple simulation equations exitst
     """
  
     def __new__(cls, order=None, **kwargs):
@@ -200,44 +206,29 @@ class SimulationEquations(Discretisation, Solution):
         ret.kwargs = kwargs
         return ret
 
-    def add_equations(cls, equation):
-        # equation = cls._sanitise_equations(equation)
-        if isinstance(equation, list):
-            local = []
-            for no, eq in enumerate(equation):
-                eq = OpenSBLIEquation(eq.lhs, eq.rhs)
-                eq.set_vector(no)
-                local += [eq]
-            cls.equations += [local]
-        else:
-            equation = OpenSBLIEquation(equation.lhs, equation.rhs)
-            cls.equations += [equation]
-        return
-
     def add_constituent_relations(cls, constituent_relations):
-        """
-        Adds the constituent relations we will make a deep copy so that the equations
-        can be reused else where
-        """
-        # cls.constituent_relations = constituent_relations
+        """Convert the constituent relations passed to a dictionary for easier access in discretisation
+        
+        :param ConstituentRelations constituent_relations: the constituent relations class on the block"""
+
         cls.constituent_relations_dictionary = cls.convert_to_dictionary(constituent_relations.equations)
         return
 
-    def convert_to_dictionary(cls, relations):
-        output_dictionary = {}
-        for r in relations:
-            output_dictionary[r.lhs] = r.rhs
-        return output_dictionary
-
     def create_residual_arrays(cls, block):
+        """Creates the residual datasets for each of the simulation equations.
+        
+        :param SimulationBlock block: the block on which the equations are solved
+        :return: None """
         for no, eq in enumerate(flatten(cls.equations)):
             if not hasattr(eq, 'residual'):
                 eq.residual = block.location_dataset('Residual%d' % no)
         return
 
     def zero_residuals_kernel(cls, block):
-        """Evaluate all the residuals to zero
-        """
+        """A symbolic kernel to equate all the residual arrays of the equations to zero
+        
+        :param SimulationBlock block: the block on which the equations are solved
+        :return: None """
         kernel = Kernel(block, computation_name="Zeroing residuals")
         eqs = [Eq(eq.residual, 0) for eq in flatten(cls.equations)]
         kernel.add_equation(eqs)
@@ -253,21 +244,23 @@ class SimulationEquations(Discretisation, Solution):
         arrays = set(arrays)
         return arrays
 
-    def spatial_discretisation(cls, schemes, block):
-        """
-        Discretisation will be done by
-        a. Update the work arrays (based on location) for the CD, WD, TD --> irrespective of Type
-        b. Set the evaluation range of each of the workbases to be that of the grid, irrespective of CD, WD or TD
-        c. Descritise each and every CD, WD, TD
-        """
+    def spatial_discretisation(cls, block):
+        """Apllies the spatial discretisation of the equations by calling the discretisation of each spatial 
+        scheme provided on the block
+        
+        :param SimulationBlock block: the block on which the equations are solved
+        :return: None """
+
         # Instantiate the solution class
         (Solution, cls).__init__(cls)
         # Create the residual array for the equations
         cls.create_residual_arrays(block)
+        # Kernel to make the residuals zero
         cls.zero_residuals_kernel(block)
 
-        # cls.descritsed_equations = copy.copy(cls.equations)
         spatialschemes = []
+        # Get the schemes on the block
+        schemes = block.discretisation_schemes
         for sc in schemes:
             if schemes[sc].schemetype == "Spatial":
                 spatialschemes += [sc]
@@ -297,27 +290,22 @@ class SimulationEquations(Discretisation, Solution):
                 for kernel in cr_dictionary[dset].kernels:
                     cls.constituent_relations_kernels[kernel.equations[0].lhs] = kernel
         cls.process_kernels(block)
-
         return
 
     def process_kernels(cls, block):
+        """A function to update some dependant parameters of each kernel
+        
+        :param SimulationBlock block: the block on which the equations are solved
+        :return: None """
         for key, kernel in cls.constituent_relations_kernels.iteritems():
             kernel.update_block_datasets(block)
         for kernel in cls.Kernels:
             kernel.update_block_datasets(block)
-        # TODO similarly  update the rational constants and constants
-        """
-        Constants should have the attributes
-        a. is_input = True or False
-        b. dtype = int or double or float
-        c. if not input the value
-        """
         return
 
     @property
     def sort_constituents(cls):
-        """
-        Sort the constituent relations thinking requires is Known
+        """Sort the constituent relation kernels
         """
         input_order = []
         for a in cls.requires.keys():
@@ -416,6 +404,7 @@ class SimulationEquations(Discretisation, Solution):
 
 
 class ConstituentRelations(Discretisation, Solution):
+    """Class for the ConstituentRelations to performs the discretisation of the equations"""
     def __new__(cls):
         ret = super(ConstituentRelations, cls).__new__(cls)
         ret.equations = []
@@ -423,30 +412,18 @@ class ConstituentRelations(Discretisation, Solution):
         ret.order = None  # This means there is no location for this explicitly in the algorithm
         return ret
 
-    def add_equations(cls, equation):
-        # equation = cls._sanitise_equations(equation)
-        if isinstance(equation, list):
-            for no, eq in enumerate(equation):
-                eq = OpenSBLIEquation(eq.lhs, eq.rhs)
-                # eq.set_vector(no)
-                cls.equations += [eq]
-        else:
-            equation = OpenSBLIEquation(equation.lhs, equation.rhs)
-            cls.equations += [equation]
-        return
-
     def create_residual_arrays(cls):
+        """The Residual arrays are currently the lhs of the constituent relations"""
         for eq in flatten(cls.equations):
             eq.residual = eq.lhs
         return
 
-    def spatial_discretisation(cls, schemes, block):
-        """
-        Discretisation will be done by
-        a. Update the work arrays (based on location) for the CD, WD, TD --> irrespective of Type
-        b. Set the evaluation range of each of the workbases to be that of the grid, irrespective of CD, WD or TD
-        c. Descritise each and every CD, WD, TD
-        """
+    def spatial_discretisation(cls, block):
+        """Apllies the spatial discretisation of the equations by calling the discretisation of each spatial 
+        scheme provided on the block
+        
+        :param SimulationBlock block: the block on which the equations are solved
+        :return: None """
         # Instantiate the solution class
         (Solution, cls).__init__(cls)
         # Create the residual array for the equations
@@ -454,6 +431,8 @@ class ConstituentRelations(Discretisation, Solution):
 
         # cls.descritsed_equations = copy.copy(cls.equations)
         spatialschemes = []
+        # Get the schemes on the block
+        schemes = block.discretisation_schemes
         for sc in schemes:
             if schemes[sc].schemetype == "Spatial":
                 spatialschemes += [sc]
@@ -461,7 +440,7 @@ class ConstituentRelations(Discretisation, Solution):
         cls.constituent_evaluations = {}
         equations = cls.equations
 
-        for eq in equations:
+        for eq in flatten(equations):
             cls.equations = [eq]
             for sc in spatialschemes:
                 cls.constituent_evaluations[sc] = schemes[sc].discretise(cls, block)

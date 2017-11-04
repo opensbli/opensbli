@@ -37,7 +37,7 @@ class GridBasedInitialisation(Discretisation, NonSimulationEquations):
             cls.equations += [equation]
         return
 
-    def spatial_discretisation(cls, schemes, block):
+    def spatial_discretisation(cls, block):
         kernel1 = Kernel(block, computation_name="Grid_based_initialisation%d" % cls.order)
         kernel1.set_grid_range(block)
         # Checking
@@ -46,6 +46,7 @@ class GridBasedInitialisation(Discretisation, NonSimulationEquations):
         # if isinstance(eq, MetricsEquation):
         # for k in eq.Kernels:
         # print k.computation_name, k.halo_ranges, k.ranges
+        schemes = block.discretisation_schemes
         for d in range(block.ndim):
             for sc in schemes:
                 if schemes[sc].schemetype == "Spatial":

@@ -290,7 +290,7 @@ class Central(Scheme):
         group the derivatives or any thing
         """
         descritised_equations = equations[:]
-        cds = self.get_local_function(equations)
+        cds = self.get_local_function(flatten(equations))
         if cds:
             local_kernels = {}
             if block.store_derivatives:

@@ -153,7 +153,7 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes):  # BoundaryC
 
         # perform the spatial discretisation of the equations using schemes
         for eq in self.list_of_equation_classes:
-            eq.spatial_discretisation(self.discretisation_schemes, self)
+            eq.spatial_discretisation(self)
             eq.apply_boundary_conditions(self)
         # Get the classes for the constituent relations
         # for clas in self.list_of_equation_classes:
