@@ -34,7 +34,7 @@ transformed = transformed.subs(metric_equation.general_function, DataObject("u0"
 pprint(transformed)
 
 # Simulation equations.
-eq = Equation()
+eq = EinsteinEquation()
 vorticity = "Eq(Der(vorticity_i, t), LC(_i,_j,_k)*Der(velocity_k, x_j))"
 simulation_equations = SimulationEquations()
 eqns = eq.expand(vorticity, ndim, coordinate_symbol, substitutions=[], constants=[])
