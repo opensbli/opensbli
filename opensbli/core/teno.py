@@ -1,7 +1,6 @@
 from sympy import IndexedBase, Symbol, pprint, Rational, Eq, Abs, flatten, Max, horner, S, ceiling
 from opensbli.core.opensblifunctions import TenoDerivative
-from opensbli.core.opensbliobjects import DataSetBase, ConstantObject
-from opensbli.core.kernel import Kernel
+from opensbli.core.opensbliobjects import ConstantObject
 from opensbli.core.grid import GridVariable
 # from opensbli.utilities.helperfunctions import increment_dataset as incr_dset
 from opensbli.core.scheme import Scheme
@@ -10,10 +9,12 @@ from opensbli.core.kernel import ConstantsToDeclare as CTD
 
 
 class TenoHalos(object):
+    """ Object for TENO halos.
+
+    :arg int order: Order of the TENO scheme.
+    :arg bool reconstruction: True if halos for a reconstruction. """
+
     def __init__(self, order, reconstruction=None):
-        """ Object for TENO halos.
-        arg: int: order: Order of the TENO scheme.
-        arg: bool: reconstruction: True if halos for a reconstruction. """
         if not reconstruction:
             if order == 8:
                 k = 4
@@ -29,11 +30,13 @@ class TenoHalos(object):
 
 
 class TenoStencil(object):
+    """ Stencil object used for the TENO reconstruction.
+
+    :arg int side: Side of the TENO reconstruction, either -1 (left) or +1 (right).
+    :arg int width: Width of the TENO candidate stencil.
+    :arg int stencil_number: Index of the stencil. """
+
     def __init__(self, side, width, stencil_number):
-        """ Stencil object used for the TENO reconstruction.
-        arg: int: side: Side of the TENO reconstruction, either -1 (left) or +1 (right).
-        arg: int: width: Width of the TENO candidate stencil.
-        arg: int: stencil_number: Index of the stencil. """
         self.width = width
         self.side = side
         self.stencil_number = stencil_number
@@ -45,11 +48,13 @@ class TenoStencil(object):
 
 
 class ConfigureTeno(object):
+    """ Object containing the parameters needed by the TENO reconstruction for a given order and side.
+
+    :arg int order: Order of the TENO scheme.
+    :arg int side: Side of the TENO reconstruction, either -1 (left) or +1 (right).
+    :arg bool optimized: Optimized or regular coefficients. """
+
     def __init__(self, order, side, optimized=False):
-        """ Object containing the parameters needed by the TENO reconstruction for a given order and side.
-        arg: int: order: Order of the TENO scheme.
-        arg: int: side: Side of the TENO reconstruction, either -1 (left) or +1 (right).
-        arg: bool: optimized: Optimized or regular coefficients. """
         self.order = order
         self.side = side
         self.optimized = optimized
@@ -67,7 +72,9 @@ class ConfigureTeno(object):
 
     def generate_stencils(self):
         """ Create stencils required for TENO5, TENO6 and TENO8.
-        returns: list: stencils: List of TENO stencil objects. """
+
+        :return: stencils: List of TENO stencil objects.
+        :rtype: list"""
         stencils = []
         side = self.side
         if self.order == 5:
@@ -82,7 +89,8 @@ class ConfigureTeno(object):
 
     def generate_func_points(self):
         """ Generates the relative function points required for the TENO stencils.
-        returns: list: fn_points: List of stencil point lists."""
+
+        :returns: fn_points: List of stencil point lists."""
         fn_points = []
         side, order = self.side, self.order
         if side == 1:
@@ -93,7 +101,8 @@ class ConfigureTeno(object):
 
     def generate_eno_coefficients(self):
         """ Generates the ENO coefficients required for the TENO stencils.
-        returns: list: coeffs: List of ENO coefficients for each stencil."""
+
+        :returns: coeffs: List of ENO coefficients for each stencil."""
         side = self.side
         if side == 1:
             coeffs = [[Rational(-1, 6), Rational(5, 6), Rational(2, 6)], [Rational(2, 6), Rational(5, 6), Rational(-1, 6)],
@@ -115,7 +124,8 @@ class ConfigureTeno(object):
 
     def generate_optimal_coefficients(self):
         """ Generates the optimal linear coefficients required for the TENO stencils.
-        returns: list: opt_coeffs: List of optimal coefficients for each stencil."""
+
+        :returns: opt_coeffs: List of optimal coefficients for each stencil."""
         # Optimal weights are not reversed for TENO when switching between upwind/downwind biasing
         order = self.order
         if self.optimized:
@@ -137,9 +147,10 @@ class ConfigureTeno(object):
 
     def generate_smoothness_indicators(self):
         """ Generates the smoothness indicators required for the TENO stencils.
-        returns: dict: fns_dictionary: Key: Integer grid location, Value: placeholder function 'f' at the grid location.
-        returns: list: smoothness_indicators: List of smoothness indicator expressions.
-        returns: list: smoothness_symbols: List of placeholder symbols for the smoothness indicators."""
+
+        :returns: fns_dictionary: Key: Integer grid location, Value: placeholder function 'f' at the grid location.
+        :returns: smoothness_indicators: List of smoothness indicator expressions.
+        :returns: smoothness_symbols: List of placeholder symbols for the smoothness indicators."""
         points = sorted(list(set(flatten([i for i in self.fn_points]))))
         f = IndexedBase('f')
         symbolic_functions = []
@@ -198,6 +209,9 @@ class ConfigureTeno(object):
         return fns_dictionary, smoothness_indicators, smoothness_symbols
 
     def update_stencils(self):
+        """Function to update the TenoStencil objects with their respective properties.
+
+        :returns: None """
         for stencil in self.stencils:
             no = stencil.stencil_number
             stencil.fn_points = self.fn_points[no]
@@ -208,19 +222,16 @@ class ConfigureTeno(object):
 
 
 class Teno5(object):
+    """ Base class for 5th order TENO scheme."""
+
     def __init__(self):
-        # Epsilon to avoid division by zero in non-linear weights
-        self.eps = ConstantObject('eps')
-        # Parameter to control the spectral properties of the TENO scheme
-        self.CT = ConstantObject('TENO_CT')
-        CTD.add_constant(self.CT)
-        CTD.add_constant(self.eps)
         return
 
     def generate_alphas(self, RV, TC):
         """ Create the alpha terms for the non-linear TENO weights.
-        arg: object RV: The reconstruction variable object.
-        arg: object TenoConfig: Configuration settings for a reconstruction of either left or right."""
+
+        :arg object RV: The reconstruction variable object.
+        :arg object TC: Configuration settings for a reconstruction of either left or right."""
         # Scale separation parameters
         C, q = S.One, 6
         # Global reference smoothness indicator tau_5
@@ -230,35 +241,24 @@ class Teno5(object):
             RV.alpha_evaluated.append((C + (tau_5/(self.eps + RV.smoothness_symbols[r])))**q)
         return
 
-    def create_cutoff_equations(self, RV, TC):
-        eqns = []
-        kronecker_deltas = [Symbol('delta_%d' % r) for r in range(TC.n_stencils)]
-        inv_alpha_sum_symbols = [Symbol('inv_alpha_sum')]
-        inv_alpha_sum_evaluated = [S.One/sum(RV.alpha_symbols)]
-        for r in range(RV.n_stencils):
-            eqns += [ceiling((Max(RV.alpha_symbols[r]*inv_alpha_sum_symbols[0]-self.CT, S.Zero)))]
-        RV.inv_alpha_sum_symbols = inv_alpha_sum_symbols
-        RV.inv_alpha_sum_evaluated = inv_alpha_sum_evaluated
-        RV.kronecker_evaluated = eqns
-        RV.kronecker_symbols = kronecker_deltas
-        return
-
     def generate_omegas(self, RV, TC):
         """ Create the omega terms for the non-linear TENO weights.
-        arg: object RV: The reconstruction variable object.
-        arg: object TenoConfig: Configuration settings for a reconstruction of either left or right."""
+
+        :arg object RV: The reconstruction variable object.
+        :arg object TC: Configuration settings for a reconstruction of either left or right."""
         weight_sum = sum([TC.opt_coeffs[i]*RV.kronecker_symbols[i] for i in range(RV.n_stencils)])
         RV.omega_symbols = [Symbol('omega_%d' % r) for r in range(RV.n_stencils)]
         RV.omega_evaluated = [TC.opt_coeffs[r]*RV.kronecker_symbols[r] / weight_sum for r in range(RV.n_stencils)]
         return
 
-    def generate_reconstruction(self, RV, TenoConfig):
-        """ Create the final TENO stencil by summing the stencil points, ENO coefficients and TENO weights..
-        arg: object RV: The reconstruction variable object.
-        arg: object TenoConfig: Configuration settings for a reconstruction of either left or right."""
+    def generate_reconstruction(self, RV, TC):
+        """ Create the final TENO stencil by summing the stencil points, ENO coefficients and TENO weights.
+
+        :arg object RV: The reconstruction variable object.
+        :arg object TenoConfig: Configuration settings for a reconstruction of either left or right."""
         reconstruction = 0
         fns = []
-        for stencil in TenoConfig.stencils:
+        for stencil in TC.stencils:
             RV.smoothness_indicators.append(stencil.smoothness_indicator)
             fns = [RV.function_stencil_dictionary[i] for i in stencil.fn_points]
             eno_interpolation = sum([point*coefficient for (point, coefficient) in zip(fns, stencil.eno_coeffs)])
@@ -268,19 +268,16 @@ class Teno5(object):
 
 
 class Teno6(object):
+    """ Base class for 6th order TENO scheme."""
+
     def __init__(self):
-        # Epsilon to avoid division by zero in non-linear weights
-        self.eps = ConstantObject('eps')
-        # Parameter to control the spectral properties of the TENO scheme
-        self.CT = ConstantObject('TENO_CT')
-        CTD.add_constant(self.CT)
-        CTD.add_constant(self.eps)
         return
 
     def generate_alphas(self, RV, TC):
         """ Create the alpha terms for the non-linear TENO weights.
-        arg: object RV: The reconstruction variable object.
-        arg: object TenoConfig: Configuration settings for a reconstruction of either left or right."""
+
+        :arg object RV: The reconstruction variable object.
+        :arg object TC: Configuration settings for a reconstruction of either left or right."""
         # Scale separation parameters
         C, q = S.One, 6
         # Global reference smoothness indicator tau_6
@@ -290,35 +287,24 @@ class Teno6(object):
             RV.alpha_evaluated.append((C + (tau_6/(self.eps + RV.smoothness_symbols[r])))**q)
         return
 
-    def create_cutoff_equations(self, RV, TC):
-        eqns = []
-        kronecker_deltas = [Symbol('delta_%d' % r) for r in range(TC.n_stencils)]
-        inv_alpha_sum_symbols = [Symbol('inv_alpha_sum')]
-        inv_alpha_sum_evaluated = [S.One/sum(RV.alpha_symbols)]
-        for r in range(RV.n_stencils):
-            eqns += [ceiling((Max(RV.alpha_symbols[r]*inv_alpha_sum_symbols[0]-self.CT, S.Zero)))]
-        RV.inv_alpha_sum_symbols = inv_alpha_sum_symbols
-        RV.inv_alpha_sum_evaluated = inv_alpha_sum_evaluated
-        RV.kronecker_evaluated = eqns
-        RV.kronecker_symbols = kronecker_deltas
-        return
-
     def generate_omegas(self, RV, TC):
         """ Create the omega terms for the non-linear TENO weights.
-        arg: object RV: The reconstruction variable object.
-        arg: object TenoConfig: Configuration settings for a reconstruction of either left or right."""
+
+        :arg object RV: The reconstruction variable object.
+        :arg object TC: Configuration settings for a reconstruction of either left or right."""
         weight_sum = sum([TC.opt_coeffs[i]*RV.kronecker_symbols[i] for i in range(RV.n_stencils)])
         RV.omega_symbols = [Symbol('omega_%d' % r) for r in range(RV.n_stencils)]
         RV.omega_evaluated = [TC.opt_coeffs[r]*RV.kronecker_symbols[r] / weight_sum for r in range(RV.n_stencils)]
         return
 
-    def generate_reconstruction(self, RV, TenoConfig):
-        """ Create the final TENO stencil by summing the stencil points, ENO coefficients and TENO weights..
-        arg: object RV: The reconstruction variable object.
-        arg: object TenoConfig: Configuration settings for a reconstruction of either left or right."""
+    def generate_reconstruction(self, RV, TC):
+        """ Create the final TENO stencil by summing the stencil points, ENO coefficients and TENO weights.
+
+        :arg object RV: The reconstruction variable object.
+        :arg object TC: Configuration settings for a reconstruction of either left or right."""
         reconstruction = 0
         fns = []
-        for stencil in TenoConfig.stencils:
+        for stencil in TC.stencils:
             RV.smoothness_indicators.append(stencil.smoothness_indicator)
             fns = [RV.function_stencil_dictionary[i] for i in stencil.fn_points]
             eno_interpolation = sum([point*coefficient for (point, coefficient) in zip(fns, stencil.eno_coeffs)])
@@ -328,22 +314,10 @@ class Teno6(object):
 
 
 class Teno8(object):
+    """ Base class for the 8th order TENO scheme, still work in progress."""
+
     def __init__(self):
-        # Epsilon to avoid division by zero in non-linear weights
-        self.eps = ConstantObject('eps')
-        # Parameter to control the spectral properties of the TENO scheme
-        self.CT = ConstantObject('TENO_CT')
-        CTD.add_constant(self.CT)
-        CTD.add_constant(self.eps)
         return
-
-    def __hash__(self):
-        h = hash(self._hashable_content())
-        self._mhash = h
-        return h
-
-    def _hashable_content(self):
-        return str(type(self).__name__)
 
     def global_smoothness_indicator(self, RV):
         # Global smoothness indicator used in tau_8 for TENO8
@@ -370,8 +344,9 @@ class Teno8(object):
 
     def generate_alphas(self, RV, TC):
         """ Create the alpha terms for the non-linear TENO weights.
-        arg: object RV: The reconstruction variable object.
-        arg: object TenoConfig: Configuration settings for a reconstruction of either left or right."""
+
+        :arg object RV: The reconstruction variable object.
+        :arg object TC: Configuration settings for a reconstruction of either left or right."""
         # Scale separation parameters
         C, q = S.One, 6
         RV.tau_8_symbol = [Symbol('tau')]
@@ -380,35 +355,24 @@ class Teno8(object):
             RV.alpha_evaluated.append((C + (Abs(RV.tau_8_symbol[0])/(self.eps + RV.smoothness_symbols[r])))**q)
         return
 
-    def create_cutoff_equations(self, RV, TC):
-        eqns = []
-        kronecker_deltas = [Symbol('delta_%d' % r) for r in range(TC.n_stencils)]
-        inv_alpha_sum_symbols = [Symbol('inv_alpha_sum')]
-        inv_alpha_sum_evaluated = [S.One/sum(RV.alpha_symbols)]
-        for r in range(RV.n_stencils):
-            eqns += [ceiling((Max(RV.alpha_symbols[r]*inv_alpha_sum_symbols[0]-self.CT, S.Zero)))]
-        RV.inv_alpha_sum_symbols = inv_alpha_sum_symbols
-        RV.inv_alpha_sum_evaluated = inv_alpha_sum_evaluated
-        RV.kronecker_evaluated = eqns
-        RV.kronecker_symbols = kronecker_deltas
-        return
-
     def generate_omegas(self, RV, TC):
         """ Create the omega terms for the non-linear TENO weights.
-        arg: object RV: The reconstruction variable object.
-        arg: object TenoConfig: Configuration settings for a reconstruction of either left or right."""
+
+        :arg object RV: The reconstruction variable object.
+        :arg object TC: Configuration settings for a reconstruction of either left or right."""
         weight_sum = sum([TC.opt_coeffs[i]*RV.kronecker_symbols[i] for i in range(RV.n_stencils)])
         RV.omega_symbols = [Symbol('omega_%d' % r) for r in range(RV.n_stencils)]
         RV.omega_evaluated = [TC.opt_coeffs[r]*RV.kronecker_symbols[r] / weight_sum for r in range(RV.n_stencils)]
         return
 
-    def generate_reconstruction(self, RV, TenoConfig):
-        """ Create the final TENO stencil by summing the stencil points, ENO coefficients and TENO weights..
-        arg: object RV: The reconstruction variable object.
-        arg: object TenoConfig: Configuration settings for a reconstruction of either left or right."""
+    def generate_reconstruction(self, RV, TC):
+        """ Create the final TENO stencil by summing the stencil points, ENO coefficients and TENO weights.
+
+        :arg object RV: The reconstruction variable object.
+        :arg object TC: Configuration settings for a reconstruction of either left or right."""
         reconstruction = 0
         fns = []
-        for stencil in TenoConfig.stencils:
+        for stencil in TC.stencils:
             RV.smoothness_indicators.append(stencil.smoothness_indicator)
             fns = [RV.function_stencil_dictionary[i] for i in stencil.fn_points]
             eno_interpolation = sum([point*coefficient for (point, coefficient) in zip(fns, stencil.eno_coeffs)])
@@ -418,9 +382,10 @@ class Teno8(object):
 
 
 class TenoReconstructionVariable(object):
+    """ Reconstruction variable object to hold the quantities required for TENO.
+
+    :arg str name: Name of the reconstruction, either left or right."""
     def __init__(self, name):
-        """ Reconstruction variable object to hold the quantities required for TENO.
-        arg: str: name: Name of the reconstruction, either left or right."""
         self.name = name
         self.smoothness_indicators = []
         self.smoothness_symbols = []
@@ -441,7 +406,8 @@ class TenoReconstructionVariable(object):
 
     def update_quantities(self, original):
         """ Updates the quantities required by TENO in the reconstruction variable.
-        arg: object: original: Reconstruction object variable, either left or right reconstruction."""
+
+        :arg object original: Reconstruction object variable, either left or right reconstruction."""
         self.smoothness_symbols += [GridVariable('%s%s' % (s, self.name)) for s in original.smoothness_symbols]
         self.alpha_symbols += [GridVariable('%s_%s' % (s, self.name)) for s in original.alpha_symbols]
         self.inv_alpha_sum_symbols += [GridVariable('%s_%s' % (s, self.name)) for s in original.inv_alpha_sum_symbols]
@@ -478,6 +444,9 @@ class TenoReconstructionVariable(object):
         return
 
     def add_evaluations_to_kernel(self, kernel):
+        """ Adds the evaluations of the TENO quantities to the computational kernel.
+
+        :arg object kernel: OpenSBLI Kernel for the TENO computation."""
         all_symbols = self.smoothness_symbols + self.tau_8_symbol + self.alpha_symbols + self.inv_alpha_sum_symbols + self.kronecker_symbols + self.omega_symbols
         all_evaluations = self.smoothness_indicators + self.tau_8_evaluated + self.alpha_evaluated + self.inv_alpha_sum_evaluated + self.kronecker_evaluated + self.omega_evaluated
 
@@ -488,26 +457,28 @@ class TenoReconstructionVariable(object):
 
 
 class LeftTenoReconstructionVariable(TenoReconstructionVariable):
+    """ Reconstruction object for the left TENO reconstruction.
+
+        :arg str name: 'left' """
     def __init__(self, name):
-        """ Reconstruction object for the left reconstruction.
-        arg: str: name: 'left' """
         TenoReconstructionVariable.__init__(self, name)
         return
 
 
 class RightTenoReconstructionVariable(TenoReconstructionVariable):
+    """ Reconstruction object for the right TENO reconstruction.
+
+        :arg str name: 'right' """
     def __init__(self, name):
-        """ Reconstruction object for the right reconstruction.
-        arg: str: name: 'right' """
         TenoReconstructionVariable.__init__(self, name)
         return
 
 
 class Teno(Scheme, ShockCapturing):
-    """ Main TENO class."""
+    """ The main TENO class, part of the ShockCapturing family.
 
+        :arg int order: Numerical order of the TENO scheme (3,5,...)."""
     def __init__(self, order, **kwargs):
-        """ :arg: int order: Numerical order of the TENO scheme (3,5,...). """
         Scheme.__init__(self, "TenoDerivative", order)
         self.schemetype = "Spatial"
         self.order = order
@@ -519,6 +490,12 @@ class Teno(Scheme, ShockCapturing):
             WT = Teno8()
         else:
             raise NotImplementedError("Only 5th, 6th and 8th order TENO implemented currently.")
+        # Epsilon to avoid division by zero in non-linear weights
+        WT.eps = ConstantObject('eps')
+        # Parameter to control the spectral properties of the TENO scheme
+        self.CT = ConstantObject('TENO_CT')
+        CTD.add_constant(self.CT)
+        CTD.add_constant(WT.eps)
         # Use optimized schemes?
         optimized = True
         self.halotype = TenoHalos(self.order)
@@ -528,7 +505,6 @@ class Teno(Scheme, ShockCapturing):
         # Populate the quantities required by TENO for the left and right reconstruction variable.
         for no, side in enumerate([1, -1]):
             TC = ConfigureTeno(order, side, optimized)
-            # pprint(TenoConfig.func_points)
             RV = self.reconstruction_classes[no]
             RV.order = order
             RV.func_points, RV.n_stencils = sorted(set(flatten(TC.fn_points))), TC.n_stencils
@@ -537,16 +513,43 @@ class Teno(Scheme, ShockCapturing):
             if (self.order == 8):
                 WT.global_smoothness_indicator(RV)
             WT.generate_alphas(RV, TC)
-            WT.create_cutoff_equations(RV, TC)
+            self.create_cutoff_equations(RV, TC)
             WT.generate_omegas(RV, TC)
             WT.generate_reconstruction(RV, TC)
             self.reconstruction_classes[no] = RV
         return
 
+    def create_cutoff_equations(self, RV, TC):
+        """ Generates the discrete cut-off functions that determine whether a certain TENO stencil is to
+        contribute to the final flux reconstruction. These are evaluated with a combination of ceiling and Max functions
+        to avoid having to evaluate expensive if else conditions in the generated code.
+
+        :arg object RV: The reconstruction variable object.
+        :arg object TC: Configuration settings for a reconstruction of either left or right. """
+        eqns = []
+        kronecker_deltas = [Symbol('delta_%d' % r) for r in range(TC.n_stencils)]
+        inv_alpha_sum_symbols = [Symbol('inv_alpha_sum')]
+        inv_alpha_sum_evaluated = [S.One/sum(RV.alpha_symbols)]
+        for r in range(RV.n_stencils):
+            eqns += [ceiling((Max(RV.alpha_symbols[r]*inv_alpha_sum_symbols[0]-self.CT, S.Zero)))]
+        RV.inv_alpha_sum_symbols = inv_alpha_sum_symbols
+        RV.inv_alpha_sum_evaluated = inv_alpha_sum_evaluated
+        RV.kronecker_evaluated = eqns
+        RV.kronecker_symbols = kronecker_deltas
+        return
+
 
 class LLFTeno(LLFCharacteristic, Teno):
-    def __init__(self, eigenvalue, left_ev, right_ev, order, ndim, averaging=None):
-        LLFCharacteristic.__init__(self, eigenvalue, left_ev, right_ev, order, ndim, averaging)
+    """ Local Lax-Friedrichs flux splitting applied to characteristic variables using a TENO scheme.
+
+    :arg dict eigenvalue: Dictionary of diagonal matrices containing the eigenvalues in each direction.
+    :arg dict left_ev: Dictionary of matrices containing the left eigenvectors in each direction.
+    :arg dict right_ev: Dictionary of matrices containing the right eigenvectors in each direction.
+    :arg int order: Order of the WENO/TENO scheme.
+    :arg int ndim: Number of dimensions of the problem.
+    :arg object averaging: The averaging procedure to be applied for characteristics, defaults to Simple averaging."""
+    def __init__(self, order, physics=None, averaging=None):
+        LLFCharacteristic.__init__(self, physics, averaging)
         print "A TENO scheme of order %s is being used for shock capturing" % str(order)
         Teno.__init__(self, order)
         return
@@ -556,8 +559,9 @@ class LLFTeno(LLFCharacteristic, Teno):
 
     def group_by_direction(self, eqs):
         """ Groups the input equations by the direction (x0, x1, ...) they depend upon.
-        arg: list: eqs: List of equations to group by direction.
-        returns: dict: grouped: Dictionary of {direction: equations} key, value pairs for equations grouped by direction."""
+
+        :arg list eqs: List of equations to group by direction.
+        :returns: grouped: Dictionary of {direction: equations} key, value pairs for equations grouped by direction."""
         all_WDS = []
         for eq in eqs:
             all_WDS += list(eq.atoms(TenoDerivative))
@@ -568,5 +572,4 @@ class LLFTeno(LLFCharacteristic, Teno):
                 grouped[direction] += [cd]
             else:
                 grouped[direction] = [cd]
-        # TODO: check for size of grouped items
         return grouped

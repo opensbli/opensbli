@@ -63,6 +63,7 @@ class Central(Scheme):
         :arg int order: The order of accuracy of the scheme.
         """
         Scheme.__init__(self, "CentralDerivative", order)
+        print "A Central scheme of order %d is being used" % order
         self.schemetype = "Spatial"
         # Points for the spatial scheme
         self.points = list(i for i in range(-order/2, order/2+1))
@@ -393,14 +394,10 @@ class TemproalSolution(object):
 
 
 class RungeKutta(Scheme):
-    """ Runge-Kutta time-stepping scheme. """
+    """ Applies a Runge-Kutta time-stepping scheme.
 
+        :arg int order: The order of accuracy of the scheme."""
     def __init__(cls, order, constant_dt=None):
-        """ Set up the Runge-Kutta stages and the coefficients.
-
-        :arg int order: The order of accuracy of the scheme.
-        """
-
         Scheme.__init__(cls, "RungeKutta", order)
         cls.schemetype = "Temporal"
         cls.nloops = 2

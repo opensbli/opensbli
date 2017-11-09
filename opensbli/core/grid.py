@@ -5,11 +5,9 @@ from opensbli.core.datatypes import Int
 
 
 class WorkDataSet(object):
-    """ Base object for using work arrays in the OpenSBLI framework. This contains different attributes to control the flow of work arrays in descritisation. This should be used in conjunction with a Simulation block see SimulationBlock .
-
-    Instantiated from :class:`.Grid`.
-
-    """
+    """ Base object for using work arrays in the OpenSBLI framework. This contains different attributes to control the flow of work arrays in discretisation.
+    This should be used in conjunction with a Simulation block see SimulationBlock.
+    Instantiated from :class:`.Grid`."""
 
     def __init__(self):
         """
@@ -88,41 +86,34 @@ class WorkDataSet(object):
     @property
     def reset_work_index(self):
         """Resets the work index to zero. Used when we want to re-use work arrays
-        in the discretisation, see the example below for usage
-        """
+        in the discretisation, see the example below for usage."""
         self.work_index = 0
         return
 
     @property
     def increase_work_index(self):
         """Increments the work array index by 1. This helps in setting up the next work array
-        index, see the example below for usage
-        """
+        index, see the example below for usage."""
         self.work_index = self.work_index + 1
         return
 
     @property
     def store_work_index(self):
-        """Stores the current work array index, see the example below for usage
-        """
+        """Stores the current work array index, see the example below for usage."""
         self.stored_index = self.work_index
         return
 
     @property
     def reset_work_to_stored(self):
-        """Resets the work array index to the index when the last ``store_work_index`` is called, see the example below for usage
-        """
+        """Resets the work array index to the index when the last ``store_work_index`` is called, see the example below for usage."""
         self.work_index = self.stored_index
         return
 
 
 class Grid(WorkDataSet):
 
-    """ The numerical grid for a block and contains grid parameters. This is autmatically instantiated from
-        SimulationBlock
-
-        `todo` Unit tests written will be copied at their respective locations TODO
-    """
+    """ The numerical grid for a block and contains grid parameters. This is automatically instantiated from
+        SimulationBlock."""
 
     def __init__(self):
         """ Initialise the gridobject and its parameters. This is instantiated from SimulationBlock
