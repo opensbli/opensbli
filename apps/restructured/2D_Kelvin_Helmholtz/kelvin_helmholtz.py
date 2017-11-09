@@ -38,15 +38,11 @@ for eqn in constituent_eqns:
 block = SimulationBlock(ndim, block_number=0)
 
 weno_order = '5Z'
-Euler_eq = EulerEquations(ndim)
-ev_dict, LEV_dict, REV_dict = Euler_eq.generate_eig_system()
 Avg = RoeAverage([0, 1])
-LLF = LLFWeno(ev_dict, LEV_dict, REV_dict, weno_order, ndim, Avg)
+LLF = LLFWeno(weno_order, averaging=Avg)
 
 schemes = {}
 schemes[LLF.name] = LLF
-cent = Central(4)
-schemes[cent.name] = cent
 rk = RungeKutta(3)
 schemes[rk.name] = rk
 
