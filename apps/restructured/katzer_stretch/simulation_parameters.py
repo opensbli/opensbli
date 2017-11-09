@@ -18,8 +18,8 @@ def substitute_parameters(simulation_name, constants, values):
 
 if __name__ == "__main__":
     constants = ['gama', 'Minf', 'Pr', 'Re', 'Twall', 'dt', 'niter', 'block0np0', 'block0np1',
-                 'Delta0block0', 'Delta1block0', 'SuthT', 'RefT', 'eps', 'TENO_CT', 'Lx1', 'by']
-    values = ['1.4', '2.0', '0.72', '950.0', '1.67619431', '0.05', '100', '400', '400',
-              '400.0/(block0np0-1)', '115.0/(block0np1-1)', '110.4', '288.0', '1e-15', '1e-5', '115.0', '3.0']
+                 'Delta0block0', 'Delta1block0', 'SuthT', 'RefT', 'eps', 'TENO_CT']
+    values = ['1.4', '2.0', '0.72', '950.0', '1.67619431', '0.05', '250', '400', '250',
+              '400.0/(block0np0-1)', '115.0/(block0np1-1)', '110.4', '288.0', '1e-15', '1e-5']
     simulation_name = 'opensbli'
     substitute_parameters(simulation_name, constants, values)

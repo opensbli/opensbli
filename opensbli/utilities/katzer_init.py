@@ -8,7 +8,9 @@ from scipy.optimize import curve_fit
 from opensbli.initialisation import GridBasedInitialisation
 from opensbli.core.opensbliobjects import DataObject, ConstantObject
 from opensbli.core.grid import GridVariable
+from opensbli.core.kernel import Kernel, ConstantsToDeclare
 import warnings
+from sympy import pprint
 
 plt.style.use('classic')
 
@@ -197,42 +199,78 @@ class Boundary_layer_profile(object):
         return y, u, T, scale
 
 
-class Initialise_Katzer(object):
+class Initialise_Katzer(GridBasedInitialisation):
 
-    def __init__(self, npoints, lengths, directions, betas, n_coeffs, block, coordinate_strings, Re, xMach):
+    def __new__(cls, npoints, lengths, directions, betas, n_coeffs, coordinate_strings, Re, xMach):
         """ Generates the initialiastion equations for the boundary-layer profile.
+
         arg: list: npoints: Numerical values of the number of points in each direction.
         arg: list: lengths: Numerical values of the problem dimensions.
         arg: list: directions: Integer values of the problem directions.
         arg: list: betas: Stretching factors for stretched grids.
         arg: int: n_coeffs: Desired number of coefficients for the polynomial fit.
-        arg: object: block: OpenSBLI SimulationBlock.
         arg: float: Re: Reynolds number.
-        arg: float: xMach: Free-stream Mach number
-        """
+        arg: float: xMach: Free-stream Mach number"""
+        ret = super(Initialise_Katzer, cls).__new__(cls)
+
         print "Polynomial boundary-layer initialiastion called with Re = %f, Mach = %f." % (Re, xMach)
-        self.block = block
-        if len(directions) != block.ndim:
+        ret.directions = directions
+        ret.npoints = ret.find_constant_values(npoints)
+        ret.lengths = ret.find_constant_values(lengths)
+        ret.betas = ret.find_constant_values(betas)
+        ret.n_coeffs = n_coeffs
+        ret.coordinate_strings = coordinate_strings
+        ret.Re = ret.find_constant_values([Re])[0]
+        ret.equations = []
+        ret.xMach = ret.find_constant_values([xMach])[0]
+
+        return ret
+
+    def find_constant_values(self, input):
+        outlist = []
+        for l in input:
+            if isinstance(l, ConstantObject):
+                if isinstance(l.value, str):
+                    raise ValuError("")
+                else:
+                    outlist += [l.value]
+            else:
+                outlist += [l]
+        return outlist
+
+    def check_inputs(self, block):
+        if len(self.directions) != block.ndim:
             raise ValueError("Length of the stretching ")
-        if len(lengths) != block.ndim:
+        if len(self.lengths) != block.ndim:
             raise ValueError("Length of the domain lengths list does not match the dimensions of the problem.")
-        if directions.count(True) != len(betas):
+        if len(self.directions) != len(self.betas):
             raise ValueError("Length of the stretching factor list does not match the number of stretched directions.")
-        if len(npoints) != block.ndim:
+        if len(self.npoints) != block.ndim:
             raise ValuError("Length of the grid size list does not match the dimensions of the problem.")
-        if n_coeffs < 10:
+        if self.n_coeffs < 10:
             raise ValueError("Higher number of polynomial coefficients are required for a good polynomial fit.")
-        self.directions = directions
+        return
+
+    def spatial_discretisation(self, block):
+        self.block = block
         self.idxs = block.grid_indexes
-        self.npoints = npoints
-        self.lengths = lengths
-        self.betas = betas
-        self.n_coeffs = n_coeffs
-        self.coordinate_strings = coordinate_strings
-        self.Re = Re
-        self.xMach = xMach
+        self.check_inputs(block)
         self.coordinate_evaluation = self.evaluate_coordinates()
         self.initial = self.generate_initial_condition()
+        self.equations += self.coordinate_evaluation + self.eqns
+
+        self.equations = block.dataobjects_to_datasets_on_block(self.equations)
+        kernel1 = Kernel(block, computation_name="Grid_based_initialisation%d" % self.order)
+        kernel1.set_grid_range(block)
+        schemes = block.discretisation_schemes
+        for d in range(block.ndim):
+            for sc in schemes:
+                if schemes[sc].schemetype == "Spatial":
+                    kernel1.set_halo_range(d, 0, schemes[sc].halotype)
+                    kernel1.set_halo_range(d, 1, schemes[sc].halotype)
+        kernel1.add_equation(self.equations)
+        kernel1.update_block_datasets(block)
+        self.Kernels = [kernel1]
         return
 
     def generate_initial_condition(self):
@@ -240,13 +278,14 @@ class Initialise_Katzer(object):
         # Load pre-computed profile from text file
         # y, u, T, rho, n = self.load_compbl()
         # self.Twall = 1.67619431
+        # self.scale_factor = 2.316
         n_coeffs = self.n_coeffs
         # Load from similarity solution class
-        y_length, n_ypoints, y_stretch_factor = self.lengths[1], self.npoints[1], self.betas[0]
-        y, u, T, rho, n = self.load_similarity(y_length, n_ypoints, y_stretch_factor)
+        y_length, n_ypoints, betas = self.lengths[1], self.npoints[1], self.betas[1]
+        y, u, T, rho, n = self.load_similarity(y_length, n_ypoints, betas)
         # Tolerance for finding the edge of the boundary layer. 
         tolerance = 1e-9
-        npoints, lengths, betas = self.npoints, self.lengths, self.betas
+        npoints, lengths = self.npoints, self.lengths
         directions = []
         for no, item in enumerate(self.directions):
             if item:
@@ -260,6 +299,7 @@ class Initialise_Katzer(object):
             if direction == 2:
                 raise NotImplementedError("Stretching in x2 not implemented.")
             # Uniform [0, 1] values to perform grid stretching
+            betas = [self.betas[1]]
             eta = np.linspace(0, 1, npoints[direction])
             coordinates = self.generate_coordinates(npoints, lengths, betas, eta, y)
             x, y_stretch = coordinates[0], coordinates[1]
@@ -279,6 +319,7 @@ class Initialise_Katzer(object):
         elif len(directions) == 2:  # 3D with one side wall in x2
             z = np.linspace(0, lengths[2], npoints[2])
             edges, coeffs, profiles, normal_coeffs, normal_profiles = [], [], [], [], []
+            betas = [self.betas[1], self.betas[2]]
             for dire in directions:
                 # Uniform [0, 1] values to perform grid stretching
                 eta = np.linspace(0, 1, npoints[dire])
@@ -307,14 +348,12 @@ class Initialise_Katzer(object):
             self.generate_two_wall_equations(profiles, coeffs, directions, edges, normal_profiles, normal_coeffs)
         else:
             raise NotImplementedError("Boundary layer initialisation is not implemented for walls in 3 dimensions.")
-        # Output the initialisation
-        initial = GridBasedInitialisation()
-        initial.add_equations(self.coordinate_evaluation + self.eqns)
-        return initial
+        return
 
     def evaluate_coordinates(self):
         """ Evaluates coordinates to a GridVariable and then sets them into the coordinate arrays.
-        arg: list: coordinate_eqns: Coordinate evaluation equations."""
+
+        :arg list coordinate_eqns: Coordinate evaluation equations."""
         coordinate_eqns = []
         for no, eqn in enumerate(self.coordinate_strings):
             coordinate_eqns.append(Eq(GridVariable('x%d' % no), eqn.rhs))
@@ -323,22 +362,23 @@ class Initialise_Katzer(object):
 
     def temperature_scaling(self, temp_profile, Tw, Tinf):
         """ Computes the temperature profile between [0,1]
-        args: ndarray: temp_profile: Temperature profile values between wall temperature and freestream.
-        args: float: Tw: Wall temperature.
-        args: float: Tinf: Free-stream temperature.
-        returns: ndarray: g: Temperature profile ranging from 0 to 1. """
+
+        :args ndarray temp_profile: Temperature profile values between wall temperature and freestream.
+        :args float Tw: Wall temperature.
+        :args float Tinf: Free-stream temperature.
+        :returns: ndarray: g: Temperature profile ranging from 0 to 1. """
         g = (temp_profile - Tw)/(Tinf - Tw)
         return g
 
     def form_equation(self, variable, name, coefficients, direction, edge):
         """ Creates the piecewise equations for the cases of 2D and 3D span-periodic boundary-layer profiles.
-        arg: ndarray: variable: Array of values for a given flow variable, used to obtain the free-stream value.
-        arg: string: name: Name of the variable.
-        arg: ndarray: coefficients: Coefficients for the polynomial fit.
-        arg: int: direction: Spatial direction to apply the equation to.
-        arg: int: edge: Grid index for the edge of the boundary-layer.
-        returns: Eq: eqn: OpenSBLI equation to add to the initialisation kernel.
-        """
+
+        :arg ndarray variable: Array of values for a given flow variable, used to obtain the free-stream value.
+        :arg string name: Name of the variable.
+        :arg ndarray coefficients: Coefficients for the polynomial fit.
+        :arg int direction: Spatial direction to apply the equation to.
+        :arg int edge: Grid index for the edge of the boundary-layer.
+        returns: Eq: eqn: OpenSBLI equation to add to the initialisation kernel."""
         powers = [i for i in range(np.size(coefficients))][::-1]
         eqn = sum([coeff*GridVariable('x1')**power for (coeff, power) in zip(coefficients, powers)])
         idx = self.idxs[direction]
@@ -347,14 +387,15 @@ class Initialise_Katzer(object):
 
     def form_mixed_equation(self, profiles, names, coefficients, directions, edges, normal_profiles, normal_coeffs):
         """ Generates the equations for the 3D SBLI sidewall case.
-        arg: list: profiles: Arrays of values for the rhou and [0,1] temperature profiles.
-        arg: list: names: Variable names as strings.
-        arg: list: coefficients: Coefficients for the polynomial fit for rhou and temperature profiles.
-        arg: list: directions: Directions that contain a wall.
-        arg: list: edges: Indices for the boundary layer edges in each direction.
-        arg: list: normal_profiles: Arrays of values for the rhov and rhow profiles.
-        arg: list: normal_coeffs: Coefficients for the polynomial fit for rhov and rhow.
-        returns: list: piecewise_eqns: Piecewise initialisation equations to be added to the initialisation class."""
+
+        :arg list profiles: Arrays of values for the rhou and [0,1] temperature profiles.
+        :arg list names: Variable names as strings.
+        :arg list coefficients: Coefficients for the polynomial fit for rhou and temperature profiles.
+        :arg list directions: Directions that contain a wall.
+        :arg list edges: Indices for the boundary layer edges in each direction.
+        :arg list normal_profiles: Arrays of values for the rhov and rhow profiles.
+        :arg list normal_coeffs: Coefficients for the polynomial fit for rhov and rhow.
+        :returns: list: piecewise_eqns: Piecewise initialisation equations to be added to the initialisation class."""
         idx0, idx1 = self.idxs[directions[0]], self.idxs[directions[1]]
         # Assuming we have the same number of poly coefficients in each direction, change later if required
         powers = [i for i in range(np.size(coefficients[0][0]))][::-1]
@@ -395,11 +436,11 @@ class Initialise_Katzer(object):
 
     def generate_one_wall_equations(self, data, coeffs, direction, edge):
         """ Generates the equations for 2D SBLI and 3D span-periodic cases.
-        arg: list: data: Profile arrays for rhou0, rhou1 and temperature.
-        arg: list: coeffs: Coefficients for the polynomial fits.
-        arg: list: direction: Direction normal to the wall.
-        arg: int: edge: Grid index for the edge of the boundary-layer."""
-        # self.eqns = [Eq(GridVariable('x%d' % direction), DataObject('x%d' % direction))]
+
+        :arg list data: Profile arrays for rhou0, rhou1 and temperature.
+        :arg list coeffs: Coefficients for the polynomial fits.
+        :arg list direction: Direction normal to the wall.
+        :arg int edge: Grid index for the edge of the boundary-layer."""
         self.eqns = []
         rhou0_eqn = self.form_equation(data[0], 'rhou0', coeffs[0], direction, edge)
         rhou1_eqn = self.form_equation(data[1], 'rhou1', coeffs[1], direction, edge)
@@ -418,15 +459,14 @@ class Initialise_Katzer(object):
         return
 
     def generate_two_wall_equations(self, profiles, coeffs, directions, edges, normal_profile, normal_coeffs):
-        """ Generates the equations for 2D SBLI and 3D span-periodic cases.
-        arg: list: profiles: Profile arrays for rhou0 and temperature.
-        arg: list: coeffs: Coefficients for the polynomial fits.
-        arg: list: directions: Directions normal to the wall.
-        arg: list: edges: Grid indexes for the edge of the boundary-layer.
-        arg: list: normal_profile: Profile for the wall normal velocity components.
-        arg: list: normal_coeffs: Coefficients for the wall normal polynomial fit."""
-        # Create GridVariables of the boundary-layer independent variables x1, x2
-        # self.eqns = [Eq(GridVariable('x%d' % direction), DataObject('x%d' % direction)) for direction in directions]
+        """ Generates the equations for 3D case with sidewalls.
+
+        :arg list profiles: Profile arrays for rhou0 and temperature.
+        :arg list coeffs: Coefficients for the polynomial fits.
+        :arg list directions: Directions normal to the wall.
+        :arg list edges: Grid indexes for the edge of the boundary-layer.
+        :arg list normal_profile: Profile for the wall normal velocity components.
+        :arg list normal_coeffs: Coefficients for the wall normal polynomial fit."""
         self.eqns = []
         names = ['rhou0', 'T', 'rhou1', 'rhou2']
         # Create the piecewise equations formed from the boundary layers
@@ -445,10 +485,7 @@ class Initialise_Katzer(object):
         return
 
     def function_to_fit(self, x, a, b, c, d):
-        """
-        General form of an equation to fit to the data, to obtain the coefficients.
-        """
-        # return a*np.exp(-c*(x-b))+d
+        """ General form of an equation to fit to the data, to obtain the coefficients."""
         return a*x**3 + b*x**2 + c*x + d
 
     def fit_polynomial(self, coords, variable, bl_edge, n_coeffs):
@@ -488,14 +525,13 @@ class Initialise_Katzer(object):
         return
 
     def solve_continuity(self, x, y, u, rho):
-        """
-        Solves the continuity equation to obtain the wall normal velocity profile.
-        arg: ndarray: x: Independent coordinate values.
-        arg: ndarray: y: Dependent coordinate values.
-        arg: ndarray: u: Streamwise velocity component values.
-        arg: ndarray: rho: Density values.
-        returns: ndarray: rhov: Array of values for the wall normal velocity components.
-        """
+        """ Solves the continuity equation to obtain the wall normal velocity profile.
+
+        :arg ndarray x: Independent coordinate values.
+        :arg ndarray y: Dependent coordinate values.
+        :arg ndarray u: Streamwise velocity component values.
+        :arg ndarray rho: Density values.
+        :returns: ndarray: rhov: Array of values for the wall normal velocity components. """
         # Grid offset delta to form derivative approximation
         n = np.size(y)
         ya2 = y[:]
@@ -540,12 +576,13 @@ class Initialise_Katzer(object):
 
     def generate_coordinates(self, npoints, lengths, betas, eta, y, z=None):
         """ Creates the coordinate arrays.
-        arg: list: npoints: Number of points in each direction.
-        arg: list: lengths: Domain length in each direction.
-        arg: list: betas: Stretch factors in each direction.
-        arg: ndarray: eta: Uniform values between [0,1] used for stretching.
-        arg: ndarray: y: Coordinate values in the y direction.
-        arg: ndarray: z: Coordinate values in the z direction.
+
+        :arg list npoints: Number of points in each direction.
+        :arg list lengths: Domain length in each direction.
+        :arg list betas: Stretch factors in each direction.
+        :arg ndarray eta: Uniform values between [0,1] used for stretching.
+        :arg ndarray y: Coordinate values in the y direction.
+        :arg ndarray z: Coordinate values in the z direction.
         returns: list: coordinates: List of arrays containing the coordinate values."""
         x = np.linspace(0, lengths[0], npoints[0])
         if self.block.ndim == 2:
@@ -554,6 +591,7 @@ class Initialise_Katzer(object):
             coordinates = [x, y_coords]
         elif self.block.ndim == 3:
             by, bz = betas[0], betas[1]
+            print by, bz
             y_coords = y[-1]*np.sinh(by*eta)/np.sinh(by)
             if bz == None: # Uniform periodic
                 z_coords = np.linspace(0, lengths[2], npoints[2])
@@ -582,9 +620,10 @@ class Initialise_Katzer(object):
 
     def find_edge_of_bl(self, variable, tolerance):
         """ Finds the edge of the boundary layer and returns the index of that grid point.
-        arg: ndarray: variable: Array of values for a given flow variable.
-        arg: float: tolerance: Stopping tolerance for the difference between two successive grid points.
-        returns: int: index: Index of the boundary-layer edge."""
+
+        :arg ndarray variable: Array of values for a given flow variable.
+        :arg float tolerance: Stopping tolerance for the difference between two successive grid points.
+        :returns: int: index: Index of the boundary-layer edge."""
         index = 1
         while np.abs(variable[index]-variable[index-1]) > tolerance:
             index += 1
@@ -592,7 +631,8 @@ class Initialise_Katzer(object):
 
     def freestream_value(self, variable, index):
         """ Returns the value of a flow variable for a given grid index.
-        arg: ndarray: variable: Array of values for a given flow variable.
-        arg: index: Array index to use.
-        returns: float: variable[index]: Value of the flow variable at that index."""
+
+        :arg ndarray variable: Array of values for a given flow variable.
+        :arg index Array index to use.
+        :returns: float: variable[index]: Value of the flow variable at that index."""
         return variable[index]

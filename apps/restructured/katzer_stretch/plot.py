@@ -70,8 +70,8 @@ def extract_data(group, lhalo, rhalo, k):
     a = numpy.sqrt(1.4*p/rho)
     M = u/a
     T = 1.4*4*p/rho
-    Cf = group["Cf_B0"].value[0]
-    return x, y, rho, u, v, rhoE, p, M, T, Cf
+    # Cf = group["Cf_B0"].value[0]
+    return x, y, rho, u, v, rhoE, p, M, T
 
 
 def load_SBLI_data():
@@ -215,7 +215,7 @@ def SBLI_comparison(x, Cf, P):
 def plot(fname, n_levels):
     f, group1 = read_file(fname)
 
-    x, y, rho, u, v, rhoE, P, M, T, Cf = extract_data(group1, 5, 5, 3)
+    x, y, rho, u, v, rhoE, P, M, T = extract_data(group1, 5, 5, 3)
 
     coordinates = [x, y]
     variables = [rho, u, v, rhoE, P, M, T]
@@ -255,7 +255,7 @@ def plot(fname, n_levels):
     plt.clf()
 
     # Compare to SBLI
-    SBLI_comparison(x, Cf, P)
+    # SBLI_comparison(x, Cf, P)
     f.close()
 
 

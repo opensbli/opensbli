@@ -32,6 +32,7 @@ speed_of_sound = "Eq(a, (gama*p/rho)**0.5)"
 simulation_eq = SimulationEquations()
 eq = EinsteinEquation()
 eqns = eq.expand(mass, ndim, coordinate_symbol, substitutions, constants)
+
 simulation_eq.add_equations(eqns)
 
 eqns = eq.expand(momentum, ndim, coordinate_symbol, substitutions, constants)
@@ -54,19 +55,17 @@ schemes = {}
 # Local LaxFredirich scheme for weno 
 weno_order = '5Z'
 # Generate the Eigen system for the Euler equations
-Euler_eq = EulerEquations(ndim)
-ev_dict, LEV_dict, REV_dict = Euler_eq.generate_eig_system()
 # Averaging procedure to be used for the eigen system evaluation
 Avg = SimpleAverage([0, 1])
 # LLF scheme
-LLF = LLFWeno(ev_dict, LEV_dict, REV_dict, weno_order, ndim, Avg)
+LLF = LLFWeno(weno_order, averaging=Avg)
 # Add to schemes
 schemes[LLF.name] = LLF
 rk = RungeKutta(3)
 schemes[rk.name] = rk
 
 block = SimulationBlock(ndim, block_number=0)
-block.sbli_rhs_discretisation = True
+
 
 local_dict = {"block": block, "GridVariable": GridVariable, "DataObject": DataObject}
 for con in constants:
@@ -76,16 +75,16 @@ x0 = parse_expr("Eq(DataObject(x0), block.deltas[0]*block.grid_indexes[0])", loc
 x1 = parse_expr("Eq(DataObject(x1), block.deltas[1]*block.grid_indexes[1])", local_dict=local_dict)
 
 
-rho = parse_expr("Eq(DataObject(rho), d)", local_dict=local_dict)
-rhou0 = parse_expr("Eq(DataObject(rhou0), d*u0)", local_dict=local_dict)
-rhou1 = parse_expr("Eq(DataObject(rhou1), d*u1)", local_dict=local_dict)
-rhoE = parse_expr("Eq(DataObject(rhoE), p/(gama-1) + 0.5* d *(u0**2+u1**2))", local_dict=local_dict)
-
-
 d_in = parse_expr("Eq(GridVariable(d), 1.0)", local_dict=local_dict)
 u0_in = parse_expr("Eq(GridVariable(u0), 1.0)", local_dict=local_dict)
 u1_in = parse_expr("Eq(GridVariable(u1), 0.0)", local_dict=local_dict)
 p_in = parse_expr("Eq(GridVariable(p), 1.0/(gama*Minf**2.0))", local_dict=local_dict)  # p = 1/(gama*Minf^2)
+
+
+rho = parse_expr("Eq(DataObject(rho), d)", local_dict=local_dict)
+rhou0 = parse_expr("Eq(DataObject(rhou0), d*u0)", local_dict=local_dict)
+rhou1 = parse_expr("Eq(DataObject(rhou1), d*u1)", local_dict=local_dict)
+rhoE = parse_expr("Eq(DataObject(rhoE), p/(gama-1) + 0.5* d *(u0**2+u1**2))", local_dict=local_dict)
 
 initial = GridBasedInitialisation()
 initial.add_equations([x0, x1, d_in, u0_in, u1_in, p_in, rho, rhou0, rhou1, rhoE])

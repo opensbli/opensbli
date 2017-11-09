@@ -39,10 +39,8 @@ for i, CR in enumerate(constituent_eqns):
 block = SimulationBlock(ndim, block_number=0)
 
 teno_order = 5
-Euler_eq = EulerEquations(ndim)
-ev_dict, LEV_dict, REV_dict = Euler_eq.generate_eig_system()
 Avg = RoeAverage([0, 1])
-LLF = LLFTeno(ev_dict, LEV_dict, REV_dict, teno_order, ndim, Avg)
+LLF = LLFTeno(teno_order, averaging=Avg)
 schemes = {}
 schemes[LLF.name] = LLF
 cent = Central(4)
@@ -51,10 +49,6 @@ rk = RungeKutta(3)
 schemes[rk.name] = rk
 
 local_dict = {"block": block, "GridVariable": GridVariable, "DataObject": DataObject}
-
-local_dict['Lx1'], local_dict['by'] = ConstantObject('Lx1'), ConstantObject('by')
-gridx0 = parse_expr("Eq(DataObject(x0), block.deltas[0]*block.grid_indexes[0])", local_dict=local_dict)
-gridx1 = parse_expr("Eq(DataObject(x1), Lx1*sinh(by*block.deltas[1]*block.grid_indexes[1]/Lx1)/sinh(by))", local_dict=local_dict)
 
 x_loc = parse_expr("Eq(GridVariable(x0), block.deltas[0]*block.grid_indexes[0])", local_dict=local_dict)
 
@@ -109,18 +103,23 @@ metriceq.genreate_transformations(ndim, coordinate_symbol, [(False, False), (Tru
 simulation_eq.apply_metrics(metriceq)
 
 # Perform initial condition
-coordinate_evaluation = [gridx0, gridx1]
 # Call the new polynomial based katzer initialisation, stretch factor 5.0 with 17 coefficients for the polynomial
 # Reynolds number and Mach number for the initial profile
 Re, xMach = 950, 2.0
 ## Ensure the grid size passed to the initialisation routine matches the grid sizes used in the simulation parameters
-grid_size = [609, 255]
+print "Make sure the grid sizes passed to initialisation routine match those in simulation parameters."
+grid_size = [400, 250]
+print "Grid size: ", grid_size
 grid_lengths = [400.0, 115.0]
-stretching_factors = [5.0]
+print "Domain lengths: ", grid_lengths
+stretching_factors = [0, 5.0]
 stretch_directions = [False, True] # Stretched in x1 direction, uniform in x0
 n_poly_coefficients = 17
-init_katzer = Initialise_Katzer(grid_size, grid_lengths, stretch_directions, stretching_factors, n_poly_coefficients, block, coordinate_evaluation, Re, xMach)
-initial = init_katzer.initial
+gridx0 = parse_expr("Eq(DataObject(x0), block.deltas[0]*block.grid_indexes[0])", local_dict=local_dict)
+gridx1 = parse_expr("Eq(DataObject(x1), %.15f*sinh(%.15f*block.deltas[1]*block.grid_indexes[1]/%.15f)/sinh(%.15f))" % (grid_lengths[1], stretching_factors[1], grid_lengths[1], stretching_factors[1]), local_dict=local_dict)
+coordinate_evaluation = [gridx0, gridx1]
+initial = Initialise_Katzer(grid_size, grid_lengths, stretch_directions, stretching_factors, n_poly_coefficients, coordinate_evaluation, Re, xMach)
+# initial = init_katzer.initial
 
 block.set_block_boundaries(boundaries)
 

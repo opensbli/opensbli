@@ -92,13 +92,10 @@ for direction in range(ndim):
 schemes = {}
 # Local LaxFredirich scheme for weno
 weno_order = '5Z'
-# Generate the Eigen system for the Euler equations
-Euler_eq = EulerEquations(ndim)
-ev_dict, LEV_dict, REV_dict = Euler_eq.generate_eig_system()
 # Averaging procedure to be used for the eigen system evaluation
 Avg = SimpleAverage([0, 1])
 # LLF scheme
-LLF = LLFWeno(ev_dict, LEV_dict, REV_dict, weno_order, ndim, Avg)
+LLF = LLFWeno(weno_order, averaging=Avg)
 # Add to schemes
 schemes[LLF.name] = LLF
 rk = RungeKutta(3)
