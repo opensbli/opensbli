@@ -237,7 +237,3 @@ class GridVariable(Symbol):
         self.is_constant = False
         self.dtype = None
         return self
-
-def gridvariables(names):
-    parse_expr("symbols(%s)" %(names))
-    return
