@@ -349,13 +349,14 @@ class DirichletBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCondition
         return kernel
 
 
-class SymmetryBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionBase):
+class SymmetryBoundaryConditionBlock(BoundaryConditionBase):
     """ Applies a symmetry condition on the boundary, normal velocity components set/evaluate to zero.
 
     :arg int boundary_direction: Spatial direction to apply boundary condition to.
     :arg int side: Side 0 or 1 to apply the boundary condition for a given direction.
     :arg object scheme: Boundary scheme if required, defaults to Carpenter boundary treatment.
     :arg bool plane: True/False: Apply boundary condition to full range/split range only."""
+
     def __init__(self, boundary_direction, side, scheme=None, plane=True):
         BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
         self.bc_name = 'Symmetry'
@@ -366,37 +367,30 @@ class SymmetryBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionB
         return
 
     def apply(self, arrays, block):
-        # metric = zeros(block.ndim)
-        # for i in range(block.ndim):
-        #     metric[i,i] = DataObject('D%d%d' % (i,i))
-        # for row in range(block.ndim):
-        #     total = []
-        #     expr = metric[row, :]
-        #     for item in expr:
-        #         total += [item**2]
-        #     metric[row, :] = metric[row, :] / sqrt(sum(total))
+        fdmteric = block.fd_metrics
         direction, side = self.direction, self.side
-        metric = eye(block.ndim)
+        direction_metric = Matrix(fdmteric[direction, :])
+        from sympy import pprint
+        normalisation = sqrt(sum([a**2 for a in direction_metric]))
+        unit_normals = direction_metric/normalisation
         lhs_eqns = flatten(arrays)
         rhs_eqns = []
         for ar in arrays:
             if isinstance(ar, list):
-                normal_vel = ar[direction]
-                transformed_vector = metric*Matrix(ar)
-                transformed_vector[direction] = -1*transformed_vector[direction]
+                contra_variant_vector = direction_metric.dot(Matrix(ar))
+                transformed_vector = Matrix(ar).T - 2.*contra_variant_vector*unit_normals
                 rhs_eqns += flatten(transformed_vector)
             else:
                 rhs_eqns += [ar]
-
         halos, kernel = self.generate_boundary_kernel(block, self.bc_name)
         from_side_factor, to_side_factor = self.set_side_factor()
 
         transfer_indices = [tuple([from_side_factor*t, to_side_factor*t]) for t in range(1, abs(halos[direction][side]) + 1)]
         final_equations = self.create_boundary_equations(lhs_eqns, rhs_eqns, transfer_indices)
-        # Set zero normal velocity on the boundary
-        final_equations += [Eq(normal_vel, 0)]
         kernel.add_equation(final_equations)
         kernel.update_block_datasets(block)
+        for eq in final_equations:
+            pprint(eq)
         return kernel
 
 
@@ -694,6 +688,50 @@ class OutletTransferBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCond
         for i in range(n_halos+1):
             equations = self.create_boundary_equations(cons_vars, cons_vars, [(i, -1)])
             kernel.add_equation(equations)
+        kernel.update_block_datasets(block)
+        return kernel
+
+
+class AdiabaticWallBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionBase):
+    def __init__(self, boundary_direction, side, scheme=None, plane=True):
+        BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
+        self.bc_name = 'AdiabaticWall'
+        if not scheme:
+            self.modification_scheme = Carpenter()
+        else:
+            self.modification_scheme = scheme
+        return
+
+    def apply(self, arrays, block):
+        halos, kernel = self.generate_boundary_kernel(block, self.bc_name)
+        n_halos = abs(halos[self.direction][self.side])
+        # Using Navier Stokes physics object, create conservative variables
+        
+        wall_eqns = []
+        for ar in arrays:
+            if isinstance(ar, list):
+                rhs = [0 for i in range(len(ar))]
+                wall_eqns += [Eq(x, y) for (x, y) in zip(ar, rhs)]
+            else:
+                if side == 1:
+                    raise NotImplementedError("AdiabaticWall not implemented for side 1")
+                # TODO increment or decrement data set value is a funciton of side factor
+                wall_eqns += [Eq(ar, increment_dataset(ar, self.direction, 1))]
+        kernel.add_equation(wall_eqns)
+        final_equations = []
+        if any(isinstance(sc, ShockCapturing) for sc in block.discretisation_schemes.values()):
+            from_side_factor, to_side_factor = self.set_side_factor()
+            rhs_eqns = []
+            lhs_eqns = flatten(arrays)
+            for ar in arrays:
+                if isinstance(ar, list):
+                    transformed_vector = -1*Matrix(ar)
+                    rhs_eqns += flatten(transformed_vector)
+                else:
+                    rhs_eqns += [ar]
+            transfer_indices = [tuple([from_side_factor*t, to_side_factor*t]) for t in range(1, abs(halos[self.direction][self.side]) + 1)]
+            final_equations = self.create_boundary_equations(lhs_eqns, rhs_eqns, transfer_indices)
+        kernel.add_equation(final_equations)
         kernel.update_block_datasets(block)
         return kernel
 

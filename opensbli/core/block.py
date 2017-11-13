@@ -3,7 +3,8 @@ from sympy import pprint
 from opensbli.core.bcs import BoundaryConditionTypes
 from opensbli.core.opensbliobjects import ConstantObject, DataObject, DataSetBase
 from opensbli.core.opensbliequations import ConstituentRelations
-from sympy import flatten
+from opensbli.core.metrics import MetricsEquation
+from sympy import flatten, eye
 
 
 class DataSetsToDeclare(object):
@@ -291,7 +292,27 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes):  # BoundaryC
         # CentralHalos_defdec()
         # halos.add(s.halotype)
         return halos
+    
+    @property
+    def get_metric_class(self):
+        metric_class = []
+        for EqClass in self.list_of_equation_classes:
+            if isinstance(EqClass, MetricsEquation):
+                metric_class += [EqClass]
+        if len(metric_class) == 0:
+            return None
+        if len(metric_class) > 1:
+            raise ValueError("more than one metric class found in the equations")
+        else:
+            return metric_class[0]
 
+    @property
+    def fd_metrics(self):
+        metric = self.get_metric_class
+        if metric:
+            return metric.FD_metrics
+        else:
+            return eye(self.ndim)
 
 def sort_constants(constants_dictionary):
     """
