@@ -1,7 +1,7 @@
 from sympy import IndexedBase, Symbol, pprint, Rational, solve, interpolating_poly, integrate, Eq, sqrt, zeros, Abs, Float, Matrix, flatten, Max, diag, Function
 from sympy.core.numbers import Zero
 from opensbli.core.opensblifunctions import WenoDerivative
-from opensbli.core.opensbliobjects import EinsteinTerm, DataSetBase, ConstantObject
+from opensbli.core.opensbliobjects import EinsteinTerm, DataSetBase, ConstantObject, DataObject
 from opensbli.core.opensbliequations import SimulationEquations
 from opensbli.core.kernel import Kernel
 from opensbli.core.grid import GridVariable
@@ -381,6 +381,7 @@ class ShockCapturing(object):
             pass
         else:
             raise ValueError("The symbol provided should be either a list or symbols")
+        pprint(sym)
         for s in sym:
 
             if isinstance(s, DataSetBase):
@@ -458,12 +459,16 @@ class EigenSystem(object):
     def instantiate_eigensystem(self, block):
         if self.physics == None:
             Euler_eq = EulerEquations(block.ndim)
-            ev_dict, LEV_dict, REV_dict = Euler_eq.generate_eig_system()
+            # ev_dict, LEV_dict, REV_dict = Euler_eq.generate_eig_system(block)
+            Euler_eq.generate_eig_system(block)
         else:
-            ev_dict, LEV_dict, REV_dict = self.physics.generate_eig_system()
-        self.eigen_value = ev_dict
-        self.left_eigen_vector = LEV_dict
-        self.right_eigen_vector = REV_dict
+            # ev_dict, LEV_dict, REV_dict = self.physics.generate_eig_system(block)
+            self.physics.generate_eig_system(block)
+        from sympy import pprint
+        self.euler = Euler_eq
+        self.eigen_value = {}
+        self.left_eigen_vector = {}
+        self.right_eigen_vector = {}
         return
 
     def get_symbols_in_ev(self, direction):
@@ -477,6 +482,15 @@ class EigenSystem(object):
     def get_symbols_in_REV(self, direction):
         """ Retrieve the unique symbols present in the right rigenvector matrix for a given direction."""
         return self.right_eigen_vector[direction].atoms(EinsteinTerm).difference(self.right_eigen_vector[direction].atoms(ConstantObject))
+
+    def get_dataobjects_in_ev(self, direction):
+        return self.eigen_value[direction].atoms(DataObject).difference(self.eigen_value[direction].atoms(ConstantObject))
+
+    def get_dataobjects_in_LEV(self, direction):
+        return self.left_eigen_vector[direction].atoms(DataObject).difference(self.left_eigen_vector[direction].atoms(ConstantObject))
+
+    def get_dataobjects_in_REV(self, direction):
+        return self.right_eigen_vector[direction].atoms(DataObject).difference(self.right_eigen_vector[direction].atoms(ConstantObject))
 
     def generate_grid_variable_ev(self, direction, name):
         """ Create a matrix of eigenvalue GridVariable elements. """
@@ -552,9 +566,6 @@ class Characteristic(EigenSystem):
         :arg object physics: Physics object, defaults to NSPhysics."""
     def __init__(self, physics):
         EigenSystem.__init__(self, physics)
-        self.ev_store = {}
-        self.LEV_store = {}
-        self.REV_store = {}
         return
 
     def pre_process(self, direction, derivatives, solution_vector, kernel, block):
@@ -567,20 +578,26 @@ class Characteristic(EigenSystem):
         :arg object kernel: The current computational kernel."""
         self.direction = direction
         pre_process_equations = []
-        # Instantiate eigensystems
-        self.instantiate_eigensystem(block)
+        # Update the ev, LEV and REV dicts to keep the current dictionary structure. Can change after.
+        ev_dict, LEV_dict, REV_dict = self.euler.apply_direction(direction)
+        self.eigen_value.update(ev_dict)
+        self.left_eigen_vector.update(LEV_dict)
+        self.right_eigen_vector.update(REV_dict)
 
+        # Finding metric terms to average
+        required_metrics = self.get_dataobjects_in_ev(direction).union(self.get_dataobjects_in_LEV(direction)).union(self.get_dataobjects_in_REV(direction))
+        # Finding flow variables to average
         required_symbols = self.get_symbols_in_ev(direction).union(self.get_symbols_in_LEV(direction)).union(self.get_symbols_in_REV(direction))
+        required_terms = required_symbols.union(required_metrics)
         averaged_suffix_name = 'AVG_%d' % direction
+
         self.averaged_suffix_name = averaged_suffix_name
-        averaged_equations = self.average(required_symbols, direction, averaged_suffix_name, block)
+        averaged_equations = self.average(required_terms, direction, averaged_suffix_name, block)
         pre_process_equations += averaged_equations
         # Eigensystem based on averaged quantities
         avg_LEV_values = self.convert_matrix_to_grid_variable(self.left_eigen_vector[direction], averaged_suffix_name)
         # Grid variables to store averaged eigensystems
         grid_LEV = self.generate_grid_variable_LEV(direction, averaged_suffix_name)
-        # Store the grid LEV variables for the characteristic boundary condition
-        self.LEV_store[direction] = grid_LEV
         pre_process_equations += flatten(self.generate_equations_from_matrices(grid_LEV, avg_LEV_values))
         # Transform the flux vector and the solution vector to characteristic space
         characteristic_flux_vector, CF_matrix = self.flux_vector_to_characteristic(derivatives, direction, averaged_suffix_name)
@@ -589,6 +606,7 @@ class Characteristic(EigenSystem):
         pre_process_equations += flatten(self.generate_equations_from_matrices(CF_matrix, characteristic_flux_vector))
         pre_process_equations += flatten(self.generate_equations_from_matrices(CS_matrix, characteristic_solution_vector))
 
+        #WARNING: check this part for 3D katzer side_wall with 2D stretching
         for d in derivatives:
             required_symbols = required_symbols.union(d.atoms(DataSetBase))
         self.update_constituent_relation_symbols(required_symbols, direction)
@@ -725,6 +743,10 @@ class LLFCharacteristic(Characteristic):
             all_derivatives_evaluated_locally = []
 
             reconstruction_halos = self.reconstruction_halotype(self.order, reconstruction=True)
+            
+            # Instantiate eigensystems with block, but don't add metrics yet
+            self.instantiate_eigensystem(block)
+
             for key, derivatives in grouped.iteritems():
                 all_derivatives_evaluated_locally += derivatives
                 for no, deriv in enumerate(derivatives):
@@ -774,6 +796,8 @@ class SimpleAverage(object):
         :arg locations: Relative index used for averaging (e.g. [0,1] for i and i+1)
         :arg direction: Axis of the dataset on which the location should be applied.
         :arg name_suffix: Name to be appended to the functions. """
+        pprint(functions)
+
         avg_equations = []
         for f in functions:
             name = f.get_base()
@@ -844,7 +868,21 @@ class RoeAverage(object):
         evaluations += [roe_a]
         grid_vars += [GridVariable('%s_%s' % (name_suffix, a_base.label))]
 
-        return [Eq(x, y) for (x, y) in zip(grid_vars, evaluations)]
+        # Average metric terms with simple average
+        averaged_metrics = []
+        for ET in functions:
+            if isinstance(ET, DataObject):
+                name = ET.get_base()
+                d = DataSetBase(name, block.shape, block.blocknumber)
+                loc = d.location
+                loc1 = loc[:]
+                loc2 = loc[:]
+                loc1[direction] = loc[direction] + self.locations[0]
+                loc2[direction] = loc[direction] + self.locations[1]
+                a = d[loc1]
+                b = d[loc2]
+                averaged_metrics += [Eq(GridVariable('%s_%s' % (name_suffix, name)), (a+b)/2)]
+        return [Eq(x, y) for (x, y) in zip(grid_vars, evaluations)] + averaged_metrics
 
 
 class LLFWeno(LLFCharacteristic, Weno):

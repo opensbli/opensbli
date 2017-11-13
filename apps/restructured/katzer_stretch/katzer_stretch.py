@@ -2,7 +2,7 @@
 from opensbli import *
 import copy
 from opensbli.core.teno import *
-from opensbli.core.weno_opensbli import RoeAverage
+from opensbli.core.weno_opensbli import RoeAverage, SimpleAverage
 from opensbli.utilities.katzer_init import Initialise_Katzer
 
 ndim = 2

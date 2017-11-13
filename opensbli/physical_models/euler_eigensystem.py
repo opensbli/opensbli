@@ -1,30 +1,45 @@
 from opensbli.core.opensbliobjects import CoordinateObject
-from sympy import diag, sqrt, Eq, eye, Rational
+from sympy import diag, sqrt, Eq, eye, Rational, pprint
 from opensbli.core.opensbliobjects import ConstantObject, EinsteinTerm
 from sympy.parsing.sympy_parser import parse_expr
+from opensbli.core.metrics import MetricsEquation
 
 
 class EulerEquations(object):
     def __init__(self, ndim, **kwargs):
-        """ """
         self.ndim = ndim
-        self.REV = {}
-        self.LEV = {}
-        self.EV = {}
         return
 
-    def generate_eig_system(self, block=None):
-        ndim = self.ndim
-        # coordinates = block.coordinates
-        coordinate_symbol = "x"
-        cart = CoordinateObject('%s_i' % (coordinate_symbol))
-        coordinates = [cart.apply_index(cart.indices[0], dim) for dim in range(ndim)]
+    def apply_direction(self, direction):
+        # Dictionaries to store ev, REV and LEV for each direction
+        ev_dict, LEV_dict, REV_dict = {}, {}, {}
+        # Metric symbols from block
+        met_symbols = self.met_symbols
+        # Metric terms for this direction to substitute into the matrix
+        terms = [EinsteinTerm('k%d' % i) for i in range(self.ndim)]
+        metric_values = [met_symbols[direction,i] for i in range(self.ndim)]
+        subs_dict = dict([(x,y) for (x,y) in zip(terms, metric_values)])
+        # Scaling factor based on metrics
+        factor = sum([met_symbols[direction, i]**2 for i in range(self.ndim)])**(Rational(1,2))
+        subs_dict[EinsteinTerm('k')] = factor
+        print "Substitution dictionary for metrics:\n"
+        pprint(subs_dict)
+        def g(x):
+            return x.subs(subs_dict, evaluate=False)
+        ev_dict[direction] = diag(*list(self.ev.applyfunc(g)))
+        LEV_dict[direction] = self.LEV.applyfunc(g)
+        REV_dict[direction] = self.REV.applyfunc(g)
+        return ev_dict, LEV_dict, REV_dict
 
-        # # Check if block has metrics to be used, else revert to cartesian
-        # if block.metric_transformations:
-        #     met_symbols = block.FD_simple_symbols
-        #     pprint(block.FD_eval_symbols
-        met_symbols = eye(ndim)
+    def generate_eig_system(self, block):
+        ndim = self.ndim
+        # Check if block has metrics equations:
+        for EqClass in block.list_of_equation_classes:
+            if isinstance(EqClass, MetricsEquation):
+                self.met_symbols = EqClass.FD_metrics
+                break # Metrics found, exit loop
+            else:
+                self.met_symbols  = eye(ndim)
         local_dict = {'Symbol': EinsteinTerm, 'gama': ConstantObject('gama')}
 
         if ndim == 1:
@@ -85,44 +100,15 @@ class EulerEquations(object):
             ev = parse_expr(ev, local_dict=local_dict, evaluate=False)
             REV = parse_expr(REV, local_dict=local_dict, evaluate=False)
             LEV = parse_expr(LEV, local_dict=local_dict, evaluate=False)
-
             # Apply the sub
             def f(x):
                 return x.subs(subs_dict, evaluate=False)
-
             def g(x):
                 return x.subs(subs_dict2, evaluate=False)
-            ev = ev.applyfunc(f).applyfunc(g).applyfunc(g)
-            REV = REV.applyfunc(f).applyfunc(g).applyfunc(g)
-            LEV = LEV.applyfunc(f).applyfunc(g).applyfunc(g)
-
-            # Definitions required for each direction are
-            definitions = {}
-
-            # Dictionaries to store ev, REV and LEV for each direction
-            ev_dict = {}
-            REV_dict = {}
-            LEV_dict = {}
-            # CHANGE THIS to block dependent when block has the metric features
-            metric_transformations = False
-            if not metric_transformations:
-                fact1 = 1
-                fact2 = 1
-            if metric_transformations:
-                fact1 = ((met_symbols[0, 0])**2 + (met_symbols[0, 1])**2)**(Rational(1, 2))
-                fact2 = ((met_symbols[1, 0])**2 + (met_symbols[1, 1])**2)**(Rational(1, 2))
-            subs_list = [{EinsteinTerm('k0'): met_symbols[0, 0], EinsteinTerm('k1'): met_symbols[0, 1], EinsteinTerm('k'): fact1},
-                         {EinsteinTerm('k0'): met_symbols[1, 0], EinsteinTerm('k1'): met_symbols[1, 1], EinsteinTerm('k'): fact2}]
-            # equations = [Eq(a,b) for a,b in subs_dict.items()]
-            eq_directions = {}
-            for no, coordinate in enumerate(coordinates):
-                direction = coordinate.direction
-
-                def g(x):
-                    return x.subs(subs_list[no], evaluate=False)
-                ev_dict[direction] = diag(*list(ev.applyfunc(g)))
-                REV_dict[direction] = REV.applyfunc(g)
-                LEV_dict[direction] = LEV.applyfunc(g)
+            self.ev = ev.applyfunc(f).applyfunc(g).applyfunc(g)
+            self.REV = REV.applyfunc(f).applyfunc(g).applyfunc(g)
+            self.LEV = LEV.applyfunc(f).applyfunc(g).applyfunc(g)
+            return
 
         elif ndim == 3:
             matrix_symbols = ['alpha', 'bta', 'theta', 'phi_sq', 'k']
@@ -150,38 +136,7 @@ class EulerEquations(object):
 
             def g(x):
                 return x.subs(subs_dict2, evaluate=False)
-            ev = ev.applyfunc(f).applyfunc(g).applyfunc(g)
-            REV = REV.applyfunc(f).applyfunc(g).applyfunc(g)
-            LEV = LEV.applyfunc(f).applyfunc(g).applyfunc(g)
-
-            # Definitions required for each direction are
-            definitions = {}
-
-            # Dictionaries to store ev, REV and LEV for each direction
-            ev_dict = {}
-            REV_dict = {}
-            LEV_dict = {}
-            metric_transformations = False
-
-            if not metric_transformations:
-                fact1 = 1
-                fact2 = 1
-                fact3 = 1
-            if metric_transformations:
-                fact1 = sqrt(met_symbols[0, 0]**2 + met_symbols[0, 1]**2 + met_symbols[0, 2]**2)
-                fact2 = sqrt(met_symbols[1, 0]**2 + met_symbols[1, 1]**2 + met_symbols[1, 2]**2)
-                fact3 = sqrt(met_symbols[2, 0]**2 + met_symbols[2, 1]**2 + met_symbols[2, 2]**2)
-            subs_list = [{EinsteinTerm('k0'): met_symbols[0, 0], EinsteinTerm('k1'): met_symbols[0, 1], EinsteinTerm('k2'): met_symbols[0, 2], EinsteinTerm('k'): fact1},
-                         {EinsteinTerm('k0'): met_symbols[1, 0], EinsteinTerm('k1'): met_symbols[1, 1], EinsteinTerm('k2'): met_symbols[1, 2], EinsteinTerm('k'): fact2},
-                         {EinsteinTerm('k0'): met_symbols[2, 0], EinsteinTerm('k1'): met_symbols[2, 1], EinsteinTerm('k2'): met_symbols[2, 2], EinsteinTerm('k'): fact3}]
-            # equations = [Eq(a,b) for a,b in subs_dict.items()]
-            eq_directions = {}
-            for no, coordinate in enumerate(coordinates):
-                direction = coordinate.direction
-
-                def g(x):
-                    return x.subs(subs_list[no], evaluate=False)
-                ev_dict[direction] = diag(*list(ev.applyfunc(g)))
-                REV_dict[direction] = REV.applyfunc(g)
-                LEV_dict[direction] = LEV.applyfunc(g)
-        return ev_dict, LEV_dict, REV_dict
+            self.ev = ev.applyfunc(f).applyfunc(g).applyfunc(g)
+            self.REV = REV.applyfunc(f).applyfunc(g).applyfunc(g)
+            self.LEV = LEV.applyfunc(f).applyfunc(g).applyfunc(g)
+        return
