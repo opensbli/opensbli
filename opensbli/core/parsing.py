@@ -405,7 +405,11 @@ class EinsteinEquation(EinsteinStructure):
         constant_dictionary = {}
         for con in constants:
             constant_dictionary[con] = ConstantObject(con)
-        local_dict = {'Der': Der, 'Conservative': Conservative, 'KD': KD, 'LC': LC, 'Skew': Skew, 'coordinate': coordinate_symbol, 'time': 't', 'Dot': Dot, 'MetricDer': MetricDer}
+        # get all the functions form opensbli automatically
+        local_dict = {}
+        from sympy.core.compatibility import exec_
+        exec_('from opensbli.core import *', local_dict)
+        local_dict.update({'coordinate': coordinate_symbol, 'time': 't'})
         local_dict.update(constant_dictionary)
         # pprint(self.original)
         # Parse the equation.
