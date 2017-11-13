@@ -9,6 +9,7 @@ from opensbli.utilities.helperfunctions import dot, get_min_max_halo_values, inc
 from sympy.functions.elementary.piecewise import ExprCondPair
 from opensbli.core.weno_opensbli import ShockCapturing
 side_names = {0: 'left', 1: 'right'}
+from sympy import pprint
 
 
 class Exchange(object):
@@ -76,14 +77,15 @@ class BoundaryConditionTypes(object):
 
     """ Base class for boundary conditions. We store the name of the boundary condition and type of the boundary for debugging purposes only.
     The application of the boundary conditions requires this base class on the grid.
-    Computations can be computational Kernels or Exchange type objects.
-    """
+    Computations can be computational Kernels or Exchange type objects."""
 
-    def set_boundary_types(self, types):
+    def set_boundary_types(self, types, block):
         """ Adds the boundary types of the grid """
         # convert the list of types into a list of tuples
         types = flatten(types)
         self.check_boundarysizes_ndim_match(types)
+        for t in types:
+            t.convert_dataobject_to_dataset(block)
         it = iter(types)
         self.boundary_types = zip(it, it)
         return
@@ -112,6 +114,10 @@ class BoundaryConditionTypes(object):
 
 
 class BoundaryConditionBase(object):
+    """ Base class for common functionality between all boundary conditions.
+    :arg int boundary_direction: Spatial direction to apply boundary condition to.
+    :arg int side: Side 0 or 1 to apply the boundary condition for a given direction.
+    :arg bool plane: True/False: Apply boundary condition to full range/split range only."""
     def __init__(self, boundary_direction, side, plane):
         if plane:
             self.full_plane = True
@@ -122,7 +128,23 @@ class BoundaryConditionBase(object):
         self.equations = None
         return
 
-    def convert_dataset_base_expr_to_datasets(self, expression, index):
+    def convert_dataobject_to_dataset(self, block):
+        """ Converts DataObjects to DataSets.
+        :arg object block. OpenSBLI SimulationBlock."""
+        if isinstance(self, SplitBoundaryConditionBlock):
+            for bc in self.bc_types:
+                if bc.equations:
+                    bc.equations = block.dataobjects_to_datasets_on_block(bc.equations)
+        else:
+            if self.equations:
+                self.equations = block.dataobjects_to_datasets_on_block(self.equations)
+        return
+
+    def convert_dataset_base_expr_to_datasets(self, expression, index): ### CHANGE THE NAME OF THIS? It is wrong.
+        """ Converts an expression containing DataSetBases to Datasets and updates locations.
+        :arg object expression: Symbolic expression. 
+        :arg int index: Index to increment the DataSet by.
+        returns: object: expression: Updated symbolic expression."""
         for a in expression.atoms(DataSet):
             b = a.base
             expression = expression.xreplace({a: b[index]})
@@ -135,8 +157,9 @@ class BoundaryConditionBase(object):
             return self.arbitrary_bc_plane_kernel(block, bc_name)
 
     def arbitrary_bc_plane_kernel(self, block, bc_name):
+        bc_name = self.bc_name
         direction, side, split_number = self.direction, self.side, self.split_number
-        kernel = Kernel(block, computation_name="split bc direction-%d side-%d split-%d" % (direction, side, split_number))
+        kernel = Kernel(block, computation_name="%s bc direction-%d side-%d split-%d" % (bc_name, direction, side, split_number))
         print kernel.computation_name
         numbers = Idx('no', 2*block.ndim)
         ranges = ConstantIndexed('split_range_%d%d%d'%(direction, side, split_number), numbers)
@@ -147,26 +170,15 @@ class BoundaryConditionBase(object):
         kernel.halo_ranges = halo_ranges
         ConstantsToDeclare.add_constant(ranges)
         ConstantsToDeclare.add_constant(halo_ranges)
-        #exit()
-        #kernel = self.set_kernel_range(kernel, block)
         halo_values = self.get_halo_values(block)
-        #print "Halo values:", halo_values
-        #print "Kernel ranges: ", kernel.ranges
-        # Add the halos to the kernel in directions not equal to boundary or split direction
-        #print direction, split_direction
-        #for i in [x for x in range(block.ndim) if x not in [direction, split_direction]]:
-            #kernel.halo_ranges[i][0] = block.boundary_halos[i][0]
-            #kernel.halo_ranges[i][1] = block.boundary_halos[i][1]
-        print "\n\n\n"
-        print "Kernel halo ranges", kernel.halo_ranges
-        #exit()
         return halo_values, kernel
+
 
     def set_kernel_range(self, kernel, block):
         """ Sets the boundary condition kernel ranges based on direction and side.
-        arg: object: kernel: Computational boundary condition kernel.
-        arg: object: block: The SimulationBlock the boundary conditions are used on.
-        returns: object: kernel: The computational kernel with updated ranges."""
+        :arg object kernel: Computational boundary condition kernel.
+        :arg object block: The SimulationBlock the boundary conditions are used on.
+        :returns kernel: The computational kernel with updated ranges."""
         side, direction = self.side, self.direction
         kernel.ranges = block.ranges[:]
         if side == 0:
@@ -180,8 +192,8 @@ class BoundaryConditionBase(object):
 
     def get_halo_values(self, block):
         """ Gets the maximum numerical halo values.
-        arg: object: block: The SimulationBlock the boundary conditions are used on.
-        returns: list: halo_values: Numerical values of the halos in all directions."""
+        :arg object block: The SimulationBlock the boundary conditions are used on.
+        :returns halo_values: Numerical values of the halos in all directions."""
         halo_values = []
         halo_objects = block.boundary_halos
         for i in range(len(halo_objects)):
@@ -221,6 +233,7 @@ class BoundaryConditionBase(object):
         return final_equations
 
     def set_side_factor(self):
+        """ Sets the +/- 1 side factors for boundary condition halo numbering."""
         if self.side == 0:
             from_side_factor = -1
             to_side_factor = 1
@@ -231,10 +244,9 @@ class BoundaryConditionBase(object):
 
 
 class SplitBoundaryConditionBlock(BoundaryConditionBase):
-    def __init__(self, boundary_direction, side, bcs, split_direction, plane=False):
+    def __init__(self, boundary_direction, side, bcs, plane=False):
         BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
         self.bc_types = bcs
-        self.split_direction = split_direction
         return
     
     def pre_process_bc(self):
@@ -244,18 +256,17 @@ class SplitBoundaryConditionBlock(BoundaryConditionBase):
         kernels = []
         for no, bc in enumerate(self.bc_types):
             bc.full_plane = False
-            bc.split_direction, bc.split_number = self.split_direction, no
+            bc.split_number = no
             print type(bc)
-            #exit()
             kernels.append(bc.apply(arrays, block))
         return kernels
 
 
 class PeriodicBoundaryConditionBlock(BoundaryConditionBase):
-    """
-    Applies periodic boundary condition
-    """
-
+    """ Applies an exchange periodic boundary condition.
+    :arg int boundary_direction: Spatial direction to apply boundary condition to.
+    :arg int side: Side 0 or 1 to apply the boundary condition for a given direction.
+    :arg bool plane: True/False: Apply boundary condition to full range/split range only."""
     def __init__(self, boundary_direction, side, plane=True):
         BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
         return
@@ -302,8 +313,12 @@ class PeriodicBoundaryConditionBlock(BoundaryConditionBase):
 
 
 class DirichletBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionBase):
-    """Applies constant value Dirichlet boundary condition."""
-
+    """ Applies a constant value Dirichlet boundary condition.
+    :arg int boundary_direction: Spatial direction to apply boundary condition to.
+    :arg int side: Side 0 or 1 to apply the boundary condition for a given direction.
+    :arg list equations: OpenSBLI equations to enforce on the boundary.
+    :arg object scheme: Boundary scheme if required, defaults to Carpenter boundary treatment.
+    :arg bool plane: True/False: Apply boundary condition to full range/split range only."""
     def __init__(self, boundary_direction, side, equations, scheme=None, plane=True):
         BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
         self.bc_name = 'Dirichlet'
@@ -314,20 +329,33 @@ class DirichletBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCondition
             self.modification_scheme = scheme
         return
 
+
     def halos(self):
         return True
 
     def apply(self, arrays, block):
         direction, side = self.direction, self.side
         halos, kernel = self.generate_boundary_kernel(block, self.bc_name)
-        # Add halos across the boundary side only
-        kernel.halo_ranges[direction][side] = block.boundary_halos[direction][side]
+        # Dirichlet set on the boundary
         kernel.add_equation(self.equations)
+        # Change ranges if using split BC
+        if isinstance(kernel.halo_ranges, ConstantIndexed):
+            # Manually set Dirichlet into the halo range of this side
+            halo_object = kernel.halo_ranges
+            halo_object._value[2*direction + side] = halos[direction][side]
+        else: # Not using split BC, halos should be updated
+            kernel.halo_ranges[direction][side] = block.boundary_halos[direction][side]
         kernel.update_block_datasets(block)
         return kernel
 
 
 class SymmetryBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionBase):
+    """ Applies a symmetry condition on the boundary, normal velocity components set/evaluate to zero.
+
+    :arg int boundary_direction: Spatial direction to apply boundary condition to.
+    :arg int side: Side 0 or 1 to apply the boundary condition for a given direction.
+    :arg object scheme: Boundary scheme if required, defaults to Carpenter boundary treatment.
+    :arg bool plane: True/False: Apply boundary condition to full range/split range only."""
     def __init__(self, boundary_direction, side, scheme=None, plane=True):
         BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
         self.bc_name = 'Symmetry'
@@ -373,8 +401,10 @@ class SymmetryBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionB
 
 
 class Carpenter(object):
+    """ 4th order one-sided Carpenter boundary treatment (https://doi.org/10.1006/jcph.1998.6114). 
+    If a boundary condition is an instance of
+    ModifyCentralDerivative, central derivatives are replaced at that domain boundary by the Carpenter scheme."""
     def __init__(self):
-
         self.bc4_coefficients = self.carp4_coefficients()
         self.bc4_symbols = self.carp4_symbols()
         self.bc4_2_symbols = self.second_der_symbols()
@@ -459,19 +489,22 @@ class Carpenter(object):
         return ker, ecs
 
     def carp4_symbols(self):
-        """
-        Function to return symbolic bc4 matrix for testing
-        """
+        """ Symbols for testing the 1st order one sided Carpenter wall boundary derivative.
+        returns: Matrix: bc4: Matrix of stencil symbols."""
         bc4 = MatrixSymbol('BC', 4, 6)
         bc4 = Matrix(bc4)
         return bc4
 
     def second_der_symbols(self):
+        """ Symbols for testing the 2nd order one sided Carpenter wall boundary derivative.
+        returns: Matrix: bc4_2: Matrix of stencil symbols."""
         bc4_2 = MatrixSymbol('BCC', 2, 5)
         bc4_2 = Matrix(bc4_2)
         return bc4_2
 
     def second_der_coefficients(self):
+        """ Computes the finite-difference coefficients for the 2nd order one sided Carpenter wall boundary derivative.
+        returns: Matrix: bc4_2: Matrix of stencil coefficients."""
         bc4_2 = Matrix([[35.0, -104.0, 114.0, -56.0, 11.0], [11.0, -20.0, 6.0, 4.0, -1.0]])/12.0
         for i in range(bc4_2.shape[0]):
             for j in range(bc4_2.shape[1]):
@@ -479,9 +512,8 @@ class Carpenter(object):
         return bc4_2
 
     def carp4_coefficients(self):
-        """
-        Function to return the bc4 matrix containing coefficients for the Carpenter wall boundary treatment.
-        """
+        """ Computes the finite-difference coefficients for the 1st order one sided Carpenter wall boundary derivative.
+        returns: Matrix: bc4: Matrix of stencil coefficients."""
         R1 = -(2177.0*sqrt(295369.0)-1166427.0)/25488.0
         R2 = (66195.0*sqrt(53.0)*sqrt(5573.0)-35909375.0)/101952.0
 
@@ -497,7 +529,6 @@ class Carpenter(object):
         ar4_2 = [-(216.0*R2+1620.0*R1+725.0)/540.0, (864.0*R2+6480.0*R1+2315.0)/1440.0, 0.0, -(864.0*R2+6480.0*R1+785.0)/4320.0, -1.0/12.0, 0.0]
         ar4_3 = [(864.0*R2+6480.0*R1+3335.0)/4320.0, -(108.0*R2+810.0*R1+415.0)/270.0, (864.0*R2+6480.0*R1+785.0)/4320.0, 0.0, 8.0/12.0, -1.0/12.0]
         ar4 = Matrix([ar4_0, ar4_1, ar4_2, ar4_3])
-
         # Form inverse and convert to rational
         al4_inv = al4.inv()
         bc4 = al4_inv*ar4
@@ -567,8 +598,7 @@ class IsothermalWallBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCond
 
 
 class InletTransferBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionBase):
-    """This is boundary condition should not be used until the user knows what he is doing. This is used for testing OpenSBLI
-    """
+    """This is boundary condition should not be used until the user knows what he is doing. This is used for testing OpenSBLI"""
 
     def __init__(self, boundary_direction, side, equations=None, scheme=None, plane=True):
         BoundaryConditionBase.__init__(self, boundary_direction, side, plane)

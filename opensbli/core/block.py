@@ -88,11 +88,11 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes):  # BoundaryC
     def set_block_boundaries(self, bclist):
         """
         """
-        self.set_boundary_types(bclist)
+        self.set_boundary_types(bclist, self)
         # Convert the equations into block datasets
-        for b in flatten(self.boundary_types):
-            if b.equations:
-                b.equations = self.dataobjects_to_datasets_on_block(b.equations)
+        # for b in flatten(self.boundary_types):
+        #     if b.equations:
+        #         b.equations = self.dataobjects_to_datasets_on_block(b.equations)
                 # print srepr(b.equations[0].lhs)
         # for b in bcli
         # for eq in self.list_of_equation_classes:

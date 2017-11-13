@@ -12,25 +12,19 @@ class EinsteinTerm(Symbol):
     """ Basic term in OpenSBLI. This is used to parse the equations. Any atom in the expression that is not a function
     is represented as an EinsteinTerm. Atoms like constant, coordinates, Data objects are derived from this.
 
-    This could be e.g. tau_i_j, but can also be e.g. u_i, rho, x_j (coordinates), Re (constants).
-    In other words, all symbols in the equation are Einstein terms, but they can have zero or more indices. The indices
-    are used for applying the Einstein contraction structure.
+    .. note::
+        This could be e.g. :math:`{\\tau}_{ij}`, but can also be e.g. :math:`{u}_{i}, \\rho, {x}_{j}` (coordinates), Re (constants).
+        All symbols in the equation are Einstein terms, but they can have zero or more indices. The indices
+        are used for applying the Einstein contraction structure.
+        **Used during parsing and Einstein expansion process**
 
-    **Used during parsing and Einstein expansion process**
-
-    By default EinsteinTerm is not commutative.
-    """
+    :arg str name: The name of the symbol under consideration. This can have zero or more indices."""
 
     is_commutative = False
-
-    def __new__(self, symbol, **assumptions):
-        """ Create a new EinsteinTerm.
-
-        :arg str symbol: The symbol under consideration. This can have zero or more indices.
-        """
-
+    
+    def __new__(self, name, **assumptions):
         self._sanitize(assumptions, self)  # Remove any 'None's, etc.
-        self.name = str(symbol)
+        self.name = str(name)
 
         # Make this into a new SymPy Symbol object.
         self = Symbol.__xnew__(self, self.name, **assumptions)
@@ -50,18 +44,17 @@ class EinsteinTerm(Symbol):
         return self
 
     def get_indices(self):
-        """ Return a list of the Einstein indices.
+        """Return a list of the Einstein indices.
 
         :returns: A list of the Einstein indices.
-        :rtype: list
-        """
+        :rtype: list """
         return self.indices
 
     def structure(self):
-        """ Structure of the Einstein term, used for determining the contraction structure of an expression
+        """Structure of the Einstein term, used for determining the contraction structure of an expression
 
         :returns: SymPy's Indexed object with Einstein term base as the base and indices are Einstein term indices
-        """
+        :rtype: Indexed """
         if len(self.get_indices()) > 0:
             st = IndexedBase("%s" % str(self.get_base()))
             st = st[self.get_indices()]
@@ -75,21 +68,19 @@ class EinsteinTerm(Symbol):
             return st
 
     def get_base(self):
-        """ Return the base name.
+        """Return the base name of the EinsteinTerm without indices.
 
         :returns: The base name.
-        :rtype: str
-        """
+        :rtype: str """
         return self.name.split('_')[0]
 
     def apply_index(self, idx, value):
-        """ Substitutes the index idx with its value and returns a new Einstein term
+        """Substitutes the index *idx* with its value and returns a new Einstein term.
 
         :param Idx idx: Index of the original term to be substituted
         :param int value: value of the index
         :returns: a new Einstein term with the value substituted
-        :rtype: EinsteinTerm
-        """
+        :rtype: EinsteinTerm """
         if idx in self.get_indices():
             if self.get_base():
                 newval = str(self).replace("_%s" % str(idx), str(value))
@@ -100,16 +91,16 @@ class EinsteinTerm(Symbol):
                 val.direction = value
             else:
                 val = int(value)
-        else:
+        else: # Idx doesn't exist in the EinsteinTerm.
             val = self
         return val
 
     def apply_multiple_indices(self, indices, index_map):
-        """ Similar to apply_index function but can handle multiple indices
+        """Similar to apply_index function but can handle multiple indices.
 
-        :param indices: indices to map
-        :param index_map: a map of index and its value
-        :returns: a new Einstein term with the values substituted
+        :param indices: Indices to be applied.
+        :param index_map: A map of the index and its value.
+        :returns: A new Einstein term with all of the index values substituted.
         :rtype: EinsteinTerm
         """
         dictionary_indices = {}
@@ -118,7 +109,7 @@ class EinsteinTerm(Symbol):
             newval = newval.replace("_%s" % str(m[0]), str(m[1]))
             dictionary_indices[m[0]] = m[1]
         val = type(self)(newval)
-        # Store val index
+        # Store value of the index if it is a CoordinateObject
         if isinstance(self, CoordinateObject):
             if self.get_indices():
                 val.direction = dictionary_indices[self.get_indices()[0]]
@@ -126,21 +117,19 @@ class EinsteinTerm(Symbol):
 
 
 class Constant(object):
-    """ A base class to represents different types of constants
-    """
+    """ A base class to represents different types of constants in OpenSBLI."""
     pass
 
 
 class ConstantObject(EinsteinTerm, Constant):
-    """ A constant object which can have Einstein indices to be expanded. This is used to
+    """A constant object which can have Einstein indices to be expanded. This is used to
     differentiate between different Einstein terms, which are used in differentiation.
 
     **Used during parsing and Einstein expansion process**
 
     :param str label: name of the constant object
     :returns: declared constant
-    :rtype: ConstantObject
-    """
+    :rtype: ConstantObject """
     is_commutative = True
 
     def __new__(cls, label, **kwargs):
@@ -161,19 +150,27 @@ class ConstantObject(EinsteinTerm, Constant):
 
     @property
     def datatype(self):
+        """Numeric datatype of the ConstantObject.
+
+        :returns: Numerical datatype (see :class:`.SimulationDataType`)
+        :rtype: str """
         return self._datatype
 
     @datatype.setter
     def datatype(self, dtype):
+        """Set the data type of the Constant."""
         self._datatype = dtype
 
     @property
     def value(self):
-        """Conver the dataobjects to datasets"""
+        """Returns the value of Constant."""
         return self._value
     
     @value.setter
     def value(self, numerical_value, dtype=None):
+        """Sets the value of the Constant.
+        :param numerical_value: Value to be set for the Constant.
+        :param dtype: Data type of the Constant, defaults to SimulationDataType. """
         self.is_input = False
         self._value = numerical_value
         if dtype:
@@ -184,8 +181,10 @@ class ConstantObject(EinsteinTerm, Constant):
 
 
 class ConstantIndexed(Indexed, Constant):
-    """ A constant Indexed object
-    """
+    """ An indexed object represented by an array of constants.
+
+    :param str label: Name of the ConstantIndexed.
+    :param list indices: Indices of the ConstantIndexed. (See: Sympy Indexed class)."""
     def __new__(cls, label, indices, **kwargs):
         base = IndexedBase(label)
         if isinstance(indices, list):
@@ -206,6 +205,9 @@ class ConstantIndexed(Indexed, Constant):
 
     @property
     def datatype(self):
+        """Numeric data type of the constant array.
+
+        :returns: Numerical datatype (see :class:`.SimulationDataType`)"""
         return self._datatype
 
     @datatype.setter
@@ -214,7 +216,6 @@ class ConstantIndexed(Indexed, Constant):
 
     @property
     def value(self):
-        """Conver the dataobjects to datasets"""
         return self._value
 
     @property
@@ -235,9 +236,10 @@ class ConstantIndexed(Indexed, Constant):
     
     @property
     def value_access_c(self):
+        """Returns the C code for accessing the values of the ConstantIndexedObject."""
         return ["%s[%d]" % (self.base, i) for i in range(0, len(self.value))]
 
-    @property
+    @property ## WARNING: Is this required?
     def location(cls):
         return list(cls.args[1:])
 
@@ -248,10 +250,9 @@ class CoordinateObject(EinsteinTerm):
 
     **Used during parsing, Einstein expansion processes and during discretisation**
 
-    :param str label: name of the coordinate object to be defined
-    :returns: declared coordinate
-    :rtype: CoordinateObject
-    """
+    :param str label: Name of the coordinate object to be defined
+    :returns: Declared CoordinateObject.
+    :rtype: CoordinateObject """
     is_commutative = True
     is_Atom = True
 
@@ -265,6 +266,7 @@ class CoordinateObject(EinsteinTerm):
         return ret
 
     def get_coordinate_type(cls):
+        """Returns True if the CoordinateObject is a time coordinate."""
         if cls.timecoordinate:
             return True
         else:
@@ -283,9 +285,7 @@ class MetricObject(EinsteinTerm):
 
     :param str label: name of the metric object to be defined
     :returns: declared metric
-    :rtype: MetricObject
-
-    """
+    :rtype: MetricObject """
     def __new__(cls, label, **kwargs):
         ret = super(MetricObject, cls).__new__(cls, label)
         if 'time' in kwargs:
@@ -301,13 +301,11 @@ class DataObject(EinsteinTerm):
     Equation expansion and discretisation. If required the user can write their own equations using these objects.
 
     This acts as an intermediate function to decouple the expansion process and other opensbli processes, and
-    gives flexibility in equation definition
+    gives flexibility in equation definition.
 
-    :param str label: name of the data objectto be defined
-    :returns: declared data object
-    :rtype: DataObject
-
-    """
+    :param str label: Name of the DataObject to be defined.
+    :returns: Declared DataObject.
+    :rtype: DataObject """
     is_commutative = True
     is_Atom = True
 
@@ -328,15 +326,13 @@ class DataSetBase(IndexedBase):
     the block. When a SimulationBlock is instantiated then the attribute block is set and the various
     attributes of the block are used.
 
-    :param label: name of the Dataset base, this can be OpenSBLI/SymPy's basic types
-    :returns: defined dataset base on the block
-    :rtype: DataSetBase which is derived from IndexedBase
+    :param label: Name of the Dataset base.
+    :returns: The DataSetBase.
+    :rtype: DataSetBase
 
     .. note::
         As given in SymPy's Indexed object documentation it is always advised to create a DataSetBase and then
-        a Dataset
-
-    """
+        a Dataset """
     is_commutative = True
     is_Symbol = True
     is_symbol = True
@@ -344,8 +340,6 @@ class DataSetBase(IndexedBase):
 
     @cacheit  # we cache it so that the changes to a particular dataset base are global and not local
     def __new__(cls, label, shape, blocknumber, **kw_args):
-        #if not cls.block:
-            #raise ValueError("Set the block for DataSetBase")
         sym = label
         if shape is None:
             raise ValueError("Dataset base requires shape of the block")
@@ -386,15 +380,13 @@ class DataSetBase(IndexedBase):
         return "%s_B%s" % (str(self.label), str(self.blocknumber))
 
     def simplelabel(self):
-        """Returns the base label in case we need the label as a string to modify and create a new one with modifications
-        """
+        """Returns the base label in case we need the label as a string to modify and create a new one with modifications."""
         return "%s" % (str(self.label))
 
     @property
     def location(self):
         """ The location is the relative grid location, it is presently hard coded to the grid location.
-        This is provided so that if in future staggered grid arrangement can be implemented
-        """
+        This is provided so that if in future staggered grid arrangement can be implemented."""
         return [0 for i in range(len(self.shape))]
 
 
@@ -407,9 +399,7 @@ class DataSet(Indexed):
     :rtype: DataSet
 
     .. note::
-        As given in SymPy's Indexed object documentation it is always advised to create a DataSetBase and then
-        a Dataset
-    """
+        As given in SymPy's Indexed object documentation it is always advised to create a DataSetBase and then a Dataset. """
     is_commutative = True
     is_Indexed = True
     is_Symbol = True
@@ -438,14 +428,12 @@ class DataSet(Indexed):
     @property
     def get_grid_indices(self):
         """ Returns the relative location of the dataset, as used in discretisation
-        :rtype: list
-        """
+        :rtype: list """
         return [i for i in self.indices if not isinstance(i, Idx)]
 
 
 class GridIndex(Indexed):
-    """ An Indexed object to get the local grid point
-    """
+    """ An Indexed object to get the local grid point. """
     is_commutative = True
     is_Indexed = True
     is_Symbol = True
@@ -505,9 +493,7 @@ class Grididx(Symbol):
 
     :param str label: name of the coordinate object to be defined
     :returns: declared coordinate
-    :rtype: CoordinateObject
-    """
-
+    :rtype: CoordinateObject """
     def __new__(self, label, number, **assumptions):
         self._sanitize(assumptions, self)  # Remove any 'None's, etc.
         self.name = str(label) + str(number)
