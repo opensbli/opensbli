@@ -73,6 +73,7 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
         # Full 3D curvilinear expansion of the first derivatives
         fds = cls.full3D_FD_transformation(coordinate_symbol)
         cls.detJ = DataObject("detJ")
+        cls.metric_subs = {}
         fd_subs = {}
         fd_jacobians = Matrix(cls.ndim, cls.ndim, lambda i, j: DataObject('D%d%d' % (i, j)))
         Cartesian_curvilinear_derivatives = zeros(cls.ndim, cls.ndim)
@@ -118,6 +119,8 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
         cls.transformation_eq[0] = fd_transformed
         cls.FD_metrics = fd_jacobians
         cls.generate_fd_metrics_equations(Cartesian_curvilinear_derivatives)
+        
+        cls.metric_subs = dict(zip(Matrix(cls.ndim, cls.ndim, lambda i, j: DataObject('D%d%d' % (i, j))), fd_jacobians))
 
         cls.classical_strong_differentiabilty_transformation = []
         for d in fd_transformed:
@@ -272,8 +275,8 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
 
     def spatial_discretisation(cls, block):
         (Solution, cls).__init__(cls)
-        if any(cls.curvilinear_metric):
-            raise NotImplementedError("Handling curvilinear coordinates for the evaluation of metrics is not applied")
+        #if any(cls.curvilinear_metric):
+            #raise NotImplementedError("Handling curvilinear coordinates for the evaluation of metrics is not applied")
         spatialschemes = []
         # Get the schemes on the block
         schemes = block.discretisation_schemes
@@ -339,3 +342,7 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
         """ Used to fit in the abstraction, boundary conditions are applied for each equation class passed to block and discretised.
         Later once metrics are not part of the eqaution classes, this can be removed. """
         return
+
+
+class MetricBc():
+    pass
