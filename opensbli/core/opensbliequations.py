@@ -91,6 +91,8 @@ class Discretisation(object):
         :param MetricsEquation metriceqclass: see :class:`.MetricsEquation` 
         :return: None"""
         out = []
+        if len(flatten(cls.equations)) == 0:
+            raise ValueError("%s class does not have equations to apply metrics to." % cls.__class__.__name__)
         for eq in cls.equations:
             if isinstance(eq, list):
                 out_inner = []

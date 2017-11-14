@@ -2,7 +2,7 @@ from opensbli.core.opensbliobjects import CoordinateObject
 from sympy import diag, sqrt, Eq, eye, Rational, pprint
 from opensbli.core.opensbliobjects import ConstantObject, EinsteinTerm
 from sympy.parsing.sympy_parser import parse_expr
-from opensbli.core.metrics import MetricsEquation
+# from opensbli.core.metrics import MetricsEquation
 
 
 class EulerEquations(object):
@@ -34,12 +34,7 @@ class EulerEquations(object):
     def generate_eig_system(self, block):
         ndim = self.ndim
         # Check if block has metrics equations:
-        for EqClass in block.list_of_equation_classes:
-            if isinstance(EqClass, MetricsEquation):
-                self.met_symbols = EqClass.FD_metrics
-                break # Metrics found, exit loop
-            else:
-                self.met_symbols  = eye(ndim)
+        self.met_symbols = block.fd_metrics
         local_dict = {'Symbol': EinsteinTerm, 'gama': ConstantObject('gama')}
 
         if ndim == 1:

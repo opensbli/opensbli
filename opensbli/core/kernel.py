@@ -322,6 +322,7 @@ class Kernel(object):
             range_of_eval = flatten(range_of_eval)
         return range_of_eval
 
+
     @property
     def opsc_code(self):
         block_name = self.block_name
@@ -331,6 +332,8 @@ class Kernel(object):
         inouts = ins.intersection(outs)
         ins = ins.difference(inouts)
         outs = outs.difference(inouts)
+        if len(self.equations) == 0:
+            raise ValueError("Kernel %s does not have any equations." % self.computation_name)
         #halo_m, halo_p = get_min_max_halo_values(self.halo_ranges)
         #range_of_eval = [[0, 0] for r in range(self.ndim)]
         # print self.computation_name, self.ranges, self.halo_ranges

@@ -7,6 +7,7 @@ from sympy.tensor.array import MutableDenseNDimArray
 from opensbli.core.opensbliobjects import CoordinateObject, DataObject
 from opensbli.core.kernel import Kernel
 from opensbli.core.latex import LatexWriter
+from opensbli.core.bcs import BoundaryConditionBase
 
 
 def convert_dataset_base_expr_to_datasets(expression, index):
@@ -281,8 +282,10 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
         # Get the schemes on the block
         schemes = block.discretisation_schemes
         for sc in schemes:
-            if schemes[sc].schemetype == "Spatial":
+            if schemes[sc].schemetype == "Spatial" and schemes[sc].name == 'CentralDerivative':
                 spatialschemes += [sc]
+        if len(spatialschemes) == 0:
+            raise ValueError("A Central scheme should be instantiated for metrics.")
         cls.requires = {}
         block.store_work_index  # store the work array index
         for no, sc in enumerate(spatialschemes):
@@ -291,7 +294,9 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
             cls.create_residual_arrays()
             schemes[sc].discretise(cls, block)
             schemes[sc].required_constituent_relations = {}
-            cls.apply_periodic_bc(block)
+            # Apply metric boundary conditions
+            cls.metric_boundary_condition(block)
+            # cls.apply_periodic_bc(block)
             cls.equations = block.dataobjects_to_datasets_on_block(cls.sdequations)  # Second derivatives
             cls.create_residual_arrays()
             schemes[sc].discretise(cls, block)
@@ -301,32 +306,32 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
         block.reset_work_to_stored  # reset the work array index on the block
         return
 
-    def apply_periodic_bc(self, block):
-        arrays = self.FD_metrics[:] + [self.detJ]
-        arrays = [a for a in arrays if isinstance(a, DataObject)]
-        arrays = block.dataobjects_to_datasets_on_block(arrays)
-        from opensbli.core.bcs import PeriodicBoundaryConditionBlock as pbc
-        modify = {}
-        for no, val in enumerate(block.boundary_types):
-            left = val[0]
-            right = val[1]
-            if isinstance(left, pbc):
-                if no in modify:
-                    modify[no][0] = left
-                else:
-                    modify[no] = [left, None]
-            if isinstance(right, pbc):
-                if no in modify:
-                    modify[no][1] = right
-                else:
-                    modify[no] = [None, right]
+    # def apply_periodic_bc(self, block):
+    #     arrays = self.FD_metrics[:] + [self.detJ]
+    #     arrays = [a for a in arrays if isinstance(a, DataObject)]
+    #     arrays = block.dataobjects_to_datasets_on_block(arrays)
+    #     from opensbli.core.bcs import PeriodicBoundaryConditionBlock as pbc
+    #     modify = {}
+    #     for no, val in enumerate(block.boundary_types):
+    #         left = val[0]
+    #         right = val[1]
+    #         if isinstance(left, pbc):
+    #             if no in modify:
+    #                 modify[no][0] = left
+    #             else:
+    #                 modify[no] = [left, None]
+    #         if isinstance(right, pbc):
+    #             if no in modify:
+    #                 modify[no][1] = right
+    #             else:
+    #                 modify[no] = [None, right]
 
-        if modify:
-            for dire in modify:
-                boundary_mods = [k for k in modify[dire] if k]
-                for b in boundary_mods:
-                    self.Kernels += [b.apply(arrays, block)]
-        return
+    #     if modify:
+    #         for dire in modify:
+    #             boundary_mods = [k for k in modify[dire] if k]
+    #             for b in boundary_mods:
+    #                 self.Kernels += [b.apply(arrays, block)]
+    #     return
 
 
     def process_kernels(cls, block):
@@ -343,6 +348,36 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
         Later once metrics are not part of the eqaution classes, this can be removed. """
         return
 
+    def metric_boundary_condition(cls, block):
+        arrays = cls.FD_metrics[:] + [cls.detJ]
+        arrays = [a for a in arrays if isinstance(a, DataObject)]
+        arrays = block.dataobjects_to_datasets_on_block(arrays)
+        from opensbli.core.bcs import PeriodicBoundaryConditionBlock
+        bc_types = (PeriodicBoundaryConditionBlock)
+        for direction in range(block.ndim):
+            for side in [0,1]:
+                # Apply Metric BC only if that direction and side is not periodic
+                if isinstance(block.boundary_types[direction][side], bc_types):
+                    bc = block.boundary_types[direction][side]
+                    cls.Kernels += [bc.apply(arrays, block)]
+                else:
+                    bc = MetricBoundaryCondition(direction, side)
+                    cls.Kernels += [bc.apply(arrays, block)]
+        return
 
-class MetricBc():
-    pass
+
+class MetricBoundaryCondition(BoundaryConditionBase):
+    def __init__(self, boundary_direction, side, plane=True):
+        BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
+        self.bc_name = 'Metric'
+        return
+
+    def apply(self, arrays, block):
+        direction, side = self.direction, self.side
+        halos, kernel = self.generate_boundary_kernel(block, self.bc_name)
+        from_side_factor, to_side_factor = self.set_side_factor()
+        transfer_indices = [tuple([from_side_factor*t, to_side_factor*t]) for t in range(1, abs(halos[self.direction][self.side]) + 1)]
+        final_equations = self.create_boundary_equations(arrays, arrays, transfer_indices)
+        kernel.add_equation(final_equations)
+        kernel.update_block_datasets(block)
+        return kernel
