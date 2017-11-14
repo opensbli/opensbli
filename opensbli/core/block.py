@@ -310,7 +310,8 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes):  # BoundaryC
     def fd_metrics(self):
         metric = self.get_metric_class
         if metric:
-            return metric.FD_metrics
+            fn = lambda x: self.dataobjects_to_datasets_on_block([x])[0]
+            return metric.FD_metrics.applyfunc(fn)
         else:
             return eye(self.ndim)
 
