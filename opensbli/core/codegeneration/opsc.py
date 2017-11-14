@@ -1,5 +1,5 @@
 
-from sympy.printing.ccode import CCodePrinter
+from sympy.printing.ccode import C99CodePrinter
 from sympy.core.relational import Equality
 from opensbli.core.opensbliobjects import ConstantObject, ConstantIndexed, Constant, DataSetBase
 from opensbli.core.kernel import Kernel, ConstantsToDeclare as CTD
@@ -40,7 +40,7 @@ class RationalCounter():
 rc = RationalCounter()
 
 
-class OPSCCodePrinter(CCodePrinter):
+class OPSCCodePrinter(C99CodePrinter):
 
     """ Prints OPSC code. """
     dataset_accs_dictionary = {}
@@ -52,7 +52,7 @@ class OPSCCodePrinter(CCodePrinter):
             self.settings_opsc = settings
         else:
             self.settings_opsc['rational'] = False
-        CCodePrinter.__init__(self, settings={})
+        C99CodePrinter.__init__(self, settings={})
 
     def _print_ReductionVariable(self, expr):
         return '*%s' % str(expr)
@@ -207,7 +207,7 @@ def indent_code(code_lines):
     :rtype: list
     """
 
-    p = CCodePrinter()
+    p = C99CodePrinter()
     return p.indent_code(code_lines)
 
 
