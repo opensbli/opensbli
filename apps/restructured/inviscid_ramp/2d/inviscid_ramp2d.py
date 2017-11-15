@@ -11,6 +11,12 @@ import shutil
 from simulation_parameters2d import substitute_parameters
 
 ndim = 2
+
+# Type of shock capturing scheme weno or teno
+shock_capturing_type = "teno"
+
+# Type of Averaging *simple or roe
+averaging_procedure = "simple"
 # As the convective terms are to be modified for curvilinear transformation
 # first generate the metrics
 
@@ -24,7 +30,6 @@ metriceq.genreate_transformations(ndim, coordinate_symbol, [(True, True), (True,
 # the equations when parsed
 optional_subs_dict = metriceq.metric_subs
 
-shock_capturing_type = "weno"
 sc1 = "**{\'scheme\':\'%s\'}" % shock_capturing_type.title()
 # Define the compresible Navier-Stokes equations in Einstein notation.
 a = "Conservative(detJ * rho*U_j,xi_j,%s)" % sc1
@@ -78,7 +83,7 @@ latex = LatexWriter()
 latex.open('./equations.tex', 'Simulation equations ')
 simulation_eq.write_latex(latex)
 latex.close()
-# Do multiple orders 
+# Do multiple orders chage here if required
 if shock_capturing_type.lower() == "weno":
     orders = [3, 5, '5Z']
 elif shock_capturing_type.lower() == "teno":
@@ -92,10 +97,9 @@ for order in orders:
     schemes = {}
     # Local LaxFredirich scheme for weno 
     # Averaging procedure to be used for the eigen system evaluation
-    Avg = RoeAverage([0, 1])
+    exec('Avg = %sAverage([0, 1])' % (averaging_procedure.title())
     # LLF scheme
     # .title gives the first letter upercase
-    #from sympy.core.compatibility import exec_
     exec('LLF = LLF%s(order, averaging=Avg)'%(shock_capturing_type.title()))
     # Add to schemes
     schemes[LLF.name] = LLF
