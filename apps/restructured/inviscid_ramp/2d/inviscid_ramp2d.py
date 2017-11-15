@@ -97,7 +97,7 @@ for order in orders:
     schemes = {}
     # Local LaxFredirich scheme for weno 
     # Averaging procedure to be used for the eigen system evaluation
-    exec('Avg = %sAverage([0, 1])' % (averaging_procedure.title())
+    exec('Avg = %sAverage([0, 1])' % (averaging_procedure.title()))
     # LLF scheme
     # .title gives the first letter upercase
     exec('LLF = LLF%s(order, averaging=Avg)'%(shock_capturing_type.title()))
