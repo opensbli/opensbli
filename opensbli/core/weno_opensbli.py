@@ -1,7 +1,7 @@
-from sympy import IndexedBase, Symbol, pprint, Rational, solve, interpolating_poly, integrate, Eq, sqrt, zeros, Abs, Float, Matrix, flatten, Max, diag, Function
+from sympy import IndexedBase, Symbol, pprint, Rational, solve, interpolating_poly, srepr, integrate, Eq, sqrt, zeros, Abs, Float, Matrix, flatten, Max, diag, Function
 from sympy.core.numbers import Zero
 from opensbli.core.opensblifunctions import WenoDerivative
-from opensbli.core.opensbliobjects import EinsteinTerm, DataSetBase, ConstantObject, DataObject
+from opensbli.core.opensbliobjects import EinsteinTerm, DataSetBase, ConstantObject, DataObject, DataSet
 from opensbli.core.opensbliequations import SimulationEquations
 from opensbli.core.kernel import Kernel
 from opensbli.core.grid import GridVariable
@@ -381,9 +381,7 @@ class ShockCapturing(object):
             pass
         else:
             raise ValueError("The symbol provided should be either a list or symbols")
-        pprint(sym)
         for s in sym:
-
             if isinstance(s, DataSetBase):
                 s = s.noblockname
             if s in self.required_constituent_relations_symbols.keys():
@@ -483,14 +481,14 @@ class EigenSystem(object):
         """ Retrieve the unique symbols present in the right rigenvector matrix for a given direction."""
         return self.right_eigen_vector[direction].atoms(EinsteinTerm).difference(self.right_eigen_vector[direction].atoms(ConstantObject))
 
-    def get_dataobjects_in_ev(self, direction):
-        return self.eigen_value[direction].atoms(DataObject).difference(self.eigen_value[direction].atoms(ConstantObject))
+    def get_DataSets_in_ev(self, direction):
+        return self.eigen_value[direction].atoms(DataSet).difference(self.eigen_value[direction].atoms(ConstantObject))
 
-    def get_dataobjects_in_LEV(self, direction):
-        return self.left_eigen_vector[direction].atoms(DataObject).difference(self.left_eigen_vector[direction].atoms(ConstantObject))
+    def get_DataSets_in_LEV(self, direction):
+        return self.left_eigen_vector[direction].atoms(DataSet).difference(self.left_eigen_vector[direction].atoms(ConstantObject))
 
-    def get_dataobjects_in_REV(self, direction):
-        return self.right_eigen_vector[direction].atoms(DataObject).difference(self.right_eigen_vector[direction].atoms(ConstantObject))
+    def get_DataSets_in_REV(self, direction):
+        return self.right_eigen_vector[direction].atoms(DataSet).difference(self.right_eigen_vector[direction].atoms(ConstantObject))
 
     def generate_grid_variable_ev(self, direction, name):
         """ Create a matrix of eigenvalue GridVariable elements. """
@@ -526,6 +524,10 @@ class EigenSystem(object):
         syms = list(mat.atoms(EinsteinTerm).difference(mat.atoms(ConstantObject)))
         new_syms = [GridVariable('%s_%s' % (name, str(sym))) for sym in syms]
         substitutions = dict(zip(syms, new_syms))
+        # Find Metric terms which are datasets
+        dsets = list(mat.atoms(DataSet).difference(mat.atoms(ConstantObject)))
+        new_dsets = [GridVariable('%s_%s' % (name, d.base.simplelabel())) for d in dsets]
+        substitutions.update(dict(zip(dsets, new_dsets)))
         mat = mat.subs(substitutions)
         return mat
 
@@ -542,22 +544,6 @@ class EigenSystem(object):
             if rhs_matrix[no] != 0:
                 equations[no] = Eq(v, rhs_matrix[no])
         return equations
-
-    def convert_symbolic_to_dataset(self, symbolics, location, direction, block):
-        """ Converts symbolic terms to DataSets.
-
-        :arg object symbolics: Expression containing Symbols to be converted into DataSets.
-        :arg int location: The integer location to apply to the DataSet.
-        :arg int direction: The integer direction (axis) of the DataSet to apply the location to.
-        returns: object: symbolics: The original expression updated to be in terms of DataSets rather than Symbols."""
-        symbols = symbolics.atoms(EinsteinTerm).difference(symbolics.atoms(ConstantObject))
-        substitutions = {}
-        for s in symbols:
-            dest = block.create_datasetbase(s)
-            loc = dest.location
-            loc[direction] = loc[direction] + location
-            substitutions[s] = dest[loc]
-        return symbolics.subs(substitutions)
 
 
 class Characteristic(EigenSystem):
@@ -585,7 +571,7 @@ class Characteristic(EigenSystem):
         self.right_eigen_vector.update(REV_dict)
 
         # Finding metric terms to average
-        required_metrics = self.get_dataobjects_in_ev(direction).union(self.get_dataobjects_in_LEV(direction)).union(self.get_dataobjects_in_REV(direction))
+        required_metrics = self.get_DataSets_in_ev(direction).union(self.get_DataSets_in_LEV(direction)).union(self.get_DataSets_in_REV(direction))
         # Finding flow variables to average
         required_symbols = self.get_symbols_in_ev(direction).union(self.get_symbols_in_LEV(direction)).union(self.get_symbols_in_REV(direction))
         required_terms = required_symbols.union(required_metrics)
@@ -713,6 +699,28 @@ class LLFCharacteristic(Characteristic):
         self.flux_split = True
         return
 
+    def convert_symbolic_to_dataset(self, symbolics, location, direction, block):
+        """ Converts symbolic terms to DataSets.
+
+        :arg object symbolics: Expression containing Symbols to be converted into DataSets.
+        :arg int location: The integer location to apply to the DataSet.
+        :arg int direction: The integer direction (axis) of the DataSet to apply the location to.
+        returns: object: symbolics: The original expression updated to be in terms of DataSets rather than Symbols."""
+        dsets = symbolics.atoms(DataSet).difference(symbolics.atoms(ConstantObject))
+        symbols = symbolics.atoms(EinsteinTerm).difference(symbolics.atoms(ConstantObject))
+        substitutions = {}
+        # Increment flow variables
+        for s in symbols:
+            dest = block.create_datasetbase(s)
+            loc = dest.location
+            loc[direction] = loc[direction] + location
+            substitutions[s] = dest[loc]
+        # Increment metric datasets
+        for d in dsets:
+            substitutions[d] = incr_dset(d, direction, location)
+        return symbolics.subs(substitutions)
+
+
     def create_max_characteristic_wave_speed(self, pre_process_equations, direction, block):
         stencil_points = sorted(list(set(self.reconstruction_classes[0].func_points + self.reconstruction_classes[1].func_points)))
         ev = self.eigen_value[direction]
@@ -796,8 +804,6 @@ class SimpleAverage(object):
         :arg locations: Relative index used for averaging (e.g. [0,1] for i and i+1)
         :arg direction: Axis of the dataset on which the location should be applied.
         :arg name_suffix: Name to be appended to the functions. """
-        pprint(functions)
-
         avg_equations = []
         for f in functions:
             name = f.get_base()
@@ -810,7 +816,15 @@ class SimpleAverage(object):
             a = d[loc1]
             b = d[loc2]
             avg_equations += [Eq(GridVariable('%s_%s' % (name_suffix, name)), (a+b)/2)]
-        return avg_equations
+        # Average metric terms with simple average
+        averaged_metrics = []
+        for item in functions:
+            if isinstance(item, DataSet):
+                name = item.base.simplelabel()
+                a = item
+                b = incr_dset(item, direction, 1)
+                averaged_metrics += [Eq(GridVariable('%s_%s' % (name_suffix, name)), (a+b)/2)]
+        return avg_equations + averaged_metrics
 
 
 class RoeAverage(object):
@@ -870,17 +884,11 @@ class RoeAverage(object):
 
         # Average metric terms with simple average
         averaged_metrics = []
-        for ET in functions:
-            if isinstance(ET, DataObject):
-                name = ET.get_base()
-                d = DataSetBase(name, block.shape, block.blocknumber)
-                loc = d.location
-                loc1 = loc[:]
-                loc2 = loc[:]
-                loc1[direction] = loc[direction] + self.locations[0]
-                loc2[direction] = loc[direction] + self.locations[1]
-                a = d[loc1]
-                b = d[loc2]
+        for item in functions:
+            if isinstance(item, DataSet):
+                name = item.base.simplelabel()
+                a = item
+                b = incr_dset(item, direction, 1)
                 averaged_metrics += [Eq(GridVariable('%s_%s' % (name_suffix, name)), (a+b)/2)]
         return [Eq(x, y) for (x, y) in zip(grid_vars, evaluations)] + averaged_metrics
 

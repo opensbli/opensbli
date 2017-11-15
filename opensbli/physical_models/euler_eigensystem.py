@@ -22,8 +22,6 @@ class EulerEquations(object):
         # Scaling factor based on metrics
         factor = sum([met_symbols[direction, i]**2 for i in range(self.ndim)])**(Rational(1,2))
         subs_dict[EinsteinTerm('k')] = factor
-        print "Substitution dictionary for metrics:\n"
-        pprint(subs_dict)
         def g(x):
             return x.subs(subs_dict, evaluate=False)
         ev_dict[direction] = diag(*list(self.ev.applyfunc(g)))
