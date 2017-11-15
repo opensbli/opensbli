@@ -806,16 +806,17 @@ class SimpleAverage(object):
         :arg name_suffix: Name to be appended to the functions. """
         avg_equations = []
         for f in functions:
-            name = f.get_base()
-            d = DataSetBase(name, block.shape, block.blocknumber)
-            loc = d.location
-            loc1 = loc[:]
-            loc2 = loc[:]
-            loc1[direction] = loc[direction] + self.locations[0]
-            loc2[direction] = loc[direction] + self.locations[1]
-            a = d[loc1]
-            b = d[loc2]
-            avg_equations += [Eq(GridVariable('%s_%s' % (name_suffix, name)), (a+b)/2)]
+            if isinstance(f, EinsteinTerm):
+                name = f.get_base()
+                d = DataSetBase(name, block.shape, block.blocknumber)
+                loc = d.location
+                loc1 = loc[:]
+                loc2 = loc[:]
+                loc1[direction] = loc[direction] + self.locations[0]
+                loc2[direction] = loc[direction] + self.locations[1]
+                a = d[loc1]
+                b = d[loc2]
+                avg_equations += [Eq(GridVariable('%s_%s' % (name_suffix, name)), (a+b)/2)]
         # Average metric terms with simple average
         averaged_metrics = []
         for item in functions:
