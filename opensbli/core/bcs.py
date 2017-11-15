@@ -377,7 +377,7 @@ class SymmetryBoundaryConditionBlock(BoundaryConditionBase):
         rhs_eqns = []
         for ar in arrays:
             if isinstance(ar, list):
-                contra_variant_vector = direction_metric.dot(Matrix(ar))
+                contra_variant_vector = unit_normals.dot(Matrix(ar))
                 transformed_vector = Matrix(ar).T - 2.*contra_variant_vector*unit_normals
                 rhs_eqns += flatten(transformed_vector)
             else:
@@ -389,8 +389,6 @@ class SymmetryBoundaryConditionBlock(BoundaryConditionBase):
         final_equations = self.create_boundary_equations(lhs_eqns, rhs_eqns, transfer_indices)
         kernel.add_equation(final_equations)
         kernel.update_block_datasets(block)
-        for eq in final_equations:
-            pprint(eq)
         return kernel
 
 
