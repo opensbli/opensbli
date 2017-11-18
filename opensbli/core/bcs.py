@@ -697,6 +697,37 @@ class OutletTransferBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCond
         return kernel
 
 
+class ExtrapolationBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionBase):
+    """ Extrapolation boundary condition. Copies all conservative variables from 1 point inside the boundary
+    to the boundary point and the halos on that side. Currently only zeroth order extrapolation."""
+
+    def __init__(self, boundary_direction, side, order=0, equations=None, scheme=None, plane=True):
+        BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
+        self.bc_name = 'Extrapolation'
+        self.equations = equations
+        # Order of the extrapolation
+        self.order = order
+        if self.order > 0:
+            raise ValueError("Only zeroth order extrapolation currently implemented.")
+        if not scheme:
+            self.modification_scheme = Carpenter()
+        else:
+            self.modification_scheme = scheme
+        return
+
+    def apply(self, arrays, block):
+        halos, kernel = self.generate_boundary_kernel(block, self.bc_name)
+        cons_vars = flatten(arrays)
+        n_halos = abs(halos[self.direction][self.side])
+        from_side_factor, to_side_factor = self.set_side_factor()
+        halo_points = [0] + [from_side_factor*i for i in range(1,n_halos+1)]
+        for i in halo_points:
+            equations = self.create_boundary_equations(cons_vars, cons_vars, [(i, to_side_factor)])
+            kernel.add_equation(equations)
+        kernel.update_block_datasets(block)
+        return kernel
+
+
 class AdiabaticWallBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionBase):
     def __init__(self, boundary_direction, side, scheme=None, plane=True):
         BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
