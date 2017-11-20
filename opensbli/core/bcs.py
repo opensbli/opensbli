@@ -384,7 +384,7 @@ class SymmetryBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionB
                 transformed_vector = Matrix(ar).T - 2.*contra_variant_vector*unit_normals
                 rhs_eqns += flatten(transformed_vector)
                 # Later move this to an inviscid wall boundary condition
-                transformed_vector = Matrix(ar).T - contra_variant_vector*unit_normals
+                transformed_vector = Matrix(ar).T - 1.*contra_variant_vector*unit_normals
                 boundary_values += flatten(transformed_vector)
             else:
                 rhs_eqns += [ar]
@@ -705,20 +705,18 @@ class OutletTransferBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCond
 
 
 class ExtrapolationBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionBase):
-    """ Extrapolation boundary condition. Copies all conservative variables from 1 point inside the boundary
-    to the boundary point and the halos on that side. Currently only zeroth order extrapolation.
+    """ Extrapolation boundary condition. Pass order 0 for Zeroth order extrapolation
+    and order=1 for linear extrapolation. 
 
     :arg int boundary_direction: Spatial direction to apply boundary condition to.
     :arg int side: Side 0 or 1 to apply the boundary condition for a given direction.
     :arg object scheme: Boundary scheme if required, defaults to Carpenter boundary treatment.
     :arg bool plane: True/False: Apply boundary condition to full range/split range only."""
-    def __init__(self, boundary_direction, side, order=0, scheme=None, plane=True):
+    def __init__(self, boundary_direction, side, order, scheme=None, plane=True):
         BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
         self.bc_name = 'Extrapolation'
         # Order of the extrapolation
         self.order = order
-        if self.order > 0:
-            raise ValueError("Only zeroth order extrapolation currently implemented.")
         if not scheme:
             self.modification_scheme = Carpenter()
         else:
@@ -726,14 +724,27 @@ class ExtrapolationBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCondi
         return
 
     def apply(self, arrays, block):
+        direction, side = self.direction, self.side
         halos, kernel = self.generate_boundary_kernel(block, self.bc_name)
         cons_vars = flatten(arrays)
         n_halos = abs(halos[self.direction][self.side])
         from_side_factor, to_side_factor = self.set_side_factor()
-        halo_points = [0] + [from_side_factor*i for i in range(1,n_halos+1)]
-        for i in halo_points:
-            equations = self.create_boundary_equations(cons_vars, cons_vars, [(i, to_side_factor)])
+        
+        if self.order == 0: # Zeroth order extrapolation
+            halo_points = [0] + [from_side_factor*i for i in range(1,n_halos+1)]
+            for i in halo_points:
+                equations = self.create_boundary_equations(cons_vars, cons_vars, [(i, to_side_factor)])
+                kernel.add_equation(equations)
+        elif self.order == 1: # Linear extrapolation
+            indices = [tuple([from_side_factor*t, to_side_factor*t]) for t in range(1, abs(halos[direction][side]) + 1)]
+            grid_vars = [GridVariable('%sG' % str(i)) for i in cons_vars]
+            boundary_values = [Eq(x, y) for x, y in zip(grid_vars, cons_vars)]
+            kernel.add_equation(boundary_values)
+            rhs_values = [2.0*i - j for i, j in zip(grid_vars, cons_vars)]
+            equations = self.create_boundary_equations(cons_vars, rhs_values, indices)
             kernel.add_equation(equations)
+        else:
+            raise ValueError("Only zeroth order and linear extrapolation currently implemented.")
         kernel.update_block_datasets(block)
         return kernel
 
