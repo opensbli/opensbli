@@ -2,11 +2,11 @@
 from opensbli import *
 import copy
 from opensbli.core.teno import *
-from opensbli.core.weno_opensbli import RoeAverage, SimpleAverage
+from opensbli.core.weno_opensbli import RoeAverage, SimpleAverage, LLFWeno
 from opensbli.utilities.katzer_init import Initialise_Katzer
 
 ndim = 2
-sc1 = "**{\'scheme\':\'Teno\'}"
+sc1 = "**{\'scheme\':\'Weno\'}"
 # Define the compresible Navier-Stokes equations in Einstein notation.
 mass = "Eq(Der(rho,t), - Conservative(rhou_j,x_j,%s))" % sc1
 momentum = "Eq(Der(rhou_i,t) , -Conservative(rhou_i*u_j + KD(_i,_j)*p,x_j , %s) + Der(tau_i_j,x_j) )" % sc1
@@ -38,9 +38,9 @@ for i, CR in enumerate(constituent_eqns):
 
 block = SimulationBlock(ndim, block_number=0)
 
-teno_order = 5
+teno_order = '5Z'
 Avg = RoeAverage([0, 1])
-LLF = LLFTeno(teno_order, averaging=Avg)
+LLF = LLFWeno(teno_order, averaging=Avg)
 schemes = {}
 schemes[LLF.name] = LLF
 cent = Central(4)
@@ -76,7 +76,7 @@ for con in wall_const:
 # Isothermal wall condition
 rhoE_wall = parse_expr("Eq(DataObject(rhoE), DataObject(rho)*Twall/(gama*(gama-1.0)*Minf**2.0))", local_dict=local_dict)
 wall_eqns = [rhoE_wall]
-boundaries[direction][side] = IsothermalWallBoundaryConditionBlock(direction, 0, wall_eqns, local_dict)
+boundaries[direction][side] = IsothermalWallBoundaryConditionBlock(direction, 0, wall_eqns)
 # Top dirichlet shock generator condition
 direction = 1
 side = 1

@@ -70,7 +70,7 @@ for con in wall_const:
 # Isothermal wall condition
 rhoE_wall = parse_expr("Eq(DataObject(rhoE), DataObject(rho)*Twall/(gama*(gama-1.0)*Minf**2.0))", local_dict=local_dict)
 wall_eqns = [rhoE_wall]
-boundaries[direction][side] = IsothermalWallBoundaryConditionBlock(direction, side, wall_eqns, local_dict)
+boundaries[direction][side] = IsothermalWallBoundaryConditionBlock(direction, side, wall_eqns)
 # Top dirichlet shock generator condition
 direction = 1
 side = 1
@@ -97,7 +97,7 @@ direction = 2
 side = 0
 rhoE_wall = parse_expr("Eq(DataObject(rhoE), DataObject(rho)*Twall/(gama*(gama-1.0)*Minf**2.0))", local_dict=local_dict)
 wall_eqns = [rhoE_wall]
-boundaries[direction][side] = IsothermalWallBoundaryConditionBlock(direction, side, wall_eqns, local_dict)
+boundaries[direction][side] = IsothermalWallBoundaryConditionBlock(direction, side, wall_eqns)
 
 direction = 2
 side = 1

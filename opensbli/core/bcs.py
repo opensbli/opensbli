@@ -1,7 +1,7 @@
 from sympy import flatten, Eq, zeros, Matrix, eye, S, sqrt, Equality, MatrixSymbol, nsimplify, Abs, Piecewise, GreaterThan, Float
 from sympy import Idx
 from opensbli.core.kernel import Kernel, ConstantsToDeclare
-from opensbli.core.opensbliobjects import DataSet, ConstantIndexed
+from opensbli.core.opensbliobjects import DataSet, ConstantIndexed, ConstantObject
 from opensbli.core.datatypes import Int
 from opensbli.core.grid import GridVariable
 from opensbli.physical_models.ns_physics import NSphysics
@@ -22,7 +22,6 @@ class ModifyCentralDerivative(object):
 
 
 class ExchangeSelf(Exchange):
-
     """ Defines data exchange on the same block. """
 
     def __init__(self, block, direction, side):
@@ -74,8 +73,7 @@ class ExchangeSelf(Exchange):
 
 
 class BoundaryConditionTypes(object):
-
-    """ Base class for boundary conditions. We store the name of the boundary condition and type of the boundary for debugging purposes only.
+    """ Base class for boundary condition types. We store the name of the boundary condition and type of the boundary for debugging purposes only.
     The application of the boundary conditions requires this base class on the grid.
     Computations can be computational Kernels or Exchange type objects."""
 
@@ -115,6 +113,7 @@ class BoundaryConditionTypes(object):
 
 class BoundaryConditionBase(object):
     """ Base class for common functionality between all boundary conditions.
+
     :arg int boundary_direction: Spatial direction to apply boundary condition to.
     :arg int side: Side 0 or 1 to apply the boundary condition for a given direction.
     :arg bool plane: True/False: Apply boundary condition to full range/split range only."""
@@ -130,7 +129,7 @@ class BoundaryConditionBase(object):
 
     def convert_dataobject_to_dataset(self, block):
         """ Converts DataObjects to DataSets.
-        :arg object block. OpenSBLI SimulationBlock."""
+        :arg object block: OpenSBLI SimulationBlock."""
         if isinstance(self, SplitBoundaryConditionBlock):
             for bc in self.bc_types:
                 if bc.equations:
@@ -140,11 +139,12 @@ class BoundaryConditionBase(object):
                 self.equations = block.dataobjects_to_datasets_on_block(self.equations)
         return
 
-    def convert_dataset_base_expr_to_datasets(self, expression, index): ### CHANGE THE NAME OF THIS? It is wrong.
+    def convert_dataset_base_expr_to_datasets(self, expression, index): ### CHANGE THE NAME OF THIS? It is wrong. Also exists elsewhere.
         """ Converts an expression containing DataSetBases to Datasets and updates locations.
+
         :arg object expression: Symbolic expression. 
         :arg int index: Index to increment the DataSet by.
-        returns: object: expression: Updated symbolic expression."""
+        :returns: object: expression: Updated symbolic expression."""
         for a in expression.atoms(DataSet):
             b = a.base
             expression = expression.xreplace({a: b[index]})
@@ -157,6 +157,7 @@ class BoundaryConditionBase(object):
             return self.arbitrary_bc_plane_kernel(block, bc_name)
 
     def arbitrary_bc_plane_kernel(self, block, bc_name):
+        """ Creates a computational kernel for use with Split BC."""
         bc_name = self.bc_name
         direction, side, split_number = self.direction, self.side, self.split_number
         kernel = Kernel(block, computation_name="%s bc direction-%d side-%d split-%d" % (bc_name, direction, side, split_number))
@@ -176,6 +177,7 @@ class BoundaryConditionBase(object):
 
     def set_kernel_range(self, kernel, block):
         """ Sets the boundary condition kernel ranges based on direction and side.
+
         :arg object kernel: Computational boundary condition kernel.
         :arg object block: The SimulationBlock the boundary conditions are used on.
         :returns kernel: The computational kernel with updated ranges."""
@@ -192,6 +194,7 @@ class BoundaryConditionBase(object):
 
     def get_halo_values(self, block):
         """ Gets the maximum numerical halo values.
+
         :arg object block: The SimulationBlock the boundary conditions are used on.
         :returns halo_values: Numerical values of the halos in all directions."""
         halo_values = []
@@ -264,6 +267,7 @@ class SplitBoundaryConditionBlock(BoundaryConditionBase):
 
 class PeriodicBoundaryConditionBlock(BoundaryConditionBase):
     """ Applies an exchange periodic boundary condition.
+
     :arg int boundary_direction: Spatial direction to apply boundary condition to.
     :arg int side: Side 0 or 1 to apply the boundary condition for a given direction.
     :arg bool plane: True/False: Apply boundary condition to full range/split range only."""
@@ -314,6 +318,7 @@ class PeriodicBoundaryConditionBlock(BoundaryConditionBase):
 
 class DirichletBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionBase):
     """ Applies a constant value Dirichlet boundary condition.
+
     :arg int boundary_direction: Spatial direction to apply boundary condition to.
     :arg int side: Side 0 or 1 to apply the boundary condition for a given direction.
     :arg list equations: OpenSBLI equations to enforce on the boundary.
@@ -328,7 +333,6 @@ class DirichletBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCondition
         else:
             self.modification_scheme = scheme
         return
-
 
     def halos(self):
         return True
@@ -356,7 +360,6 @@ class SymmetryBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionB
     :arg int side: Side 0 or 1 to apply the boundary condition for a given direction.
     :arg object scheme: Boundary scheme if required, defaults to Carpenter boundary treatment.
     :arg bool plane: True/False: Apply boundary condition to full range/split range only."""
-
     def __init__(self, boundary_direction, side, scheme=None, plane=True):
         BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
         self.bc_name = 'Symmetry'
@@ -367,10 +370,9 @@ class SymmetryBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionB
         return
 
     def apply(self, arrays, block):
-        fdmteric = block.fd_metrics
+        fd_metric = block.fd_metrics
         direction, side = self.direction, self.side
-        direction_metric = Matrix(fdmteric[direction, :])
-        from sympy import pprint
+        direction_metric = Matrix(fd_metric[direction, :])
         normalisation = sqrt(sum([a**2 for a in direction_metric]))
         unit_normals = direction_metric/normalisation
         lhs_eqns = flatten(arrays)
@@ -405,8 +407,6 @@ class Carpenter(object):
     ModifyCentralDerivative, central derivatives are replaced at that domain boundary by the Carpenter scheme."""
     def __init__(self):
         self.bc4_coefficients = self.carp4_coefficients()
-        self.bc4_symbols = self.carp4_symbols()
-        self.bc4_2_symbols = self.second_der_symbols()
         self.bc4_2_coefficients = self.second_der_coefficients()
         return
 
@@ -473,9 +473,8 @@ class Carpenter(object):
         return ecs
 
     def expr_cond_pair_kernel(self, fn, direction, side, order, block):
-        """This was written for creating different carpenter kernels but keeping it as it cna be used
-        later
-        """
+        """ This was written for creating different carpenter kernels but keeping it as it cna be used
+        later. """
         ker = Kernel(block)
         expr = fn
         ker.add_equation(expr)
@@ -486,20 +485,6 @@ class Carpenter(object):
         ecs, ranges = self.expr_cond_pairs(fn, direction, side, order, block)
         ker.ranges[direction] = [ranges[0], ranges[-1]]
         return ker, ecs
-
-    def carp4_symbols(self):
-        """ Symbols for testing the 1st order one sided Carpenter wall boundary derivative.
-        returns: Matrix: bc4: Matrix of stencil symbols."""
-        bc4 = MatrixSymbol('BC', 4, 6)
-        bc4 = Matrix(bc4)
-        return bc4
-
-    def second_der_symbols(self):
-        """ Symbols for testing the 2nd order one sided Carpenter wall boundary derivative.
-        returns: Matrix: bc4_2: Matrix of stencil symbols."""
-        bc4_2 = MatrixSymbol('BCC', 2, 5)
-        bc4_2 = Matrix(bc4_2)
-        return bc4_2
 
     def second_der_coefficients(self):
         """ Computes the finite-difference coefficients for the 2nd order one sided Carpenter wall boundary derivative.
@@ -512,7 +497,7 @@ class Carpenter(object):
 
     def carp4_coefficients(self):
         """ Computes the finite-difference coefficients for the 1st order one sided Carpenter wall boundary derivative.
-        returns: Matrix: bc4: Matrix of stencil coefficients."""
+        :returns: Matrix: bc4: Matrix of stencil coefficients."""
         R1 = -(2177.0*sqrt(295369.0)-1166427.0)/25488.0
         R2 = (66195.0*sqrt(53.0)*sqrt(5573.0)-35909375.0)/101952.0
 
@@ -538,10 +523,18 @@ class Carpenter(object):
 
 
 class IsothermalWallBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionBase):
-    def __init__(self, boundary_direction, side, equations, const_dict, scheme=None, plane=True):
+    """ Navier-Stokes specific boundary condition. Applies a no-slip viscous wall condition, 
+    velocity components are zero on the wall. Temperature is fixed with a prescribed wall temperature, 
+    given as the rhoE equation passed to this BC.
+
+    :arg int boundary_direction: Spatial direction to apply boundary condition to.
+    :arg int side: Side 0 or 1 to apply the boundary condition for a given direction.
+    :arg Eq equations: Equation for conservative variable rhoE to set on the wall with constant temperature.
+    :arg object scheme: Boundary scheme if required, defaults to Carpenter boundary treatment.
+    :arg bool plane: True/False: Apply boundary condition to full range/split range only."""
+    def __init__(self, boundary_direction, side, equations, scheme=None, plane=True):
         BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
         self.bc_name = 'IsothermalWall'
-        self.const_dict = const_dict
         self.equations = equations
         if not scheme:
             self.modification_scheme = Carpenter()
@@ -597,12 +590,16 @@ class IsothermalWallBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCond
 
 
 class InletTransferBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionBase):
-    """This is boundary condition should not be used until the user knows what he is doing. This is used for testing OpenSBLI"""
+    """ Simple inlet boundary condition to copy all solution variable values from the left halos
+    to the boundary plane. 
 
-    def __init__(self, boundary_direction, side, equations=None, scheme=None, plane=True):
+    :arg int boundary_direction: Spatial direction to apply boundary condition to.
+    :arg int side: Side 0 or 1 to apply the boundary condition for a given direction.
+    :arg object scheme: Boundary scheme if required, defaults to Carpenter boundary treatment.
+    :arg bool plane: True/False: Apply boundary condition to full range/split range only."""
+    def __init__(self, boundary_direction, side, scheme=None, plane=True):
         BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
         self.bc_name = 'InletTransfer'
-        self.equations = equations
         if not scheme:
             self.modification_scheme = Carpenter()
         else:
@@ -621,10 +618,17 @@ class InletTransferBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCondi
 
 
 class InletPressureExtrapolateBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionBase):
-    def __init__(self, boundary_direction, side, equations=None, scheme=None, plane=True):
+    """ Navier-Stoke boundary. Inlet boundary condition, local velocity normal to the boundary 
+    (for cartesian grid only) is compared to the local speed of sound, 
+    pressure is extrapolated out into the halos if subsonic.
+
+    :arg int boundary_direction: Spatial direction to apply boundary condition to.
+    :arg int side: Side 0 or 1 to apply the boundary condition for a given direction.
+    :arg object scheme: Boundary scheme if required, defaults to Carpenter boundary treatment.
+    :arg bool plane: True/False: Apply boundary condition to full range/split range only."""
+    def __init__(self, boundary_direction, side, scheme=None, plane=True):
         BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
         self.bc_name = 'InletPressureExtrapolate'
-        self.equations = equations
         if not scheme:
             self.modification_scheme = Carpenter()
         else:
@@ -671,13 +675,16 @@ class InletPressureExtrapolateBoundaryConditionBlock(ModifyCentralDerivative, Bo
 
 
 class OutletTransferBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionBase):
-    """This is boundary condition should not be used until the user knows what he is doing. This is used for testing OpenSBLI
-    """
+    """ Zeroth order extrapolation for side = 1 only. All solution variables are copied from one
+    point inside the domain to the boundary plane and halo points. TODO: Remove this when extrapolation BC validated.
 
-    def __init__(self, boundary_direction, side, equations=None, scheme=None, plane=True):
+    :arg int boundary_direction: Spatial direction to apply boundary condition to.
+    :arg int side: Side 0 or 1 to apply the boundary condition for a given direction.
+    :arg object scheme: Boundary scheme if required, defaults to Carpenter boundary treatment.
+    :arg bool plane: True/False: Apply boundary condition to full range/split range only."""
+    def __init__(self, boundary_direction, side, scheme=None, plane=True):
         BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
         self.bc_name = 'OutletTransfer'
-        self.equations = equations
         if not scheme:
             self.modification_scheme = Carpenter()
         else:
@@ -699,12 +706,15 @@ class OutletTransferBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCond
 
 class ExtrapolationBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionBase):
     """ Extrapolation boundary condition. Copies all conservative variables from 1 point inside the boundary
-    to the boundary point and the halos on that side. Currently only zeroth order extrapolation."""
+    to the boundary point and the halos on that side. Currently only zeroth order extrapolation.
 
-    def __init__(self, boundary_direction, side, order=0, equations=None, scheme=None, plane=True):
+    :arg int boundary_direction: Spatial direction to apply boundary condition to.
+    :arg int side: Side 0 or 1 to apply the boundary condition for a given direction.
+    :arg object scheme: Boundary scheme if required, defaults to Carpenter boundary treatment.
+    :arg bool plane: True/False: Apply boundary condition to full range/split range only."""
+    def __init__(self, boundary_direction, side, order=0, scheme=None, plane=True):
         BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
         self.bc_name = 'Extrapolation'
-        self.equations = equations
         # Order of the extrapolation
         self.order = order
         if self.order > 0:
@@ -728,7 +738,54 @@ class ExtrapolationBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCondi
         return kernel
 
 
+class PressureOutletBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionBase):
+    """ Specified outlet (back) pressure boundary condition. Pressure is specified, density and velocity components
+    are extrapolated from 1 point inside the boundary to the boundary point and the halos on that side.
+
+    :arg int boundary_direction: Spatial direction to apply boundary condition to.
+    :arg int side: Side 0 or 1 to apply the boundary condition for a given direction.
+    :arg float back_pressure: Numerical value of back pressure to set on the outlet.
+    :arg object scheme: Boundary scheme if required, defaults to Carpenter boundary treatment.
+    :arg bool plane: True/False: Apply boundary condition to full range/split range only."""
+    def __init__(self, boundary_direction, side, back_pressure, scheme=None, plane=True):
+        BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
+        self.bc_name = 'PressureOutlet'
+        self.back_pressure = back_pressure
+        if side != 1:
+            raise ValueError("Only implemented for side=1 outlet.")
+        if not scheme:
+            self.modification_scheme = Carpenter()
+        else:
+            self.modification_scheme = scheme
+        return
+
+    def apply(self, arrays, block):
+        halos, kernel = self.generate_boundary_kernel(block, self.bc_name)
+        NS = NSphysics(block)
+        cons_vars = flatten([NS.density(), NS.momentum(),NS.total_energy()])
+        rhs = flatten([NS.density(), NS.momentum()])
+        n_halos = abs(halos[self.direction][self.side])
+        # from_side_factor, to_side_factor = self.set_side_factor()
+        halo_points = [0] + [i for i in range(1,n_halos+1)]
+        # Set rhoE based on the specified back pressure and extrapolated density and velocities
+        bp = ConstantObject('back_pressure')
+        ConstantsToDeclare.add_constant(bp)
+        bp._value = self.back_pressure
+        rhs += [bp/(NS.specific_heat_ratio()-1.0) + 0.5*dot(NS.momentum(), NS.momentum())/NS.density()]
+        for i in halo_points: # Extrapolate rho, rhou, rhov, rhow from one point inside the domain
+            equations = self.create_boundary_equations(cons_vars, rhs, [(i, -1)])
+            kernel.add_equation(equations)
+        kernel.update_block_datasets(block)
+        return kernel
+
+
 class AdiabaticWallBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionBase):
+    """ Adiabatic wall condition.
+
+    :arg int boundary_direction: Spatial direction to apply boundary condition to.
+    :arg int side: Side 0 or 1 to apply the boundary condition for a given direction.
+    :arg object scheme: Boundary scheme if required, defaults to Carpenter boundary treatment.
+    :arg bool plane: True/False: Apply boundary condition to full range/split range only."""
     def __init__(self, boundary_direction, side, scheme=None, plane=True):
         BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
         self.bc_name = 'AdiabaticWall'
@@ -740,9 +797,7 @@ class AdiabaticWallBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCondi
 
     def apply(self, arrays, block):
         halos, kernel = self.generate_boundary_kernel(block, self.bc_name)
-        n_halos = abs(halos[self.direction][self.side])
-        # Using Navier Stokes physics object, create conservative variables
-        
+        n_halos = abs(halos[self.direction][self.side])        
         wall_eqns = []
         for ar in arrays:
             if isinstance(ar, list):
@@ -770,202 +825,3 @@ class AdiabaticWallBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCondi
         kernel.add_equation(final_equations)
         kernel.update_block_datasets(block)
         return kernel
-
-# class CharacteristicBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionBase):
-#     def __init__(self, boundary_direction, side, scheme = None,plane=True, Eigensystem = None):
-#         BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
-#         if not Eigensystem:
-#             raise ValueError("Needs Eigen system")
-#         self.Eigensystem = Eigensystem
-#         return
-
-#     def apply(self, arrays, boundary_direction, side, block):
-#         # Remove the store in weno opensbli
-#         # Things in """ """ should be removed
-#         """
-#         self.ndim = block.ndim
-#         print "in charBC"
-#         pprint(self.ndim)
-
-
-#         self.ev_dict = self.CS.ev_store
-#         self.LEV_dict = self.CS.LEV_store
-#         self.REV_dict = self.CS.REV_store
-
-#         pprint(self.LEV_dict)
-#         pprint(self.REV_dict)
-#         exit()"""
-#         """Explanation
-#         Steps for performing characteristic boundary conditions are
-
-#         1. Evaluate LEV as GridVariable
-#         2. Evaluate lambda as grid variables
-#         I think 1 and 2 you can do it
-#         3. REV should be evaluated as piecewise
-
-#         """
-#         self.create_REV_conditions()
-#         return
-
-#     def create_REV_conditions(self):
-
-#         # create REV symbolic matrix, similar to WENO
-#         suffix_name = 'ChBC'
-#         # Before this we need to evaluate char_bc_u, and soon
-#         # convert the REV into grid variables
-#         rev_in_grid =self.Eigensystem.convert_matrix_to_grid_variable(self.Eigensystem.right_eigen_vector[self.direction] ,  suffix_name)
-#         # These are used as the LHS symbols for the equations
-#         # rev = self.Eigensystem.generate_grid_variable_REV(self.direction, suffix_name)
-#         # ev = (self.Eigensystem.eigen_value[self.direction])
-#         # rev = (self.Eigensystem.right_eigen_vector[self.direction])
-#         # lev = (self.Eigensystem.left_eigen_vector[self.direction])
-#         # self.dQ = Matrix(symbols('dQ0:%d' % 4))
-#         # v = Matrix([symbols('e0:4')])
-#         # pprint(v)
-#         # final = rev*ev*lev*self.dQ
-#         # final4 = (final[3,:].subs(EinsteinTerm('rho'), EinsteinTerm('den')))
-#         # pprint(final4[0])
-#         # from opensbli.core.codegeneration import ccode
-#         # print ccode(final4[0],  settings = {'rational':True})
-#         # exit()
-#         # pprint(rev)
-#         # pprint(rev[3,:])
-#         # Create the RHS, making a piecewise function, you can create an empty piecewise function but that fails while printing
-#         rhs_rev = zeros(*rev.shape)
-#         for i in range(rhs_rev.shape[0]):
-#             for j in range(rhs_rev.shape[1]):
-#                 rhs_rev[i,j] = Piecewise((rev[i,j], True))
-#         # Create eigen values as local variables if required
-#         ev = self.Eigensystem.generate_grid_variable_ev(self.direction, suffix_name)
-#         # Create expression condition pairs, for example  let's say EV[2] <0 then zero out characteristic
-#         # zero out row, CHECK this for matrix indices WARNING
-#         # Making up some pairs
-#         #p = (Piecewise())
-#         for s in range(rhs_rev.shape[0]):
-#             condition_par = list(rhs_rev[s,2].atoms(ExprCondPair)) + [ExprCondPair(0, ev[s,s] <0)]
-#             rhs_rev[s,2] = Piecewise(*condition_par)
-#             condition_par = list(rhs_rev[s,0].atoms(ExprCondPair)) + [ExprCondPair(1, ev[s,s] >0)]
-#             rhs_rev[s,1] = Piecewise(*condition_par)
-#         pprint(rhs_rev)
-
-
-#         return
-
-
-#     def create_conditionals(self, conditions):
-#         # Get velocity to check in conditional
-#         ## CHECK IF NEED ABS velocity
-#         a = Symbol('a')
-#         u_norm = self.ev_sym[0,0]
-#         dQ = []
-#         for i, REV in enumerate(conditions):
-#             equations = [Eq(Symbol('dW%d' % j), eq) for j, eq in enumerate(REV*self.dW_store)]
-#             dQ.append(equations)
-#             pprint(dQ[-1])
-
-#         # Side 0 inlet
-#         conds_0 = Piecewise((dQ[0], And(u_norm < 0, a < u_norm)),(dQ[1], And(u_norm >= 0, a < u_norm)), (dQ[2], And(u_norm >= 0, a > u_norm)), (0 , True))
-#         # Side 1 outlet
-#         conds_1 = Piecewise((dQ[3], And(u_norm >= 0, a < u_norm)),(dQ[4], And(u_norm < 0, a > u_norm)), (dQ[5], And(u_norm < 0, a < u_norm)), (0 , True))
-
-#         # Side 0 inlet
-#         conds_0 = Piecewise(('condition_%d' % 0, And(u_norm < 0, a < u_norm)),('condition_%d' % 1, And(u_norm >= 0, a < u_norm)), ('condition_%d' % 2, And(u_norm >= 0, a > u_norm)), (0 , True))
-#         # Side 1 outlet
-#         conds_1 = Piecewise(('condition_%d' % 3, And(u_norm >= 0, a < u_norm)),('condition_%d' % 4, And(u_norm < 0, a > u_norm)), ('condition_%d' % 5, And(u_norm < 0, a < u_norm)), (0 , True))
-#         pprint(conds_0)
-#         pprint(conds_1)
-#         return
-
-#     def generate_derivatives(self, side, order):
-#         t = self.euler_eq.time_derivative
-#         Q = self.euler_eq.vector_notation.get(t)
-#         dQ = zeros(self.n_ev,1)
-#         wrt = self.direction
-
-#         for i, eq in enumerate(Q):
-#             func_points = self.Carpenter.generate_function_points(eq, wrt, side, char_BC=True)
-#             dQ[i] = self.Carpenter.compute_derivatives(func_points, wrt, order, char_BC=True)
-#         return
-
-
-#     def generate_symbolic_arrays(self, direction):
-#         # Create symbolic evs
-#         # self.symbolic_eigen_values("ev")
-#         # Store ev values and placeholders
-#         self.ev = self.eigen_value[direction]
-#         self.ev_sym = self.eigenvalues_symbolic
-#         pprint(self.ev)
-#         pprint(self.ev_sym)
-#         exit()
-#         self.ev_values = self.eigen_value_evaluation_eq(self.ev, "ev")
-#         self.dQ = Matrix(symbols('dQ0:%d' % self.n_ev))
-#         # Store LEV values and placeholders
-#         self.LEV = self.left_eigen_vector[direction]
-#         self.LEV_sym = self.left_eigen_vector_symbolic
-#         self.LEV_values = self.left_eigen_vectors_evaluation_eq(self.LEV)
-#         # Store REV values and placeholders
-#         self.REV = self.right_eigen_vector[direction]
-#         self.REV_sym = self.right_eigen_vector_symbolic
-#         self.REV_values = self.right_eigen_vectors_evaluation_eq(self.REV)
-
-#         dW = zeros(self.n_ev,1)
-#         for i in range(self.n_ev):
-#             dW[i] = self.ev_sym[i,i]*self.LEV_sym[i,:]*self.dQ
-#         self.dW_store = dW
-#         return
-
-#     def zero_out_characteristics(self):
-#         n_ev = self.n_ev
-#         # Left cases:
-#         # u_neg_lt_a: u negative, subsonic, u+a zeroed out.
-#         REV = self.REV_sym.copy()
-#         REV.row_del(n_ev-2)
-#         m_u_neg_lt_a = REV.row_insert(n_ev-2, zeros(1, n_ev))
-#         # u_pos_lt_a: u positive, subsonic, u, u, u, u+a zeroed out.
-#         REV = self.REV_sym.copy()
-#         m_u_pos_lt_a = zeros(n_ev-1, n_ev)
-#         m_u_pos_lt_a = m_u_pos_lt_a.row_insert(n_ev-1, REV[n_ev-1, :])
-#         # u_pos_gt_a: u positive, supersonic, u, u, u, u+a, u-a zeroed out.
-#         m_u_pos_gt_a = zeros(n_ev, n_ev)
-
-#         # Right cases:
-#         # u_pos_lt_a: u positive, subsonic, u-a zeroed out.
-#         REV = self.REV_sym.copy()
-#         REV.row_del(n_ev-1)
-#         p_u_pos_lt_a = REV.row_insert(n_ev-1, zeros(1,n_ev))
-#         # u_neg_gt_a: u negative, supersonic, u, u, u, u+a, u-a zeroed out.
-#         p_u_neg_gt_a = zeros(n_ev, n_ev)
-#         # u_neg_lt_a : u negative, subsonic, u, u, u, u+a zeroed out.
-#         REV = self.REV_sym.copy()
-#         p_u_neg_lt_a = zeros(n_ev-1, n_ev)
-#         p_u_neg_lt_a = p_u_neg_lt_a.row_insert(n_ev-2, REV[n_ev-1, :])
-#         conditions = [m_u_neg_lt_a, m_u_pos_lt_a, m_u_pos_gt_a, p_u_pos_lt_a, p_u_neg_gt_a, p_u_neg_lt_a]
-
-#         return conditions
-
-
-#     def return_to_conservative(self):
-#         self.Q = self.REV*self.W
-#         pprint(self.Q)
-#         pprint(self.REV)
-#         return
-
-#     def test_eigvalues(self, ev, ndim):
-#         if ndim == 1:
-#             subs_list = {Symbol('a'): 3.5 ,Symbol('u0'): -0.5}
-#         elif ndim == 2:
-#             subs_list = {Symbol('a'): 3.5, Symbol('u0'): -0.5, Symbol('u1'): -0.25}
-#         elif ndim == 3:
-#             subs_list = {Symbol('a'): 3.5, Symbol('u0'): -0.5, Symbol('u1'): -0.25, Symbol('u2'): -0.05}
-
-#         g = lambda x:x.subs(subs_list, evaluate=False)
-#         return ev.applyfunc(g)
-#     def evaluate_derivatives(self, direction):
-#         t = self.euler_eq.time_derivative
-#         Q = Matrix(self.euler_eq.vector_notation.get(t))
-#         F = Matrix(self.euler_eq.vector_notation.get(direction))
-#         dQ = Q.diff(direction)
-#         dF = F.diff(direction)
-#         pprint(dQ)
-#         pprint(dF)
-#         return
