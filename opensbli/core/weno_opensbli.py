@@ -5,7 +5,7 @@ from opensbli.core.opensbliobjects import EinsteinTerm, DataSetBase, ConstantObj
 from opensbli.core.opensbliequations import SimulationEquations
 from opensbli.core.kernel import Kernel
 from opensbli.core.grid import GridVariable
-from opensbli.utilities.helperfunctions import increment_dataset as incr_dset
+from opensbli.utilities.helperfunctions import increment_dataset
 from opensbli.physical_models.ns_physics import NSphysics
 from opensbli.physical_models.euler_eigensystem import EulerEquations
 from .scheme import Scheme
@@ -351,12 +351,35 @@ class WenoJS(object):
 
 class ShockCapturing(object):
 
+    def generate_left_reconstruction_variables(self, expression_matrix, derivatives):
+        if isinstance(expression_matrix, Matrix):
+            stencil = expression_matrix.stencil_points
+            for i in range(expression_matrix.shape[0]):
+                rv = type(self.reconstruction_classes[1])('L_X%d_%d' % (self.direction, i))
+                for p in sorted(set(self.reconstruction_classes[1].func_points)):
+                    rv.function_stencil_dictionary[p] = expression_matrix[i, stencil.index(p)]
+                derivatives[i].add_reconstruction_classes([rv])
+        else:
+            raise TypeError("Input should be a matrix.")
+        return
+
+    def generate_right_reconstruction_variables(self, expression_matrix, derivatives):
+        if isinstance(expression_matrix, Matrix):
+            stencil = expression_matrix.stencil_points
+            for i in range(expression_matrix.shape[0]):
+                rv = type(self.reconstruction_classes[0])('R_X%d_%d' % (self.direction, i))
+                for p in sorted(set(self.reconstruction_classes[0].func_points)):
+                    rv.function_stencil_dictionary[p] = expression_matrix[i, stencil.index(p)]
+                derivatives[i].add_reconstruction_classes([rv])
+        else:
+            raise TypeError("Input should be a matrix.")
+        return
+
     def interpolate_reconstruction_variables(self, derivatives, kernel):
-        """ Perform the TENO interpolation on the reconstruction variables.
+        """ Perform the WENO/TENO interpolation on the reconstruction variables.
 
         :arg list derivatives: A list of the TENO derivatives to be computed.
-        :arg object kernel: The current computational kernel.
-        """
+        :arg object kernel: The current computational kernel."""
         for d in derivatives:
             for rv in d.reconstructions:
                 if isinstance(rv, type(self.reconstruction_classes[1])):
@@ -657,7 +680,7 @@ class Characteristic(EigenSystem):
         CS_matrix = zeros(len(solution_vector), len(stencil_points))
         for j, val in enumerate(stencil_points):  # j in fv stencil matrix
             for i, flux in enumerate(solution_vector):
-                solution_vector_stencil[i, j] = incr_dset(flux, direction, val)
+                solution_vector_stencil[i, j] = increment_dataset(flux, direction, val)
                 CS_matrix[i, j] = GridVariable('CS_%d%d' % (i, j))
         grid_LEV = self.generate_grid_variable_LEV(direction, name)
         characteristic_solution_stencil = grid_LEV*solution_vector_stencil
@@ -676,7 +699,7 @@ class Characteristic(EigenSystem):
         CF_matrix = zeros(len(fv), len(stencil_points))
         for j, val in enumerate(stencil_points):  # j in fv stencil matrix
             for i, flux in enumerate(fv):
-                flux_stencil[i, j] = incr_dset(flux, direction, val)
+                flux_stencil[i, j] = increment_dataset(flux, direction, val)
                 CF_matrix[i, j] = GridVariable('CF_%d%d' % (i, j))
         grid_LEV = self.generate_grid_variable_LEV(direction, name)
         characteristic_flux_stencil = grid_LEV*flux_stencil
@@ -717,7 +740,7 @@ class LLFCharacteristic(Characteristic):
             substitutions[s] = dest[loc]
         # Increment metric datasets
         for d in dsets:
-            substitutions[d] = incr_dset(d, direction, location)
+            substitutions[d] = increment_dataset(d, direction, location)
         return symbolics.subs(substitutions)
 
 
@@ -823,7 +846,7 @@ class SimpleAverage(object):
             if isinstance(item, DataSet):
                 name = item.base.simplelabel()
                 a = item
-                b = incr_dset(item, direction, 1)
+                b = increment_dataset(item, direction, 1)
                 averaged_metrics += [Eq(GridVariable('%s_%s' % (name_suffix, name)), (a+b)/2)]
         return avg_equations + averaged_metrics
 
@@ -889,7 +912,7 @@ class RoeAverage(object):
             if isinstance(item, DataSet):
                 name = item.base.simplelabel()
                 a = item
-                b = incr_dset(item, direction, 1)
+                b = increment_dataset(item, direction, 1)
                 averaged_metrics += [Eq(GridVariable('%s_%s' % (name_suffix, name)), (a+b)/2)]
         return [Eq(x, y) for (x, y) in zip(grid_vars, evaluations)] + averaged_metrics
 
@@ -926,3 +949,107 @@ class LLFWeno(LLFCharacteristic, Weno):
             else:
                 grouped[direction] = [cd]
         return grouped
+
+
+class ScalarWeno(Weno):
+    """ Scalar WENO procedure."""
+    def __init__(self, order, physics=None, averaging=None):
+        print "A scalar WENO scheme of order %s is being used." % str(order)
+        Weno.__init__(self, order)
+        return
+
+    def pre_process(self, direction, derivatives, solution_vector, kernel, block):
+        required_symbols = set()
+        variables_to_interpolate = []
+        for d in derivatives:
+            required_symbols = required_symbols.union(d.atoms(DataSetBase))
+            variables_to_interpolate += [d.args[0]] 
+        self.update_constituent_relation_symbols(required_symbols, direction)
+        self.direction = direction
+        required_stencil_points = sorted(list(set(self.reconstruction_classes[0].func_points + self.reconstruction_classes[1].func_points)))
+        variable_matrix = zeros(len(variables_to_interpolate), len(required_stencil_points))
+        for i, expr in enumerate(variables_to_interpolate):
+            for j, stencil_index in enumerate(required_stencil_points):
+                variable_matrix[i,j] = increment_dataset(expr, direction, stencil_index)
+        variable_matrix.stencil_points = required_stencil_points
+        self.generate_right_reconstruction_variables(variable_matrix, derivatives)
+        self.generate_left_reconstruction_variables(variable_matrix, derivatives)
+        return
+
+
+    def reconstruction_halotype(self, order, reconstruction=True):
+        return WenoHalos(order, reconstruction)
+
+    def group_by_direction(self, eqs):
+        """ Groups the input equations by the direction (x0, x1, ...) they depend upon.
+
+        :arg list eqs: List of equations to group by direction.
+        :returns: dict: grouped: Dictionary of {direction: equations} key, value pairs for equations grouped by direction."""
+        all_WDS = []
+        for eq in eqs:
+            all_WDS += list(eq.atoms(WenoDerivative))
+        grouped = {}
+        for cd in all_WDS:
+            direction = cd.get_direction[0]
+            if direction in grouped.keys():
+                grouped[direction] += [cd]
+            else:
+                grouped[direction] = [cd]
+        return grouped
+
+    def discretise(self, type_of_eq, block):
+        if isinstance(type_of_eq, SimulationEquations):
+            eqs = flatten(type_of_eq.equations)
+            grouped = self.group_by_direction(eqs)
+            all_derivatives_evaluated_locally = []
+
+            reconstruction_halos = self.reconstruction_halotype(self.order, reconstruction=True)
+
+            for key, derivatives in grouped.iteritems():
+                all_derivatives_evaluated_locally += derivatives
+                for no, deriv in enumerate(derivatives):
+                    deriv.create_reconstruction_work_array(block)
+                kernel = Kernel(block, computation_name="%s_reconstruction_%d_direction" % (self.__class__.__name__, key))
+                kernel.set_grid_range(block)
+                # WENO reconstruction should be evaluated for extra point on each side
+                kernel.set_halo_range(key, 0, reconstruction_halos)
+                kernel.set_halo_range(key, 1, reconstruction_halos)
+                self.pre_process(key, derivatives, flatten(type_of_eq.time_advance_arrays), kernel, block)
+                self.interpolate_reconstruction_variables(derivatives, kernel)
+                block.set_block_boundary_halos(key, 0, self.halotype)
+                block.set_block_boundary_halos(key, 1, self.halotype)
+                self.form_average(derivatives, kernel)
+                type_of_eq.Kernels += [kernel]
+            if grouped:
+                # if isinstance(type_of_eq, SimulationEquations):
+                #     type_of_eq.Kernels += [self.evaluate_residuals(block, eqs, all_derivatives_evaluated_locally)]
+                # else:
+                    type_of_eq.Kernels += [self.form_equations(block, type_of_eq, all_derivatives_evaluated_locally)]
+
+            constituent_relations = self.generate_constituent_relations_kernels(block)
+            return constituent_relations
+
+    def form_equations(self, block, type_of_eq, local_ders):
+        residue_eq = []
+        eqns = type_of_eq.equations
+        for eq in flatten(eqns):
+            substitutions = {}
+            for d in eq.rhs.atoms(Function):
+                if d in local_ders:
+                    substitutions[d] = d._discretise_derivative(block)
+                else:
+                    substitutions[d] = 0
+            residue_eq += [Eq(eq.residual, eq.rhs.subs(substitutions))]
+        residue_kernel = Kernel(block, computation_name="%s %s Evaluation" % (self.__class__.__name__, type_of_eq.__class__.__name__))
+        residue_kernel.set_grid_range(block)
+        residue_kernel.add_equation(residue_eq)
+        return residue_kernel
+
+    def form_average(self, derivatives, kernel):
+        post_process_equations = []
+        left_plus_right = Matrix([d.evaluate_reconstruction for d in derivatives])
+        reconstructed_work = [d.reconstruction_work for d in derivatives]
+        post_process_equations += [Eq(x, y) for x, y in zip(reconstructed_work, Rational(1,2)*left_plus_right)]
+        kernel.add_equation(post_process_equations)
+        return
+

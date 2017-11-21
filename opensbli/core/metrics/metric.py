@@ -2,7 +2,7 @@ from opensbli.core.parsing import EinsteinEquation
 from sympy import Eq, zeros, flatten, Matrix, pprint, Function, S, Equality, Wild, WildFunction
 from opensbli.initialisation.common import BeforeSimulationStarts
 from opensbli.core.opensbliequations import NonSimulationEquations, Discretisation, Solution, OpenSBLIEquation, DataSet
-from opensbli.core.opensblifunctions import CentralDerivative
+from opensbli.core.opensblifunctions import CentralDerivative, WenoDerivative
 from sympy.tensor.array import MutableDenseNDimArray
 from opensbli.core.opensbliobjects import CoordinateObject, DataObject
 from opensbli.core.kernel import Kernel
@@ -22,6 +22,10 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
         ret = super(MetricsEquation, cls).__new__(cls, **kwargs)
         ret.equations = []
         ret.kwargs = {'strong_differentiability': True}
+        if 'scheme' in kwargs:
+            ret.discretisation_scheme = scheme
+        else:
+            ret.discretisation_scheme = 'Central'
         ret.algorithm_place = [BeforeSimulationStarts()]
         ret.order = 1
         return ret
@@ -274,6 +278,15 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
             eq.residual = eq.lhs
         return
 
+    @property
+    def convert_to_weno(cls):
+        cds = set()
+        for eq in flatten(cls.equations):
+            cds = cds.union(eq.atoms(CentralDerivative))
+        subs_dictionary = dict(zip(cds, [WenoDerivative(c.args) for c in cds]))
+        cls.equations = [eq.subs(subs_dictionary) for eq in flatten(cls.equations)]
+        return
+
     def spatial_discretisation(cls, block):
         (Solution, cls).__init__(cls)
         #if any(cls.curvilinear_metric):
@@ -291,6 +304,10 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
         for no, sc in enumerate(spatialschemes):
             # discretise the First derivatives and then apply BC's then discretise Second derivatives
             cls.equations = block.dataobjects_to_datasets_on_block(cls.fdequations)  # First derivatives
+            cls.convert_to_weno
+            pprint(cls.equations)
+            exit()
+
             cls.create_residual_arrays()
             schemes[sc].discretise(cls, block)
             schemes[sc].required_constituent_relations = {}
