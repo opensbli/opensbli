@@ -810,26 +810,23 @@ class AdiabaticWallBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCondi
         halos, kernel = self.generate_boundary_kernel(block, self.bc_name)
         n_halos = abs(halos[self.direction][self.side])        
         wall_eqns = []
+        from_side_factor, to_side_factor = self.set_side_factor()
         for ar in arrays:
-            if isinstance(ar, list):
+            if isinstance(ar, list): # Set velocity components to zero on the wall
                 rhs = [0 for i in range(len(ar))]
                 wall_eqns += [Eq(x, y) for (x, y) in zip(ar, rhs)]
-            else:
-                if side == 1:
-                    raise NotImplementedError("AdiabaticWall not implemented for side 1")
-                # TODO increment or decrement data set value is a funciton of side factor
-                wall_eqns += [Eq(ar, increment_dataset(ar, self.direction, 1))]
+            else: # Take rho and rhoE from one point above the wall
+                wall_eqns += [Eq(ar, increment_dataset(ar, self.direction, to_side_factor))]
         kernel.add_equation(wall_eqns)
         final_equations = []
         if any(isinstance(sc, ShockCapturing) for sc in block.discretisation_schemes.values()):
-            from_side_factor, to_side_factor = self.set_side_factor()
             rhs_eqns = []
             lhs_eqns = flatten(arrays)
             for ar in arrays:
-                if isinstance(ar, list):
+                if isinstance(ar, list): # Velocity components in the halos are set negative
                     transformed_vector = -1*Matrix(ar)
                     rhs_eqns += flatten(transformed_vector)
-                else:
+                else: # rho and rhoE are copied symmetrically over the boundary
                     rhs_eqns += [ar]
             transfer_indices = [tuple([from_side_factor*t, to_side_factor*t]) for t in range(1, abs(halos[self.direction][self.side]) + 1)]
             final_equations = self.create_boundary_equations(lhs_eqns, rhs_eqns, transfer_indices)
