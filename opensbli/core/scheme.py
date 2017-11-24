@@ -426,6 +426,8 @@ class RungeKutta(Scheme):
             raise NotImplementedError("")
         else:
             cls.constant_time_step = True
+        cls.time_step = ConstantObject("dt")
+        CTD.add_constant(cls.time_step)
         return
 
     @property
@@ -499,9 +501,7 @@ class RungeKutta(Scheme):
         return [stage_update_kernel, solution_update_kernel]
 
     def constant_time_step_solution(cls, zipped):
-        dt = ConstantObject("dt")
-        from .kernel import ConstantsToDeclare as CTD
-        CTD.add_constant(dt)
+        dt = cls.time_step
         old = []
         new = []
         for z in zipped:
