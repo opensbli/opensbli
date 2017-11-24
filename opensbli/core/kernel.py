@@ -1,7 +1,8 @@
 from sympy import flatten, Equality, Indexed
 from sympy import Rational, Pow, Integer
 from sympy.printing import pprint
-from opensbli.core.opensbliobjects import DataSetBase, DataSet, ConstantIndexed, ConstantObject
+from opensbli.core.opensbliobjects import DataSetBase, DataSet, ConstantIndexed, ConstantObject,\
+    GlobalValue
 from opensbli.core.grid import GridVariable, Grididx
 from opensbli.core.datatypes import SimulationDataType
 from sympy.core.function import _coeff_isneg
@@ -249,6 +250,15 @@ class Kernel(object):
             if isinstance(eq, Equality):
                 consts = consts.union(eq.atoms(ConstantIndexed))
         return consts
+    
+    @property
+    def global_variables(self):
+        globals_vars = set()
+        for eq in self.equations:
+            if isinstance(eq, Equality):
+                globals_vars = globals_vars.union(eq.atoms(GlobalValue))
+                
+        return globals_vars                
 
     @property
     def grid_indices_used(self):
@@ -356,6 +366,10 @@ class Kernel(object):
         if self.IndexedConstants:
             for c in self.IndexedConstants:
                 code += ["ops_arg_gbl(&%s, %d, \"%s\", %s)" % (c, 1, sim_dtype, self.opsc_access['ins'])]
+        if self.global_variables:
+            # we need to write the size of an array for global indexed
+            for c in self.global_variables:
+                code += ["ops_arg_gbl(&%s, %d, \"%s\", %s)" % (c, 1, c.datatype.opsc(), self.opsc_access['ins'])]
         if self.grid_indices_used:
             code += ["ops_arg_idx()"]
         code = [',\n'.join(code) + ');\n\n']  # WARNING dtype

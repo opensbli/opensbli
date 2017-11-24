@@ -2,10 +2,11 @@
 from sympy.calculus import finite_diff_weights
 from sympy import postorder_traversal, Function, flatten, Eq, Rational, Idx
 from sympy.core import Add, Mul
-from opensbli.core.opensbliobjects import ConstantObject, ConstantIndexed
+from opensbli.core.opensbliobjects import ConstantObject, ConstantIndexed, Globalvariable
 from opensbli.core.opensblifunctions import CentralDerivative
 from opensbli.core.kernel import Kernel
 from opensbli.utilities.helperfunctions import increasing_order
+from opensbli.core.datatypes import Int
 
 
 class Scheme(object):
@@ -409,6 +410,15 @@ class RungeKutta(Scheme):
         cls.get_coefficients
         # cls.solution_coeffs.value = coeffs[cls.solution_coeffs]
         # cls.stage_coeffs
+        niter_symbol = ConstantObject('niter', integer=True)
+        niter_symbol.datatype = Int()
+        cls.iteration_number = Globalvariable("iter", integer = True)
+        cls.iteration_number._value = None
+        cls.iteration_number.datatype = Int()
+        # As iteration number is used in a for loop we dont add them to
+        # constants to declare
+        cls.temporal_iteration = Idx(cls.iteration_number, niter_symbol)
+        CTD.add_constant(niter_symbol)
         CTD.add_constant(cls.solution_coeffs)
         CTD.add_constant(cls.stage_coeffs)
         cls.solution = {}

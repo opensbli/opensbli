@@ -502,3 +502,36 @@ class Grididx(Symbol):
         self.number = number
         self.base = label
         return self
+
+class GlobalValue(object):
+    """A base class for values that are global to all processes, these are not
+    constants but they change with time or kind of mesh parameters which are 
+    updated in the simulation and not user input"""
+    
+
+class Globalvariable(EinsteinTerm, GlobalValue):
+    
+    is_commutative = True
+    
+    def __new__(cls, label, **kwargs):
+        ret = super(Globalvariable, cls).__new__(cls, label, **kwargs)
+        ret._datatype = SimulationDataType()
+        ret.is_input = True
+        ret._value = "Input"
+        return ret
+    
+    @property
+    def datatype(self):
+        """Numeric data type of the Globalvariable array.
+
+        :returns: Numerical datatype (see :class:`.SimulationDataType`)"""
+        return self._datatype
+
+    @datatype.setter
+    def datatype(self, dtype):
+        self._datatype = dtype
+
+    @property
+    def value(self):
+        return self._value
+    

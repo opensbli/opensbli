@@ -277,7 +277,11 @@ class OPSC(object):
         code = []
         dtype = SimulationDataType.opsc()
         for key, val in (tuple_list):
-            code += [self.ops_headers[val] % (dtype, key)]
+            # if any of the list has the datatype then use the data type
+            if hasattr(key, "datatype") and key.datatype:
+                code += [self.ops_headers[val] % (key.datatype.opsc(), key)]
+            else:
+                code += [self.ops_headers[val] % (dtype, key)]
         code = ', '.join(code)
         return code
 
@@ -295,13 +299,14 @@ class OPSC(object):
         if kernel.IndexedConstants:
             for i in kernel.IndexedConstants:
                 header_dictionary += [tuple([(i.base), 'input'])]
+        other_inputs = ""
         if kernel.grid_indices_used:
             # print kernel.grid_index_name
-            kernel_index = ", const int *idx"  # WARNING hard coded here
+            other_inputs += ", const int *idx"  # WARNING hard coded here
         else:
-            kernel_index = ''
+            other_inputs = ''
         # print header_dictionary
-        out = ["void %s(" % kernel.kernelname + self.kernel_header(header_dictionary) + kernel_index + ')' + '\n{']
+        out = ["void %s(" % kernel.kernelname + self.kernel_header(header_dictionary) + other_inputs + ')' + '\n{']
         # all_dataset_inps = [str(i) for i in all_dataset_inps]
         ops_accs = [OPSAccess(no) for no in range(len(all_dataset_inps))]
         OPSCCodePrinter.dataset_accs_dictionary = dict(zip(all_dataset_inps, ops_accs))
