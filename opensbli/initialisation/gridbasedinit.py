@@ -3,7 +3,7 @@ from opensbli.core.kernel import Kernel
 from .common import BeforeSimulationStarts
 
 
-class GridBasedInitialisation(Discretisation, NonSimulationEquations):
+class GridBasedInitialisation(NonSimulationEquations):
     def __new__(cls, order=None, **kwargs):
         ret = super(GridBasedInitialisation, cls).__new__(cls)
         if order:  # Local order if multiple instances of the class are declared on the block

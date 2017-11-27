@@ -74,14 +74,5 @@ class Mean(object):
     
     def _sympystr(self, p):
         return "Mean(%s)" %( ','.join(str(a) for a in args))
-    
-class Diagnostic(Equality):
-    
-    def __new__(cls, *args, **kwargs):
-        if (len(args) != 2):
-            raise ValueError("")
-        lhs = args[1].get_lhs_variable(args[0])
-        rhs = args[1]
-        ret = super(Diagnostic, cls).__new__(cls, lhs, rhs)
-        return ret
+
 
