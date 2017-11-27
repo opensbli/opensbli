@@ -466,14 +466,40 @@ class ConstituentRelations(Discretisation, Solution):
         return
 
 
-class NonSimulationEquations():
+class NonSimulationEquations(Discretisation):
     """ Dummy place holder for all the equations that are not simulated but needs to be evaluated
     e.g, metrics or diagnostics or Statistics, """
     pass
 
+class DiagnosticEq(Equality):
+    
+    def __new__(cls, *args, **kwargs):
+        if (len(args) != 2):
+            raise ValueError("")
+        lhs = args[1].get_lhs_variable(args[0])
+        rhs = args[1]
+        ret = super(DiagnosticEq, cls).__new__(cls, lhs, rhs)
+        return ret
 
-class DiagnosticsEquations(NonSimulationEquations):
+class DiagnosticsEquations(NonSimulationEquations, Solution):
 
     def __new__(cls):
-        # The order for this would be >100
+        ret = super(DiagnosticsEquations, cls).__new__(cls)
+        ret.equations = []
+        return ret
+    
+    def add_equations(self, equation):
+        """Adds the equations to the class. here the equations are processed
+        based on the type of RHS.
+        
+        :param equation: a list of equations or a single equation to be added to the class"""
+        if isinstance(equation, list):
+            local = []
+            for no, eq in enumerate(equation):
+                eq = DiagnosticEq(eq.lhs, eq.rhs)
+                local += [eq]
+            self.equations += [local]
+        else:
+            equation = DiagnosticEq(equation.lhs, equation.rhs)
+            self.equations += [equation]
         return
