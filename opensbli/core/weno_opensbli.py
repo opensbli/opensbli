@@ -273,16 +273,41 @@ class WenoZ(object):
         self.eps = 1e-16
         return
 
+    def global_smoothness_indicator(self, RV):
+        """ Creates the WENO-Z global smoothness indicator. 
+        Formulae taken from 'Accuracy of the weighted essentially
+        non-oscillatory conservative finite difference schemes. 
+        W-S. Don, R. Borges (2013). http://dx.doi.org/10.1016/j.jcp.2013.05.018.'
+
+        :arg object RV: The reconstruction variable object."""
+        b = RV.smoothness_symbols
+        k = self.k # WENO coefficient, order of scheme = 2k-1
+        if k == 2:
+            tau = Abs(b[0]-b[1])
+        elif k == 3:
+            tau = Abs(b[0]-b[2])
+        elif k == 4:
+            tau = Abs(b[0]+3*b[1]-3*b[2]-b[3])
+        elif k == 5:
+            tau = Abs(b[0]+2*b[1]-6*b[2]+2*b[3]+b[4])
+        elif k == 6:
+            tau = Abs(b[0]+b[1]-8*b[2]+8*b[3]-b[4]-b[5])
+        elif k == 7:
+            tau = Abs(b[0]+36*b[1]+135*b[2]-135*b[4]-36*b[5]-b[6])
+        else:
+            raise ValueError("WENO-Z global smoothness indicators only implemented up to WENO order 13.")
+        return tau
+
     def generate_alphas(self, RV, WenoConfig):
         """ Create the alpha terms for the non-linear WENO weights.
 
         :arg object RV: The reconstruction variable object.
         :arg object WenoConfig: Configuration settings for a reconstruction of either left or right."""
-        tau_5 = Abs(RV.smoothness_symbols[0] - RV.smoothness_symbols[-1])
+        tau = self.global_smoothness_indicator(RV)
         p = 2
         for r in range(self.k):
             RV.alpha_symbols += [Symbol('alpha_%d' % r)]
-            RV.alpha_evaluated.append(WenoConfig.opt_weights.get((0, r))*(Float(1) + (tau_5/(self.eps + RV.smoothness_symbols[r]))**p))
+            RV.alpha_evaluated.append(WenoConfig.opt_weights.get((0, r))*(Float(1) + (tau/(self.eps + RV.smoothness_symbols[r]))**p))
         return
 
     def generate_omegas(self, RV, WenoConfig):
@@ -436,18 +461,17 @@ class Weno(Scheme, ShockCapturing):
 
     :arg int order: Numerical order of the WENO scheme (3,5,...). """
 
-    def __init__(self, order, **kwargs):
+    def __init__(self, order, formulation=None):
         Scheme.__init__(self, "WenoDerivative", order)
         self.schemetype = "Spatial"
-        if order == '5Z':
-            # WenoZ only defined for fifth order
-            self.k = 3
-            self.order = 5
+        self.k = int(0.5*(order+1))
+        self.order = order
+        if formulation == 'Z':
             WT = WenoZ(self.k)
-        else:
-            self.k = int(0.5*(order+1))
-            self.order = order
+            print "A WENO-Z scheme of order %s is being used for shock capturing." % str(self.order)
+        else: # Default to WENO-JS if no WENO scheme type provided
             WT = WenoJS(self.k)
+            print "A WENO-JS scheme of order %s is being used for shock capturing." % str(self.order)
         JS = JS_smoothness(self.k)
         self.halotype = WenoHalos(self.order)
         self.required_constituent_relations_symbols = {}
@@ -924,10 +948,9 @@ class LLFWeno(LLFCharacteristic, Weno):
     :arg object physics: Physics object, defaults to NSPhysics.
     :arg object averaging: The averaging procedure to be applied for characteristics, defaults to Simple averaging. """
 
-    def __init__(self, order, physics=None, averaging=None):
+    def __init__(self, order, physics=None, averaging=None, formulation=None):
         LLFCharacteristic.__init__(self, physics, averaging)
-        print "A WENO scheme of order %s is being used for shock capturing." % str(order)
-        Weno.__init__(self, order)
+        Weno.__init__(self, order, formulation)
         return
 
     def reconstruction_halotype(self, order, reconstruction=True):
