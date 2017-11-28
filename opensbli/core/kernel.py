@@ -253,12 +253,13 @@ class Kernel(object):
     
     @property
     def global_variables(self):
-        globals_vars = set()
+        globals_vars_lhs = set()
+        globals_vars_rhs = set()
         for eq in self.equations:
             if isinstance(eq, Equality):
-                globals_vars = globals_vars.union(eq.atoms(GlobalValue))
-                
-        return globals_vars                
+                globals_vars_lhs = globals_vars_lhs.union(eq.lhs.atoms(GlobalValue))
+                globals_vars_rhs = globals_vars_rhs.union(eq.rhs.atoms(GlobalValue))
+        return globals_vars_rhs, globals_vars_lhs
 
     @property
     def grid_indices_used(self):
@@ -355,6 +356,7 @@ class Kernel(object):
         iter_name = "iteration_range_%d" % (self.kernel_no)
         iter_name_code = ['%s %s[] = {%s};' % (dtype, iter_name, ', '.join([str(s) for s in flatten(range_of_eval)]))]
         code = []
+        # TODO check the dtype from the dataser
         sim_dtype = SimulationDataType.opsc()
         code += ['ops_par_loop(%s, \"%s\", %s, %s, %s' % (name, self.computation_name, block_name, self.ndim, iter_name)]
         for i in ins:
@@ -366,10 +368,16 @@ class Kernel(object):
         if self.IndexedConstants:
             for c in self.IndexedConstants:
                 code += ["ops_arg_gbl(&%s, %d, \"%s\", %s)" % (c, 1, sim_dtype, self.opsc_access['ins'])]
+        print self.global_variables
         if self.global_variables:
             # we need to write the size of an array for global indexed
-            for c in self.global_variables:
+            global_ins, global_outs = self.global_variables
+            if global_ins.intersection(global_outs):
+                raise NotImplementedError("Input output of global variables is not implemented")
+            for c in global_ins:
                 code += ["ops_arg_gbl(&%s, %d, \"%s\", %s)" % (c, 1, c.datatype.opsc(), self.opsc_access['ins'])]
+            for c in global_outs:
+                code += ["ops_arg_gbl(&%s, %d, \"%s\", %s)" % (c, 1, c.datatype.opsc(), self.opsc_access['outs'])]
         if self.grid_indices_used:
             code += ["ops_arg_idx()"]
         code = [',\n'.join(code) + ');\n\n']  # WARNING dtype

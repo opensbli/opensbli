@@ -304,9 +304,9 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
         for no, sc in enumerate(spatialschemes):
             # discretise the First derivatives and then apply BC's then discretise Second derivatives
             cls.equations = block.dataobjects_to_datasets_on_block(cls.fdequations)  # First derivatives
-            cls.convert_to_weno
-            pprint(cls.equations)
-            exit()
+            #cls.convert_to_weno
+            #pprint(cls.equations)
+            #exit()
 
             cls.create_residual_arrays()
             schemes[sc].discretise(cls, block)

@@ -294,6 +294,12 @@ class OPSC(object):
         # eqs = kernel.equations
         all_dataset_inps = list(ins) + list(outs) + list(inouts)
         all_dataset_types = ['input' for i in ins] + ['output' for o in outs] + ['inout' for io in inouts]
+        # add the global variables to the inputs and outputs
+        global_ins, global_outs = kernel.global_variables
+        if global_ins.intersection(global_outs):
+            raise NotImplementedError("Input output of global variables is not implemented")
+        all_dataset_inps += list(global_ins) + list(global_outs)
+        all_dataset_types += ['input' for i in global_ins] + ['output' for o in global_outs] 
         # Use list of tuples as dictionary messes the order
         header_dictionary = zip(all_dataset_inps, all_dataset_types)
         if kernel.IndexedConstants:
