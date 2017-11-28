@@ -464,10 +464,10 @@ class Weno(Scheme, ShockCapturing):
     def __init__(self, order, formulation=None):
         Scheme.__init__(self, "WenoDerivative", order)
         self.schemetype = "Spatial"
-        self.k = int(0.5*(order+1))
-        self.order = order
         if not isinstance(order, int):
             raise TypeError("Weno order should be an integer, if using WenoZ: pass formulation ='Z'")
+        self.k = int(0.5*(order+1))
+        self.order = order
         if formulation:
             if formulation.upper() == 'Z':
                 WT = WenoZ(self.k)

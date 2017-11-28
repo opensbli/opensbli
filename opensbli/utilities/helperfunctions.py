@@ -1,5 +1,6 @@
 from opensbli.core.opensbliobjects import DataSet, CoordinateObject, ConstantIndexed
 import h5py
+from sympy import pprint
 
 
 def get_min_max_halo_values(halos):
@@ -106,4 +107,25 @@ def output_hdf5(array, array_name, halos, npoints, block):
         g1.attrs.create("index", [0], dtype="int32")
         dset = g1.create_dataset('%s_B0' % array_name, data=array)
         set_hdf5_metadata(dset, halos, npoints, block)
+    return
+
+def substitute_simulation_parameters(constants, values, simulation_name='opensbli'):
+    """ Function to substitute user provided numerical values for constants 
+    defined in the simulation.
+
+    :arg list constants: List of strings, one for each input constant in the simulation.
+    :arg list values: Numerical values corresponding to the strings in the constants list."""
+    file_path = "./%s.cpp" % simulation_name
+    substitutions = dict(zip(constants, values))
+    print "Constant simulation values:"
+    pprint(substitutions)
+    with open(file_path) as f:
+        s = f.read()
+    with open(file_path, 'w') as f:
+        for const, value in substitutions.iteritems():
+            old_str = const + '=Input;'
+            if old_str in s:
+                new_str = const + ' = %s' % value + ';'
+                s = s.replace(old_str, new_str)
+        f.write(s)
     return

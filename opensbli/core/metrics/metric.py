@@ -327,7 +327,7 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
     #     arrays = self.FD_metrics[:] + [self.detJ]
     #     arrays = [a for a in arrays if isinstance(a, DataObject)]
     #     arrays = block.dataobjects_to_datasets_on_block(arrays)
-    #     from opensbli.core.bcs import PeriodicBoundaryConditionBlock as pbc
+    #     from opensbli.core.bcs import PeriodicBC as pbc
     #     modify = {}
     #     for no, val in enumerate(block.boundary_types):
     #         left = val[0]
@@ -369,8 +369,8 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
         arrays = cls.FD_metrics[:] + [cls.detJ]
         arrays = [a for a in arrays if isinstance(a, DataObject)]
         arrays = block.dataobjects_to_datasets_on_block(arrays)
-        from opensbli.core.bcs import PeriodicBoundaryConditionBlock
-        bc_types = (PeriodicBoundaryConditionBlock)
+        from opensbli.core.bcs import PeriodicBC
+        bc_types = (PeriodicBC)
         for direction in range(block.ndim):
             for side in [0,1]:
                 # Apply Metric BC only if that direction and side is not periodic

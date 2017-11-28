@@ -131,7 +131,7 @@ class BoundaryConditionBase(object):
     def convert_dataobject_to_dataset(self, block):
         """ Converts DataObjects to DataSets.
         :arg object block: OpenSBLI SimulationBlock."""
-        if isinstance(self, SplitBoundaryConditionBlock):
+        if isinstance(self, SplitBC):
             for bc in self.bc_types:
                 if bc.equations:
                     bc.equations = block.dataobjects_to_datasets_on_block(bc.equations)
@@ -247,7 +247,7 @@ class BoundaryConditionBase(object):
         return from_side_factor, to_side_factor
 
 
-class SplitBoundaryConditionBlock(BoundaryConditionBase):
+class SplitBC(BoundaryConditionBase):
     def __init__(self, boundary_direction, side, bcs, plane=False):
         BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
         self.bc_types = bcs
@@ -266,7 +266,7 @@ class SplitBoundaryConditionBlock(BoundaryConditionBase):
         return kernels
 
 
-class PeriodicBoundaryConditionBlock(BoundaryConditionBase):
+class PeriodicBC(BoundaryConditionBase):
     """ Applies an exchange periodic boundary condition.
 
     :arg int boundary_direction: Spatial direction to apply boundary condition to.
@@ -317,7 +317,7 @@ class PeriodicBoundaryConditionBlock(BoundaryConditionBase):
         return transfer_size, transfer_from, transfer_to
 
 
-class DirichletBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionBase):
+class DirichletBC(ModifyCentralDerivative, BoundaryConditionBase):
     """ Applies a constant value Dirichlet boundary condition.
 
     :arg int boundary_direction: Spatial direction to apply boundary condition to.
@@ -354,7 +354,7 @@ class DirichletBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCondition
         return kernel
 
 
-class SymmetryBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionBase):
+class SymmetryBC(ModifyCentralDerivative, BoundaryConditionBase):
     """ Applies a symmetry condition on the boundary, normal velocity components set/evaluate to zero.
 
     :arg int boundary_direction: Spatial direction to apply boundary condition to.
@@ -523,7 +523,7 @@ class Carpenter(object):
         return bc4
 
 
-class IsothermalWallBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionBase):
+class IsothermalWallBC(ModifyCentralDerivative, BoundaryConditionBase):
     """ Navier-Stokes specific boundary condition. Applies a no-slip viscous wall condition, 
     velocity components are zero on the wall. Temperature is fixed with a prescribed wall temperature, 
     given as the rhoE equation passed to this BC.
@@ -539,6 +539,8 @@ class IsothermalWallBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCond
         self.equations = equations
         if not scheme:
             self.modification_scheme = Carpenter()
+            print type(self.modification_scheme)
+            print "hi"
         else:
             self.modification_scheme = scheme
         return
@@ -590,7 +592,7 @@ class IsothermalWallBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCond
         return kernel
 
 
-class InletTransferBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionBase):
+class InletTransferBC(ModifyCentralDerivative, BoundaryConditionBase):
     """ Simple inlet boundary condition to copy all solution variable values from the left halos
     to the boundary plane. 
 
@@ -618,7 +620,7 @@ class InletTransferBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCondi
         return kernel
 
 
-class InletPressureExtrapolateBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionBase):
+class InletPressureExtrapolateBC(ModifyCentralDerivative, BoundaryConditionBase):
     """ Navier-Stoke boundary. Inlet boundary condition, local velocity normal to the boundary 
     (for cartesian grid only) is compared to the local speed of sound, 
     pressure is extrapolated out into the halos if subsonic.
@@ -675,7 +677,7 @@ class InletPressureExtrapolateBoundaryConditionBlock(ModifyCentralDerivative, Bo
         return kernel
 
 
-class OutletTransferBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionBase):
+class OutletTransferBC(ModifyCentralDerivative, BoundaryConditionBase):
     """ Zeroth order extrapolation for side = 1 only. All solution variables are copied from one
     point inside the domain to the boundary plane and halo points. TODO: Remove this when extrapolation BC validated.
 
@@ -705,7 +707,7 @@ class OutletTransferBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCond
         return kernel
 
 
-class ExtrapolationBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionBase):
+class ExtrapolationBC(ModifyCentralDerivative, BoundaryConditionBase):
     """ Extrapolation boundary condition. Pass order 0 for Zeroth order extrapolation
     and order=1 for linear extrapolation. 
 
@@ -750,7 +752,7 @@ class ExtrapolationBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCondi
         return kernel
 
 
-class PressureOutletBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionBase):
+class PressureOutletBC(ModifyCentralDerivative, BoundaryConditionBase):
     """ Specified outlet (back) pressure boundary condition. Pressure is specified, density and velocity components
     are extrapolated from 1 point inside the boundary to the boundary point and the halos on that side.
 
@@ -791,7 +793,7 @@ class PressureOutletBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCond
         return kernel
 
 
-class AdiabaticWallBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionBase):
+class AdiabaticWallBC(ModifyCentralDerivative, BoundaryConditionBase):
     """ Adiabatic wall condition.
 
     :arg int boundary_direction: Spatial direction to apply boundary condition to.
@@ -835,7 +837,7 @@ class AdiabaticWallBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCondi
         kernel.update_block_datasets(block)
         return kernel
 
-class ForcingStripWallBoundaryConditionBlock(ModifyCentralDerivative, BoundaryConditionBase):
+class ForcingStripBC(ModifyCentralDerivative, BoundaryConditionBase):
     """ Navier-Stokes specific boundary condition. Applies a no-slip viscous wall condition, 
     velocity components are zero on the wall. Temperature is fixed with a prescribed wall temperature, 
     given as the rhoE equation passed to this BC. A wall normal velocity is set based on the equation passed by the user.
@@ -905,3 +907,16 @@ class ForcingStripWallBoundaryConditionBlock(ModifyCentralDerivative, BoundaryCo
         kernel.add_equation(final_equations)
         kernel.update_block_datasets(block)
         return kernel
+
+ForcingStripWallBoundaryConditionBlock = ForcingStripBC
+OutletTransferBoundaryConditionBlock = OutletTransferBC
+AdiabaticWallBoundaryConditionBlock = AdiabaticWallBC
+IsothermalWallBoundaryConditionBlock = IsothermalWallBC
+DirichletBoundaryConditionBlock = DirichletBC
+SymmetryBoundaryConditionBlock = SymmetryBC
+PressureOutletBoundaryConditionBlock = PressureOutletBC
+ExtrapolationBoundaryConditionBlock = ExtrapolationBC
+InletTransferBoundaryConditionBlock = InletTransferBC
+SplitBoundaryConditionBlock = SplitBC
+InletPressureExtrapolateBoundaryConditionBlock = InletPressureExtrapolateBC
+PeriodicBoundaryConditionBlock = PeriodicBC
