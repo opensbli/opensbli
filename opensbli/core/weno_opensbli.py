@@ -466,9 +466,12 @@ class Weno(Scheme, ShockCapturing):
         self.schemetype = "Spatial"
         self.k = int(0.5*(order+1))
         self.order = order
-        if formulation == 'Z':
-            WT = WenoZ(self.k)
-            print "A WENO-Z scheme of order %s is being used for shock capturing." % str(self.order)
+        if not isinstance(order, int):
+            raise TypeError("Weno order should be an integer, if using WenoZ: pass formulation ='Z'")
+        if formulation:
+            if formulation.upper() == 'Z':
+                WT = WenoZ(self.k)
+                print "A WENO-Z scheme of order %s is being used for shock capturing." % str(self.order)
         else: # Default to WENO-JS if no WENO scheme type provided
             WT = WenoJS(self.k)
             print "A WENO-JS scheme of order %s is being used for shock capturing." % str(self.order)
@@ -509,7 +512,6 @@ class EigenSystem(object):
         else:
             # ev_dict, LEV_dict, REV_dict = self.physics.generate_eig_system(block)
             self.physics.generate_eig_system(block)
-        from sympy import pprint
         self.euler = Euler_eq
         self.eigen_value = {}
         self.left_eigen_vector = {}
@@ -921,8 +923,8 @@ class RoeAverage(object):
         P_L, P_R = self.get_dsets(pressure_base)
         rhoE_base = physics.total_energy().base
         rhoE_L, rhoE_R = self.get_dsets(rhoE_base)
-        H_L = rhoE_L + P_L/rho_L
-        H_R = rhoE_R + P_R/rho_R
+        H_L = (rhoE_L + P_L)/rho_L
+        H_R = (rhoE_R + P_R)/rho_R
         roe_enthalpy = (sqrt(rho_L)*H_L+sqrt(rho_R)*H_R)*grid_vars[1]
         # Average speed of sound
         a_base = physics.speed_of_sound().base

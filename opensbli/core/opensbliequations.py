@@ -472,6 +472,8 @@ class NonSimulationEquations(Discretisation):
     pass
 
 class DiagnosticEq(Equality):
+    """For diagnositcs we use a separate equation so that we can determine the type of the LHS depening on
+    the RHS"""
     
     def __new__(cls, *args, **kwargs):
         if (len(args) != 2):

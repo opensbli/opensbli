@@ -32,7 +32,12 @@ class EulerEquations(object):
     def generate_eig_system(self, block):
         ndim = self.ndim
         # Check if block has metrics equations:
-        self.met_symbols = block.fd_metrics
+        metrics = block.fd_metrics
+        if metrics.is_diagonal:
+            self.met_symbols = eye(block.ndim)
+        else:
+            self.met_symbols = metrics
+
         local_dict = {'Symbol': EinsteinTerm, 'gama': ConstantObject('gama')}
 
         if ndim == 1:
