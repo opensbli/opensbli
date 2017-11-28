@@ -16,18 +16,18 @@ plt.style.use('classic')
 
 
 class Boundary_layer_profile(object):
+    """ Performs a similarity solution (Viscous fluid flow, F.White 1974),
+    to obtain u and T profiles for a laminar compressible boundary-layer.
+
+    :arg float xmach: Free-stream Mach numnber.
+    :arg float Pr: Prandtl number.
+    :arg float gama: Ratio of specific heats.
+    :arg float Tw: Wall temperature, use -1 for adibatic wall conditions.
+    :arg float Re: Free-stream Reynolds number.
+    :arg float length: Doman length in the wall-normal direction.
+    :arg int npoints: Number of points in the wall-normal direction.
+    :arg float beta: Value of the stretching factor for non-uniform grids."""
     def __init__(self, xmach, Pr, gama, Tw, Re, length, npoints, beta):
-        """ Performs a similarity solution (Viscous fluid flow, F.White 1974),
-        to obtain u and T profiles for a laminar compressible boundary-layer.
-        arg: float: xmach: Free-stream Mach numnber.
-        arg: float: Pr: Prandtl number.
-        arg: float: gama: Ratio of specific heats.
-        arg: float: Tw: Wall temperature, use -1 for adibatic wall conditions.
-        arg: float: Re: Free-stream Reynolds number.
-        arg: float: length: Doman length in the wall-normal direction.
-        arg: int: npoints: Number of points in the wall-normal direction.
-        arg: float: beta: Value of the stretching factor for non-uniform grids.
-        """
         self.y, self.u, self.T, self.scale = self.generate_boundary_layer_profile(xmach, Pr, gama, Tw, Re)
         self.Re = Re
         self.interpolate(length, npoints, beta)
@@ -36,10 +36,11 @@ class Boundary_layer_profile(object):
 
     def interpolate(self, domain_length, npoints, beta):
         """ Interpolates the boundary-layer data to new coordinates.
-        arg: float: domain_length: Length of the new coordinate domain.
-        arg: int: npoints: Number of points in the new coordinates.
-        arg: float: beta: Value of the stretching factor for stretched coordinates.
-        returns: None. """
+
+        :arg float domain_length: Length of the new coordinate domain.
+        :arg int npoints: Number of points in the new coordinates.
+        :arg float beta: Value of the stretching factor for stretched coordinates.
+        :returns: None. """
         eta = np.linspace(0, 1, npoints)
         # y_full = np.linspace(0, domain_length, npoints)
         y_full = domain_length*np.sinh(beta*eta)/np.sinh(beta)
@@ -61,10 +62,10 @@ class Boundary_layer_profile(object):
 
     def compbl(self, v, p=None):
         """ Sets up the system of equations to be integrated by odeint.
-        arg: ndarray: v: Solution vector.
-        arg: None: p: Empty dummy argument required by the odeint function.
-        returns: list: dv: System of equations.
-        """
+
+        :arg ndarray: v: Solution vector.
+        :arg None: p: Empty dummy argument required by the odeint function.
+        :returns: list: dv: System of equations."""
         suth = self.suth
         c = np.sqrt(v[3])*(1.0+suth)/(v[3]+suth)
         dcdg = 1.0/(2.0*np.sqrt(v[3])) - np.sqrt(v[3])/(v[3]+suth)
@@ -77,7 +78,7 @@ class Boundary_layer_profile(object):
     def generate_boundary_layer_profile(self, xmach, pr, gama, Tw, Re):
         """ Generates a boundary layer initial profile. Solves the mean flow
         in a compressible boundary layer. (Equations 7.32) in White (1974).
-        arg txtfile: Text file containing stretched y-coordinates.
+
         arg float: xmach: Mach number.
         arg float: pr: Prandtl number.
         arg float: gama: Ratio of specific heats.
@@ -170,13 +171,13 @@ class Boundary_layer_profile(object):
         return y, u, T, scale_factor
 
     def integrate_boundary_layer(self, n):
-        """ Integrates the boundary-layer and calculates the scale factor from displacement thickness
-        arg: int: n: Iteration number from the iterative solver.
-        returns: ndarray: y: Wall normal coordinates.
-        returns: ndarray: u: Streamwise velocity component profile.
-        returns: ndarray: T: Temperature profile.
-        returns: float: scale: Scale factor of the boundary-layer.
-        """
+        """ Integrates the boundary-layer and calculates the scale factor from displacement thickness.
+
+        :arg int n: Iteration number from the iterative solver.
+        :returns: ndarray: y: Wall normal coordinates.
+        :returns: ndarray: u: Streamwise velocity component profile.
+        :returns: ndarray: T: Temperature profile.
+        :returns: float: scale: Scale factor of the boundary-layer."""
         sumd, record_z = 0, 0
         z = np.zeros(n+1)
         d_eta = self.eta[1]*0.5
@@ -200,19 +201,17 @@ class Boundary_layer_profile(object):
 
 
 class Initialise_Katzer(GridBasedInitialisation):
+    """ Generates the initialiastion equations for the boundary-layer profile.
 
+    :arg list npoints: Numerical values of the number of points in each direction.
+    :arg list lengths: Numerical values of the problem dimensions.
+    :arg list directions: Integer values of the problem directions.
+    :arg list betas: Stretching factors for stretched grids.
+    :arg int n_coeffs: Desired number of coefficients for the polynomial fit.
+    :arg float Re: Reynolds number.
+    :arg float xMach: Free-stream Mach number"""
     def __new__(cls, npoints, lengths, directions, betas, n_coeffs, coordinate_strings, Re, xMach):
-        """ Generates the initialiastion equations for the boundary-layer profile.
-
-        arg: list: npoints: Numerical values of the number of points in each direction.
-        arg: list: lengths: Numerical values of the problem dimensions.
-        arg: list: directions: Integer values of the problem directions.
-        arg: list: betas: Stretching factors for stretched grids.
-        arg: int: n_coeffs: Desired number of coefficients for the polynomial fit.
-        arg: float: Re: Reynolds number.
-        arg: float: xMach: Free-stream Mach number"""
         ret = super(Initialise_Katzer, cls).__new__(cls)
-
         print "Polynomial boundary-layer initialiastion called with Re = %f, Mach = %f." % (Re, xMach)
         ret.directions = directions
         ret.npoints = ret.find_constant_values(npoints)
@@ -223,7 +222,6 @@ class Initialise_Katzer(GridBasedInitialisation):
         ret.Re = ret.find_constant_values([Re])[0]
         ret.equations = []
         ret.xMach = ret.find_constant_values([xMach])[0]
-
         return ret
 
     def find_constant_values(self, input):
@@ -363,9 +361,9 @@ class Initialise_Katzer(GridBasedInitialisation):
     def temperature_scaling(self, temp_profile, Tw, Tinf):
         """ Computes the temperature profile between [0,1]
 
-        :args ndarray temp_profile: Temperature profile values between wall temperature and freestream.
-        :args float Tw: Wall temperature.
-        :args float Tinf: Free-stream temperature.
+        :arg ndarray temp_profile: Temperature profile values between wall temperature and freestream.
+        :arg float Tw: Wall temperature.
+        :arg float Tinf: Free-stream temperature.
         :returns: ndarray: g: Temperature profile ranging from 0 to 1. """
         g = (temp_profile - Tw)/(Tinf - Tw)
         return g
@@ -490,12 +488,12 @@ class Initialise_Katzer(GridBasedInitialisation):
 
     def fit_polynomial(self, coords, variable, bl_edge, n_coeffs):
         """ Fits a polynomial to the input data, coefficients are returned.
-        arg: ndarray: coords: Independent variable of the input data.
-        arg: ndarray: variable: Dependent variable of the input data.
-        arg: int: bl_edge: Array index at the edge of the boundary-layer.
-        arg: int: n_coeffs: Desired number of coefficients for the polynomial.
-        returns: ndarray: coeffs: Coefficients of the polynomial fit.
-        """
+
+        :arg ndarray coords: Independent variable of the input data.
+        :arg ndarray variable: Dependent variable of the input data.
+        :arg int bl_edge: Array index at the edge of the boundary-layer.
+        :arg int n_coeffs: Desired number of coefficients for the polynomial.
+        :returns: ndarray: coeffs: Coefficients of the polynomial fit."""
         coords = coords[0:bl_edge]
         variable = variable[0:bl_edge]
         with warnings.catch_warnings():
