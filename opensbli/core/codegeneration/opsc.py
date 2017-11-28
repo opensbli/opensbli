@@ -1,7 +1,7 @@
 
 from sympy.printing.ccode import C99CodePrinter
 from sympy.core.relational import Equality
-from opensbli.core.opensbliobjects import ConstantObject, ConstantIndexed, Constant, DataSetBase
+from opensbli.core.opensbliobjects import ConstantObject, ConstantIndexed, Constant, DataSetBase, DataObject
 from opensbli.core.kernel import Kernel, ConstantsToDeclare as CTD
 from opensbli.core.algorithm import Loop
 from sympy import Symbol, flatten
@@ -44,10 +44,11 @@ class OPSCCodePrinter(C99CodePrinter):
 
     """ Prints OPSC code. """
     dataset_accs_dictionary = {}
-    settings_opsc = {'rational': False}
+    settings_opsc = {'rational': False, 'kernel':False}
 
     def __init__(self, settings={}):
         """ Initialise the code printer. """
+        self.settings_opsc = settings
         if 'rational' in settings.keys():
             self.settings_opsc = settings
         else:
@@ -87,6 +88,18 @@ class OPSCCodePrinter(C99CodePrinter):
             del args_code[-2:]
             args_code.append(string_max)
         return str(args_code[0])
+
+    def _print_DataObject(self, expr):
+        raise TypeError("Data object found in code generation, convert it to a dataset first, %s" % expr)
+    
+    def _print_Globalvariable(self, expr):
+        # This should be handled in a different way if writing a kernel, if it is uses in the main cpp file it should
+        # be handled differently
+        is_kernel = self.settings_opsc.get('kernel', False)
+        if is_kernel:
+            return ' *%s' %(str(expr))
+        else:
+            return "%s" % (str(expr))
 
     def _print_DataSetBase(self, expr):
         return str(expr)
@@ -316,7 +329,7 @@ class OPSC(object):
         # all_dataset_inps = [str(i) for i in all_dataset_inps]
         ops_accs = [OPSAccess(no) for no in range(len(all_dataset_inps))]
         OPSCCodePrinter.dataset_accs_dictionary = dict(zip(all_dataset_inps, ops_accs))
-        out += [ccode(eq) + ';\n' for eq in kernel.equations if isinstance(eq, Equality)] + ['}']
+        out += [ccode(eq, settings={'kernel': True}) + ';\n' for eq in kernel.equations if isinstance(eq, Equality)] + ['}']
         OPSCCodePrinter.dataset_accs_dictionary = {}
         return out
 

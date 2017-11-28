@@ -368,7 +368,6 @@ class Kernel(object):
         if self.IndexedConstants:
             for c in self.IndexedConstants:
                 code += ["ops_arg_gbl(&%s, %d, \"%s\", %s)" % (c, 1, sim_dtype, self.opsc_access['ins'])]
-        print self.global_variables
         if self.global_variables:
             # we need to write the size of an array for global indexed
             global_ins, global_outs = self.global_variables

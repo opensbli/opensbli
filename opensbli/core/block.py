@@ -116,7 +116,7 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes):  # BoundaryC
         for no, eq in enumerate(all_equations):
             consts = consts.union(eq.atoms(ConstantObject))
             for d in eq.atoms(DataObject):
-                new = self.location_dataset(d)
+                new = self.location_dataset(str(d))
                 eq = eq.subs({d: new})
             all_equations[no] = eq
         # Convert all equations into the format of input equations WARNING crude way
