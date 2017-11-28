@@ -85,7 +85,7 @@ simulation_eq.write_latex(latex)
 latex.close()
 # Do multiple orders chage here if required
 if shock_capturing_type.lower() == "weno":
-    orders = [3, 5, '5Z']
+    orders = [3, 5]
 elif shock_capturing_type.lower() == "teno":
     orders = [5, 6]
 
@@ -164,22 +164,22 @@ for order in orders:
     direction = 0
     side = 0
     inlet_eq = [d_in, u0_in, u1_in, p_in, rho, rhou0, rhou1, rhoE]
-    boundaries[direction][side] = DirichletBoundaryConditionBlock(direction, side, inlet_eq)
+    boundaries[direction][side] = DirichletBC(direction, side, inlet_eq)
 
     # Right extrapolation at outlet
     direction = 0
     side = 1
-    boundaries[direction][side] = OutletTransferBoundaryConditionBlock(direction, side)
+    boundaries[direction][side] = OutletTransferBC(direction, side)
 
     # Bottom inviscid wall
     direction = 1
     side = 0
-    boundaries[direction][side] = SymmetryBoundaryConditionBlock(direction, side)
+    boundaries[direction][side] = SymmetryBC(direction, side)
 
     # Top dirichlet shock condition
     direction = 1
     side = 1
-    boundaries[direction][side] = SymmetryBoundaryConditionBlock(direction, side)
+    boundaries[direction][side] = SymmetryBC(direction, side)
 
     block.set_block_boundaries(boundaries)
 

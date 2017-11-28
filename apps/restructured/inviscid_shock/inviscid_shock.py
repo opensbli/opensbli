@@ -3,7 +3,7 @@
 from opensbli import *
 from opensbli.core.weno_opensbli import *
 import copy
-
+from opensbli.utilities.helperfunctions import substitute_simulation_parameters
 
 ndim = 2
 
@@ -53,12 +53,12 @@ constituent.add_equations(eqns)
 
 schemes = {}
 # Local LaxFredirich scheme for weno 
-weno_order = '5Z'
+weno_order = 5
 # Generate the Eigen system for the Euler equations
 # Averaging procedure to be used for the eigen system evaluation
 Avg = SimpleAverage([0, 1])
 # LLF scheme
-LLF = LLFWeno(weno_order, averaging=Avg)
+LLF = LLFWeno(weno_order, formulation='Z', averaging=Avg)
 # Add to schemes
 schemes[LLF.name] = LLF
 rk = RungeKutta(3)
@@ -145,3 +145,6 @@ block.discretise()
 alg = TraditionalAlgorithmRK(block)
 SimulationDataType.set_datatype(Double)
 OPSC(alg)
+constants = ['gama', 'Minf', 'dt', 'niter', 'block0np0', 'block0np1', 'Delta0block0', 'Delta1block0']
+values = ['1.4', '2.0', '0.01', '500', '457', '255', '350.0/(block0np0-1)', '115.0/(block0np1-1)']
+substitute_simulation_parameters(constants, values)

@@ -3,6 +3,7 @@
 # Import all the functions from opensbli
 from opensbli import *
 import copy
+from opensbli.utilities.helperfunctions import substitute_simulation_parameters
 
 # Number of dimensions of the system to be solved
 ndim = 3
@@ -118,8 +119,8 @@ schemes[rk.name] = rk
 boundaries = []
 # Create boundaries, one for each side per dimension, so in total 6 BC's for 3D'
 for direction in range(ndim):
-    boundaries += [PeriodicBoundaryConditionBlock(direction, 0)]
-    boundaries += [PeriodicBoundaryConditionBlock(direction, 1)]
+    boundaries += [PeriodicBC(direction, 0)]
+    boundaries += [PeriodicBC(direction, 1)]
 
 # set the boundaries for the block
 block.set_block_boundaries(boundaries)
@@ -145,3 +146,7 @@ SimulationDataType.set_datatype(Double)
 
 # Write the code for the algorithm
 OPSC(alg)
+
+constants = ['Re', 'gama', 'Minf', 'Pr', 'dt', 'niter', 'block0np0', 'block0np1', 'block0np2', 'Delta0block0', 'Delta1block0', 'Delta2block0']
+values = ['1600.0', '1.4', '0.1', '0.71', '0.003385', '500', '64', '64', '64', '2*M_PI/block0np0', '2*M_PI/block0np1', '2*M_PI/block0np2']
+substitute_simulation_parameters(constants, values)

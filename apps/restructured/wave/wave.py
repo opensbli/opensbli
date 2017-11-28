@@ -2,7 +2,7 @@
 # Import all the functions from opensbli
 from opensbli import *
 import copy
-
+from opensbli.utilities.helperfunctions import substitute_simulation_parameters
 
 # Problem dimension
 ndim = 1
@@ -34,8 +34,8 @@ block.sbli_rhs_discretisation = True
 boundaries = []
 # Create boundaries, one for each side per dimension
 for direction in [0]:
-    boundaries += [PeriodicBoundaryConditionBlock(direction, 0)]
-    boundaries += [PeriodicBoundaryConditionBlock(direction, 1)]
+    boundaries += [PeriodicBC(direction, 0)]
+    boundaries += [PeriodicBC(direction, 1)]
 local_dict = {"block": block, "GridVariable": GridVariable, "DataObject": DataObject}
 
 block.set_block_boundaries(boundaries)
@@ -72,3 +72,7 @@ block.discretise()
 alg = TraditionalAlgorithmRK(block)
 SimulationDataType.set_datatype(Double)
 OPSC(alg)
+
+constants = ['c0', 'dt', 'niter', 'block0np0', 'Delta0block0']
+values = ['0.5', '0.001', '1000', '200', '1.0/block0np0']
+substitute_simulation_parameters(constants, values)

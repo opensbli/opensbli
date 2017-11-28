@@ -2,6 +2,7 @@
 # Import all the functions from opensbli
 from opensbli import *
 import copy
+from opensbli.utilities.helperfunctions import substitute_simulation_parameters
 
 # Problem dimension
 ndim = 3
@@ -143,8 +144,8 @@ schemes[rk.name] = rk
 boundaries = []
 # Periodic boundaries in x0 direction
 direction = 0
-boundaries += [PeriodicBoundaryConditionBlock(direction, 0)]
-boundaries += [PeriodicBoundaryConditionBlock(direction, 1)]
+boundaries += [PeriodicBC(direction, 0)]
+boundaries += [PeriodicBC(direction, 1)]
 
 # Isothermal wall in x1 direction
 direction = 1
@@ -152,13 +153,13 @@ rhoEd = "Eq(DataObject(rhoE), DataObject(rho)/((gama-1)*gama*Minf*Minf))"
 rhoEd = parse_expr(rhoEd, local_dict=local_dict)
 upper_wall_eq = [rhoEd]
 lower_wall_eq = [rhoEd]
-boundaries += [IsothermalWallBoundaryConditionBlock(direction, 0, upper_wall_eq, local_dict)]
-boundaries += [IsothermalWallBoundaryConditionBlock(direction, 1, lower_wall_eq, local_dict)]
+boundaries += [IsothermalWallBC(direction, 0, upper_wall_eq)]
+boundaries += [IsothermalWallBC(direction, 1, lower_wall_eq)]
 
 # Periodic boundaries in x2 direction
 direction = 2
-boundaries += [PeriodicBoundaryConditionBlock(direction, 0)]
-boundaries += [PeriodicBoundaryConditionBlock(direction, 1)]
+boundaries += [PeriodicBC(direction, 0)]
+boundaries += [PeriodicBC(direction, 1)]
 
 # set the boundaries for the block
 block.set_block_boundaries(boundaries)
@@ -178,3 +179,6 @@ SimulationDataType.set_datatype(Double)
 
 # Write the code for the algorithm
 OPSC(alg)
+constants = ['Re', 'gama', 'Minf', 'Pr', 'dt', 'niter', 'block0np0', 'block0np1', 'block0np2', 'Delta0block0', 'Delta1block0', 'Delta2block0', "c0", "c1", "c2"]
+values = ['180.0', '1.4', '0.01', '0.72', '0.00001', '100000', '64', '256', '64', '2.0*M_PI/block0np0', '2.0/(block0np1-1)', 'M_PI/block0np2', '-1', '0', '0']
+substitute_simulation_parameters(constants, values)

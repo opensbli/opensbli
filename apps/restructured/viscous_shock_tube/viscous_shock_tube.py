@@ -3,6 +3,8 @@ from opensbli import *
 import copy
 from opensbli.core.teno import *
 from opensbli.core.weno_opensbli import SimpleAverage, LLFWeno
+from opensbli.utilities.helperfunctions import substitute_simulation_parameters
+
 
 """ Viscous shock tube problem in 2D, conditions taken from Numerical simulation of the viscous shock tube problem 
 by using a high resolution monotonicity-preserving scheme. Tenaud et al (2009). doi:10.1016/j.compfluid.2008.06.008. """
@@ -39,7 +41,6 @@ for i, CR in enumerate(constituent_eqns):
 block = SimulationBlock(ndim, block_number=0)
 
 teno_order = 6
-#WARNING: Do not use Roe Average for this problem
 Avg = SimpleAverage([0, 1])
 LLF = LLFTeno(teno_order, averaging=Avg)
 schemes = {}
@@ -86,13 +87,13 @@ initial.add_equations(initial_eqns)
 # Set 4 adiabatic walls
 boundaries = [[0, 0] for t in range(ndim)]
 direction, side = 0, 0
-boundaries[direction][side] = AdiabaticWallBoundaryConditionBlock(direction, side)
+boundaries[direction][side] = AdiabaticWallBC(direction, side)
 direction, side = 0, 1
-boundaries[direction][side] = AdiabaticWallBoundaryConditionBlock(direction, side)
+boundaries[direction][side] = AdiabaticWallBC(direction, side)
 direction, side = 1, 0
-boundaries[direction][side] = AdiabaticWallBoundaryConditionBlock(direction, side)
+boundaries[direction][side] = AdiabaticWallBC(direction, side)
 direction, side = 1, 1
-boundaries[direction][side] = SymmetryBoundaryConditionBlock(direction, side)
+boundaries[direction][side] = SymmetryBC(direction, side)
 
 kwargs = {'iotype': "Write"}
 h5 = iohdf5(save_every=100000, **kwargs)
@@ -111,3 +112,8 @@ block.discretise()
 alg = TraditionalAlgorithmRK(block)
 SimulationDataType.set_datatype(Double)
 OPSC(alg)
+constants = ['mu', 'gama', 'Minf', 'Pr', 'Re', 'dt', 'niter', 'block0np0', 'block0np1',
+             'Delta0block0', 'Delta1block0', 'eps', 'TENO_CT']
+values = ['1.0', '1.4', '1.0', '0.73', '200.0', '0.00005', '20000', '600', '300',
+          '1.0/(block0np0-1)', '0.5/(block0np1-1)', '1e-15', '1e-7']
+substitute_simulation_parameters(constants, values)

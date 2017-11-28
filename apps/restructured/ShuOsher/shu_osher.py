@@ -3,6 +3,7 @@
 from opensbli import *
 from opensbli.core.weno_opensbli import *
 import copy
+from opensbli.utilities.helperfunctions import substitute_simulation_parameters
 
 ndim = 1
 sc1 = "**{\'scheme\':\'Weno\'}"
@@ -85,17 +86,17 @@ pprint(right_eqns)
 boundaries = []
 # Create boundaries, one for each side per dimension
 for direction in range(ndim):
-    boundaries += [DirichletBoundaryConditionBlock(direction, 0, left_eqns)]
-    boundaries += [DirichletBoundaryConditionBlock(direction, 1, right_eqns)]
+    boundaries += [DirichletBC(direction, 0, left_eqns)]
+    boundaries += [DirichletBC(direction, 1, right_eqns)]
 
 
 schemes = {}
 # Local LaxFredirich scheme for weno
-weno_order = '5Z'
+weno_order = 5
 # Averaging procedure to be used for the eigen system evaluation
 Avg = SimpleAverage([0, 1])
 # LLF scheme
-LLF = LLFWeno(weno_order, averaging=Avg)
+LLF = LLFWeno(weno_order, formulation='Z', averaging=Avg)
 # Add to schemes
 schemes[LLF.name] = LLF
 rk = RungeKutta(3)
@@ -116,3 +117,6 @@ block.discretise()
 alg = TraditionalAlgorithmRK(block)
 SimulationDataType.set_datatype(Double)
 OPSC(alg)
+constants = ['gama', 'Minf', 'dt', 'niter', 'block0np0', 'Delta0block0']
+values = ['1.4', '0.1', '0.0002', 'ceil(1.8/dt)', '1600', '10.0/(block0np0-1)']
+substitute_simulation_parameters(constants, values)

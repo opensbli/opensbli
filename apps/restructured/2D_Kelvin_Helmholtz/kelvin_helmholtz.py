@@ -2,7 +2,7 @@
 from opensbli import *
 import numpy as np
 from opensbli.core.weno_opensbli import RoeAverage, LLFWeno
-from opensbli.utilities.helperfunctions import output_hdf5
+from opensbli.utilities.helperfunctions import output_hdf5, substitute_simulation_parameters
 
 ndim = 2
 # Specify TENO order and initialise characteristic scheme.
@@ -37,9 +37,9 @@ for eqn in constituent_eqns:
 
 block = SimulationBlock(ndim, block_number=0)
 
-weno_order = '5Z'
+weno_order = 5
 Avg = RoeAverage([0, 1])
-LLF = LLFWeno(weno_order, averaging=Avg)
+LLF = LLFWeno(weno_order, formulation='Z', averaging=Avg)
 
 schemes = {}
 schemes[LLF.name] = LLF
@@ -48,8 +48,8 @@ schemes[rk.name] = rk
 
 boundaries = []
 for direction in range(ndim):
-    boundaries += [PeriodicBoundaryConditionBlock(direction, 0)]
-    boundaries += [PeriodicBoundaryConditionBlock(direction, 1)]
+    boundaries += [PeriodicBC(direction, 0)]
+    boundaries += [PeriodicBC(direction, 1)]
 
 block.set_block_boundaries(boundaries)
 block.set_discretisation_schemes(schemes)
@@ -99,3 +99,7 @@ npoints = [512, 512]
 # Generate the initial white noise seeding
 random_numbers = np.random.rand(npoints[0]+2*halos[1], npoints[1]+2*halos[1])
 output_hdf5(random_numbers, name, halos, npoints, block)
+
+constants = ['gama', 'Minf', 'dt', 'niter', 'block0np0', 'block0np1', 'Delta0block0', 'Delta1block0', 'TENO_CT', 'eps']
+values = ['1.4', '2.0', '0.0001', '50000', '512', '512', '1.0/block0np0', '1.0/block0np1', '1e-5', '1e-15']
+substitute_simulation_parameters(constants, values)

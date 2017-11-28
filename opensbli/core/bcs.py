@@ -539,8 +539,6 @@ class IsothermalWallBC(ModifyCentralDerivative, BoundaryConditionBase):
         self.equations = equations
         if not scheme:
             self.modification_scheme = Carpenter()
-            print type(self.modification_scheme)
-            print "hi"
         else:
             self.modification_scheme = scheme
         return

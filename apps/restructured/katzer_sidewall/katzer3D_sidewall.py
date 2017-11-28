@@ -5,6 +5,7 @@ from opensbli.core.weno_opensbli import SimpleAverage
 from opensbli.core.teno import LLFTeno
 from opensbli.physical_models.euler_eigensystem import *
 from opensbli.initialisation import GridBasedInitialisation, iohdf5
+from opensbli.utilities.helperfunctions import substitute_simulation_parameters
 import copy
 
 ndim = 3
@@ -55,22 +56,22 @@ boundaries = [[0, 0] for t in range(ndim)]
 # Left pressure extrapolation at x= 0, inlet conditions
 direction = 0
 side = 0
-boundaries[direction][side] = InletTransferBoundaryConditionBlock(direction, side)
+boundaries[direction][side] = InletTransferBC(direction, side)
 # Right extrapolation at outlet
 direction = 0
 side = 1
-boundaries[direction][side] = OutletTransferBoundaryConditionBlock(direction, side)
+boundaries[direction][side] = OutletTransferBC(direction, side)
 # Bottom no-slip isothermal wall
 direction = 1
 side = 0
-# boundaries[direction][side] = SymmetryBoundaryConditionBlock(direction, side)
+# boundaries[direction][side] = SymmetryBC(direction, side)
 wall_const = ["Minf", "Twall"]
 for con in wall_const:
     local_dict[con] = ConstantObject(con)
 # Isothermal wall condition
 rhoE_wall = parse_expr("Eq(DataObject(rhoE), DataObject(rho)*Twall/(gama*(gama-1.0)*Minf**2.0))", local_dict=local_dict)
 wall_eqns = [rhoE_wall]
-boundaries[direction][side] = IsothermalWallBoundaryConditionBlock(direction, side, wall_eqns)
+boundaries[direction][side] = IsothermalWallBC(direction, side, wall_eqns)
 # Top dirichlet shock generator condition
 direction = 1
 side = 1
@@ -87,21 +88,21 @@ pprint(rhou2.rhs.indices)
 upper_eqns = [x_loc, rho, rhou0, rhou1, rhou2, rhoE]
 
 # Split BC
-# bcs = [DirichletBoundaryConditionBlock(direction, side, upper_eqns), OutletTransferBoundaryConditionBlock(direction, side)]
-# boundaries[direction][side] = SplitBoundaryConditionBlock(direction, side, bcs)
+# bcs = [DirichletBC(direction, side, upper_eqns), OutletTransferBC(direction, side)]
+# boundaries[direction][side] = SplitBC(direction, side, bcs)
 
 # Dirichlet only shock generator on top boundary
-boundaries[direction][side] = DirichletBoundaryConditionBlock(direction, side, upper_eqns)
+boundaries[direction][side] = DirichletBC(direction, side, upper_eqns)
 
 direction = 2
 side = 0
 rhoE_wall = parse_expr("Eq(DataObject(rhoE), DataObject(rho)*Twall/(gama*(gama-1.0)*Minf**2.0))", local_dict=local_dict)
 wall_eqns = [rhoE_wall]
-boundaries[direction][side] = IsothermalWallBoundaryConditionBlock(direction, side, wall_eqns)
+boundaries[direction][side] = IsothermalWallBC(direction, side, wall_eqns)
 
 direction = 2
 side = 1
-boundaries[direction][side] = SymmetryBoundaryConditionBlock(direction, side)
+boundaries[direction][side] = SymmetryBC(direction, side)
 
 # Create SimulationEquations and Constituent relations, add the expanded equations
 simulation_eq = SimulationEquations()
@@ -114,9 +115,8 @@ for eqn in constituent_eqns:
     constituent.add_equations(eqn)
 teno_order = 5
 Euler_eq = EulerEquations(ndim)
-ev_dict, LEV_dict, REV_dict = Euler_eq.generate_eig_system()
 Avg = SimpleAverage([0, 1])
-LLF = LLFTeno(ev_dict, LEV_dict, REV_dict, teno_order, ndim, Avg)
+LLF = LLFTeno(teno_order, averaging=Avg)
 schemes = {}
 schemes[LLF.name] = LLF
 cent = Central(4)
@@ -141,11 +141,11 @@ Re, xMach = 950, 2.0
 ## Ensure the grid size passed to the initialisation routine matches the grid sizes used in the simulation parameters
 grid_size = [400, 400, 100]
 grid_lengths = [400.0, 115.0, 57.5]
-stretching_factors = [3.0, 3.0]
+stretching_factors = [0, 3.0, 3.0]
 stretch_directions = [False, True, True] # Stretched in x1, x2 directions, uniform in x0
 n_poly_coefficients = 17
-init_katzer = Initialise_Katzer(grid_size, grid_lengths, stretch_directions, stretching_factors, n_poly_coefficients, block, coordinate_evaluation, Re, xMach)
-initial = init_katzer.initial
+initial = Initialise_Katzer(grid_size, grid_lengths, stretch_directions, stretching_factors, n_poly_coefficients, coordinate_evaluation, Re, xMach)
+
 # Arrays to write out to file
 kwargs = {'iotype': "Write"}
 output_arrays = simulation_eq.time_advance_arrays
@@ -165,3 +165,8 @@ alg = TraditionalAlgorithmRK(block)
 SimulationDataType.set_datatype(Double)
 OPSC(alg)
 
+constants = ['gama', 'Minf', 'Pr', 'Re', 'Twall', 'dt', 'niter', 'block0np0', 'block0np1', 'block0np2',
+             'Delta0block0', 'Delta1block0', 'Delta2block0', 'SuthT', 'RefT', 'eps', 'TENO_CT', 'Lx1', 'Lx2', 'by', 'bz']
+values = ['1.4', '2.0', '0.72', '950.0', '1.67619431', '0.05', '100', '400', '400', '100',
+          '400.0/(block0np0-1)', '115.0/(block0np1-1)', '57.5/(block0np2-1)', '110.4', '288.0', '1e-15', '1e-5', '115.0', '57.5', '3.0', '3.0']
+substitute_simulation_parameters(constants, values)
