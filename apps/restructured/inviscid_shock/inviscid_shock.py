@@ -95,17 +95,17 @@ boundaries = [[0, 0] for t in range(ndim)]
 direction = 0
 side = 0
 inlet_eq = [d_in, u0_in, u1_in, p_in, rho, rhou0, rhou1, rhoE]
-boundaries[direction][side] = DirichletBoundaryConditionBlock(direction, side, inlet_eq)
+boundaries[direction][side] = DirichletBC(direction, side, inlet_eq)
 
 # Right extrapolation at outlet
 direction = 0
 side = 1
-boundaries[direction][side] = OutletTransferBoundaryConditionBlock(direction, side)
+boundaries[direction][side] = OutletTransferBC(direction, side)
 
 # Bottom inviscid wall
 direction = 1
 side = 0
-boundaries[direction][side] = SymmetryBoundaryConditionBlock(direction, side)
+boundaries[direction][side] = SymmetryBC(direction, side)
 
 # Top dirichlet shock condition
 direction = 1
@@ -127,7 +127,7 @@ u1 = parse_expr(u1, local_dict=local_dict)
 p = parse_expr(p, local_dict=local_dict)
 
 upper_eqns = [x, shock_loc, d, u0, u1, p, rho, rhou0, rhou1, rhoE]
-boundaries[direction][side] = DirichletBoundaryConditionBlock(direction, side, upper_eqns)
+boundaries[direction][side] = DirichletBC(direction, side, upper_eqns)
 
 block.set_block_boundaries(boundaries)
 
@@ -146,5 +146,5 @@ alg = TraditionalAlgorithmRK(block)
 SimulationDataType.set_datatype(Double)
 OPSC(alg)
 constants = ['gama', 'Minf', 'dt', 'niter', 'block0np0', 'block0np1', 'Delta0block0', 'Delta1block0']
-values = ['1.4', '2.0', '0.01', '500', '457', '255', '350.0/(block0np0-1)', '115.0/(block0np1-1)']
+values = ['1.4', '2.0', '0.1', '500', '457', '255', '350.0/(block0np0-1)', '115.0/(block0np1-1)']
 substitute_simulation_parameters(constants, values)
