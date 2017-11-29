@@ -99,14 +99,22 @@ def set_hdf5_metadata(dset, halos, npoints, block):
 def output_hdf5(array, array_name, halos, npoints, block):
     """ Creates an HDF5 file for reading in data to a simulation, 
     sets the metadata required by the OPS library. """
+    if not isinstance(array, list):
+        array = [array]
+    if not isinstance(array_name, list):
+        array_name = [array_name]
+    assert len(array) == len(array_name)
     with h5py.File('data.h5', 'w') as hf:
-        # Set atttributes for group
+        # Create a group
         g1 = hf.create_group(block.blockname)
-        g1.attrs.create("dims", [block.ndim], dtype="int32")
-        g1.attrs.create("ops_type", u"ops_block",dtype="S9")
-        g1.attrs.create("index", [0], dtype="int32")
-        dset = g1.create_dataset('%s_B0' % array_name, data=array)
-        set_hdf5_metadata(dset, halos, npoints, block)
+        # Loop over all the dataset inputs and write to the hdf5 file
+        for ar, name in zip(array, array_name):
+            g1.attrs.create("dims", [block.ndim], dtype="int32")
+            g1.attrs.create("ops_type", u"ops_block",dtype="S9")
+            g1.attrs.create("index", [0], dtype="int32")
+            block_dset_name = block.location_dataset(name).base
+            dset = g1.create_dataset('%s' % (block_dset_name), data=ar)
+            set_hdf5_metadata(dset, halos, npoints, block)
     return
 
 def substitute_simulation_parameters(constants, values, simulation_name='opensbli'):

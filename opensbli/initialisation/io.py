@@ -49,7 +49,6 @@ class iohdf5(opensbliIO):
     
     def set_read_from_hdf5_arrays(cls, block):
         if cls.kwargs['iotype'] == "read":
-            print 'reading'
             for ar in cls.arrays:
                 if str(ar) in block.block_datasets.keys():
                     dset = block.block_datasets[str(ar)]
