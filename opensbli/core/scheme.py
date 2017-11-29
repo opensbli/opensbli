@@ -291,7 +291,7 @@ class Central(Scheme):
         This discretises the central derivatives, without any special treatment to
         group the derivatives or any thing
         """
-        descritised_equations = equations[:]
+        descritised_equations = flatten(equations)[:]
         cds = self.get_local_function(flatten(equations))
         if cds:
             local_kernels = {}
@@ -314,7 +314,6 @@ class Central(Scheme):
                 # print "applying bcs for %s"%(expr)
                 # local_kernels[der] += expr.apply_boundary_derivative_modification(block, self, der.work) # Applys the boundary kernel modifications if any
             # Apply any Boundary conditions Reverted back
-            # pprint(work_arry_subs)
             for no, c in enumerate(descritised_equations):
                 descritised_equations[no] = descritised_equations[no].subs(work_arry_subs)
             return local_kernels, descritised_equations

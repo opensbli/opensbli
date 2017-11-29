@@ -7,6 +7,8 @@ import os.path
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 # from sympy import *
 import matplotlib.cm as cm
+from matplotlib.backends.backend_pdf import PdfPages
+
 
 
 plt.style.use('classic')
@@ -53,6 +55,8 @@ def extract_data(group, lhalo, rhalo, k):
     rhoE = group["rhoE_B0"].value
     x = group["x0_B0"].value
     y = group["x1_B0"].value
+    theta = group["theta_B0"].value
+    theta = theta[lhalo:np[0]-rhalo, lhalo:np[1]-rhalo]
 
     rho = rho[lhalo:np[0]-rhalo, lhalo:np[1]-rhalo]
     grid_points = [np[0] - 2*k, np[1] - 2*k]
@@ -68,59 +72,59 @@ def extract_data(group, lhalo, rhalo, k):
     a = numpy.sqrt(1.4*p/rho)
     M = u/a
     T = 1.4*4*p/rho
-    return x, y, rho, u, v, rhoE, p, M, T
+    return x, y, rho, u, v, rhoE, p, M, T, theta
 
 
-def line_graphs(x, variable, name):
+def line_graphs(x, variable, name, pdf):
     if name == "u":
         plt.axhline(y=0.0, linestyle='--', color='k')
 
     plt.plot(x[1, :], variable)
     plt.xlabel(r'$x_0$', fontsize=20)
-    plt.ylabel(r'$%s$ at wall' % name, fontsize=20)
-    plt.savefig("wall_%s.pdf" % name, bbox_inches='tight')
+    plt.ylabel(r'$%s$' % name, fontsize=20)
+    pdf.savefig(bbox_inches='tight')
     plt.clf()
     return
 
 
 def plot(fname, n_levels):
     f, group1 = read_file(fname)
-    x, y, rho, u, v, rhoE, P, M, T = extract_data(group1, 5, 5, 3)
+    x, y, rho, u, v, rhoE, P, M, T, theta = extract_data(group1, 5, 5, 3)
     coordinates = [x, y]
-    variables = [rho, u, v, rhoE, P, M, T]
-    names = ["\\rho", "u", "v", "\\rho E", "P", "M", "T"]
+    variables = [rho, u, v, rhoE, P, M, T, theta]
+    names = ["\\rho", "u", "v", "\\rho E", "P", "M", "T", "\\theta"]
+    with PdfPages('allplots.pdf') as pdf:
 
-    # Contour plots
-    for var, name in zip(variables, names):
-        min_val = numpy.min(var)
-        max_val = numpy.max(var)
-        levels = numpy.linspace(min_val, max_val, n_levels)
-        print "%s" % name
-        print levels
-        fig = plt.figure()
-        contour_local(fig, levels, "%s" % name, x, y, var)
-        plt.savefig("fig_%s.pdf" % name, bbox_inches='tight')
+        # Contour plots
+        for var, name in zip(variables, names):
+            min_val = numpy.min(var)
+            max_val = numpy.max(var)
+            levels = numpy.linspace(min_val, max_val, n_levels)
+            print "%s" % name
+            print levels
+            fig = plt.figure()
+            contour_local(fig, levels, "%s" % name, x, y, var)
+            pdf.savefig(bbox_inches='tight')
+            plt.clf()
+
+        # Line plots1
+        variables = [rho[0, :], u[0, :], P[0, :]/P[0, 0], u[100, :]]
+        names = ["\\rho_{wall}", "u_wall", "P_wall", "u_mid"]
+        for var, name in zip(variables, names):
+            line_graphs(x, var, name, pdf)
+        # Inlet temperature profile
+        plt.semilogy(T[:, 0], y[:, 0])
+        plt.ylabel('x1')
+        plt.xlabel('T at inlet')
+        pdf.savefig(bbox_inches='tight')
         plt.clf()
-
-    # Line plots1
-    variables = [rho[0, :], u[1, :], P[0, :]/P[0, 0]]
-    names = ["\\rho", "u", "P"]
-    for var, name in zip(variables, names):
-        line_graphs(x, var, name)
-    # Inlet temperature profile
-    plt.semilogy(T[:, 0], y[:, 0])
-    plt.ylabel('x1')
-    plt.xlabel('T at inlet')
-    plt.savefig("temperature.pdf", bbox_inches='tight')
-    plt.clf()
-    # V velocity at top boundary
-    plt.plot(x[1, :], v[-2, :])
-    plt.xlabel('x0')
-    plt.ylabel('V velocity at top boundary')
-    plt.savefig("V_top.pdf", bbox_inches='tight')
-    plt.clf()
+        # V velocity at top boundary
+        plt.plot(x[1, :], v[-2, :])
+        plt.xlabel('x0')
+        plt.ylabel('V velocity at top boundary')
+        pdf.savefig(bbox_inches='tight')
+        plt.clf()
     f.close()
-
 
 fname = "opensbli_output.h5"
 plot(fname, 25)
