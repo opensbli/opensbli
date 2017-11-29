@@ -118,5 +118,5 @@ alg = TraditionalAlgorithmRK(block)
 SimulationDataType.set_datatype(Double)
 OPSC(alg)
 constants = ['gama', 'Minf', 'dt', 'niter', 'block0np0', 'Delta0block0']
-values = ['1.4', '0.1', '0.0002', 'ceil(1.8/dt)', '1600', '10.0/(block0np0-1)']
+values = ['1.4', '0.1', '0.0002', 'ceil(1.8/0.0002)', '1600', '10.0/(block0np0-1)']
 substitute_simulation_parameters(constants, values)

@@ -2,15 +2,18 @@ from opensbli.core.opensbliobjects import CoordinateObject
 from sympy import diag, sqrt, Eq, eye, Rational, pprint
 from opensbli.core.opensbliobjects import ConstantObject, EinsteinTerm
 from sympy.parsing.sympy_parser import parse_expr
-# from opensbli.core.metrics import MetricsEquation
 
 
 class EulerEquations(object):
+    """ Class to generate the Eigensystems used to diagonalize the Euler equations."""
     def __init__(self, ndim, **kwargs):
         self.ndim = ndim
         return
 
     def apply_direction(self, direction):
+        """ Substitutes a direction to get the eigensystem for that direction.
+
+        :arg int direction: Direction to obtain the eigensystem."""
         # Dictionaries to store ev, REV and LEV for each direction
         ev_dict, LEV_dict, REV_dict = {}, {}, {}
         # Metric symbols from block
@@ -30,14 +33,18 @@ class EulerEquations(object):
         return ev_dict, LEV_dict, REV_dict
 
     def generate_eig_system(self, block):
+        """ Creates the Eigensystems used to diagonalize the Euler equations. No direction is 
+        passed at this stage, the Eigensystems are in general form. 
+
+        :arg object block: OpenSBLI SimulationBlock.
+        :returns: None """
         ndim = self.ndim
-        # Check if block has metrics equations:
+        # Check if block has metrics
         metrics = block.fd_metrics
         if metrics.is_diagonal:
             self.met_symbols = eye(block.ndim)
         else:
             self.met_symbols = metrics
-
         local_dict = {'Symbol': EinsteinTerm, 'gama': ConstantObject('gama')}
 
         if ndim == 1:
@@ -56,28 +63,9 @@ class EulerEquations(object):
 
             def f(x):
                 return x.subs(subs_dict)
-            ev = ev.applyfunc(f)
-            REV = REV.applyfunc(f)
-            LEV = LEV.applyfunc(f)
-            ev_dict = {}
-            REV_dict = {}
-            LEV_dict = {}
-            definitions = {}
-
-            subs_list = [{EinsteinTerm('un_0'): 1, EinsteinTerm('un_1'): 0},
-                         {EinsteinTerm('un_0'): 0, EinsteinTerm('un_1'): 1}]
-            equations = [Eq(a, b) for a, b in subs_dict.items()]
-            eq_directions = {}
-            for no, coordinate in enumerate(coordinates):
-                direction = coordinate.direction
-
-                def g(x):
-                    return x.subs(subs_list[no]).simplify()
-                definitions[direction] = ev.applyfunc(g).atoms(EinsteinTerm).union(REV.applyfunc(g).atoms(EinsteinTerm)).union(LEV.applyfunc(g).atoms(EinsteinTerm))
-                ev_dict[direction] = diag(*list(ev.applyfunc(g)))
-                REV_dict[direction] = REV.applyfunc(g)
-                LEV_dict[direction] = LEV.applyfunc(g)
-                eq_directions[direction] = [e.subs(subs_list[no]) for e in equations]
+            self.ev = ev.applyfunc(f)
+            self.REV = REV.applyfunc(f)
+            self.LEV = LEV.applyfunc(f)
 
         if ndim == 2:
             matrix_symbols = ['alpha', 'bta', 'theta', 'phi_sq', 'k']
@@ -106,7 +94,6 @@ class EulerEquations(object):
             self.ev = ev.applyfunc(f).applyfunc(g).applyfunc(g)
             self.REV = REV.applyfunc(f).applyfunc(g).applyfunc(g)
             self.LEV = LEV.applyfunc(f).applyfunc(g).applyfunc(g)
-            return
 
         elif ndim == 3:
             matrix_symbols = ['alpha', 'bta', 'theta', 'phi_sq', 'k']
