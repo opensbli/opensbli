@@ -6,29 +6,9 @@ from opensbli.core.opensbliobjects import DataSetBase, DataSet, ConstantIndexed,
 from opensbli.core.grid import GridVariable, Grididx
 from opensbli.core.datatypes import SimulationDataType
 from sympy.core.function import _coeff_isneg
-from opensbli.utilities.helperfunctions import get_min_max_halo_values
+from opensbli.utilities.helperfunctions import get_min_max_halo_values, dataset_attributes, constant_attributes
 from opensbli.core.datatypes import Int
 import copy
-
-
-def dataset_attributes(dset):
-    """
-    Move to datasetbase? Should we??
-    """
-    dset.block_number = None
-    dset.read_from_hdf5 = False
-    dset.dtype = None
-    dset.size = None
-    dset.halo_ranges = None
-    dset.block_name = None
-    return dset
-
-
-def constant_attributes(const):
-    const.is_input = True
-    const.dtype = None
-    const.value = None
-    return const
 
 
 class ConstantsToDeclare(object):
@@ -356,7 +336,7 @@ class Kernel(object):
         iter_name = "iteration_range_%d" % (self.kernel_no)
         iter_name_code = ['%s %s[] = {%s};' % (dtype, iter_name, ', '.join([str(s) for s in flatten(range_of_eval)]))]
         code = []
-        # TODO check the dtype from the dataser
+        # TODO check the dtype from the dataset
         sim_dtype = SimulationDataType.opsc()
         code += ['ops_par_loop(%s, \"%s\", %s, %s, %s' % (name, self.computation_name, block_name, self.ndim, iter_name)]
         for i in ins:
@@ -405,23 +385,6 @@ class Kernel(object):
         from opensbli.core.block import DataSetsToDeclare
         # New logic for the dataset delcarations across blocks
         for d in dsets:
-            if d in DataSetsToDeclare.datasetbases:
-                ind = DataSetsToDeclare.datasetbases.index(d)
-                d1 = DataSetsToDeclare.datasetbases[ind]
-                # for direction in range(len(d1.halo_ranges)):
-                # d1.halo_ranges[direction][0] = block.get_all_scheme_halos()
-                # d1.halo_ranges[direction][1] = block.get_all_scheme_halos()
-            else:
-                d = dataset_attributes(d)
-                d.size = block.shape
-                d.block_number = block.blocknumber
-                d.halo_ranges = [[set(), set()] for d1 in range(block.ndim)]
-                # [[set(), set()] for d in range(block.ndim)]
-                for direction in range(len(d.halo_ranges)):
-                    d.halo_ranges[direction][0] = block.get_all_scheme_halos()
-                    d.halo_ranges[direction][1] = block.get_all_scheme_halos()
-                d.block_name = block.blockname
-                DataSetsToDeclare.datasetbases += [d]
             if str(d) in block.block_datasets.keys():
                 dset = block.block_datasets[str(d)]
                 # for direction in range(len(dset.halo_ranges)):
@@ -456,14 +419,6 @@ class Kernel(object):
                 self.stencil_names[dset] = block.block_stencils[stencil].name
             else:
                 self.stencil_names[dset].add(block.block_stencils[stencil].name)
-
-        # pprint(block.block_stencils)
-        # print "\n"
-        # pprint(self.stencil_names)
-        # for key, value in self.stencil_names.iteritems():
-        #     print key, value, stens[key], block.block_stencils[stens[key]].name
-        # pprint([self.stencil_names])
-        # pprint(stens)
         return
 
     def update_stencils(self, block):

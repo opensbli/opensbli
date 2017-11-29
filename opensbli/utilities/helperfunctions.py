@@ -129,3 +129,21 @@ def substitute_simulation_parameters(constants, values, simulation_name='opensbl
                 s = s.replace(old_str, new_str)
         f.write(s)
     return
+
+def dataset_attributes(dset):
+    """
+    Move to datasetbase? Should we??
+    """
+    dset.block_number = None
+    dset.read_from_hdf5 = False
+    dset.dtype = None
+    dset.size = None
+    dset.halo_ranges = None
+    dset.block_name = None
+    return dset
+
+def constant_attributes(const):
+    const.is_input = True
+    const.dtype = None
+    const.value = None
+    return const

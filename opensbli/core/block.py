@@ -8,7 +8,7 @@ from sympy import flatten, eye
 
 
 class DataSetsToDeclare(object):
-    """
+    """Remove this we are not using it any more
     """
     datasetbases = []
 
@@ -167,6 +167,8 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes):  # BoundaryC
         for t in temporal:
             for eq in self.list_of_equation_classes:
                 self.discretisation_schemes[t.name].discretise(eq, self)
+        for io in self.InputOutput:
+            io.set_read_from_hdf5_arrays(self)
         return
 
     def create_datasetbase(self, name):
