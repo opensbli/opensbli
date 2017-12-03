@@ -16,7 +16,7 @@ classdict = {Symbol('Central'): CentralDerivative, Symbol('Temporal'): TemporalD
 
 
 class ParsingSchemes(object):
-    def set_schemes(cls, expr):
+    def set_schemes(cls, expr, order_dictionary=None):
         pot = postorder_traversal(expr)
         substitutions = {}
         modifications = []
@@ -25,7 +25,12 @@ class ParsingSchemes(object):
                 if d.args[0].atoms(Derivative):
                     modifications += [d]
                 else:
-                    substitutions[d] = classdict[cls.args[-1]](d.expr, *d.variables)
+                    _list2 = list(d.variables)
+                    if order_dictionary:
+                        # Order the derivative variables according to the input list 
+                        # as sympy sorts the order of differentiation
+                        _list2.sort(key=order_dictionary.get)
+                    substitutions[d] = classdict[cls.args[-1]](d.expr, *_list2)
             else:
                 continue
         expr = expr.xreplace(substitutions)
@@ -33,7 +38,12 @@ class ParsingSchemes(object):
         substitutions = {}
         for m in modifications:
             if not (m.args[0].atoms(Derivative).difference(m.args[0].atoms(classdict[cls.args[-1]]))):
-                expr = expr.xreplace({m: classdict[cls.args[-1]](m.expr, *m.variables)})
+                _list2 = list(m.variables)
+                if order_dictionary:
+                    # Order the derivative variables according to the input list 
+                    # as sympy sorts the order of differentiation
+                    _list2.sort(key=order_dictionary.get)
+                expr = expr.xreplace({m: classdict[cls.args[-1]](m.expr, *_list2)})
             else:
                 raise ValueError("Require better implementation in set schemes")
         return expr
@@ -148,15 +158,30 @@ class Der(AppliedUndef, ParsingSchemes):
         expr = cls.args[0]
         expr = expr.subs(substits)
         pot = postorder_traversal(expr)
+        """Store the differentiation variable. As sympy automatically sorts
+        the variables and for applying transformation of equations we don't
+        want them to be sorted"""
+        order_of_diff = []
         for p in pot:
             if isinstance(p, localfuncs):
+                # Store the order
+                order_of_diff += p.args[1:-1]
                 expr = expr.subs(p, p.args[0].diff(*p.args[1:-1])).doit()
             else:
                 continue
+        # Store the order
+        order_of_diff += cls.args[1:-1]
         expr = expr.diff(*cls.args[1:-1])
         expr = expr.doit()
+        # Remove the functions
         expr = expr.subs(revertback)
-        expr = cls.set_schemes(expr)
+        pot = postorder_traversal(expr)
+        substitutions = {}
+        modifications = []
+        # Create a dictionary for the order of differentiation variables
+        order_dictionary = {k:v for v,k in enumerate(order_of_diff)}
+        # Set the schemes
+        expr = cls.set_schemes(expr, order_dictionary)
         return expr
 
 
