@@ -29,6 +29,8 @@ class ParsingSchemes(object):
                     if order_dictionary:
                         # Order the derivative variables according to the input list 
                         # as sympy sorts the order of differentiation
+                        # The sorting of the variables is done in scheme when we 
+                        # sanitise the equations
                         _list2.sort(key=order_dictionary.get)
                     substitutions[d] = classdict[cls.args[-1]](d.expr, *_list2)
             else:
