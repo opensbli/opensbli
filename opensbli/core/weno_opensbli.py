@@ -461,20 +461,22 @@ class Weno(Scheme, ShockCapturing):
 
     :arg int order: Numerical order of the WENO scheme (3,5,...). """
 
-    def __init__(self, order, formulation=None):
+    def __init__(self, order, formulation="JS"):
         Scheme.__init__(self, "WenoDerivative", order)
         self.schemetype = "Spatial"
         if not isinstance(order, int):
             raise TypeError("Weno order should be an integer, if using WenoZ: pass formulation ='Z'")
         self.k = int(0.5*(order+1))
         self.order = order
-        if formulation:
-            if formulation.upper() == 'Z':
-                WT = WenoZ(self.k)
-                print "A WENO-Z scheme of order %s is being used for shock capturing." % str(self.order)
-            else: # Default to WENO-JS if no WENO scheme type provided
-                WT = WenoJS(self.k)
-                print "A WENO-JS scheme of order %s is being used for shock capturing." % str(self.order)
+
+        if formulation.upper() == 'Z':
+            WT = WenoZ(self.k)
+            print "A WENO-Z scheme of order %s is being used for shock capturing." % str(self.order)
+        elif formulation.upper() == 'JS': # Default to WENO-JS if no WENO scheme type provided
+            WT = WenoJS(self.k)
+            print "A WENO-JS scheme of order %s is being used for shock capturing." % str(self.order)
+        else:
+            raise NotImplementedError("Only WENO-Z and WENO-JS schemes are implemented.")
         JS = JS_smoothness(self.k)
         self.halotype = WenoHalos(self.order)
         self.required_constituent_relations_symbols = {}
