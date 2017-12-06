@@ -92,8 +92,8 @@ initial.add_equations([x0, x1, d_in, u0_in, u1_in, p_in, rho, rhou0, rhou1, rhoE
 boundaries = [[0, 0] for t in range(ndim)]
 # Periodic boundaries on all sides
 for direction in [0, 1]:
-	for side in [0, 1]:
-		boundaries[direction][side] = PeriodicBC(direction, side)
+    for side in [0, 1]:
+        boundaries[direction][side] = PeriodicBC(direction, side)
 
 block.set_block_boundaries(boundaries)
 
@@ -112,25 +112,5 @@ alg = TraditionalAlgorithmRK(block)
 SimulationDataType.set_datatype(Double)
 OPSC(alg)
 constants = ['gama', 'dt', 'niter', 'block0np0', 'block0np1', 'Delta0block0', 'Delta1block0']
-values = ['1.4', '0.01', '250', '400', '400', '2.0/(block0np0)', '2.0/(block0np1)']
+values = ['1.4', '0.001', '2500', '400', '400', '2.0/(block0np0)', '2.0/(block0np1)']
 substitute_simulation_parameters(constants, values)
-
-
-# exact = 1.0 + 0.2*numpy.sin(pi*(xv+yv - t*(u_const+v_const)))
-
-
-
-# rho_error = numpy.abs(exact - rho)
-# L1 = numpy.sum(rho_error)/(np[0]*np[1])
-# Linf = numpy.max(rho_error)
-# errors = [L1, Linf]
-
-# text_file = open("errors.txt", "w")
-# text_file.write("L1, Linf\n")
-# text_file.write("%e, %e"%(L1, Linf))
-# text_file.close()
-
-# # print(rho_error)
-# # print "=================================="
-# # print "L^1 error: %e " % L1
-# # print "L_inf error: %e " % Linf
