@@ -206,15 +206,16 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
                     args_orig = [cls.curvilinear_coordinates[i], cls.cartesian_coordinates[j], cls.curvilinear_coordinates[k]]
                     args_eval = [cls.curvilinear_coordinates[i], cls.cartesian_coordinates[j], SD[i, j, k]]
                     v = CentralDerivative(*args_eval).doit()
-                    if isinstance(v, CentralDerivative):
+                    derivative_args = [cls.FD_metrics[i, j], cls.curvilinear_coordinates[k]]
+                    sd = CentralDerivative(*derivative_args).doit()
+                    if sd == S.Zero:
+                        sd_subs[CentralDerivative(*args_orig)] = 0
+                    elif not isinstance(v, CentralDerivative):
+                        sd_subs[CentralDerivative(*args_orig)] = 0 
+                    else:
                         sd_subs[CentralDerivative(*args_orig)] = DataObject("SD%d%d%d" % (i, j, k))
                         SD_jacobians[i, j, k] = DataObject("SD%d%d%d" % (i, j, k))
-                        derivative_args = [cls.FD_metrics[i, j], cls.curvilinear_coordinates[k]]
-                        SD_evaluations[i, j, k] = CentralDerivative(*derivative_args)
-                    else:
-                        sd_subs[CentralDerivative(*args_orig)] = v
-                        SD_jacobians[i, j, k] = v
-                        SD_evaluations[i, j, k] = v
+                        SD_evaluations[i, j, k] = sd
 
         # Full 3D curvilinear expansion of the second derivatives
         sds = cls.full3D_SD_transformation(coordinate_symbol)
