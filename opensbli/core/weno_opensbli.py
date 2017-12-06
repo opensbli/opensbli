@@ -148,23 +148,23 @@ class JS_smoothness(object):
         calculated in the 'generate_function_smoothness_indicators' routine."""
         k = self.k
         smooth_coeffs = {}
-        x, dx = Symbol('x'), Symbol('dx')
+        z, dz = Symbol('z'), Symbol('dz')
         for r in range(k):
-            # Generate x, y values to create interpolating polynomial
-            dx_values = [dx*i for i in range(-r, k+1-r)]
+            # Generate z, y values to create interpolating polynomial
+            dz_values = [dz*i for i in range(-r, k+1-r)]
             nodes = [Symbol('fn[i%+d]' % i) for i in range(-r, k-r)]
             funcs = [0]
             for i in range(k):
-                funcs.append(funcs[-1] + dx*nodes[i])
+                funcs.append(funcs[-1] + dz*nodes[i])
             # Perform Lagrange interpolation
-            lagrange_interp = interpolating_poly(k+1, x, dx_values, funcs).diff(x)
+            lagrange_interp = interpolating_poly(k+1, z, dz_values, funcs).diff(z)
             # Loop over the derivatives of the interpolating polynomial
             total = 0
             for l in range(1, k):
-                q = (lagrange_interp.diff(x, l))**2
+                q = (lagrange_interp.diff(z, l))**2
                 # Perform the integration and multiply by h^(2*l-1) over cell
-                q = integrate(q.as_poly(x), x) * dx**(2*l-1)
-                total += (q.subs(x, dx) - q.subs(x, 0))
+                q = integrate(q.as_poly(z), z) * dz**(2*l-1)
+                total += (q.subs(z, dz) - q.subs(z, 0))
             done = []
             # Save the coefficients of the smoothness indicator
             for m in range(0, 2*k-2):
@@ -472,9 +472,9 @@ class Weno(Scheme, ShockCapturing):
             if formulation.upper() == 'Z':
                 WT = WenoZ(self.k)
                 print "A WENO-Z scheme of order %s is being used for shock capturing." % str(self.order)
-        else: # Default to WENO-JS if no WENO scheme type provided
-            WT = WenoJS(self.k)
-            print "A WENO-JS scheme of order %s is being used for shock capturing." % str(self.order)
+            else: # Default to WENO-JS if no WENO scheme type provided
+                WT = WenoJS(self.k)
+                print "A WENO-JS scheme of order %s is being used for shock capturing." % str(self.order)
         JS = JS_smoothness(self.k)
         self.halotype = WenoHalos(self.order)
         self.required_constituent_relations_symbols = {}
