@@ -40,7 +40,7 @@ for i, CR in enumerate(constituent_eqns):
 block = SimulationBlock(ndim, block_number=0)
 
 weno_order = 5
-Avg = SimpleAverage([0, 1])
+Avg = RoeAverage([0, 1])
 LLF = LLFWeno(weno_order, formulation='Z', averaging=Avg)
 schemes = {}
 schemes[LLF.name] = LLF
@@ -108,24 +108,21 @@ simulation_eq.apply_metrics(metriceq)
 
 # Perform initial condition
 # Call the new polynomial based katzer initialisation, stretch factor 5.0 with 17 coefficients for the polynomial
-# Reynolds number and Mach number for the initial profile
-Re, xMach = 950, 2.0
+# Reynolds number, Mach number and free-stream temperature for the initial profile
+Re, xMach, Tinf = 950.0, 2.0, 288.0
 ## Ensure the grid size passed to the initialisation routine matches the grid sizes used in the simulation parameters
-print "Make sure the grid sizes passed to initialisation routine match those in simulation parameters."
-grid_size = [400, 250]
-print "Grid size: ", grid_size
-grid_lengths = [400.0, 115.0]
-print "Domain lengths: ", grid_lengths
-stretching_factors = [0, 5.0]
-stretch_directions = [False, True] # Stretched in x1 direction, uniform in x0
-n_poly_coefficients = 17
+polynomial_directions = [False, True]
+n_poly_coefficients = 50
+grid_const = ["Lx1", "by"]
+for con in grid_const:
+    local_dict[con] = ConstantObject(con)
 gridx0 = parse_expr("Eq(DataObject(x0), block.deltas[0]*block.grid_indexes[0])", local_dict=local_dict)
-gridx1 = parse_expr("Eq(DataObject(x1), %.15f*sinh(%.15f*block.deltas[1]*block.grid_indexes[1]/%.15f)/sinh(%.15f))" % (grid_lengths[1], stretching_factors[1], grid_lengths[1], stretching_factors[1]), local_dict=local_dict)
+gridx1 = parse_expr("Eq(DataObject(x1), Lx1*sinh(by*block.deltas[1]*block.grid_indexes[1]/Lx1)/sinh(by))", local_dict=local_dict)
 coordinate_evaluation = [gridx0, gridx1]
-initial = Initialise_Katzer(grid_size, grid_lengths, stretch_directions, stretching_factors, n_poly_coefficients, coordinate_evaluation, Re, xMach)
+initial = Initialise_Katzer(polynomial_directions, n_poly_coefficients, coordinate_evaluation, Re, xMach, Tinf)
 
 kwargs = {'iotype': "Write"}
-h5 = iohdf5(save_every=10000, **kwargs)
+h5 = iohdf5(save_every=50000, **kwargs)
 h5.add_arrays(simulation_eq.time_advance_arrays)
 h5.add_arrays([DataObject('x0'), DataObject('x1')])
 block.setio(copy.deepcopy(h5))
@@ -142,7 +139,7 @@ SimulationDataType.set_datatype(Double)
 OPSC(alg)
 # Substitute simulation parameter values
 constants = ['gama', 'Minf', 'Pr', 'Re', 'Twall', 'dt', 'niter', 'block0np0', 'block0np1',
-                 'Delta0block0', 'Delta1block0', 'SuthT', 'RefT', 'eps', 'TENO_CT']
+                 'Delta0block0', 'Delta1block0', 'SuthT', 'RefT', 'eps', 'TENO_CT', 'Lx1', 'by']
 values = ['1.4', '2.0', '0.72', '950.0', '1.67619431', '0.01', '250', '400', '250',
-              '400.0/(block0np0-1)', '115.0/(block0np1-1)', '110.4', '288.0', '1e-15', '1e-5']
+              '400.0/(block0np0-1)', '115.0/(block0np1-1)', '110.4', '288.0', '1e-15', '1e-5', '115.0', '5.0']
 substitute_simulation_parameters(constants, values)
