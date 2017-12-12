@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from opensbli.core import *
 from opensbli.utilities.katzer_init import *
-from opensbli.core.weno_opensbli import SimpleAverage
+from opensbli.core.weno_opensbli import SimpleAverage, RoeAverage, LLFWeno
 from opensbli.core.teno import LLFTeno
 from opensbli.physical_models.euler_eigensystem import *
 from opensbli.initialisation import GridBasedInitialisation, iohdf5
@@ -9,7 +9,7 @@ from opensbli.utilities.helperfunctions import substitute_simulation_parameters
 import copy
 
 ndim = 3
-sc1 = "**{\'scheme\':\'Teno\'}"
+sc1 = "**{\'scheme\':\'Weno\'}"
 # Define the compresible Navier-Stokes equations in Einstein notation.
 mass = "Eq(Der(rho,t), - Conservative(rhou_j,x_j,%s))" % sc1
 momentum = "Eq(Der(rhou_i,t) , -Conservative(rhou_i*u_j + KD(_i,_j)*p,x_j , %s) + Der(tau_i_j,x_j) )" % sc1
@@ -45,10 +45,6 @@ local_dict = {"block": block, "GridVariable": GridVariable, "DataObject": DataOb
 
 local_dict['Lx1'], local_dict['Lx2'] = ConstantObject('Lx1'), ConstantObject('Lx2')
 local_dict['by'], local_dict['bz'] = ConstantObject('by'), ConstantObject('bz')
-
-gridx0 = parse_expr("Eq(DataObject(x0), block.deltas[0]*block.grid_indexes[0])", local_dict=local_dict)
-gridx1 = parse_expr("Eq(DataObject(x1), Lx1*sinh(by*block.deltas[1]*block.grid_indexes[1]/Lx1)/sinh(by))", local_dict=local_dict)
-gridx2 = parse_expr("Eq(DataObject(x2), Lx2*sinh(bz*block.deltas[2]*block.grid_indexes[2]/Lx2)/sinh(bz))", local_dict=local_dict)
 
 x_loc = parse_expr("Eq(GridVariable(x0), block.deltas[0]*block.grid_indexes[0])", local_dict=local_dict)
 
@@ -113,10 +109,9 @@ for eqn in base_eqns:
 
 for eqn in constituent_eqns:
     constituent.add_equations(eqn)
-teno_order = 5
-Euler_eq = EulerEquations(ndim)
-Avg = SimpleAverage([0, 1])
-LLF = LLFTeno(teno_order, averaging=Avg)
+weno_order = 5
+Avg = RoeAverage([0, 1])
+LLF = LLFWeno(weno_order, formulation='Z', averaging=Avg)
 schemes = {}
 schemes[LLF.name] = LLF
 cent = Central(4)
@@ -135,16 +130,16 @@ sim_eq = copy.deepcopy(simulation_eq)
 CR = copy.deepcopy(constituent)
 
 # Perform initial condition
-coordinate_evaluation = [gridx0, gridx1, gridx2]
 # Call the new polynomial based katzer initialisation, stretch factor 3 with 17 coefficients for the polynomial
-Re, xMach = 950, 2.0
+Re, xMach, Tinf = 950.0, 2.0, 288.0
 ## Ensure the grid size passed to the initialisation routine matches the grid sizes used in the simulation parameters
-grid_size = [400, 400, 100]
-grid_lengths = [400.0, 115.0, 57.5]
-stretching_factors = [0, 3.0, 3.0]
-stretch_directions = [False, True, True] # Stretched in x1, x2 directions, uniform in x0
-n_poly_coefficients = 17
-initial = Initialise_Katzer(grid_size, grid_lengths, stretch_directions, stretching_factors, n_poly_coefficients, coordinate_evaluation, Re, xMach)
+polynomial_directions = [False, True, True] # Stretched in x1, x2 directions, uniform in x0
+n_poly_coefficients = 45
+gridx0 = parse_expr("Eq(DataObject(x0), block.deltas[0]*block.grid_indexes[0])", local_dict=local_dict)
+gridx1 = parse_expr("Eq(DataObject(x1), Lx1*sinh(by*block.deltas[1]*block.grid_indexes[1]/Lx1)/sinh(by))", local_dict=local_dict)
+gridx2 = parse_expr("Eq(DataObject(x2), Lx2*sinh(bz*block.deltas[2]*block.grid_indexes[2]/Lx2)/sinh(bz))", local_dict=local_dict)
+coordinate_evaluation = [gridx0, gridx1, gridx2]
+initial = Initialise_Katzer(polynomial_directions, n_poly_coefficients, coordinate_evaluation, Re, xMach, Tinf)
 
 # Arrays to write out to file
 kwargs = {'iotype': "Write"}
