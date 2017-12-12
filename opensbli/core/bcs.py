@@ -777,6 +777,8 @@ class PressureOutletBC(ModifyCentralDerivative, BoundaryConditionBase):
         cons_vars = flatten([NS.density(), NS.momentum(),NS.total_energy()])
         rhs = flatten([NS.density(), NS.momentum()])
         n_halos = abs(halos[self.direction][self.side])
+        local_rhoE = Eq(GridVariable('local_rhoE'), NS.total_energy())
+        kernel.add_equation(local_rhoE)
         # from_side_factor, to_side_factor = self.set_side_factor()
         halo_points = [0] + [i for i in range(1,n_halos+1)]
         # Set rhoE based on the specified back pressure and extrapolated density and velocities
