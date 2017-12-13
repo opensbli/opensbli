@@ -190,12 +190,13 @@ class Initialise_Katzer(GridBasedInitialisation):
     :arg int n_coeffs: Desired number of coefficients for the polynomial fit.
     :arg float Re: Reynolds number.
     :arg float xMach: Free-stream Mach number"""
-    def __new__(cls, bl_directions, n_coeffs, coordinate_strings, Re, xMach, Tinf):
+    def __new__(cls, bl_directions, n_coeffs, Re, xMach, Tinf, coordinate_evaluations=None):
         ret = super(Initialise_Katzer, cls).__new__(cls)
         print "Polynomial boundary-layer initialiastion called with Re = %f, Mach = %f, T_inf = %f." % (Re, xMach, Tinf)
+        ret.coordinates = [x[1] for x in bl_directions]
         ret.bl_directions = bl_directions
         ret.n_coeffs = n_coeffs
-        ret.coordinate_strings = coordinate_strings
+        ret.coordinate_evaluations = coordinate_evaluations
         ret.Re = ret.find_constant_values([Re])[0]
         ret.Tinf = ret.find_constant_values([Tinf])[0]
         ret.equations = []
@@ -215,21 +216,27 @@ class Initialise_Katzer(GridBasedInitialisation):
         return outlist
 
     def check_inputs(self, block):
-        if sum(self.bl_directions) < 1:
+        bl_directions = [x[0] for x in self.bl_directions]
+        if sum(bl_directions) < 1:
             raise ValueError("Provide the directions to apply a boundary layer profile in.")
-        if len(self.bl_directions) != block.ndim:
+        if len(bl_directions) != block.ndim:
             raise ValueError("The list of polynomial directions must match the dimensions of the problem.")
         if self.n_coeffs < 10:
             raise ValueError("Higher number of polynomial coefficients are required for a good polynomial fit.")
         return
 
     def spatial_discretisation(self, block):
+        self.equations = []
         self.block = block
         self.idxs = block.grid_indexes
         self.check_inputs(block)
-        self.coordinate_evaluation = self.evaluate_coordinates()
+
+        # Check if user has passed equations to evaluate coordinates, and add them to the kernel
+        if self.coordinate_evaluations:
+            self.equations += self.coordinate_evaluations
         self.initial = self.generate_initial_condition()
-        self.equations += self.coordinate_evaluation + self.eqns
+        # Add polynomial equations to initialise the solution
+        self.equations += self.eqns
 
         self.equations = block.dataobjects_to_datasets_on_block(self.equations)
         kernel1 = Kernel(block, computation_name="Grid_based_initialisation%d" % self.order)
@@ -251,10 +258,12 @@ class Initialise_Katzer(GridBasedInitialisation):
         y, u, T, rho, n = self.load_similarity()
         # Tolerance for finding the edge of the boundary layer. 
         tolerance = 1e-10
+        bl_directions = [x[0] for x in self.bl_directions]
+        print bl_directions
 
-        if sum(self.bl_directions) == 1:  # 2D Katzer and 3D spanwise periodic Katzer, boundary layer in one direction
+        if sum(bl_directions) == 1:  # 2D Katzer and 3D spanwise periodic Katzer, boundary layer in one direction
             # Create a large array of coordinates for this direction to interpolate the profile onto
-            dire = [i for i, x in enumerate(self.bl_directions) if x][0]
+            dire = [i for i, x in enumerate(self.bl_directions) if x[0]][0]
             poly_coordinates = self.uniform_1d_coordinate()
             # Interpolate u, T, rho onto the grid
             u_new = self.interpolate_onto_grid(y, poly_coordinates, u, self.dudy, 0)
@@ -270,9 +279,9 @@ class Initialise_Katzer(GridBasedInitialisation):
             T_coeffs = self.fit_polynomial(poly_coordinates, T_new, edge, n_coeffs)
             self.generate_one_wall_equations([rhou_new, rhov_new, T_new], [rhou_coeffs, rhov_coeffs, T_coeffs], dire, edge, poly_coordinates)
 
-        elif sum(self.bl_directions) == 2:  # 3D with one side wall in x2 # WARNING: This currently does the same thing twice,
+        elif sum(bl_directions) == 2:  # 3D with one side wall in x2 # WARNING: This currently does the same thing twice,
             edges, coeffs, profiles, normal_coeffs, normal_profiles = [], [], [], [], []
-            directions = [i for i, x in enumerate(self.bl_directions) if x]
+            directions = [i for i, x in enumerate(self.bl_directions) if x[0]]
             for dire in directions: # For different bl thicknesses on different walls this still needs to be a loop
                 poly_coordinates = self.uniform_1d_coordinate()
                 # Interpolate u, and T onto the grid
@@ -304,15 +313,15 @@ class Initialise_Katzer(GridBasedInitialisation):
         n_elem = 10000
         return np.linspace(0, 20.0, n_elem)
 
-    def evaluate_coordinates(self):
-        """ Evaluates coordinates to a GridVariable and then sets them into the coordinate arrays.
+    # def evaluate_coordinates(self):
+    #     """ Evaluates coordinates to a GridVariable and then sets them into the coordinate arrays.
 
-        :arg list coordinate_eqns: Coordinate evaluation equations."""
-        coordinate_eqns = []
-        for no, eqn in enumerate(self.coordinate_strings):
-            coordinate_eqns.append(Eq(GridVariable('x%d' % no), eqn.rhs))
-            coordinate_eqns.append(Eq(DataObject('x%d' % no), GridVariable('x%d' % no)))
-        return coordinate_eqns
+    #     :arg list coordinate_eqns: Coordinate evaluation equations."""
+    #     coordinate_eqns = []
+    #     for no, eqn in enumerate(self.coordinate_strings):
+    #         coordinate_eqns.append(Eq(GridVariable('x%d' % no), eqn.rhs))
+    #         coordinate_eqns.append(Eq(DataObject('x%d' % no), GridVariable('x%d' % no)))
+    #     return coordinate_eqns
 
     def temperature_scaling(self, temp_profile, Tw, Tinf):
         """ Computes the temperature profile between [0,1]
@@ -335,8 +344,8 @@ class Initialise_Katzer(GridBasedInitialisation):
         returns: Eq: eqn: OpenSBLI equation to add to the initialisation kernel."""
         bl_edge_coordinate = poly_coordinates[edge]
         powers = [i for i in range(np.size(coefficients))][::-1]
-        eqn = sum([coeff*GridVariable('x%d' % direction)**power for (coeff, power) in zip(coefficients, powers)])
-        eqn = Eq(GridVariable('%s' % name), Piecewise((eqn, GridVariable('x%d' % direction) < bl_edge_coordinate), (variable[edge], True)))
+        eqn = sum([coeff*self.coordinates[direction]**power for (coeff, power) in zip(coefficients, powers)])
+        eqn = Eq(GridVariable('%s' % name), Piecewise((eqn, self.coordinates[direction] < bl_edge_coordinate), (variable[edge], True)))
         return eqn
 
     def form_mixed_equation(self, profiles, names, coefficients, directions, edges, normal_profiles, normal_coeffs, poly_coordinates):
@@ -355,8 +364,10 @@ class Initialise_Katzer(GridBasedInitialisation):
         powers = [i for i in range(np.size(coefficients[0][0]))][::-1]
         # Loop over rhou, and T profiles
         piecewise_eqns = []
+        direction1 = directions[0]
+        direction2 = directions[1]
         # x variables and coordinates at the edge of the boundary layer in each
-        coord1, coord2 = GridVariable('x%d' % directions[0]), GridVariable('x%d' % directions[1])
+        coord1, coord2 = self.coordinates[direction1], self.coordinates[direction2]
         bl_coord1, bl_coord2 = poly_coordinates[edges[0]], poly_coordinates[edges[1]]
         # Create rhou profiles
         eqn1 = sum([coeff*coord1**power for (coeff, power) in zip(coefficients[0][0], powers)])

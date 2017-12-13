@@ -111,7 +111,7 @@ simulation_eq.apply_metrics(metriceq)
 # Reynolds number, Mach number and free-stream temperature for the initial profile
 Re, xMach, Tinf = 950.0, 2.0, 288.0
 ## Ensure the grid size passed to the initialisation routine matches the grid sizes used in the simulation parameters
-polynomial_directions = [False, True]
+polynomial_directions = [(False, DataObject('x0')), (True, DataObject('x1'))]
 n_poly_coefficients = 50
 grid_const = ["Lx1", "by"]
 for con in grid_const:
@@ -119,7 +119,7 @@ for con in grid_const:
 gridx0 = parse_expr("Eq(DataObject(x0), block.deltas[0]*block.grid_indexes[0])", local_dict=local_dict)
 gridx1 = parse_expr("Eq(DataObject(x1), Lx1*sinh(by*block.deltas[1]*block.grid_indexes[1]/Lx1)/sinh(by))", local_dict=local_dict)
 coordinate_evaluation = [gridx0, gridx1]
-initial = Initialise_Katzer(polynomial_directions, n_poly_coefficients, coordinate_evaluation, Re, xMach, Tinf)
+initial = Initialise_Katzer(polynomial_directions, n_poly_coefficients,  Re, xMach, Tinf, coordinate_evaluation)
 
 kwargs = {'iotype': "Write"}
 h5 = iohdf5(save_every=50000, **kwargs)

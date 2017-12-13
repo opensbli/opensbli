@@ -133,13 +133,13 @@ CR = copy.deepcopy(constituent)
 # Call the new polynomial based katzer initialisation, stretch factor 3 with 17 coefficients for the polynomial
 Re, xMach, Tinf = 950.0, 2.0, 288.0
 ## Ensure the grid size passed to the initialisation routine matches the grid sizes used in the simulation parameters
-polynomial_directions = [False, True, True] # Stretched in x1, x2 directions, uniform in x0
+polynomial_directions = [(False, DataObject('x0')), (True, DataObject('x1')), (True, DataObject('x2'))] # Stretched in x1, x2 directions, uniform in x0
 n_poly_coefficients = 45
 gridx0 = parse_expr("Eq(DataObject(x0), block.deltas[0]*block.grid_indexes[0])", local_dict=local_dict)
 gridx1 = parse_expr("Eq(DataObject(x1), Lx1*sinh(by*block.deltas[1]*block.grid_indexes[1]/Lx1)/sinh(by))", local_dict=local_dict)
 gridx2 = parse_expr("Eq(DataObject(x2), Lx2*sinh(bz*block.deltas[2]*block.grid_indexes[2]/Lx2)/sinh(bz))", local_dict=local_dict)
 coordinate_evaluation = [gridx0, gridx1, gridx2]
-initial = Initialise_Katzer(polynomial_directions, n_poly_coefficients, coordinate_evaluation, Re, xMach, Tinf)
+initial = Initialise_Katzer(polynomial_directions, n_poly_coefficients, Re, xMach, Tinf, coordinate_evaluation)
 
 # Arrays to write out to file
 kwargs = {'iotype': "Write"}
