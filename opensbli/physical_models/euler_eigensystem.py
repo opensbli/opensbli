@@ -41,7 +41,7 @@ class EulerEquations(object):
         ndim = self.ndim
         # Check if block has metrics
         metrics = block.fd_metrics
-        if metrics.is_diagonal:
+        if metrics.is_diagonal():
             self.met_symbols = eye(block.ndim)
         else:
             self.met_symbols = metrics
