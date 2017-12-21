@@ -55,15 +55,18 @@ block = SimulationBlock(ndim, block_number=0)
 # Initial conditions
 initial = GridBasedInitialisation()
 # x = "GridVariable(x0)"
-x0 = "Eq(GridVariable(x0), block.deltas[0]*block.grid_indexes[0])"
-p = "Eq(GridVariable(p), Piecewise((10.33, x0<1.0),(1.0, x0>=1.0),(0.0,True)))"
-u0 = "Eq(GridVariable(u0), Piecewise((2.629369, x0<1.0),(0.0, x0>=1.0),(0.0,True)))"
-d = "Eq(GridVariable(d), Piecewise((3.857143, x0<1.0),(1.0+0.2*sin(5*GridVariable(x0)), x0>=1.0),(0,True)))"
+x0 = "Eq(GridVariable(x0), -5.0 + block.deltas[0]*block.grid_indexes[0])"
+x0_dset = "Eq(DataObject(x0), GridVariable(x0))"
+
+p = "Eq(GridVariable(p), Piecewise((10.33333, x0<-4.0),(1.0, x0>=-4.0),(0.0,True)))"
+u0 = "Eq(GridVariable(u0), Piecewise((2.629369, x0<-4.0),(0.0, x0>=-4.0),(0.0,True)))"
+d = "Eq(GridVariable(d), Piecewise((3.857143, x0<-4.0),(1.0+0.2*sin(5*x0), x0>=-4.0),(0,True)))"
+
 rho = "Eq(DataObject(rho), d)"
 rhou0 = "Eq(DataObject(rhou0), d*u0)"
 rhoE = "Eq(DataObject(rhoE), p/(gama-1.0) + 0.5* d *(u0**2.0))"
 
-eqns = [x0, u0, p, d, rho, rhou0, rhoE]
+eqns = [x0, x0_dset, u0, p, d, rho, rhou0, rhoE]
 
 local_dict = {"block": block, "GridVariable": GridVariable, "DataObject": DataObject}
 initial_equations = [parse_expr(eq, local_dict=local_dict) for eq in eqns]
@@ -73,15 +76,14 @@ initial.add_equations(initial_equations)
 
 # Shu Osher boundary condition values left side
 arrays = flatten(simulation_eq.time_advance_arrays)
-subs_dict = {Symbol('x0'): 0}
-left_eqns = [eq.subs(subs_dict) for eq in initial_equations]
-pprint(left_eqns)
+subs_dict = {Symbol('x0'): -5.0}
+boundary_eqns = [x0, u0, p, d, rho, rhou0, rhoE]
+boundary_eqns = [parse_expr(eq, local_dict=local_dict) for eq in boundary_eqns]
+left_eqns = [eq.subs(subs_dict) for eq in boundary_eqns]
 
-subs_dict = {Symbol('x0'): 10.0}
+subs_dict = {Symbol('x0'): 5.0}
 
-right_eqns = [eq.subs(subs_dict) for eq in initial_equations]
-
-pprint(right_eqns)
+right_eqns = [eq.subs(subs_dict) for eq in boundary_eqns]
 
 boundaries = []
 # Create boundaries, one for each side per dimension
@@ -92,9 +94,9 @@ for direction in range(ndim):
 
 schemes = {}
 # Local LaxFredirich scheme for weno
-weno_order = 5
+weno_order = 7
 # Averaging procedure to be used for the eigen system evaluation
-Avg = SimpleAverage([0, 1])
+Avg = RoeAverage([0, 1])
 # LLF scheme
 LLF = LLFWeno(weno_order, formulation='Z', averaging=Avg)
 # Add to schemes
@@ -104,9 +106,9 @@ schemes[rk.name] = rk
 
 block.set_block_boundaries(boundaries)
 kwargs = {'iotype': "Write"}
-h5 = iohdf5(save_every=10000, **kwargs)
+h5 = iohdf5(**kwargs)
 h5.add_arrays(simulation_eq.time_advance_arrays)
-# h5.add_arrays([DataObject('x0')])
+h5.add_arrays([DataObject('x0')])
 block.setio(copy.deepcopy(h5))
 
 block.set_equations([copy.deepcopy(constituent), copy.deepcopy(simulation_eq), initial])
@@ -118,5 +120,5 @@ alg = TraditionalAlgorithmRK(block)
 SimulationDataType.set_datatype(Double)
 OPSC(alg)
 constants = ['gama', 'Minf', 'dt', 'niter', 'block0np0', 'Delta0block0']
-values = ['1.4', '0.1', '0.0002', 'ceil(1.8/0.0002)', '1600', '10.0/(block0np0-1)']
+values = ['1.4', '0.1', '0.0002', 'ceil(1.8/0.0002)', '3200', '10.0/(block0np0-1)']
 substitute_simulation_parameters(constants, values)
