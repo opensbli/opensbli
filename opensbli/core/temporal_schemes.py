@@ -7,25 +7,26 @@ from opensbli.core.scheme import Scheme, TemproalSolution
 
 
 class RungeKuttaSSP(Scheme):
-    """ Applies a low storage (2 Register, Wray form) Runge-Kutta Strong stability preserving time-stepping scheme.
+    """ Applies a low storage (2 Register, Williamson form) Runge-Kutta Strong stability preserving time-stepping scheme.
         Optimal coefficients taken from "Gottlieb, Shu, Tadmor (2001): Strong Stability-Preserving High-Order Time 
         Discretization Methods, SIAM Review Vol. 43, No.1, pp 89-112.
 
         For m=3 stages and current time 'n' with u^0 = u^n, du^0 = 0:
         do i = 1..3:
-            du^i = A_i*du^(i-1) + dt*Residual
-            u^i = u^(i-1) + B_i*du^i
+            du^i = A[i]*du^(i-1) + dt*Residual
+            u^i = u^(i-1) + B[i]*du^i
         u^n+1 = u^m."
 
         :arg int order: The order of accuracy of the scheme."""
 
     def __init__(cls, order, constant_dt=None):
         Scheme.__init__(cls, "RungeKutta", order)
+        print("An SSP Runge-Kutta scheme of order %d is being used for time-stepping." % order)
         cls.schemetype = "Temporal"
         cls.nloops = 2
         cls.stage = Idx('stage', order)
-        cls.solution_coeffs = ConstantIndexed('rk_B', cls.stage)
-        cls.stage_coeffs = ConstantIndexed('rk_A', cls.stage)
+        cls.solution_coeffs = ConstantIndexed('rkB', cls.stage)
+        cls.stage_coeffs = ConstantIndexed('rkA', cls.stage)
         from .kernel import ConstantsToDeclare as CTD
         # Update coefficient values
         cls.get_coefficients
