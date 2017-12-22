@@ -9,6 +9,7 @@ from opensbli.utilities.helperfunctions import increment_dataset
 from opensbli.physical_models.ns_physics import NSphysics
 from opensbli.physical_models.euler_eigensystem import EulerEquations
 from .scheme import Scheme
+from sympy import factor, simplify, count_ops, horner
 
 
 class WenoHalos(object):
@@ -167,8 +168,8 @@ class JS_smoothness(object):
                 total += (q.subs(z, dz) - q.subs(z, 0))
             done = []
             # Save the coefficients of the smoothness indicator
-            for m in range(0, 2*k-2):
-                for n in range(0, 2*k-2):
+            for m in range(0, 2*k-1):
+                for n in range(0, 2*k-1):
                     func_product = Symbol('fn[i%+d]' % (-r+m))*Symbol('fn[i%+d]' % (-r+n))
                     if func_product not in done:
                         c = total.coeff(func_product)
@@ -191,14 +192,14 @@ class JS_smoothness(object):
         for r in range(k):
             fn.smoothness_symbols += [Symbol('beta_%d' % r)]
             local_smoothness = 0
-            for m in range(0, 2*k-2):
-                for n in range(0, 2*k-2):
+            for m in range(0, 2*k-1):
+                for n in range(0, 2*k-1):
                     beta = self.smooth_coeffs.get((r, m, n))
                     if beta is not None:
                         shift_indices = [-r+m+shift, -r+n+shift]
                         func_product = fn.function_stencil_dictionary[shift_indices[0]]*fn.function_stencil_dictionary[shift_indices[1]]
                         local_smoothness += beta*func_product
-            fn.smoothness_indicators += [local_smoothness]
+            fn.smoothness_indicators += [factor(local_smoothness)]
         return
 
 
@@ -270,7 +271,7 @@ class RightWenoReconstructionVariable(WenoReconstructionVariable):
 class WenoZ(object):
     def __init__(self, k):
         self.k = k
-        self.eps = 1e-16
+        self.eps = 1e-40
         return
 
     def global_smoothness_indicator(self, RV):
@@ -593,7 +594,7 @@ class EigenSystem(object):
         equations = zeros(*lhs_matrix.shape)
         for no, v in enumerate(lhs_matrix):
             if rhs_matrix[no] != 0:
-                equations[no] = Eq(v, rhs_matrix[no])
+                equations[no] = Eq(v, factor(rhs_matrix[no]))
         return equations
 
 
@@ -643,16 +644,20 @@ class Characteristic(EigenSystem):
         pre_process_equations += flatten(self.generate_equations_from_matrices(CF_matrix, characteristic_flux_vector))
         pre_process_equations += flatten(self.generate_equations_from_matrices(CS_matrix, characteristic_solution_vector))
 
-        #WARNING: check this part for 3D katzer side_wall with 2D stretching
         for d in derivatives:
             required_symbols = required_symbols.union(d.atoms(DataSetBase))
         self.update_constituent_relation_symbols(required_symbols, direction)
 
         if hasattr(self, 'flux_split') and self.flux_split:
             max_wavespeed_matrix, pre_process_equations = self.create_max_characteristic_wave_speed(pre_process_equations, direction, block)
-            # self.split_fluxes(CF_matrix, CS_matrix, max_wavespeed_matrix)
-            positive_flux = Rational(1, 2)*(CF_matrix + max_wavespeed_matrix*CS_matrix)
-            negative_flux = Rational(1, 2)*(CF_matrix - max_wavespeed_matrix*CS_matrix)
+            positive = Rational(1, 2)*(CF_matrix + max_wavespeed_matrix*CS_matrix)
+            positive_flux = zeros(*positive.shape)
+            negative = factor(Rational(1, 2)*(CF_matrix - max_wavespeed_matrix*CS_matrix))
+            negative_flux = zeros(*negative.shape)
+            for i in range(positive_flux.shape[0]):
+                for j in range(positive_flux.shape[1]):
+                    positive_flux[i,j] = factor(positive[i,j])
+                    negative_flux[i,j] = factor(negative[i,j])
             positive_flux.stencil_points = CF_matrix.stencil_points
             negative_flux.stencil_points = CF_matrix.stencil_points
             self.generate_right_reconstruction_variables(positive_flux, derivatives)
@@ -783,6 +788,14 @@ class LLFCharacteristic(Characteristic):
         max_wave_speed = self.generate_grid_variable_ev(direction, 'max')
         ev_equations = self.generate_equations_from_matrices(max_wave_speed, out)
         ev_equations = [x for x in ev_equations if x != 0]
+        ev_lhs = [x.lhs for x in ev_equations]
+        ev_rhs = [x.rhs for x in ev_equations]
+        # If there are repeated eigenvalues we do compute them multiple times
+        for no, eqn in enumerate(ev_rhs):
+            if no > 0:
+                if eqn == ev_rhs[no-1]:
+                    ev_rhs[no] = ev_lhs[no-1]
+        ev_equations = [Eq(left, right) for (left, right) in zip(ev_lhs, ev_rhs)]
         pre_process_equations += ev_equations
         max_wave_speed = diag(*([max_wave_speed[i, i] for i in range(ev.shape[0])]))
         return max_wave_speed, pre_process_equations
@@ -867,7 +880,7 @@ class SimpleAverage(object):
                 loc2[direction] = loc[direction] + self.locations[1]
                 a = d[loc1]
                 b = d[loc2]
-                avg_equations += [Eq(GridVariable('%s_%s' % (name_suffix, name)), (a+b)/2)]
+                avg_equations += [Eq(GridVariable('%s_%s' % (name_suffix, name)), factor((a+b)/2))]
         # Average metric terms with simple average
         averaged_metrics = []
         for item in functions:
@@ -875,7 +888,7 @@ class SimpleAverage(object):
                 name = item.base.simplelabel()
                 a = item
                 b = increment_dataset(item, direction, 1)
-                averaged_metrics += [Eq(GridVariable('%s_%s' % (name_suffix, name)), (a+b)/2)]
+                averaged_metrics += [Eq(GridVariable('%s_%s' % (name_suffix, name)), factor((a+b)/2))]
         return avg_equations + averaged_metrics
 
 
@@ -918,7 +931,7 @@ class RoeAverage(object):
             evaluations += [(sqrt(rho_L)*vel_L+sqrt(rho_R)*vel_R)*grid_vars[1]]
             grid_vars += [GridVariable('%s_%s' % (name_suffix, velocity_base.label))]
         # Averaged kinetic energy in terms of u0, u1, u2 grid variables
-        KE = Rational(1, 2)*sum([u**2 for u in grid_vars[2:]])
+        KE = factor(Rational(1, 2)*sum([u**2 for u in grid_vars[2:]]))
 
         # Calcualte enthalpy h = rhoE + P/rho
         pressure_base = physics.pressure().base
@@ -941,7 +954,7 @@ class RoeAverage(object):
                 name = item.base.simplelabel()
                 a = item
                 b = increment_dataset(item, direction, 1)
-                averaged_metrics += [Eq(GridVariable('%s_%s' % (name_suffix, name)), (a+b)/2)]
+                averaged_metrics += [Eq(GridVariable('%s_%s' % (name_suffix, name)), factor((a+b)/2))]
         return [Eq(x, y) for (x, y) in zip(grid_vars, evaluations)] + averaged_metrics
 
 
