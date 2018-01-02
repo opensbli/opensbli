@@ -462,14 +462,13 @@ class Weno(Scheme, ShockCapturing):
 
     :arg int order: Numerical order of the WENO scheme (3,5,...). """
 
-    def __init__(self, order, formulation="JS"):
+    def __init__(self, order, formulation):
         Scheme.__init__(self, "WenoDerivative", order)
         self.schemetype = "Spatial"
         if not isinstance(order, int):
             raise TypeError("Weno order should be an integer, if using WenoZ: pass formulation ='Z'")
         self.k = int(0.5*(order+1))
         self.order = order
-
         if formulation.upper() == 'Z':
             WT = WenoZ(self.k)
             print "A WENO-Z scheme of order %s is being used for shock capturing." % str(self.order)
@@ -965,7 +964,7 @@ class LLFWeno(LLFCharacteristic, Weno):
     :arg object physics: Physics object, defaults to NSPhysics.
     :arg object averaging: The averaging procedure to be applied for characteristics, defaults to Simple averaging. """
 
-    def __init__(self, order, physics=None, averaging=None, formulation=None):
+    def __init__(self, order, physics=None, averaging=None, formulation="JS"):
         LLFCharacteristic.__init__(self, physics, averaging)
         Weno.__init__(self, order, formulation)
         return
