@@ -278,7 +278,7 @@ class Kernel(object):
         return stencil_dictionary
 
     def write_latex(self, latex):
-        latex.write_string('The kernel is %s' % self.computation_name)
+        latex.write_string('The kernel is %s' % latex.latexify_expression(self.computation_name, mode='inline'))
         range_of_eval = self.total_range()
         #halo_m, halo_p = get_min_max_halo_values(self.halo_ranges)
         #range_of_eval = [[0, 0] for r in range(self.ndim)]
