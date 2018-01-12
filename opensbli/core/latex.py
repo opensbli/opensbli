@@ -173,7 +173,7 @@ class LatexWriter(LatexPrinter):
                 output[i] = output[i].replace(key, value)
 
         output = ' \n'.join(output)
-        output = ' \n'.join(textwrap.wrap(output, width=70, break_long_words=False))
+        output = ' \n'.join(textwrap.wrap(output, width=250, break_long_words=False))
         output = output + '\n\n'
         self.f.write(output)
         return
