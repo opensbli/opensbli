@@ -4,11 +4,10 @@ from scipy.integrate import odeint
 import numpy as np
 import numpy.polynomial.polynomial as poly
 import matplotlib.pyplot as plt
-from scipy.optimize import curve_fit
 from opensbli.initialisation import GridBasedInitialisation
 from opensbli.core.opensbliobjects import DataObject, ConstantObject
 from opensbli.core.grid import GridVariable
-from opensbli.core.kernel import Kernel, ConstantsToDeclare
+from opensbli.core.kernel import Kernel
 import warnings
 from sympy import pprint
 
@@ -24,9 +23,7 @@ class Boundary_layer_profile(object):
     :arg float gama: Ratio of specific heats.
     :arg float Tw: Wall temperature, use -1 for adibatic wall conditions.
     :arg float Re: Free-stream Reynolds number.
-    :arg float length: Doman length in the wall-normal direction.
-    :arg int npoints: Number of points in the wall-normal direction.
-    :arg float beta: Value of the stretching factor for non-uniform grids."""
+    :arg float Tinf: Dimensional free-stream temperature for Sutherland's law."""
 
     def __init__(self, xmach, Pr, gama, Tw, Re, Tinf):
         self.y, self.u, self.T, self.scale = self.generate_boundary_layer_profile(xmach, Pr, gama, Tw, Tinf, Re)
@@ -208,7 +205,7 @@ class Initialise_Katzer(GridBasedInitialisation):
         for l in input:
             if isinstance(l, ConstantObject):
                 if isinstance(l.value, str):
-                    raise ValuError("")
+                    raise ValueError("")
                 else:
                     outlist += [l.value]
             else:
@@ -256,7 +253,7 @@ class Initialise_Katzer(GridBasedInitialisation):
         n_coeffs = self.n_coeffs
         # Load from similarity solution class
         y, u, T, rho, n = self.load_similarity()
-        # Tolerance for finding the edge of the boundary layer. 
+        # Tolerance for finding the edge of the boundary layer.
         tolerance = 1e-10
         bl_directions = [x[0] for x in self.bl_directions]
         print bl_directions
@@ -282,13 +279,13 @@ class Initialise_Katzer(GridBasedInitialisation):
         elif sum(bl_directions) == 2:  # 3D with one side wall in x2 # WARNING: This currently does the same thing twice,
             edges, coeffs, profiles, normal_coeffs, normal_profiles = [], [], [], [], []
             directions = [i for i, x in enumerate(self.bl_directions) if x[0]]
-            for dire in directions: # For different bl thicknesses on different walls this still needs to be a loop
+            for dire in directions:  # For different bl thicknesses on different walls this still needs to be a loop
                 poly_coordinates = self.uniform_1d_coordinate()
                 # Interpolate u, and T onto the grid
                 u_new = self.interpolate_onto_grid(y, poly_coordinates, u, self.dudy, 0)
                 T_new = self.interpolate_onto_grid(y, poly_coordinates, T, 0, 0)
                 # Temperature scaling function in region [0, 1]
-                Tw, Tinf = self.Twall, 1.0 # Free-stream normalised temperature of 1.0, Wall temp taken from similarity solution
+                Tw, Tinf = self.Twall, 1.0  # Free-stream normalised temperature of 1.0, Wall temp taken from similarity solution
                 g = self.temperature_scaling(T_new, Tw, Tinf)
                 rho_new = 1.0/T_new
                 rhou_new = rho_new*u_new
@@ -313,16 +310,6 @@ class Initialise_Katzer(GridBasedInitialisation):
         n_elem = 10000
         return np.linspace(0, 20.0, n_elem)
 
-    # def evaluate_coordinates(self):
-    #     """ Evaluates coordinates to a GridVariable and then sets them into the coordinate arrays.
-
-    #     :arg list coordinate_eqns: Coordinate evaluation equations."""
-    #     coordinate_eqns = []
-    #     for no, eqn in enumerate(self.coordinate_strings):
-    #         coordinate_eqns.append(Eq(GridVariable('x%d' % no), eqn.rhs))
-    #         coordinate_eqns.append(Eq(DataObject('x%d' % no), GridVariable('x%d' % no)))
-    #     return coordinate_eqns
-
     def temperature_scaling(self, temp_profile, Tw, Tinf):
         """ Computes the temperature profile between [0,1]
 
@@ -344,7 +331,7 @@ class Initialise_Katzer(GridBasedInitialisation):
         returns: Eq: eqn: OpenSBLI equation to add to the initialisation kernel."""
         bl_edge_coordinate = poly_coordinates[edge]
         powers = [i for i in range(np.size(coefficients))][::-1]
-        eqn = sum([coeff*self.coordinates[direction]**power for (coeff, power) in zip(coefficients, powers)])
+        eqn = sum([coeff*self.coordinates[direction]**power for (coeff, power) in zip(coefficients, powers)]) #TODO set to exactl 1.0 if required
         eqn = Eq(GridVariable('%s' % name), Piecewise((eqn, self.coordinates[direction] < bl_edge_coordinate), (variable[edge], True)))
         return eqn
 
@@ -389,7 +376,7 @@ class Initialise_Katzer(GridBasedInitialisation):
         piecewise_eqns.append(Eq(T_var2, Piecewise((eqn2, coord2 < bl_coord2), (freestream_value, True))))
         piecewise_eqns.append(Eq(GridVariable('%s' % names[1]), T_var1*T_var2*(freestream_value - Tw) + Tw))
         # Create normal velocity component profiles, rhov:
-        Lx2 = ConstantObject('Lx2') #WARNING, sidewall currently defaults to x2 direction
+        Lx2 = ConstantObject('Lx2')  # WARNING, sidewall currently defaults to x2 direction
         eqn1 = sum([coeff*coord1**power for (coeff, power) in zip(normal_coeffs[0], powers)])
         temp1 = GridVariable('%s' % names[2])
         rhov_inf = normal_profiles[0][edges[0]]*u_var2  # Multiplying by rhou from the other direction
@@ -398,7 +385,7 @@ class Initialise_Katzer(GridBasedInitialisation):
         eqn2 = sum([coeff*coord2**power for (coeff, power) in zip(normal_coeffs[1], powers)])
         temp2 = GridVariable('%s' % names[3])
         # rhow should reduce to zero at the symmetry plane
-        rhow_inf = normal_profiles[1][edges[1]]*(1 - GridVariable('x2')/Lx2)*u_var1  # Multiplying by rhou from the other direction
+        rhow_inf = normal_profiles[1][edges[1]]*(1 - coord2/Lx2)*u_var1  # Multiplying by rhou from the other direction
         piecewise_eqns.append(Eq(temp2, Piecewise((eqn2*u_var1, coord2 < bl_coord2), (rhow_inf, True))))
         return piecewise_eqns
 
@@ -466,9 +453,9 @@ class Initialise_Katzer(GridBasedInitialisation):
         #     try:
         warnings.filterwarnings("ignore")
         coeffs = poly.polyfit(coords, variable, n_coeffs)
-            # except np.RankWarning:
-                # print "Poorly conditioned fit"
-        ffit = poly.polyval(coords, coeffs)
+        # except np.RankWarning:
+        # print "Poorly conditioned fit"
+        # ffit = poly.polyval(coords, coeffs)
         # plt.plot(coords, ffit, label='fit')
         # plt.plot(coords, variable, label='original_data')
         # plt.legend(loc="best")
@@ -512,11 +499,11 @@ class Initialise_Katzer(GridBasedInitialisation):
     def load_similarity(self):
         """ Solves the compressible boundary-layer equations via similarity solution."""
         Re, xMach, Tinf = self.Re, self.xMach, self.Tinf
-        Pr, gama = 0.72, 1.4 # Prandtl number, ratio of specific heats
-        bl = Boundary_layer_profile(xMach, Pr, gama, -1, Re, Tinf) # -1 for Tw sets an adiabatic wall
+        Pr, gama = 0.72, 1.4  # Prandtl number, ratio of specific heats
+        bl = Boundary_layer_profile(xMach, Pr, gama, -1, Re, Tinf)  # -1 for Tw sets an adiabatic wall
         y, u, T, rho, n = bl.y, bl.u, bl.T, 1.0/bl.T, np.size(bl.y)
-        self.Twall, self.scale_factor = bl.Twall, bl.scale_factor # Wall temperature and scale factor from the similarity solution
-        self.dudy = bl.dudy # du/dy at the wall 
+        self.Twall, self.scale_factor = bl.Twall, bl.scale_factor  # Wall temperature and scale factor from the similarity solution
+        self.dudy = bl.dudy  # du/dy at the wall
         return y, u, T, rho, n
 
     def interpolate_onto_grid(self, y_in, y_out, var_in, y0, yn):
