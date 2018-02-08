@@ -83,8 +83,9 @@ def get_inverse_deltas(delta):
 
 def set_hdf5_metadata(dset, halos, npoints, block):
     """ Function to set hdf5 metadata required by OPS to a dataset. """
-    d_m = [halos[0], halos[0]]
-    d_p = [halos[1], halos[1]]
+    d_m = [halos[0]]*block.ndim
+    d_p = [halos[1]]*block.ndim
+
     dset.attrs.create("d_p", d_p, dtype="int32")
     dset.attrs.create("d_m", d_m, dtype="int32")
     dset.attrs.create("dim", [1], dtype="int32")
