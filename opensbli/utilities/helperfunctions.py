@@ -156,3 +156,20 @@ def constant_attributes(const):
     const.dtype = None
     const.value = None
     return const
+
+
+def print_iteration_ops(simulation_name='opensbli', every=100):
+    """
+    """
+    file_path = "./%s.cpp" % simulation_name
+    with open(file_path) as f:
+        lines = f.readlines()
+    for no,line in enumerate(lines):
+        check_string = "int iter=0;"
+        if check_string in line:
+            lines[no+1] = lines[no+1] + """if(fmod(iter, %d) == 0){
+        ops_printf("Iteration is %%d\\n", iter);
+    }\n""" %(every)
+    with open(file_path, 'w') as f:
+        f.write(''.join(lines))
+    return

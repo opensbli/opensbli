@@ -66,6 +66,8 @@ substitutions = []
 velocity = "Eq(u_i, rhou_i/rho)"
 pressure = "Eq(p, (gama-1)*(rhoE - rho*(1/2)*(KD(_i,_j)*u_i*u_j)))"
 speed_of_sound = "Eq(a, (gama*p/rho)**0.5)"
+temperature = "Eq(T, p*gama*Minf*Minf/(rho))"
+viscosity = "Eq(mu, (T**(1.5)*(1.0+SuthT/RefT)/(T+SuthT/RefT)))"
 
 einstein_expasion.optional_subs_dict = optional_subs_dict
 
@@ -100,6 +102,13 @@ constituent.add_equations(eqns)
 
 eqns = einstein_expasion.expand(speed_of_sound, ndim, curvilinear_symbol, substitutions, constants)
 constituent.add_equations(eqns)
+
+eqns = einstein_expasion.expand(temperature, ndim, curvilinear_symbol, substitutions, constants)
+constituent.add_equations(eqns)
+
+eqns = einstein_expasion.expand(viscosity, ndim, curvilinear_symbol, substitutions, constants)
+constituent.add_equations(eqns)
+
 latex = LatexWriter()
 latex.open('./equations.tex', 'Simulation equations ')
 simulation_eq.write_latex(latex)
@@ -216,8 +225,8 @@ for order in orders:
     alg = TraditionalAlgorithmRK(block)
     SimulationDataType.set_datatype(Double)
     OPSC(alg)
-    constants = ['Twall', 'Re', 'Pr', 'gama', 'Minf', 'dt', 'niter', 'block0np0', 'block0np1', 'Delta0block0', 'Delta1block0', 'lx', 'ly']
-    values = ['1.67619431', '950.0', '0.72', '1.4', '2.0', '0.1', '10000', '400', '255', '400.0/(block0np0-1.0)', '115.0/(block0np1-1.0)', "400.0", "115.0"]
+    constants = ['Twall', 'Re', 'Pr', 'gama', 'Minf', 'dt', 'niter', 'block0np0', 'block0np1', 'Delta0block0', 'Delta1block0', 'lx', 'ly', "SuthT", "RefT"]
+    values = ['1.67619431', '950.0', '0.72', '1.4', '2.0', '0.1', '10000', '400', '255', '400.0/(block0np0-1.0)', '115.0/(block0np1-1.0)', "400.0", "115.0", '110.4', '288.0']
     simulation_name = 'opensbli'
     if (shock_capturing_type.lower() == 'teno'):
         # TODO give the reference for these teno parameters
