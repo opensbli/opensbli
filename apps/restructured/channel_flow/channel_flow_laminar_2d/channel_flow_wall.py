@@ -11,8 +11,8 @@ ndim = 2
 # Define the compresible Navier-Stokes equations in Einstein notation, by default the scheme is Central no need to
 # Specify the schemes
 mass = "Eq(Der(rho,t), - Skew(rho*u_j,x_j))"
-momentum = "Eq(Der(rhou_i,t) , - Skew(rhou_i*u_j, x_j) - Der(p,x_i)  + Der(tau_i_j,x_j))"
-energy = "Eq(Der(rhoE,t), - Skew(rhoE*u_j,x_j) - Conservative(p*u_j,x_j) + Der(q_j,x_j) + Der(u_i*tau_i_j ,x_j))"
+momentum = "Eq(Der(rhou_i,t) , - Skew(rhou_i*u_j, x_j) - Der(p,x_i)  + Der(tau_i_j,x_j) - KD(_i,_j)*c_j)"
+energy = "Eq(Der(rhoE,t), - Skew(rhoE*u_j,x_j) - Conservative(p*u_j,x_j)  - Dot(c_j, u_j) + Der(q_j,x_j) + Der(u_i*tau_i_j ,x_j))"
 
 # Substitutions used in the equations
 stress_tensor = "Eq(tau_i_j, (1.0/Re)*(Der(u_i,x_j)+ Der(u_j,x_i)- (2/3)* KD(_i,_j)* Der(u_k,x_k)))"
@@ -21,7 +21,7 @@ heat_flux = "Eq(q_j, (1.0/((gama-1)*Minf*Minf*Pr*Re))*Der(T,x_j))"
 substitutions = [stress_tensor, heat_flux]
 
 # Constants that are used
-constants = ["Re", "Pr", "gama", "Minf", "mu"]
+constants = ["Re", "Pr", "gama", "Minf", "mu", "c_j"]
 
 # symbol for the coordinate system in the equations 
 coordinate_symbol = "x"
@@ -79,39 +79,79 @@ latex.close()
 
 # Create a simulation block
 block = SimulationBlock(ndim, block_number=0)
+# Define the variables used for creating boundary conditions and the initialisation
+# dx and dy of the grid
+dx, dy = block.deltas
+# Indices for the grid location
+i,j = block.grid_indexes
+# Some constants used 
+gama, Minf = symbols('gama Minf', **{'cls': ConstantObject})
+""" Conservative vector is the time advancement arrays of the simulation equations.
+the order follows the order in which they are added to the simulation equations
+class, i.e. arrays of density, momentum (components), energy in the present case 
+"""
+q_vector = flatten(simulation_eq.time_advance_arrays)
 
-# Local dictionary for parsing the expressions
-local_dict = {"block": block, "GridVariable": GridVariable, "DataObject": DataObject}
+# STEP 1
+# Set the boundary conditions on the block
+boundaries = []
+# For laminar channel flow case the boundaries are periodic in x and walls in y
+# Periodic boundaries in x0 direction
+direction = 0
+boundaries += [PeriodicBC(direction, side=0)]
+boundaries += [PeriodicBC(direction, side=1)]
 
-# Initial conditions as strings
-x0 = "Eq(DataObject(x0), block.deltas[0]*block.grid_indexes[0])"
-x1 = "Eq(DataObject(x1), block.deltas[1]*block.grid_indexes[1])"
+# Isothermal wall in x1 direction
+# Energy on the wall is set 
+wall_energy = [Eq(q_vector[3], q_vector[0]/(gama * Minf**2.0 * (gama - S.One)))]
 
-# Laminar initial condition
-# xl = 2.0*pi
-# yl = 2.0
-x0l = "Eq(GridVariable(x0l), 2.0*pi)"
-x1l = "Eq(GridVariable(x1l), 2.0)"
+direction = 1
+# Side 0 (bottom wall) boundary
+lower_wall_eq = wall_energy[:]
+boundaries += [IsothermalWallBC(direction, 0, lower_wall_eq)]
 
-# u0 = "Eq(GridVariable(u0), 45*(1-(DataObject(x1)-1.0)**2))"
-u0 = "Eq(GridVariable(u0), 0)"
-u1 = "Eq(GridVariable(u1), 0)"
-p = "Eq(GridVariable(p), 1.0/(gama*Minf*Minf))"
-r = "Eq(GridVariable(r), 1.0/(1.0+0.01944*(1-(DataObject(x1)-1)**4)))"
+# Side 1 (top) boundary
+upper_wall_eq = wall_energy[:]
+boundaries += [IsothermalWallBC(direction, 1, upper_wall_eq)]
 
-rho = "Eq(DataObject(rho), r)"
-rhou0 = "Eq(DataObject(rhou0), r*u0)"
-rhou1 = "Eq(DataObject(rhou1), r*u1)"
-rhoE = "Eq(DataObject(rhoE), p/(gama-1) + 0.5* r*(u0**2 + u1**2))"
-eqns = [x0, x1, u0, u1, p, r, rho, rhou0, rhou1, rhoE]
+# set the boundaries for the block
+block.set_block_boundaries(boundaries)
 
-# parse the initial conditions
-initial_equations = [parse_expr(eq, local_dict=local_dict) for eq in eqns]
-pprint(initial_equations)
+# The equation classes used for the block, these are
+# simulation equations, constituent relations, grid and initial conditions 
+
+# Create the grid and intial conditions
+# Arrays to store x and y coordinates, i.e (x0 and x1)
+x,y = symbols('x0:%d' %ndim, **{'cls':DataObject})
+grid_equations = []
+# Equations for generating the grid, simple equispacing grid
+grid_equations += [Eq(x, i*dx), Eq(y, j*dy)]
+
+# Initialisation equations
+initial_equations = []
+# local varibales for temperature and pressure
+temperature, pressure = symbols('T p', **{'cls':GridVariable})
+# Equations for pressure and temperature
+initial_equations += [Eq(pressure, S.One/(gama*Minf**2.0))]
+initial_equations += [Eq(temperature, S.One + 0.01944*(S.One - (y - S.One)**4))]
+
+# Initialise the conservative vector
+initial_equations += [Eq(q_vector[0], S.One/temperature)]
+initial_equations += [Eq(q_vector[1], S.Zero)]
+initial_equations += [Eq(q_vector[2], S.Zero)]
+initial_equations += [Eq(q_vector[3], pressure/(gama - S.One))]
+
+# Instantiate a grid based initialisation classes
 initial = GridBasedInitialisation()
-initial.add_equations(initial_equations)
+initial.add_equations(grid_equations + initial_equations)
 
-# Create a schemes dictionary to be used for discretisation
+# STEP 2
+# Set the equation classes for the block (list)
+block.set_equations([constituent, simulation_eq, initial])
+
+
+# STEP 3
+# Create the dictionary of schemes
 schemes = {}
 # Central scheme for spatial discretisation and add to the schemes dictionary
 cent = Central(4)
@@ -119,40 +159,37 @@ schemes[cent.name] = cent
 # RungeKutta scheme for temporal discretisation and add to the schemes dictionary
 rk = RungeKutta(3)
 schemes[rk.name] = rk
-
-boundaries = []
-# Periodic boundaries in x0 direction
-direction = 0
-boundaries += [PeriodicBC(direction, 0)]
-boundaries += [PeriodicBC(direction, 1)]
-
-# Isothermal wall in x1 direction
-direction = 1
-rhoEd = "Eq(DataObject(rhoE), DataObject(rho)/((gama-1)*gama*Minf*Minf))"
-rhoEd = parse_expr(rhoEd, local_dict=local_dict)
-upper_wall_eq = [rhoEd]
-lower_wall_eq = [rhoEd]
-boundaries += [IsothermalWallBC(direction, 0, upper_wall_eq)]
-boundaries += [IsothermalWallBC(direction, 1, lower_wall_eq)]
-
-# set the boundaries for the block
-block.set_block_boundaries(boundaries)
-# set the equations to be solved on the block
-block.set_equations([copy.deepcopy(constituent), copy.deepcopy(simulation_eq), initial])
-# set the discretisation schemes 
+# Set the discretisation schemes to be used (a python dictionary)
 block.set_discretisation_schemes(schemes)
 
-# Discretise the equations on the block
+# STEP 4 add io for the block
+kwargs = {'iotype': "Write"}
+output_arrays = simulation_eq.time_advance_arrays + [x,y]
+output_hdf5 = iohdf5(arrays=output_arrays, **kwargs)
+block.setio([output_hdf5])
+
+# STEP 6
+# Perform the symbolic discretisation of the equations 
 block.discretise()
 
-# create an algorithm from the discretised computations
+# STEP 7
+# create an algorithm from the numerical solution
 alg = TraditionalAlgorithmRK(block)
 
-# set the simulation data type, for more information on the datatypes see opensbli.core.datatypes
+# STEP 8 
+# set the simulation data type: if not set "Double" is default
 SimulationDataType.set_datatype(Double)
 
-# Write the code for the algorithm
+# STEP 9
+# Write the OPSC compatible code for the numerical solution
 OPSC(alg)
+
+# STEP 10 
+# Populate the values of the constants like Re, Pr etc and the number of points for the
+# simulation etc. In the future reading thes from HDF5 would be provided
+
+from opensbli.utilities.helperfunctions import substitute_simulation_parameters
 constants = ['Re', 'gama', 'Minf', 'Pr', 'dt', 'niter', 'block0np0', 'block0np1', 'Delta0block0', 'Delta1block0', "c0", "c1"]
 values = ['90.0', '1.4', '0.01', '0.72', '0.0001', '3000000', '16', '64', '2.0*M_PI/block0np0', '2.0/(block0np1-1)', '-1', '0']
 substitute_simulation_parameters(constants, values)
+exit()
