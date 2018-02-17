@@ -2,6 +2,7 @@
 # Import all the functions from opensbli
 from opensbli import *
 import copy
+from sympy import sin, log, cos, pi
 from opensbli.utilities.helperfunctions import substitute_simulation_parameters
 
 # STEP 0 Create the equations required for the numerical solution
@@ -11,7 +12,7 @@ ndim = 3
 # Define the compresible Navier-Stokes equations in Einstein notation
 
 mass = "Eq(Der(rho,t), - Skew(rho*u_j,x_j))"
-momentum = "Eq(Der(rhou_i,t) , - Skew(rhou_i*u_j, x_j) - Der(p,x_i)  + Der(tau_i_j,x_j) - KD(_i,_j)*c_j))"
+momentum = "Eq(Der(rhou_i,t) , - Skew(rhou_i*u_j, x_j) - Der(p,x_i)  + Der(tau_i_j,x_j) - KD(_i,_j)*c_j)"
 energy = "Eq(Der(rhoE,t), - Skew(rhoE*u_j,x_j) - Conservative(p*u_j,x_j) - Dot(c_j, u_j) + Der(q_j,x_j) + Der(u_i*tau_i_j ,x_j))"
 
 # Substitutions used in the equations
