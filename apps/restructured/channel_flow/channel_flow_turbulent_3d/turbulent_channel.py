@@ -190,7 +190,7 @@ block.set_discretisation_schemes(schemes)
 # STEP 4 add io for the block
 kwargs = {'iotype': "Write"}
 output_arrays = simulation_eq.time_advance_arrays + [x,y,z]
-output_hdf5 = iohdf5(arrays=output_arrays, **kwargs)
+output_hdf5 = iohdf5(save_every=10000, arrays=output_arrays, **kwargs)
 block.setio([output_hdf5])
 
 # STEP 6
@@ -212,6 +212,6 @@ OPSC(alg)
 # STEP 10 
 # Populate the values of the constants like Re, Pr etc and the number of points for the
 # simulation etc. In the future reading thes from HDF5 would be provided
-constants = ['Re', 'gama', 'Minf', 'Pr', 'dt', 'niter', 'block0np0', 'block0np1', 'block0np2', 'Delta0block0', 'Delta1block0', 'Delta2block0', "c0", "c1", "c2"]
-values = ['180.0', '1.4', '0.01', '0.72', '0.00001', '100000', '64', '256', '64', '2.0*M_PI/block0np0', '2.0/(block0np1-1)', 'M_PI/block0np2', '-1', '0', '0']
+constants = ['Re', 'gama', 'Minf', 'Pr', 'dt', 'niter', 'block0np0', 'block0np1', 'block0np2', 'Delta0block0', 'Delta1block0', 'Delta2block0', "c0", "c1", "c2", "lx0", "lx2"]
+values = ['180.0', '1.4', '0.01', '0.72', '0.00001', '100000', '256', '256', '256', '11.0/block0np0', '2.0/(block0np1-1)', '4.0/block0np2', '-1', '0', '0', "11.0", "4.0"]
 substitute_simulation_parameters(constants, values)
