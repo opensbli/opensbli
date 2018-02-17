@@ -165,7 +165,7 @@ initial_equations += [Eq(d, S.One)]
 
 initial_equations += [Eq(q_vector[0], d)]
 initial_equations += [Eq(q_vector[1], d*u), Eq(q_vector[2], d*v), Eq(q_vector[3], d*w)]
-initial_equations += [Eq(q_vector[4], p/(gama - S.One) + 0.5 *d(u**2 + v**2 + w**2))]
+initial_equations += [Eq(q_vector[4], p/(gama - S.One) + 0.5 *d*(u**2 + v**2 + w**2))]
 
 # Instantiate a grid based initialisation classes
 initial = GridBasedInitialisation()
