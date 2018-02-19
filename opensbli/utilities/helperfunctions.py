@@ -90,7 +90,7 @@ def set_hdf5_metadata(dset, halos, npoints, block):
     dset.attrs.create("d_m", d_m, dtype="int32")
     dset.attrs.create("dim", [1], dtype="int32")
     dset.attrs.create("ops_type", u"ops_dat",dtype="S7")
-    dset.attrs.create("block_index", [0], dtype="int32")
+    dset.attrs.create("block_index", [block.blocknumber], dtype="int32")
     dset.attrs.create("base", [0 for i in range(block.ndim)], dtype="int32")
     dset.attrs.create("type", u"double",dtype="S15")
     dset.attrs.create("block", u"%s" % block.blockname,dtype="S25")
@@ -112,7 +112,7 @@ def output_hdf5(array, array_name, halos, npoints, block):
         for ar, name in zip(array, array_name):
             g1.attrs.create("dims", [block.ndim], dtype="int32")
             g1.attrs.create("ops_type", u"ops_block",dtype="S9")
-            g1.attrs.create("index", [0], dtype="int32")
+            g1.attrs.create("index", [block.blocknumber], dtype="int32")
             block_dset_name = block.location_dataset(name).base
             dset = g1.create_dataset('%s' % (block_dset_name), data=ar)
             set_hdf5_metadata(dset, halos, npoints, block)
