@@ -436,7 +436,10 @@ class TraditionalAlgorithmRK(object):
                     elif isinstance(place, AfterSimulationEnds):
                         after_time += key.Kernels
                     else:
-                        raise NotImplementedError("In Nonsimulation equations")
+                        if place.frequency:
+                            raise NotImplementedError("In Nonsimulation equations")
+                        else:
+                            in_time += key.Kernels
 
             sc = b.get_temporal_schemes[0]
             innerloop = sc.generate_inner_loop(spatial_kernels + inner_temporal_advance_kernels + bc_kernels)
