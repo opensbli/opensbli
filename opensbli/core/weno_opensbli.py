@@ -454,6 +454,19 @@ class ShockCapturing(object):
             crs[block.location_dataset(key)] = kernel
         return crs
 
+    def check_constituent_relations(self, block, list_of_eq, current_constituents):
+        """ Checks all the datasets in equations provided are evaluated in constituent relations."""
+        arrays = []
+        for eq in flatten(list_of_eq):
+            arrays += list(eq.atoms(DataSet))
+        arrays = set(arrays)
+        undefined = arrays.difference(current_constituents.keys())
+
+        for dset in undefined:
+            current_constituents[dset] = Kernel(block, computation_name="CR%s" % dset)
+            current_constituents[dset].set_grid_range(block)
+        return current_constituents
+
 
 class Weno(Scheme, ShockCapturing):
     """ Main WENO class. Performs the Jiang-Shu WENO reconstruction procedure. Refer to the reference:
@@ -834,8 +847,10 @@ class LLFCharacteristic(Characteristic):
                 self.post_process(derivatives, kernel)
                 type_of_eq.Kernels += [kernel]
             if grouped:
+                constituent_relations = self.generate_constituent_relations_kernels(block)
                 type_of_eq.Kernels += [self.evaluate_residuals(block, eqs, all_derivatives_evaluated_locally)]
-            constituent_relations = self.generate_constituent_relations_kernels(block)
+                constituent_relations = self.check_constituent_relations(block, eqs, constituent_relations)
+            
             return constituent_relations
 
     def evaluate_residuals(self, block, eqns, local_ders):

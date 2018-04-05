@@ -2,11 +2,12 @@
 from sympy.calculus import finite_diff_weights
 from sympy import postorder_traversal, Function, flatten, Eq, Rational, Idx
 from sympy.core import Add, Mul
-from opensbli.core.opensbliobjects import ConstantObject, ConstantIndexed, Globalvariable
+from opensbli.core.opensbliobjects import ConstantObject, ConstantIndexed, Globalvariable, DataSet
 from opensbli.core.opensblifunctions import CentralDerivative
 from opensbli.core.kernel import Kernel
 from opensbli.utilities.helperfunctions import increasing_order
 from opensbli.core.datatypes import Int
+from sympy import pprint
 
 
 class Scheme(object):
@@ -23,7 +24,6 @@ class Scheme(object):
         self.name = name
         self.order = order
         return
-
 
 class CentralHalos(object):
     def __init__(self, order):
@@ -177,6 +177,19 @@ class Central(Scheme):
                     self.required_constituent_relations[v].set_halo_range(direction, 1, self.halotype)
         return
 
+    def check_constituent_relations(self, block, list_of_eq):
+        """ Checks all the datasets in equations provided are evaluated in constituent relations."""
+        arrays = []
+        for eq in flatten(list_of_eq):
+            arrays += list(eq.atoms(DataSet))
+        arrays = set(arrays)
+        undefined = arrays.difference(self.required_constituent_relations.keys())
+
+        for dset in undefined:
+            self.required_constituent_relations[dset] = Kernel(block, computation_name="CR%s" % dset)
+            self.required_constituent_relations[dset].set_grid_range(block)
+        return
+
     def sbli_rhs_discretisation(self, type_of_eq, block):
         """
         This is the discretisation similar to the Southampton SBLI RHS, without
@@ -242,6 +255,7 @@ class Central(Scheme):
             # Create convective residual
 
             convective_descritised = convective[:]
+            self.check_constituent_relations(block, convective_descritised)
 
             for no, c in enumerate(convective_descritised):
                 convective_descritised[no] = convective_descritised[no].subs(subs_conv)
@@ -252,6 +266,7 @@ class Central(Scheme):
         block.reset_work_index
         # Discretise the viscous fluxes. This is straight forward as we need not modify anything
         viscous_kernels, viscous_discretised = self.genral_discretisation(viscous, block, name="Viscous")
+        self.check_constituent_relations(block, viscous)
         if viscous_kernels:
             for ker in sorted(viscous_kernels, cmp=increasing_order):
                 eval_ker = viscous_kernels[ker]
