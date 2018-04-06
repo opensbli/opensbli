@@ -415,7 +415,7 @@ class TraditionalAlgorithmRK(object):
                         temporal_end += scheme.solution[key].end_kernels
                         inner_temporal_advance_kernels += scheme.solution[key].kernels
                         bc_kernels = key.boundary_kernels
-                        spatial_kernels = key.all_spatial_kernels
+                        spatial_kernels = key.all_spatial_kernels(b)
                     elif isinstance(key, NonSimulationEquations):  # Add all other types of equations
                         non_simulation_eqs += [key]
                         # for place in key.algorithm_place:

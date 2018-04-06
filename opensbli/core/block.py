@@ -143,6 +143,15 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes):  # BoundaryC
         otherclass.ndim = self.ndim
         otherclass.block_name = self.blockname
         return
+    
+    @property
+    def known_datasets(self):
+        known_dsets = set()
+        for eq in self.list_of_equation_classes:
+            known_dsets = known_dsets.union(eq.evaluated_datasets)
+        for io in self.InputOutput:
+            known_dsets = known_dsets.union(io.evaluated_datasets)
+        return known_dsets
 
     def discretise(self):
         """

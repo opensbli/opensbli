@@ -72,6 +72,12 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
         latex = self.latex_file
         latex.close()
         return
+    
+    @property
+    def evaluated_datasets(cls):
+        #evaluated = set(list(cls.FD_metrics)).union(set(list(cls.SD_metrics)))
+        evaluated = set()
+        return evaluated
 
     def transform_first_derivative(cls, coordinate_symbol):
         M2 = Matrix(cls.ndim, cls.ndim, lambda i, j: 0)

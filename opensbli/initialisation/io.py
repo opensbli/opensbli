@@ -108,6 +108,13 @@ class iohdf5(opensbliIO):
     def hdf5read_opsc_code(cls):
         """To keep the abstraction going return nothing for HDF5 OPSC code"""
         return []
+    
+    @property
+    def evaluated_datasets(cls):
+        evaluated = set()
+        if cls.kwargs['iotype'] == "read":
+            evaluated = evaluated.union(set(self.arrays))
+        return evaluated
 
 
 class IoGroup():

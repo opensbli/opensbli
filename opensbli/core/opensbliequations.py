@@ -135,8 +135,10 @@ class Discretisation(object):
             equation = OpenSBLIEquation(equation.lhs, equation.rhs)
             self.equations += [equation]
         return
-
-
+    
+    @property
+    def evaluated_datasets(cls):
+        return set()
 
 
 class OpenSBLIEquation(Equality):
@@ -305,8 +307,7 @@ class SimulationEquations(Discretisation, Solution):
             kernel.update_block_datasets(block)
         return
 
-    @property
-    def sort_constituents(cls):
+    def sort_constituents(cls, block):
         """Sort the constituent relation kernels
         """
         input_order = []
@@ -319,13 +320,17 @@ class SimulationEquations(Discretisation, Solution):
         dictionary = {}
         for key, value in cls.constituent_relations_kernels.iteritems():
             dictionary[key.base] = value
-        order_of_evaluation = cls.sort_dictionary(input_order, dictionary)
+        order_of_evaluation = cls.sort_dictionary(input_order, dictionary, block)
         ordered_kernels = []
         for o in order_of_evaluation:
             ordered_kernels += [dictionary[o]]
         return ordered_kernels
+    
+    @property
+    def evaluated_datasets(cls):
+        return set(flatten(cls.time_advance_arrays))
 
-    def sort_dictionary(cls, order, new_dictionary):
+    def sort_dictionary(cls, order, new_dictionary, block):
         """ Sort the evaluations based on the requirements of each term. For example, if we have
         the primitive variables p, u0, u1, and T, then the pressure p may depend on the velocity u0 and u1, and T may depend on p,
         so we need this be evaluate in the following order: u0, u1, p, T.
@@ -339,7 +344,7 @@ class SimulationEquations(Discretisation, Solution):
         """
         dictionary = new_dictionary
         # reverse_dictionary = {}
-        order = flatten(order + [a.base for a in flatten(cls.time_advance_arrays)])
+        order = flatten(order + [a.base for a in block.known_datasets])
         order = list(set(order))
         # store the length of order
         input_order = len(order)
@@ -400,9 +405,8 @@ class SimulationEquations(Discretisation, Solution):
     def algorithm_location(cls):
         return True
 
-    @property
-    def all_spatial_kernels(cls):
-        return cls.sort_constituents + cls.Kernels
+    def all_spatial_kernels(cls, block):
+        return cls.sort_constituents(block) + cls.Kernels
 
 
 class ConstituentRelations(Discretisation, Solution):

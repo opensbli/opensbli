@@ -1,5 +1,6 @@
 from opensbli.core.opensbliequations import NonSimulationEquations, Discretisation, OpenSBLIEquation
 from opensbli.core.kernel import Kernel
+from opensbli.core.opensbliobjects import DataSet
 from .common import BeforeSimulationStarts
 
 
@@ -36,6 +37,14 @@ class GridBasedInitialisation(NonSimulationEquations):
             equation = OpenSBLIEquation(equation.lhs, equation.rhs)
             cls.equations += [equation]
         return
+    
+    @property
+    def evaluated_datasets(cls):
+        evaluated = set()
+        for eq in cls.equations:
+            if isinstance(eq.lhs, DataSet):
+                evaluated.add(eq.lhs)
+        return evaluated
 
     def spatial_discretisation(cls, block):
         kernel1 = Kernel(block, computation_name="Grid_based_initialisation%d" % cls.order)
