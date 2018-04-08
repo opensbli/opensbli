@@ -113,7 +113,7 @@ class iohdf5(opensbliIO):
     def evaluated_datasets(cls):
         evaluated = set()
         if cls.kwargs['iotype'] == "read":
-            evaluated = evaluated.union(set(self.arrays))
+            evaluated = evaluated.union(set(cls.arrays))
         return evaluated
 
 
