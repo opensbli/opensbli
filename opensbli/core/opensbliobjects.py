@@ -1,9 +1,13 @@
 from sympy import Symbol, flatten
 from sympy.tensor import Idx, IndexedBase, Indexed
-from sympy import pprint
+from sympy import pprint, srepr
 from sympy.tensor.indexed import IndexException
 from sympy.core.cache import cacheit
 from opensbli.core.datatypes import SimulationDataType
+from sympy.core import Basic, Tuple, Function, Equality
+from sympy.core.basic import *
+from sympy.logic.boolalg import Boolean
+
 
 _projectname = "opensbli"
 
@@ -256,6 +260,7 @@ class CoordinateObject(EinsteinTerm):
     is_commutative = True
     is_Atom = True
 
+    @cacheit
     def __new__(cls, label, **kwargs):
         ret = super(CoordinateObject, cls).__new__(cls, label)
         if 'time' in kwargs:
@@ -534,4 +539,102 @@ class Globalvariable(EinsteinTerm, GlobalValue):
     @property
     def value(self):
         return self._value
+
+
+class GroupedCondition(Tuple):
+    """Represents an expression, condition pair."""
+
+    def __new__(cls, expressions, condition):
+        return Tuple.__new__(cls, expressions, condition)
+
+    @property
+    def expressions(self):
+        """
+        Returns the expression of this pair.
+        """
+        return self.args[0]
+
+    @property
+    def cond(self):
+        """
+        Returns the condition of this pair.
+        """
+        return self.args[1]
+
+    @property
+    def lhs(self):
+        return [eq.lhs for eq in self.expressions]
+
+    @property
+    def rhs(self):
+        return [eq.rhs for eq in self.expressions]
+
+    @property
+    def is_commutative(self):
+        return self.expressions.is_commutative
+
+    def __iter__(self):
+        yield self.expressions
+        yield self.cond
+
+class GroupedPiecewise(Function):
+    nargs = None
+    is_Piecewise = True
+
+    def __new__(cls, *args, **options):
+        # (Try to) sympify args first
+        cls.pairs = []
+        cls.all_equations = []
+        cls.all_conditions = []
+        cls.grouped_conditions = []
+        cls.grouped_equations = []
+        newargs = []
+        for ec in args:
+            pair = GroupedCondition(*ec)
+            cond = pair.cond
+            if cond == false:
+                continue
+            if not isinstance(cond, (bool, Relational, Boolean)):
+                raise TypeError(
+                    "Cond %s is of type %s, but must be a Relational,"
+                    " Boolean, or a built-in bool." % (cond, type(cond)))
+            newargs.append(pair)
+            if cond == True:
+                break
+
+        if options.pop('evaluate', True):
+            r = cls.eval(*newargs)
+        else:
+            r = None
+
+        if r is None:
+            return Basic.__new__(cls, *newargs, **options)
+        else:
+            return r
+
+    def add_pair(cls, expr_pair):
+        cls.pairs.append(expr_pair)
+        cls.extract_all_equations
+        cls.extract_all_conditions
+        # assert isinstance(Boolean, expr_pair[1])
+        cls.grouped_conditions += [expr_pair[1]]
+        cls.grouped_equations += [expr_pair[0]] ## add input checking here
+        return
+
+    @property
+    def expr_rhs(cls):
+        return flatten([pairs.rhs for pairs in cls.pairs])
+
+    @property
+    def expr_lhs(cls):
+        return flatten([pairs.lhs for pairs in cls.pairs])
+
+    @property
+    def extract_all_equations(cls):
+        cls.all_equations = flatten([pair.expressions for pair in cls.pairs])
+
+    @property
+    def extract_all_conditions(cls):
+        cls.all_conditions = flatten([pair.cond for pair in cls.pairs])
+
     

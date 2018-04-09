@@ -1,10 +1,10 @@
 
 from sympy.printing.ccode import C99CodePrinter
 from sympy.core.relational import Equality
-from opensbli.core.opensbliobjects import ConstantObject, ConstantIndexed, Constant, DataSetBase, DataObject
+from opensbli.core.opensbliobjects import ConstantObject, ConstantIndexed, Constant, DataSetBase, DataObject, GroupedPiecewise
 from opensbli.core.kernel import Kernel, ConstantsToDeclare as CTD
 from opensbli.core.algorithm import Loop
-from sympy import Symbol, flatten
+from sympy import Symbol, flatten, pprint
 from opensbli.core.grid import GridVariable
 from opensbli.core.datatypes import SimulationDataType
 from sympy import Pow, Idx
@@ -112,8 +112,6 @@ class OPSCCodePrinter(C99CodePrinter):
 
     def _print_DataSet(self, expr):
         base = expr.base
-        # print base
-        # print self.dataset_accs_dictionary.keys()
         if self.dataset_accs_dictionary[base]:
             indices = expr.get_grid_indices
             out = "%s[%s(%s)]" % (self._print(base), self.dataset_accs_dictionary[base].name, ','.join([self._print(i) for i in indices]))
@@ -121,6 +119,10 @@ class OPSCCodePrinter(C99CodePrinter):
         else:
             raise ValueError("Did not find the OPS Access for %s " % expr.base)
 
+    def _print_GroupedPiecewise(self, expr):
+
+
+        return out
     def _print_Indexed(self, expr):
         """ Print out an Indexed object.
 
@@ -326,10 +328,34 @@ class OPSC(object):
             other_inputs = ''
         # print header_dictionary
         out = ["void %s(" % kernel.kernelname + self.kernel_header(header_dictionary) + other_inputs + ')' + '\n{']
-        # all_dataset_inps = [str(i) for i in all_dataset_inps]
         ops_accs = [OPSAccess(no) for no in range(len(all_dataset_inps))]
         OPSCCodePrinter.dataset_accs_dictionary = dict(zip(all_dataset_inps, ops_accs))
-        out += [ccode(eq, settings={'kernel': True}) + ';\n' for eq in kernel.equations if isinstance(eq, Equality)] + ['}']
+        # out += [ccode(eq, settings={'kernel': True}) + ';\n' for eq in kernel.equations if isinstance(eq, Equality)] + ['}']
+        for eq in kernel.equations:
+            if isinstance(eq, Equality):
+                out += [ccode(eq, settings={'kernel': True}) + ';\n']
+            elif isinstance(eq, GroupedPiecewise):
+                n_conds = len(eq.grouped_conditions)
+                assert len(eq.grouped_equations) == n_conds
+                for index, condition in enumerate(eq.grouped_conditions):
+                    if index == 0:
+                        out += ['if (%s)' % ccode(condition, settings={'kernel': True}) + '{\n']
+                        for eqn in eq.grouped_equations[index]:
+                            out += [ccode(eqn, settings={'kernel': True}) + ';\n']
+                        out += ['}\n']
+                    elif condition != True:
+                        out += ['else if (%s)' % ccode(condition, settings={'kernel': True}) + '{\n']
+                        for eqn in eq.grouped_equations[index]:
+                            out += [ccode(eqn, settings={'kernel': True}) + ';\n']
+                        out += ['}\n']
+                    else:
+                        out += ['else{\n']
+                        for eqn in eq.grouped_equations[index]:
+                            out += [ccode(eqn, settings={'kernel': True}) + ';\n']
+                        out += ['}\n']
+            else:
+                raise TypeError("Unclassified type of equation.")
+        out += ['}'] # close Kernel
         OPSCCodePrinter.dataset_accs_dictionary = {}
         return out
 
@@ -428,12 +454,7 @@ class OPSC(object):
         name = s.name + 'temp'
         sorted_stencil = s.sort_stencil_indices()
         out = [self.declare_inline_array(dtype, name, [st for st in flatten(sorted_stencil) if not isinstance(st, Idx)])]
-        # pprint(flatten(s.stencil))
-
         out += [WriteString('ops_stencil %s = ops_decl_stencil(%d,%d,%s,\"%s\");' % (s.name, s.ndim, len(s.stencil), name, name))]
-        # pprint(out)
-        # print "\n"
-
         return out
 
     def ops_partition(self):
@@ -509,8 +530,8 @@ class OPSC(object):
                         pass
                     else:
                         type_list += [component1]
-
-        _generate(algorithm.prg.components, type_list)
+        for c in algorithm.prg.components:
+            _generate([c], type_list)
         return type_list
 
     def define_block(self, b):

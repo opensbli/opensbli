@@ -2,7 +2,7 @@ from sympy import flatten, Equality, Indexed
 from sympy import Rational, Pow, Integer
 from sympy.printing import pprint
 from opensbli.core.opensbliobjects import DataSetBase, DataSet, ConstantIndexed, ConstantObject,\
-    GlobalValue
+    GlobalValue, GroupedPiecewise
 from opensbli.core.grid import GridVariable, Grididx
 from opensbli.core.datatypes import SimulationDataType
 from sympy.core.function import _coeff_isneg
@@ -122,6 +122,8 @@ class Kernel(object):
             self.equations += flatten([equation])
         elif isinstance(equation, Equality):
             self.equations += [equation]
+        elif isinstance(equation, GroupedPiecewise):
+            self.equations += [equation]
         elif equation:
             pass
         else:
@@ -173,6 +175,11 @@ class Kernel(object):
         for eq in self.equations:
             if isinstance(eq, Equality):
                 requires += list(eq.rhs.atoms(DataSetBase))
+            elif isinstance(eq, GroupedPiecewise):
+                for equation in flatten(eq.grouped_equations):
+                    requires += list(equation.rhs.atoms(DataSetBase))
+                for condition in flatten(eq.grouped_conditons):
+                    requires += list(condition.atoms(DataSetBase))
         return requires
 
     @property
@@ -181,6 +188,11 @@ class Kernel(object):
         for eq in self.equations:
             if isinstance(eq, Equality):
                 datasets = datasets.union(eq.lhs.atoms(DataSetBase))
+            elif isinstance(eq, GroupedPiecewise):
+                for equation in flatten(eq.grouped_equations):
+                    datasets = datasets.union(equation.lhs.atoms(DataSetBase))
+                # for condition in flatten(eq.grouped_conditions):
+                #     datasets = datasets.union(condition.atoms(DataSetBase))
         return datasets
 
     @property
@@ -189,6 +201,11 @@ class Kernel(object):
         for eq in self.equations:
             if isinstance(eq, Equality):
                 datasets = datasets.union(eq.rhs.atoms(DataSetBase))
+            elif isinstance(eq, GroupedPiecewise):
+                for equation in flatten(eq.grouped_equations):
+                    datasets = datasets.union(equation.rhs.atoms(DataSetBase))
+                for condition in flatten(eq.grouped_conditions):
+                    datasets = datasets.union(condition.atoms(DataSetBase))
         return datasets
 
     @property
@@ -197,6 +214,11 @@ class Kernel(object):
         for eq in self.equations:
             if isinstance(eq, Equality):
                 rcs = rcs.union(eq.atoms(Rational))
+            elif isinstance(eq, GroupedPiecewise):
+                for equation in flatten(eq.grouped_equations):
+                    rcs = rcs.union(equation.atoms(Rational))
+                for condition in flatten(eq.grouped_conditions):
+                    rcs = rcs.union(condition.atoms(Rational))
         out = set()
         # Integers are also being returned as Rational numbers, remove any integers
         for rc in rcs:
@@ -213,6 +235,15 @@ class Kernel(object):
                 for at in eq.atoms(Pow):
                     if _coeff_isneg(at.exp) and not (at.base.atoms(Indexed) or isinstance(at, GridVariable)):
                         inverse_terms.add(at)
+            elif isinstance(eq, GroupedPiecewise):
+                for equation in flatten(eq.grouped_equations):
+                    for at in equation.atoms(Pow):
+                        if _coeff_isneg(at.exp) and not (at.base.atoms(Indexed) or isinstance(at, GridVariable)):
+                            inverse_terms.add(at)
+                for condition in flatten(eq.grouped_conditions):
+                    for at in equation.atoms(Pow):
+                        if _coeff_isneg(at.exp) and not (at.base.atoms(Indexed) or isinstance(at, GridVariable)):
+                            inverse_terms.add(at)
         return inverse_terms
 
     @property
@@ -221,6 +252,11 @@ class Kernel(object):
         for eq in self.equations:
             if isinstance(eq, Equality):
                 consts = consts.union(eq.atoms(ConstantObject))
+            elif isinstance(eq, GroupedPiecewise):
+                for equation in flatten(eq.grouped_equations):
+                    consts = consts.union(equation.atoms(ConstantObject))
+                for condition in flatten(eq.grouped_conditions):
+                    consts = consts.union(equation.atoms(ConstantObject))
         return consts
 
     @property
@@ -229,6 +265,11 @@ class Kernel(object):
         for eq in self.equations:
             if isinstance(eq, Equality):
                 consts = consts.union(eq.atoms(ConstantIndexed))
+            elif isinstance(eq, GroupedPiecewise):
+                for equation in flatten(eq.grouped_equations):
+                    consts = consts.union(equation.atoms(ConstantIndexed))
+                for condition in flatten(eq.grouped_conditions):
+                    consts = consts.union(condition.atoms(ConstantIndexed))
         return consts
     
     @property
@@ -239,19 +280,30 @@ class Kernel(object):
             if isinstance(eq, Equality):
                 globals_vars_lhs = globals_vars_lhs.union(eq.lhs.atoms(GlobalValue))
                 globals_vars_rhs = globals_vars_rhs.union(eq.rhs.atoms(GlobalValue))
+            elif isinstance(eq, GroupedPiecewise):
+                for equation in flatten(eq.grouped_equations):
+                    globals_vars_lhs = globals_vars_lhs.union(equation.lhs.atoms(GlobalValue))
+                    globals_vars_rhs = globals_vars_rhs.union(equation.rhs.atoms(GlobalValue))
+                for condition in flatten(eq.grouped_conditions): ##WARNING: Terms in the conditions are considered RHS? CHECK
+                    globals_vars_rhs = globals_vars_rhs.union(condition.atoms(GlobalValue))
         return globals_vars_rhs, globals_vars_lhs
 
     @property
     def grid_indices_used(self):
         for eq in self.equations:
-            if eq.atoms(Grididx):
-                return True
+            if isinstance(eq, Equality):
+                if eq.atoms(Grididx):
+                    return True
+            elif isinstance(eq, GroupedPiecewise):
+                for equation in eq.all_equations:
+                    if equation.atoms(Grididx):
+                        return True ##WARNING: Not sure about this one, any has a grid index for conditions and equations
         return False
     
     @property
     def grid_index_name(self):
         grid_id = set()
-        for eq in self.equations:
+        for eq in self.equations:#WARNING: not done this one
             grid_id = grid_id.union(eq.atoms(Grididx))
         if len(grid_id) > 1:
             print grid_id
@@ -267,6 +319,11 @@ class Kernel(object):
         for eq in self.equations:
             if isinstance(eq, Equality):
                 datasets = datasets.union(eq.atoms(DataSet))
+            elif isinstance(eq, GroupedPiecewise):
+                for equation in flatten(eq.grouped_equations):
+                    datasets = datasets.union(equation.atoms(DataSet))
+                for condition in flatten(eq.grouped_conditions):
+                    datasets = datasets.union(condition.atoms(DataSet))
         for s in datasets:
             if s.base in stencil_dictionary.keys():
                 stencil_dictionary[s.base].add(tuple(s.indices))
@@ -293,6 +350,9 @@ class Kernel(object):
         for index, eq in enumerate(self.equations):
             if isinstance(eq, Equality):
                 latex.write_expression(eq)
+            elif isinstance(eq, GroupedPiecewise):
+                pprint(eq)
+                print "should be doing latex"
         return
 
     def total_range(self):

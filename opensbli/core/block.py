@@ -1,10 +1,10 @@
 from opensbli.core.grid import Grid
-from sympy import pprint
+from sympy import pprint, Equality
 from opensbli.core.bcs import BoundaryConditionTypes
-from opensbli.core.opensbliobjects import ConstantObject, DataObject, DataSetBase
+from opensbli.core.opensbliobjects import ConstantObject, DataObject, DataSetBase, GroupedCondition, GroupedPiecewise, DataSet
 from opensbli.core.opensbliequations import ConstituentRelations
 from opensbli.core.metrics import MetricsEquation
-from sympy import flatten, eye
+from sympy import flatten, eye, srepr
 
 
 class DataSetsToDeclare(object):
@@ -110,24 +110,49 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes):  # BoundaryC
     def dataobjects_to_datasets_on_block(self, eqs):
         """
         """
-        all_equations = flatten(eqs)[:]
+        store_equations = flatten(eqs)[:]
         consts = set()
 
-        for no, eq in enumerate(all_equations):
-            consts = consts.union(eq.atoms(ConstantObject))
-            for d in eq.atoms(DataObject):
-                new = self.location_dataset(str(d))
-                eq = eq.subs({d: new})
-            all_equations[no] = eq
+        for no, eq in enumerate(store_equations):
+            if isinstance(eq, Equality):
+                consts = consts.union(eq.atoms(ConstantObject))
+                for d in eq.atoms(DataObject):
+                    new = self.location_dataset(d)
+                    eq = eq.subs({d: new})
+                store_equations[no] = eq
+            elif isinstance(eq, GroupedPiecewise):
+                # Update equation DataObjects to DataSets
+                for index, list_of_eqn in enumerate(eq.grouped_equations):
+                    for eqn_no, equation in enumerate(list_of_eqn):
+                        consts = consts.union(equation.atoms(ConstantObject))
+                        for d in equation.atoms(DataObject):
+                            new = self.location_dataset(str(d))
+                            equation = equation.subs({d: new})
+                        list_of_eqn[eqn_no] = equation
+                    eq.grouped_equations[index] = list_of_eqn
+
+                # Update condition DataObjects to DataSets
+                for index, condition in enumerate(eq.grouped_conditions):
+                    consts = consts.union(condition.atoms(ConstantObject))
+                    for d in condition.atoms(DataObject):
+                        new = self.location_dataset(str(d))
+                        condition = condition.subs(d, new)
+                    eq.grouped_conditions[index] = condition
+                store_equations[no] = eq
+            elif isinstance(eq, DataObject):
+                # pprint(eq)
+                store_equations[no] = self.location_dataset(str(eq))
+            else: # Integers and Floats from Eigensystem entering here
+                pass
         # Convert all equations into the format of input equations WARNING crude way
         out = []
         out_loc = 0
         for no, e in enumerate(eqs):
             if isinstance(e, list):
-                out += [all_equations[out_loc:out_loc+len(e)]]
+                out += [store_equations[out_loc:out_loc+len(e)]]
                 out_loc += len(e)
             else:
-                out += [all_equations[out_loc]]
+                out += [store_equations[out_loc]]
                 out_loc += 1
         # Add
         from .kernel import ConstantsToDeclare as CTD

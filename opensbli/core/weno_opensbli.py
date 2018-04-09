@@ -9,8 +9,8 @@ from opensbli.utilities.helperfunctions import increment_dataset
 from opensbli.physical_models.ns_physics import NSphysics
 from opensbli.physical_models.euler_eigensystem import EulerEquations
 from .scheme import Scheme
-from sympy import factor, simplify, count_ops, horner
-
+from sympy import factor, simplify, count_ops, horner, Equality
+from opensbli.core.opensbliobjects import GroupedPiecewise, GroupedCondition
 
 class WenoHalos(object):
     """ Object for WENO halos.
@@ -199,7 +199,7 @@ class JS_smoothness(object):
                         shift_indices = [-r+m+shift, -r+n+shift]
                         func_product = fn.function_stencil_dictionary[shift_indices[0]]*fn.function_stencil_dictionary[shift_indices[1]]
                         local_smoothness += beta*func_product
-            fn.smoothness_indicators += [factor(local_smoothness)]
+            fn.smoothness_indicators += [horner(local_smoothness)]
         return
 
 
@@ -522,10 +522,8 @@ class EigenSystem(object):
     def instantiate_eigensystem(self, block):
         if self.physics == None:
             Euler_eq = EulerEquations(block.ndim)
-            # ev_dict, LEV_dict, REV_dict = Euler_eq.generate_eig_system(block)
             Euler_eq.generate_eig_system(block)
         else:
-            # ev_dict, LEV_dict, REV_dict = self.physics.generate_eig_system(block)
             self.physics.generate_eig_system(block)
         self.euler = Euler_eq
         self.eigen_value = {}
@@ -633,7 +631,6 @@ class Characteristic(EigenSystem):
         self.eigen_value.update(ev_dict)
         self.left_eigen_vector.update(LEV_dict)
         self.right_eigen_vector.update(REV_dict)
-
         # Finding metric terms to average
         required_metrics = self.get_DataSets_in_ev(direction).union(self.get_DataSets_in_LEV(direction)).union(self.get_DataSets_in_REV(direction))
         # Finding flow variables to average
@@ -680,6 +677,25 @@ class Characteristic(EigenSystem):
         for eqn in pre_process_equations[:]:
             if isinstance(eqn, Zero) is True:
                 pre_process_equations.remove(eqn)
+
+        # # eqn1 = pre_process_equations[0:15]
+        # eqn1 = averaged_equations
+        # # eqn2 = pre_process_equations[15:]
+        # # block.location_dataset('rhou2')
+        # eqn2 = [Eq(block.location_dataset('rhou1'), ConstantObject('Minf')), Eq(block.location_dataset('x1'), 389800)]
+        # cond1 = block.location_dataset('x0')**2 > block.location_dataset('rho')
+        # cond2 = block.location_dataset('x0') <= 30
+        # eqn3 = [Eq(block.location_dataset('rho'), ConstantObject('Minf')), Eq(block.location_dataset('x1'), 389800)]
+        # cond3 = True
+        # pair1 = GroupedCondition(eqn1, cond1)
+        # pair2 = GroupedCondition(eqn2, cond2)
+        # pair3 = GroupedCondition(eqn3, cond3)
+        # pw = GroupedPiecewise()
+        # pw.add_pair(pair1)
+        # pw.add_pair(pair2)
+        # pw.add_pair(pair3)
+        # pre_process_equations += [pw]
+        # # pre_process_equations = averaged_equations
         kernel.add_equation(pre_process_equations)
         return
 
@@ -825,7 +841,6 @@ class LLFCharacteristic(Characteristic):
             eqs = flatten(type_of_eq.equations)
             grouped = self.group_by_direction(eqs)
             all_derivatives_evaluated_locally = []
-
             reconstruction_halos = self.reconstruction_halotype(self.order, reconstruction=True)
             
             # Instantiate eigensystems with block, but don't add metrics yet
@@ -850,7 +865,6 @@ class LLFCharacteristic(Characteristic):
                 constituent_relations = self.generate_constituent_relations_kernels(block)
                 type_of_eq.Kernels += [self.evaluate_residuals(block, eqs, all_derivatives_evaluated_locally)]
                 constituent_relations = self.check_constituent_relations(block, eqs, constituent_relations)
-            
             return constituent_relations
 
     def evaluate_residuals(self, block, eqns, local_ders):
