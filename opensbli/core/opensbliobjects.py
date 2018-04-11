@@ -620,6 +620,33 @@ class GroupedPiecewise(Function):
         cls.grouped_conditions += [expr_pair[1]]
         cls.grouped_equations += [expr_pair[0]] ## add input checking here
         return
+    
+    @property
+    def get_constants(self):
+        consts = set()
+        for prop in flatten(self.grouped_conditions + self.grouped_equations):
+            consts = consts.union(prop.atoms(ConstantObject))
+        return consts
+    
+    def convert_to_datasets(self, block):
+        for index, list_of_eqn in enumerate(self.grouped_equations):
+            for eqn_no, equation in enumerate(list_of_eqn):
+                self.grouped_equations[index][eqn_no] = equation.convert_to_datasets(block)
+        for index, condition in enumerate(self.grouped_conditions):
+            for d in condition.atoms(DataObject):
+                new = block.location_dataset(str(d))
+                condition = condition.subs(d, new)
+            self.grouped_conditions[index] = condition
+        return
+    
+    @property
+    def required_datasets(self):
+        dsets = set()
+        for eq in flatten(self.grouped_equations):
+            dsets = dsets.union(eq.required_datasets)
+        for c in flatten(self.grouped_conditions):
+            dsets = dsets.union(d.atoms(DataSet))
+        return dsets
 
     @property
     def expr_rhs(cls):

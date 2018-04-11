@@ -1,5 +1,6 @@
 from sympy import flatten, Eq, Idx
 from opensbli.core.opensbliobjects import ConstantObject, ConstantIndexed, Globalvariable
+from opensbli.core.opensbliequations import OpenSBLIEq
 from opensbli.core.kernel import Kernel
 from opensbli.core.datatypes import Int
 from sympy import pprint, sqrt
@@ -141,8 +142,8 @@ class RungeKuttaSSP(Scheme):
         intermediate_update = []
         solution_update = []
         for z in zipped:
-            intermediate_update += [Eq(z[0], cls.stage_coeffs*z[0] + dt*z[2], evaluate=False)]
-            solution_update += [Eq(z[1], z[1] + cls.solution_coeffs*z[0], evaluate=False)]
+            intermediate_update += [OpenSBLIEq(z[0], cls.stage_coeffs*z[0] + dt*z[2], evaluate=False)]
+            solution_update += [OpenSBLIEq(z[1], z[1] + cls.solution_coeffs*z[0], evaluate=False)]
         return solution_update, intermediate_update
 
     def create_start_computations(cls, temp_data_sets, block):
@@ -155,7 +156,7 @@ class RungeKuttaSSP(Scheme):
         kernel.computation_name = "Zero intermediate datasets"
         kernel.set_grid_range(block)
         for component in temp_data_sets:
-            kernel.add_equation(Eq(component, 0.0))
+            kernel.add_equation(OpenSBLIEq(component, 0.0))
         kernel.update_block_datasets(block)
         return kernel
 

@@ -6,6 +6,7 @@ from opensbli.core.opensbliobjects import ConstantObject, MetricObject, Coordina
 from opensbli.core.opensblifunctions import WenoDerivative, CentralDerivative, TenoDerivative, MetricDerivative, TemporalDerivative,\
     KD, LC, EinsteinStructure, Dot, expand_free_indices
 from sympy.parsing.sympy_parser import parse_expr, standard_transformations
+from opensbli.core.opensbliequations import OpenSBLIEq
 
 from sympy.parsing.sympy_tokenize import NAME, OP
 
@@ -470,7 +471,7 @@ class EinsteinEquation(EinsteinStructure):
             expanded_lhs = self.expand_summations(lhs, ndim)
             rhs = self.substitute_indexed(rhs)
             expanded_rhs = self.expand_summations(rhs, ndim)
-            expanded_equation = Eq(expanded_lhs, expanded_rhs)
+            expanded_equation = OpenSBLIEq(expanded_lhs, expanded_rhs)
             if not lhs_indices and not rhs_indices:
                 # THIS SHOULD BE MOVED TODO
                 expanded_equation = self.apply_functions(expanded_equation)

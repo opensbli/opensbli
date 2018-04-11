@@ -174,6 +174,7 @@ class Kernel(object):
         requires = []
         for eq in self.equations:
             if isinstance(eq, Equality):
+                requires += required_datasets
                 requires += list(eq.rhs.atoms(DataSetBase))
             elif isinstance(eq, GroupedPiecewise):
                 for equation in flatten(eq.grouped_equations):

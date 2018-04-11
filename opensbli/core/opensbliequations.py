@@ -140,23 +140,38 @@ class Discretisation(object):
     def evaluated_datasets(cls):
         return set()
 
-
+from opensbli.core.opensbliobjects import DataObject
 class OpenSBLIEquation(Equality):
     """A wrapper around SymPy's Equality class to provide more flexibility in the future"""
     is_Equality = True
 
-    def __new__(cls, lhs, rhs):
-        ret = super(OpenSBLIEquation, cls).__new__(cls, lhs, rhs)
-        ret.is_vector = False
+    def __new__(cls, lhs, rhs, **options):
+        ret = super(OpenSBLIEquation, cls).__new__(cls, lhs, rhs, **options)
         return ret
-
-    def _eval_evalf(self, prec):
-        return self.func(*[s._evalf(prec) for s in self.args])
 
     def set_vector(cls, component_number):
         cls.is_vector = True
         cls.vector_component = component_number
         return
+    
+    def convert_to_datasets(self, block):
+        replacements = {}
+        for d in self.atoms(DataObject):
+            replacements[d] = block.location_dataset(d)
+        args = [a.subs(replacements) for a in self.args]
+        return type(self)(*args)
+    
+    @property
+    def required_datasets(self):
+        return self.lhs_datasets.union(self.rhs_datasets)
+    
+    @property
+    def lhs_datasets(self):
+        return self.lhs.atoms(DataSetBase)
+    
+    @property
+    def rhs_datasets(self):
+        return self.rhs.atoms(DataSetBase)
 
     @property
     def _sanitise_equation(cls):
@@ -170,6 +185,7 @@ class OpenSBLIEquation(Equality):
         eq = cls
         return eq.xreplace(replacements)
 
+OpenSBLIEq = OpenSBLIEquation
 
 class Solution(object):
     """An object to store the symbolic kernels generated while applying the numerical method to the equations"""
@@ -234,7 +250,7 @@ class SimulationEquations(Discretisation, Solution):
         :param SimulationBlock block: the block on which the equations are solved
         :return: None """
         kernel = Kernel(block, computation_name="Zeroing residuals")
-        eqs = [Eq(eq.residual, 0) for eq in flatten(cls.equations)]
+        eqs = [OpenSBLIEq(eq.residual, 0) for eq in flatten(cls.equations)]
         kernel.add_equation(eqs)
         kernel.set_grid_range(block)
         cls.Kernels += [kernel]

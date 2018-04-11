@@ -2,7 +2,7 @@ from sympy import IndexedBase, Symbol, pprint, Rational, solve, interpolating_po
 from sympy.core.numbers import Zero
 from opensbli.core.opensblifunctions import WenoDerivative
 from opensbli.core.opensbliobjects import EinsteinTerm, DataSetBase, ConstantObject, DataObject, DataSet
-from opensbli.core.opensbliequations import SimulationEquations
+from opensbli.core.opensbliequations import SimulationEquations, OpenSBLIEq
 from opensbli.core.kernel import Kernel
 from opensbli.core.grid import GridVariable
 from opensbli.utilities.helperfunctions import increment_dataset
@@ -11,6 +11,7 @@ from opensbli.physical_models.euler_eigensystem import EulerEquations
 from .scheme import Scheme
 from sympy import factor, simplify, count_ops, horner, Equality
 from opensbli.core.opensbliobjects import GroupedPiecewise, GroupedCondition
+
 
 class WenoHalos(object):
     """ Object for WENO halos.
@@ -243,8 +244,8 @@ class WenoReconstructionVariable(object):
         all_symbols = self.smoothness_symbols + self.alpha_symbols + self.omega_symbols
         all_evaluations = self.smoothness_indicators + self.alpha_evaluated + self.omega_evaluated
         for no, value in enumerate(all_symbols):
-            kernel.add_equation(Eq(value, all_evaluations[no]))
-        kernel.add_equation(Eq(self.reconstructed_symbol, self.reconstructed_expression))
+            kernel.add_equation(OpenSBLIEq(value, all_evaluations[no]))
+        kernel.add_equation(OpenSBLIEq(self.reconstructed_symbol, self.reconstructed_expression))
         return
 
 
@@ -604,7 +605,7 @@ class EigenSystem(object):
         equations = zeros(*lhs_matrix.shape)
         for no, v in enumerate(lhs_matrix):
             if rhs_matrix[no] != 0:
-                equations[no] = Eq(v, factor(rhs_matrix[no]))
+                equations[no] = OpenSBLIEq(v, factor(rhs_matrix[no]))
         return equations
 
 
@@ -682,10 +683,10 @@ class Characteristic(EigenSystem):
         # eqn1 = averaged_equations
         # # eqn2 = pre_process_equations[15:]
         # # block.location_dataset('rhou2')
-        # eqn2 = [Eq(block.location_dataset('rhou1'), ConstantObject('Minf')), Eq(block.location_dataset('x1'), 389800)]
+        # eqn2 = [OpenSBLIEq(block.location_dataset('rhou1'), ConstantObject('Minf')), OpenSBLIEq(block.location_dataset('x1'), 389800)]
         # cond1 = block.location_dataset('x0')**2 > block.location_dataset('rho')
         # cond2 = block.location_dataset('x0') <= 30
-        # eqn3 = [Eq(block.location_dataset('rho'), ConstantObject('Minf')), Eq(block.location_dataset('x1'), 389800)]
+        # eqn3 = [OpenSBLIEq(block.location_dataset('rho'), ConstantObject('Minf')), OpenSBLIEq(block.location_dataset('x1'), 389800)]
         # cond3 = True
         # pair1 = GroupedCondition(eqn1, cond1)
         # pair2 = GroupedCondition(eqn2, cond2)
@@ -711,7 +712,7 @@ class Characteristic(EigenSystem):
         reconstructed_characteristics = Matrix([d.evaluate_reconstruction for d in derivatives])
         reconstructed_flux = avg_REV_values*reconstructed_characteristics
         reconstructed_work = [d.reconstruction_work for d in derivatives]
-        post_process_equations += [Eq(x, y) for x, y in zip(reconstructed_work, reconstructed_flux)]
+        post_process_equations += [OpenSBLIEq(x, y) for x, y in zip(reconstructed_work, reconstructed_flux)]
         kernel.add_equation(post_process_equations)
         return
 
@@ -823,7 +824,7 @@ class LLFCharacteristic(Characteristic):
             if no > 0:
                 if eqn == ev_rhs[no-1]:
                     ev_rhs[no] = ev_lhs[no-1]
-        ev_equations = [Eq(left, right) for (left, right) in zip(ev_lhs, ev_rhs)]
+        ev_equations = [OpenSBLIEq(left, right) for (left, right) in zip(ev_lhs, ev_rhs)]
         pre_process_equations += ev_equations
         max_wave_speed = diag(*([max_wave_speed[i, i] for i in range(ev.shape[0])]))
         return max_wave_speed, pre_process_equations
@@ -876,7 +877,7 @@ class LLFCharacteristic(Characteristic):
                     substitutions[d] = d._discretise_derivative(block)
                 else:
                     substitutions[d] = 0
-            residue_eq += [Eq(eq.residual, eq.residual + eq.rhs.subs(substitutions))]
+            residue_eq += [OpenSBLIEq(eq.residual, eq.residual + eq.rhs.subs(substitutions))]
         residue_kernel = Kernel(block, computation_name="%s Residual" % self.__class__.__name__)
         residue_kernel.set_grid_range(block)
         residue_kernel.add_equation(residue_eq)
@@ -908,7 +909,7 @@ class SimpleAverage(object):
                 loc2[direction] = loc[direction] + self.locations[1]
                 a = d[loc1]
                 b = d[loc2]
-                avg_equations += [Eq(GridVariable('%s_%s' % (name_suffix, name)), factor((a+b)/2))]
+                avg_equations += [OpenSBLIEq(GridVariable('%s_%s' % (name_suffix, name)), factor((a+b)/2))]
         # Average metric terms with simple average
         averaged_metrics = []
         for item in functions:
@@ -916,7 +917,7 @@ class SimpleAverage(object):
                 name = item.base.simplelabel()
                 a = item
                 b = increment_dataset(item, direction, 1)
-                averaged_metrics += [Eq(GridVariable('%s_%s' % (name_suffix, name)), factor((a+b)/2))]
+                averaged_metrics += [OpenSBLIEq(GridVariable('%s_%s' % (name_suffix, name)), factor((a+b)/2))]
         return avg_equations + averaged_metrics
 
 
@@ -982,8 +983,8 @@ class RoeAverage(object):
                 name = item.base.simplelabel()
                 a = item
                 b = increment_dataset(item, direction, 1)
-                averaged_metrics += [Eq(GridVariable('%s_%s' % (name_suffix, name)), factor((a+b)/2))]
-        return [Eq(x, y) for (x, y) in zip(grid_vars, evaluations)] + averaged_metrics
+                averaged_metrics += [OpenSBLIEq(GridVariable('%s_%s' % (name_suffix, name)), factor((a+b)/2))]
+        return [OpenSBLIEq(x, y) for (x, y) in zip(grid_vars, evaluations)] + averaged_metrics
 
 
 class LLFWeno(LLFCharacteristic, Weno):
@@ -1107,7 +1108,7 @@ class ScalarWeno(Weno):
                     substitutions[d] = d._discretise_derivative(block)
                 else:
                     substitutions[d] = 0
-            residue_eq += [Eq(eq.residual, eq.rhs.subs(substitutions))]
+            residue_eq += [OpenSBLIEq(eq.residual, eq.rhs.subs(substitutions))]
         residue_kernel = Kernel(block, computation_name="%s %s Evaluation" % (self.__class__.__name__, type_of_eq.__class__.__name__))
         residue_kernel.set_grid_range(block)
         residue_kernel.add_equation(residue_eq)
@@ -1117,7 +1118,7 @@ class ScalarWeno(Weno):
         post_process_equations = []
         left_plus_right = Matrix([d.evaluate_reconstruction for d in derivatives])
         reconstructed_work = [d.reconstruction_work for d in derivatives]
-        post_process_equations += [Eq(x, y) for x, y in zip(reconstructed_work, Rational(1,2)*left_plus_right)]
+        post_process_equations += [OpenSBLIEq(x, y) for x, y in zip(reconstructed_work, Rational(1,2)*left_plus_right)]
         kernel.add_equation(post_process_equations)
         return
 

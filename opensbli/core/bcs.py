@@ -1,7 +1,8 @@
-from sympy import flatten, Eq, zeros, Matrix, eye, S, sqrt, Equality, MatrixSymbol, nsimplify, Abs, Piecewise, GreaterThan, Float, Rational
+from sympy import flatten, zeros, Matrix, eye, S, sqrt, Equality, MatrixSymbol, nsimplify, Abs, Piecewise, GreaterThan, Float, Rational
 from sympy import Idx
 from opensbli.core.kernel import Kernel, ConstantsToDeclare
 from opensbli.core.opensbliobjects import DataSet, ConstantIndexed, ConstantObject
+from opensbli.core.opensbliequations import OpenSBLIEq
 from opensbli.core.datatypes import Int
 from opensbli.core.grid import GridVariable
 from opensbli.physical_models.ns_physics import NSphysics
@@ -232,7 +233,7 @@ class BoundaryConditionBase(object):
             for left, right in zip(left_arrays, right_arrays):
                 left = self.convert_dataset_base_expr_to_datasets(left, loc_lhs)
                 right = self.convert_dataset_base_expr_to_datasets(right, loc_rhs)
-                array_equations += [Eq(left, right, evaluate=False)]
+                array_equations += [OpenSBLIEq(left, right, evaluate=False)]
             final_equations += array_equations
         return final_equations
 
@@ -632,21 +633,21 @@ class IsothermalWallBC(ModifyCentralDerivative, BoundaryConditionBase):
         cons_vars = [NS.density(), NS.momentum(), NS.total_energy()]
         base_loc = list(cons_vars[0].indices)
         # Set wall conditions, momentum zero, rhoE specified:
-        wall_eqns = [Eq(x, Float(S.Zero)) for x in NS.momentum()] + self.equations[:]
+        wall_eqns = [OpenSBLIEq(x, Float(S.Zero)) for x in NS.momentum()] + self.equations[:]
         kernel.add_equation(wall_eqns)
         # Update halos if a shock capturing scheme is being used.
         final_equations = []
         if any(isinstance(sc, ShockCapturing) for sc in block.discretisation_schemes.values()):
             # Evaluate the wall pressure
             p0, gama, Minf = GridVariable('p0'), NS.specific_heat_ratio(), NS.mach_number()
-            kernel.add_equation(Eq(p0, NS.pressure(relation=True, conservative=True)))
+            kernel.add_equation(OpenSBLIEq(p0, NS.pressure(relation=True, conservative=True)))
             # Temperature evaluations for the halos
             from_side_factor, to_side_factor = self.set_side_factor()
             for i in range(1, n_halos+1):
                 new_loc = base_loc[:]
                 new_loc[self.direction] += to_side_factor*i
                 T = self.convert_dataset_base_expr_to_datasets(NS.temperature(relation=True, conservative=True), new_loc)
-                kernel.add_equation(Eq(GridVariable('T%d' % i), T))
+                kernel.add_equation(OpenSBLIEq(GridVariable('T%d' % i), T))
 
             # Set rhoE RHS and reverse momentum components in the halos
             rhs_eqns = flatten([0, [-1*x for x in NS.momentum()], Float(S.Zero)])
@@ -664,7 +665,7 @@ class IsothermalWallBC(ModifyCentralDerivative, BoundaryConditionBase):
                 for left, right in zip(flatten(cons_vars), rhs_eqns):
                     left = self.convert_dataset_base_expr_to_datasets(left, loc_lhs)
                     right = self.convert_dataset_base_expr_to_datasets(right, loc_rhs)
-                    array_equations += [Eq(left, right, evaluate=False)]
+                    array_equations += [OpenSBLIEq(left, right, evaluate=False)]
                 final_equations += array_equations
         kernel.add_equation(final_equations)
         kernel.update_block_datasets(block)
@@ -731,10 +732,10 @@ class InletPressureExtrapolateBC(ModifyCentralDerivative, BoundaryConditionBase)
         gama = NS.specific_heat_ratio()
         grid_vels = [GridVariable('ub%d' % i) for i in range(block.ndim)]
         grid_vels_sq = [i**2 for i in grid_vels]
-        eqns = [Eq(rhob, NS.density())]
-        eqns += [Eq(grid_vels[i], Abs(u/NS.density())) for i, u in enumerate(NS.momentum())]
-        eqns += [Eq(pb, (gama-1)*(flatten(arrays)[-1] - 0.5*rhob*sum(flatten(grid_vels_sq))))]
-        eqns += [Eq(ab, (gama*pb/rhob)**0.5)]
+        eqns = [OpenSBLIEq(rhob, NS.density())]
+        eqns += [OpenSBLIEq(grid_vels[i], Abs(u/NS.density())) for i, u in enumerate(NS.momentum())]
+        eqns += [OpenSBLIEq(pb, (gama-1)*(flatten(arrays)[-1] - 0.5*rhob*sum(flatten(grid_vels_sq))))]
+        eqns += [OpenSBLIEq(ab, (gama*pb/rhob)**0.5)]
         kernel.add_equation(eqns)
         locations = [-1, 0]
         inlet_vel = grid_vels[direction]
@@ -744,7 +745,7 @@ class InletPressureExtrapolateBC(ModifyCentralDerivative, BoundaryConditionBase)
             rhs_values = [increment_dataset(lhs, direction, value) for value in locations]
             ecs += [ExprCondPair(rhs_values[0], GreaterThan(inlet_vel, ab))]
             ecs += [ExprCondPair(rhs_values[1], True)]
-            kernel.add_equation(Eq(lhs, Piecewise(*ecs, **{'evaluate': False})))
+            kernel.add_equation(OpenSBLIEq(lhs, Piecewise(*ecs, **{'evaluate': False})))
         # Conditions set in the halos in rhoE
         locations = [-i-1 for i in range(abs(halos[0][0]))]
         lhs_rhoE = [increment_dataset(NS.total_energy(), direction, value) for value in locations]
@@ -752,7 +753,7 @@ class InletPressureExtrapolateBC(ModifyCentralDerivative, BoundaryConditionBase)
             ecs = []
             ecs += [ExprCondPair(lhs, GreaterThan(inlet_vel, ab))]  # lhs == rhs
             ecs += [ExprCondPair(NS.total_energy(), True)]
-            kernel.add_equation(Eq(lhs, Piecewise(*ecs, **{'evaluate': False})))
+            kernel.add_equation(OpenSBLIEq(lhs, Piecewise(*ecs, **{'evaluate': False})))
         kernel.update_block_datasets(block)
         return kernel
 
@@ -821,7 +822,7 @@ class ExtrapolationBC(ModifyCentralDerivative, BoundaryConditionBase):
         elif self.order == 1: # Linear extrapolation
             indices = [tuple([from_side_factor*t, to_side_factor*t]) for t in range(1, abs(halos[direction][side]) + 1)]
             grid_vars = [GridVariable('%sG' % str(i)) for i in cons_vars]
-            boundary_values = [Eq(x, y) for x, y in zip(grid_vars, cons_vars)]
+            boundary_values = [OpenSBLIEq(x, y) for x, y in zip(grid_vars, cons_vars)]
             kernel.add_equation(boundary_values)
             rhs_values = [2.0*i - j for i, j in zip(grid_vars, cons_vars)]
             equations = self.create_boundary_equations(cons_vars, rhs_values, indices)
@@ -859,7 +860,7 @@ class PressureOutletBC(ModifyCentralDerivative, BoundaryConditionBase):
         cons_vars = flatten([NS.density(), NS.momentum(),NS.total_energy()])
         rhs = flatten([NS.density(), NS.momentum()])
         n_halos = abs(halos[self.direction][self.side])
-        local_rhoE = Eq(GridVariable('local_rhoE'), NS.total_energy())
+        local_rhoE = OpenSBLIEq(GridVariable('local_rhoE'), NS.total_energy())
         kernel.add_equation(local_rhoE)
         # from_side_factor, to_side_factor = self.set_side_factor()
         halo_points = [0] + [i for i in range(1,n_halos+1)]
@@ -899,9 +900,9 @@ class AdiabaticWallBC(ModifyCentralDerivative, BoundaryConditionBase):
         for ar in arrays:
             if isinstance(ar, list): # Set velocity components to zero on the wall
                 rhs = [0 for i in range(len(ar))]
-                wall_eqns += [Eq(x, y) for (x, y) in zip(ar, rhs)]
+                wall_eqns += [OpenSBLIEq(x, y) for (x, y) in zip(ar, rhs)]
             else: # Take rho and rhoE from one point above the wall
-                wall_eqns += [Eq(ar, increment_dataset(ar, self.direction, to_side_factor))]
+                wall_eqns += [OpenSBLIEq(ar, increment_dataset(ar, self.direction, to_side_factor))]
         kernel.add_equation(wall_eqns)
         final_equations = []
         if any(isinstance(sc, ShockCapturing) for sc in block.discretisation_schemes.values()):
@@ -948,7 +949,7 @@ class ForcingStripBC(ModifyCentralDerivative, BoundaryConditionBase):
         cons_vars = [NS.density(), NS.momentum(), NS.total_energy()]
         base_loc = list(cons_vars[0].indices)
         # Set wall conditions, momentum zero, rhoE specified:
-        wall_momentum = [Eq(x, Float(S.Zero)) for x in NS.momentum()]
+        wall_momentum = [OpenSBLIEq(x, Float(S.Zero)) for x in NS.momentum()]
         del wall_momentum[self.direction]
         wall_eqns = block.dataobjects_to_datasets_on_block([self.wall_normal_velocity])
         wall_eqns += wall_momentum + self.equations[:]
@@ -959,14 +960,14 @@ class ForcingStripBC(ModifyCentralDerivative, BoundaryConditionBase):
         if any(isinstance(sc, ShockCapturing) for sc in block.discretisation_schemes.values()):
             # Evaluate the wall pressure
             p0, gama, Minf = GridVariable('p0'), NS.specific_heat_ratio(), NS.mach_number()
-            kernel.add_equation(Eq(p0, NS.pressure(relation=True, conservative=True)))
+            kernel.add_equation(OpenSBLIEq(p0, NS.pressure(relation=True, conservative=True)))
             # Temperature evaluations for the halos
             from_side_factor, to_side_factor = self.set_side_factor()
             for i in range(1, n_halos+1):
                 new_loc = base_loc[:]
                 new_loc[self.direction] += to_side_factor*i
                 T = self.convert_dataset_base_expr_to_datasets(NS.temperature(relation=True, conservative=True), new_loc)
-                kernel.add_equation(Eq(GridVariable('T%d' % i), T))
+                kernel.add_equation(OpenSBLIEq(GridVariable('T%d' % i), T))
 
             # Set rhoE RHS and reverse momentum components in the halos
             rhs_eqns = flatten([0, [-1*x for x in NS.momentum()], Float(S.Zero)])
@@ -984,7 +985,7 @@ class ForcingStripBC(ModifyCentralDerivative, BoundaryConditionBase):
                 for left, right in zip(flatten(cons_vars), rhs_eqns):
                     left = self.convert_dataset_base_expr_to_datasets(left, loc_lhs)
                     right = self.convert_dataset_base_expr_to_datasets(right, loc_rhs)
-                    array_equations += [Eq(left, right, evaluate=False)]
+                    array_equations += [OpenSBLIEq(left, right, evaluate=False)]
                 final_equations += array_equations
         kernel.add_equation(final_equations)
         kernel.update_block_datasets(block)

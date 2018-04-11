@@ -4,7 +4,7 @@ from opensbli import *
 from opensbli.core.weno_opensbli import *
 import copy
 from opensbli.utilities.helperfunctions import substitute_simulation_parameters
-
+from opensbli.core.opensbliequations import OpenSBLIEq as Eq
 ndim = 1
 sc1 = "**{\'scheme\':\'Weno\'}"
 # Define the compresible Navier-Stokes equations in Einstein notation.
@@ -68,7 +68,7 @@ rhoE = "Eq(DataObject(rhoE), p/(gama-1.0) + 0.5* d *(u0**2.0))"
 
 eqns = [x0, x0_dset, u0, p, d, rho, rhou0, rhoE]
 
-local_dict = {"block": block, "GridVariable": GridVariable, "DataObject": DataObject}
+local_dict = {"block": block, "GridVariable": GridVariable, "DataObject": DataObject, "Eq": Eq}
 initial_equations = [parse_expr(eq, local_dict=local_dict) for eq in eqns]
 initial = GridBasedInitialisation()
 # initial.add_equations(initial_equations)
@@ -129,7 +129,7 @@ h5.add_arrays(simulation_eq.time_advance_arrays)
 h5.add_arrays([DataObject('x0')])
 block.setio(copy.deepcopy(h5))
 
-block.set_equations([copy.deepcopy(constituent), copy.deepcopy(simulation_eq)])
+block.set_equations([copy.deepcopy(constituent), copy.deepcopy(simulation_eq), initial])
 block.set_discretisation_schemes(schemes)
 
 block.discretise()

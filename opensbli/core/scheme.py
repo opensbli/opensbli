@@ -4,6 +4,7 @@ from sympy import postorder_traversal, Function, flatten, Eq, Rational, Idx
 from sympy.core import Add, Mul
 from opensbli.core.opensbliobjects import ConstantObject, ConstantIndexed, Globalvariable, DataSet
 from opensbli.core.opensblifunctions import CentralDerivative
+from opensbli.core.opensbliequations import OpenSBLIEq
 from opensbli.core.kernel import Kernel
 from opensbli.utilities.helperfunctions import increasing_order
 from opensbli.core.datatypes import Int
@@ -225,14 +226,14 @@ class Central(Scheme):
                     if len(v.required_datasets) > 1:
                         wk = block.work_array()
                         block.increase_work_index
-                        expr = Eq(wk, v.args[0])
+                        expr = OpenSBLIEq(wk, v.args[0])
                         ev_ker.add_equation(expr)
                         ev_ker.set_halo_range(key, 0, self.halotype)
                         ev_ker.set_halo_range(key, 1, self.halotype)
                         v1 = v.subs(v.args[0], wk)
                     else:
                         v1 = v
-                    expr = Eq(v.work, v1._discretise_derivative(self, block))
+                    expr = OpenSBLIEq(v.work, v1._discretise_derivative(self, block))
                     # pprint(expr)
                     ker = Kernel(block)
                     ker.add_equation(expr)
@@ -296,7 +297,7 @@ class Central(Scheme):
             raise ValueError("")
         residue_kernel = Kernel(block)
         for no, array in enumerate(residual_arrays):
-            expr = Eq(array, array+discretised_eq[no])
+            expr = OpenSBLIEq(array, array+discretised_eq[no])
             residue_kernel.add_equation(expr)
         residue_kernel.set_grid_range(block)
         return residue_kernel
@@ -322,7 +323,7 @@ class Central(Scheme):
             for der in cds:
                 self.update_range_of_constituent_relations(der, block)
                 expr, local_kernels = self.traverse(der, local_kernels, block)
-                expr_discretised = Eq(der.work, expr._discretise_derivative(self, block))
+                expr_discretised = OpenSBLIEq(der.work, expr._discretise_derivative(self, block))
                 work_arry_subs[expr] = der.work
                 local_kernels[der].add_equation(expr_discretised)
                 local_kernels[der].set_grid_range(block)
@@ -519,8 +520,8 @@ class RungeKutta(Scheme):
         old = []
         new = []
         for z in zipped:
-            old += [Eq(z[0], z[0] + dt*cls.solution_coeffs*z[2], evaluate=False)]
-            new += [Eq(z[1], z[0] + dt*cls.stage_coeffs*z[2], evaluate=False)]
+            old += [OpenSBLIEq(z[0], z[0] + dt*cls.solution_coeffs*z[2], evaluate=False)]
+            new += [OpenSBLIEq(z[1], z[0] + dt*cls.stage_coeffs*z[2], evaluate=False)]
         return old, new
 
     def create_start_computations(cls, zipped, block):
@@ -528,7 +529,7 @@ class RungeKutta(Scheme):
         kernel.computation_name = "Save equations"
         kernel.set_grid_range(block)
         for z in zipped:
-            kernel.add_equation(Eq(z[0], z[1]))
+            kernel.add_equation(OpenSBLIEq(z[0], z[1]))
         kernel.update_block_datasets(block)
         return kernel
 

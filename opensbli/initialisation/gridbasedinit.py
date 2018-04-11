@@ -1,4 +1,4 @@
-from opensbli.core.opensbliequations import NonSimulationEquations, Discretisation, OpenSBLIEquation
+from opensbli.core.opensbliequations import NonSimulationEquations, Discretisation, OpenSBLIEq
 from opensbli.core.kernel import Kernel
 from opensbli.core.opensbliobjects import DataSet, GroupedPiecewise
 from sympy import Equality, pprint, flatten
@@ -32,7 +32,7 @@ class GridBasedInitialisation(NonSimulationEquations):
         if isinstance(equation, list):
             for no, eq in enumerate(equation):
                 if isinstance(eq, Equality):
-                    eq = OpenSBLIEquation(eq.lhs, eq.rhs)
+                    eq = OpenSBLIEq(eq.lhs, eq.rhs)
                     cls.equations += [eq]
                 elif isinstance(eq, GroupedPiecewise):
                     cls.equations += [eq]
