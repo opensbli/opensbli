@@ -1,5 +1,5 @@
 from opensbli.utilities.numerical_functions import spline, splint
-from sympy import Eq, Piecewise
+from sympy import Eq, Piecewise, Rational
 from scipy.integrate import odeint
 import numpy as np
 import numpy.polynomial.polynomial as poly
@@ -9,7 +9,10 @@ from opensbli.core.opensbliobjects import DataObject, ConstantObject
 from opensbli.core.grid import GridVariable
 from opensbli.core.kernel import Kernel
 import warnings
-from sympy import pprint
+from sympy import pprint, flatten
+from scipy.optimize import curve_fit
+from opensbli.core.opensbliequations import OpenSBLIEq
+
 
 plt.style.use('classic')
 
@@ -174,6 +177,7 @@ class Boundary_layer_profile(object):
         dy = y[1]
         # self.dudy = (-3*u[0]+4*u[1]-u[2])/(2.0*dy)
         self.dudy = (-1.83333333333334*u[0]+3.00000000000002*u[1]-1.50000000000003*u[2]+0.333333333333356*u[3]-8.34657956545823e-15*u[4]+1.06910315192207e-15*u[5])/dy
+        self.dTdy = (-1.83333333333334*T[0]+3.00000000000002*T[1]-1.50000000000003*T[2]+0.333333333333356*T[3]-8.34657956545823e-15*T[4]+1.06910315192207e-15*T[5])/dy
         return y, u, T, scale
 
 
@@ -236,6 +240,7 @@ class Initialise_Katzer(GridBasedInitialisation):
         self.equations += self.eqns
 
         self.equations = block.dataobjects_to_datasets_on_block(self.equations)
+        print self.order
         kernel1 = Kernel(block, computation_name="Grid_based_initialisation%d" % self.order)
         kernel1.set_grid_range(block)
         schemes = block.discretisation_schemes
@@ -332,7 +337,7 @@ class Initialise_Katzer(GridBasedInitialisation):
         bl_edge_coordinate = poly_coordinates[edge]
         powers = [i for i in range(np.size(coefficients))][::-1]
         eqn = sum([coeff*self.coordinates[direction]**power for (coeff, power) in zip(coefficients, powers)]) #TODO set to exactl 1.0 if required
-        eqn = Eq(GridVariable('%s' % name), Piecewise((eqn, self.coordinates[direction] < bl_edge_coordinate), (variable[edge], True)))
+        eqn = OpenSBLIEq(GridVariable('%s' % name), Piecewise((eqn, self.coordinates[direction] < bl_edge_coordinate), (variable[edge], True)))
         return eqn
 
     def form_mixed_equation(self, profiles, names, coefficients, directions, edges, normal_profiles, normal_coeffs, poly_coordinates):
@@ -358,35 +363,34 @@ class Initialise_Katzer(GridBasedInitialisation):
         bl_coord1, bl_coord2 = poly_coordinates[edges[0]], poly_coordinates[edges[1]]
         # Create rhou profiles
         eqn1 = sum([coeff*coord1**power for (coeff, power) in zip(coefficients[0][0], powers)])
-        eqn2 = sum([coeff*coord2**power for (coeff, power) in zip(coefficients[1][0], powers)])  # profiles[0][max(edges)]
+        eqn2 = sum([coeff*self.local_coordinate**power for (coeff, power) in zip(coefficients[1][0], powers)])  # profiles[0][max(edges)]
         u_var1, u_var2 = GridVariable('%s_1' % names[0]), GridVariable('%s_2' % names[0])
         # freestream_value = np.max([profiles[0][0][edges[0]], profiles[1][0][edges[1]]])
         freestream_value = 1.0
-        piecewise_eqns.append(Eq(u_var1, Piecewise((eqn1, coord1 < bl_coord1), (freestream_value, True))))
-        piecewise_eqns.append(Eq(u_var2, Piecewise((eqn2, coord2 < bl_coord2), (freestream_value, True))))
-        piecewise_eqns.append(Eq(GridVariable('%s' % names[0]), u_var1*u_var2))
+        piecewise_eqns.append(OpenSBLIEq(u_var1, Piecewise((eqn1, coord1 < bl_coord1), (freestream_value, True))))
+        piecewise_eqns.append(OpenSBLIEq(u_var2, Piecewise((eqn2, self.local_coordinate < bl_coord2), (freestream_value, True))))
+        piecewise_eqns.append(OpenSBLIEq(GridVariable('%s' % names[0]), u_var1*u_var2))
         # Create T profiles, g = (T-Tw)/(Tinf - Tw) ---> T = g*(Tinf-Tw) + Tw
         Tw = ConstantObject('Twall')
         eqn1 = sum([coeff*coord1**power for (coeff, power) in zip(coefficients[0][1], powers)])
-        eqn2 = sum([coeff*coord2**power for (coeff, power) in zip(coefficients[1][1], powers)])  # profiles[0][max(edges)]
+        eqn2 = sum([coeff*self.local_coordinate**power for (coeff, power) in zip(coefficients[1][1], powers)])  # profiles[0][max(edges)]
         T_var1, T_var2 = GridVariable('%s_1' % names[1]), GridVariable('%s_2' % names[1])
         freestream_value = np.max([profiles[0][1][edges[0]], profiles[1][1][edges[1]]])
-        freestream_value = 1.0
-        piecewise_eqns.append(Eq(T_var1, Piecewise((eqn1, coord1 < bl_coord1), (freestream_value, True))))
-        piecewise_eqns.append(Eq(T_var2, Piecewise((eqn2, coord2 < bl_coord2), (freestream_value, True))))
-        piecewise_eqns.append(Eq(GridVariable('%s' % names[1]), T_var1*T_var2*(freestream_value - Tw) + Tw))
+        freestream_value = 1.0 # CHECK THIS VALUE
+        piecewise_eqns.append(OpenSBLIEq(T_var1, Piecewise((eqn1, coord1 < bl_coord1), (freestream_value, True))))
+        piecewise_eqns.append(OpenSBLIEq(T_var2, Piecewise((eqn2, self.local_coordinate < bl_coord2), (freestream_value, True))))
+        piecewise_eqns.append(OpenSBLIEq(GridVariable('%s' % names[1]), T_var1*T_var2*(freestream_value - Tw) + Tw))
         # Create normal velocity component profiles, rhov:
-        Lx2 = ConstantObject('Lx2')  # WARNING, sidewall currently defaults to x2 direction
         eqn1 = sum([coeff*coord1**power for (coeff, power) in zip(normal_coeffs[0], powers)])
         temp1 = GridVariable('%s' % names[2])
         rhov_inf = normal_profiles[0][edges[0]]*u_var2  # Multiplying by rhou from the other direction
-        piecewise_eqns.append(Eq(temp1, Piecewise((eqn1*u_var2, coord1 < bl_coord1), (rhov_inf, True))))
+        piecewise_eqns.append(OpenSBLIEq(temp1, Piecewise((eqn1*u_var2, coord1 < bl_coord1), (rhov_inf, True))))
         # rhow:
-        eqn2 = sum([coeff*coord2**power for (coeff, power) in zip(normal_coeffs[1], powers)])
+        eqn2 = sum([coeff*self.local_coordinate**power for (coeff, power) in zip(normal_coeffs[1], powers)])
         temp2 = GridVariable('%s' % names[3])
         # rhow should reduce to zero at the symmetry plane
-        rhow_inf = normal_profiles[1][edges[1]]*(1 - coord2/Lx2)*u_var1  # Multiplying by rhou from the other direction
-        piecewise_eqns.append(Eq(temp2, Piecewise((eqn2*u_var1, coord2 < bl_coord2), (rhow_inf, True))))
+        rhow_inf = normal_profiles[1][edges[1]]*(1 - (self.local_coordinate-bl_coord2)/(0.5*self.domain_length-bl_coord2))*u_var1
+        piecewise_eqns.append(OpenSBLIEq(temp2, self.side_fact*Piecewise((eqn2*u_var1, self.local_coordinate < bl_coord2), (rhow_inf, True))))
         return piecewise_eqns
 
     def generate_one_wall_equations(self, data, coeffs, direction, edge, poly_coordinates):
@@ -402,15 +406,15 @@ class Initialise_Katzer(GridBasedInitialisation):
         T_eqn = self.form_equation(data[2], 'T', coeffs[2], direction, edge, poly_coordinates)
         # Set conservative values
         rho, rhou0, rhou1, T = GridVariable('rho'), GridVariable('rhou0'), GridVariable('rhou1'), GridVariable('T')
-        rho_eqn = Eq(rho, 1.0/T)
-        rho_store = Eq(DataObject('rho'), rho)
-        rhou0_store = Eq(DataObject('rhou0'), rhou0)
-        rhou1_store = Eq(DataObject('rhou1'), rhou1)
+        rho_eqn = OpenSBLIEq(rho, 1.0/T)
+        rho_store = OpenSBLIEq(DataObject('rho'), rho)
+        rhou0_store = OpenSBLIEq(DataObject('rhou0'), rhou0)
+        rhou1_store = OpenSBLIEq(DataObject('rhou1'), rhou1)
         gama, Minf = ConstantObject("gama"), ConstantObject("Minf")
-        rhoE_store = Eq(DataObject('rhoE'), rho*T/(gama*(gama-1)*Minf**2) + 0.5*(rhou0**2 + rhou1**2)/rho)
+        rhoE_store = OpenSBLIEq(DataObject('rhoE'), rho*T/(gama*(gama-1)*Minf**2) + 0.5*(rhou0**2 + rhou1**2)/rho)
         self.eqns += [rhou0_eqn, rhou1_eqn, T_eqn, rho_eqn, rho_store, rhou0_store, rhou1_store, rhoE_store]
         if self.block.ndim == 3:  # Periodic case, rhow = 0
-            self.eqns += [Eq(DataObject('rhou2'), 0.0)]
+            self.eqns += [OpenSBLIEq(DataObject('rhou2'), 0.0)]
         return
 
     def generate_two_wall_equations(self, profiles, coeffs, directions, edges, normal_profile, normal_coeffs, poly_coordinates):
@@ -424,17 +428,28 @@ class Initialise_Katzer(GridBasedInitialisation):
         :arg list normal_coeffs: Coefficients for the wall normal polynomial fit."""
         self.eqns = []
         names = ['rhou0', 'T', 'rhou1', 'rhou2']
+        # Hard code to spanwise direction for 2 walls
+        direction = 2
+        array_coord = self.coordinates[direction]
+        self.domain_length = self.block.deltas[direction]*(self.block.shape[direction]-1)
+        self.side_fact = GridVariable('side_fact')
+        side_fact_eqn = OpenSBLIEq(self.side_fact, Piecewise((1, array_coord <= self.domain_length/2.0), (-1, True)))
+
+        self.local_coordinate = GridVariable('local_coord')
+        local_coord_eqn = OpenSBLIEq(self.local_coordinate, Piecewise((array_coord, array_coord <= self.domain_length/2.0), (self.domain_length-array_coord, True)))
+        self.eqns += [local_coord_eqn]
+        self.eqns += [side_fact_eqn]
         # Create the piecewise equations formed from the boundary layers
         bl_equations = self.form_mixed_equation(profiles, names, coeffs, directions, edges, normal_profile, normal_coeffs, poly_coordinates)
         # Set conservative values
         rho, rhou0, rhou1, rhou2, T = GridVariable('rho'), GridVariable('rhou0'), GridVariable('rhou1'), GridVariable('rhou2'), GridVariable('T')
-        rho_eqn = Eq(rho, 1.0/T)
-        rho_store = Eq(DataObject('rho'), rho)
-        rhou0_store = Eq(DataObject('rhou0'), rhou0)
-        rhou1_store = Eq(DataObject('rhou1'), rhou1)
-        rhou2_store = Eq(DataObject('rhou2'), rhou2)
+        rho_eqn = OpenSBLIEq(rho, 1.0/T)
+        rho_store = OpenSBLIEq(DataObject('rho'), rho)
+        rhou0_store = OpenSBLIEq(DataObject('rhou0'), rhou0)
+        rhou1_store = OpenSBLIEq(DataObject('rhou1'), rhou1)
+        rhou2_store = OpenSBLIEq(DataObject('rhou2'), rhou2)
         gama, Minf = ConstantObject("gama"), ConstantObject("Minf")
-        rhoE_store = Eq(DataObject('rhoE'), rho*T/(gama*(gama-1)*Minf**2) + 0.5*(rhou0**2 + rhou1**2 + rhou2**2)/rho)
+        rhoE_store = OpenSBLIEq(DataObject('rhoE'), rho*T/(gama*(gama-1)*Minf**2) + 0.5*(rhou0**2 + rhou1**2 + rhou2**2)/rho)
         self.eqns += bl_equations + [rho_eqn, rho_store, rhou0_store, rhou1_store, rhou2_store, rhoE_store]
         return
 
@@ -473,9 +488,10 @@ class Initialise_Katzer(GridBasedInitialisation):
         # Grid offset delta to form derivative approximation
         n = np.size(y)
         ya2 = y[:]
-        delta, scale, re = 0.1, self.scale_factor, self.Re
+        delta, scale, re = 0.001, self.scale_factor, self.Re
         rex0 = 0.5*(re/scale)**2
         x0 = 0.5*re/scale**2
+        # print "Domain inlet is when the boundary-layer has developed for a length of x0 = %.10f" % x0
         drudx, rhov = np.zeros_like(y), np.zeros_like(y)
         # Local Reynolds number scaling to obtain a v profile
         sqrex = np.sqrt(rex0)
