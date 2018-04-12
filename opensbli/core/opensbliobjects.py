@@ -576,12 +576,13 @@ class GroupedCondition(Tuple):
     def __iter__(self):
         yield self.expressions
         yield self.cond
-
+#from sympy import Piecewise
 class GroupedPiecewise(Function):
     nargs = None
     is_Piecewise = True
 
     def __new__(cls, *args, **options):
+        
         # (Try to) sympify args first
         cls.pairs = []
         cls.all_equations = []
@@ -589,10 +590,11 @@ class GroupedPiecewise(Function):
         cls.grouped_conditions = []
         cls.grouped_equations = []
         newargs = []
+        #return Piecewise.__new__(cls, *args, **options)
         for ec in args:
             pair = GroupedCondition(*ec)
             cond = pair.cond
-            if cond == false:
+            if cond == False:
                 continue
             if not isinstance(cond, (bool, Relational, Boolean)):
                 raise TypeError(
@@ -629,6 +631,11 @@ class GroupedPiecewise(Function):
         return consts
     
     def convert_to_datasets(self, block):
+        #print 'in args'
+        #print self._args
+        #for arg in self.args:
+            #print arg
+        #exit()
         for index, list_of_eqn in enumerate(self.grouped_equations):
             for eqn_no, equation in enumerate(list_of_eqn):
                 self.grouped_equations[index][eqn_no] = equation.convert_to_datasets(block)
