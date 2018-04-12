@@ -3,6 +3,7 @@ from sympy import Rational, Pow, Integer
 from sympy.printing import pprint
 from opensbli.core.opensbliobjects import DataSetBase, DataSet, ConstantIndexed, ConstantObject,\
     GlobalValue, GroupedPiecewise
+from opensbli.core.opensbliequations import OpenSBLIEq
 from opensbli.core.grid import GridVariable, Grididx
 from opensbli.core.datatypes import SimulationDataType
 from sympy.core.function import _coeff_isneg
@@ -10,6 +11,7 @@ from opensbli.utilities.helperfunctions import get_min_max_halo_values, dataset_
 from opensbli.core.datatypes import Int
 import copy
 
+_known_equation_types = (GroupedPiecewise, OpenSBLIEq)
 
 class ConstantsToDeclare(object):
     constants = []
@@ -172,38 +174,31 @@ class Kernel(object):
     @property
     def required_data_sets(self):
         """This isnot used any more check for all apps and delete"""
-        print 'here'
         requires = []
         requires1 = []
         for eq in self.equations:
-            if isinstance(eq, Equality):
+            if isinstance(eq, _known_equation_types):
                 requires += list(eq.rhs_datasets)
-                #requires += list(eq.rhs.atoms(DataSetBase))
-            elif isinstance(eq, GroupedPiecewise):
-                print 'yes'
-                for equation in flatten(eq.grouped_equations):
-                    requires += list(equation.rhs.atoms(DataSetBase))
-                for condition in flatten(eq.grouped_conditons):
         return requires
 
     @property
     def lhs_datasets(self):
         datasets = set()
         for eq in self.equations:
-            if isinstance(eq, Equality):
+            if isinstance(eq, _known_equation_types):
                 datasets = datasets.union(eq.lhs_datasets)
-            elif isinstance(eq, GroupedPiecewise):
-                datasets = datasets.union(eq.lhs_datasets)
+            elif isinstance(eq, Equality):
+                raise TypeError("Equality should be of types %s" %_known_equation_types)
         return datasets
 
     @property
     def rhs_datasets(self):
         datasets = set()
         for eq in self.equations:
-            if isinstance(eq, Equality):
+            if isinstance(eq, _known_equation_types):
                 datasets = datasets.union(eq.rhs_datasets)
-            elif isinstance(eq, GroupedPiecewise):
-                datasets = datasets.union(eq.rhs_datasets)
+            elif isinstance(eq, Equality):
+                raise TypeError("Equality should be of types %s" %_known_equation_types)
         return datasets
 
     @property
@@ -248,13 +243,8 @@ class Kernel(object):
     def constants(self):
         consts = set()
         for eq in self.equations:
-            if isinstance(eq, Equality):
-                consts = consts.union(eq.atoms(ConstantObject))
-            elif isinstance(eq, GroupedPiecewise):
-                for equation in flatten(eq.grouped_equations):
-                    consts = consts.union(equation.atoms(ConstantObject))
-                for condition in flatten(eq.grouped_conditions):
-                    consts = consts.union(equation.atoms(ConstantObject))
+            if isinstance(eq, _known_equation_types):
+                consts = consts.union(eq.get_constants)
         return consts
 
     @property

@@ -6,7 +6,7 @@ from opensbli.core.opensbliequations import OpenSBLIEq
 from opensbli.core.opensbliequations import ConstituentRelations
 from opensbli.core.metrics import MetricsEquation
 from sympy import flatten, eye, srepr
-
+_known_equation_types = (GroupedPiecewise, OpenSBLIEq)
 
 class DataSetsToDeclare(object):
     """Remove this we are not using it any more
@@ -108,6 +108,7 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes):  # BoundaryC
         self.boundary_halos[direction][side].add(types)
         return
 
+
     def dataobjects_to_datasets_on_block(self, eqs):
         """
         """
@@ -115,13 +116,13 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes):  # BoundaryC
         consts = set()
 
         for no, eq in enumerate(store_equations):
-            if isinstance(eq, Equality):
+            if isinstance(eq, _known_equation_types):
                 store_equations[no] = eq.convert_to_datasets(self)
                 consts = consts.union(eq.atoms(ConstantObject))
-            elif isinstance(eq, GroupedPiecewise):
-                consts = consts.union(eq.get_constants)
-                eq.convert_to_datasets(self)
-                store_equations[no] = eq
+            elif isinstance(eq, Equality):
+                new_eq = OpenSBLIEq(eq.lhs, eq.rhs)
+                consts = consts.union(new_eq.atoms(ConstantObject))
+                store_equations[no] = new_eq.convert_to_datasets(self)
             elif isinstance(eq, DataObject):
                 store_equations[no] = self.location_dataset(str(eq))
             else: # Integers and Floats from Eigensystem entering here
