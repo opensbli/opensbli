@@ -171,16 +171,19 @@ class Kernel(object):
 
     @property
     def required_data_sets(self):
+        """This isnot used any more check for all apps and delete"""
+        print 'here'
         requires = []
+        requires1 = []
         for eq in self.equations:
             if isinstance(eq, Equality):
-                requires += required_datasets
-                requires += list(eq.rhs.atoms(DataSetBase))
+                requires += list(eq.rhs_datasets)
+                #requires += list(eq.rhs.atoms(DataSetBase))
             elif isinstance(eq, GroupedPiecewise):
+                print 'yes'
                 for equation in flatten(eq.grouped_equations):
                     requires += list(equation.rhs.atoms(DataSetBase))
                 for condition in flatten(eq.grouped_conditons):
-                    requires += list(condition.atoms(DataSetBase))
         return requires
 
     @property
@@ -188,12 +191,9 @@ class Kernel(object):
         datasets = set()
         for eq in self.equations:
             if isinstance(eq, Equality):
-                datasets = datasets.union(eq.lhs.atoms(DataSetBase))
+                datasets = datasets.union(eq.lhs_datasets)
             elif isinstance(eq, GroupedPiecewise):
-                for equation in flatten(eq.grouped_equations):
-                    datasets = datasets.union(equation.lhs.atoms(DataSetBase))
-                # for condition in flatten(eq.grouped_conditions):
-                #     datasets = datasets.union(condition.atoms(DataSetBase))
+                datasets = datasets.union(eq.lhs_datasets)
         return datasets
 
     @property
@@ -201,12 +201,9 @@ class Kernel(object):
         datasets = set()
         for eq in self.equations:
             if isinstance(eq, Equality):
-                datasets = datasets.union(eq.rhs.atoms(DataSetBase))
+                datasets = datasets.union(eq.rhs_datasets)
             elif isinstance(eq, GroupedPiecewise):
-                for equation in flatten(eq.grouped_equations):
-                    datasets = datasets.union(equation.rhs.atoms(DataSetBase))
-                for condition in flatten(eq.grouped_conditions):
-                    datasets = datasets.union(condition.atoms(DataSetBase))
+                datasets = datasets.union(eq.rhs_datasets)
         return datasets
 
     @property

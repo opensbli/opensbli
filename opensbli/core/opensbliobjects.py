@@ -639,13 +639,33 @@ class GroupedPiecewise(Function):
             self.grouped_conditions[index] = condition
         return
     
+    #@property
+    #def required_datasets(self):
+        #dsets = set()
+        #for eq in flatten(self.grouped_equations):
+            #dsets = dsets.union(eq.required_datasets)
+        #for c in flatten(self.grouped_conditions):
+            #dsets = dsets.union(d.atoms(DataSet))
+        #return dsets
+    
     @property
-    def required_datasets(self):
+    def lhs_datasets(self):
         dsets = set()
         for eq in flatten(self.grouped_equations):
-            dsets = dsets.union(eq.required_datasets)
-        for c in flatten(self.grouped_conditions):
-            dsets = dsets.union(d.atoms(DataSet))
+            dsets = dsets.union(eq.lhs_datasets)
+        for condition in flatten(self.grouped_conditions):
+            if condition != True:
+                dsets = dsets.union(condition.lhs.atoms(DataSetBase))
+        return dsets
+    
+    @property
+    def rhs_datasets(self):
+        dsets = set()
+        for eq in flatten(self.grouped_equations):
+            dsets = dsets.union(eq.rhs_datasets)
+        for condition in flatten(self.grouped_conditions):
+            if condition != True:
+                dsets = dsets.union(condition.rhs.atoms(DataSetBase))
         return dsets
 
     @property

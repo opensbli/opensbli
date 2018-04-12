@@ -1,6 +1,5 @@
 from opensbli.core.opensbliobjects import DataSet, ConstantObject, DataSetBase
 from opensbli.core.opensblifunctions import TemporalDerivative
-from opensbli.core.kernel import Kernel
 from sympy import flatten, preorder_traversal, Expr, Eq
 from sympy import Equality, Function, pprint, srepr
 
@@ -140,7 +139,7 @@ class Discretisation(object):
     def evaluated_datasets(cls):
         return set()
 
-from opensbli.core.opensbliobjects import DataObject
+from opensbli.core.opensbliobjects import DataObject, DataSetBase
 class OpenSBLIEquation(Equality):
     """A wrapper around SymPy's Equality class to provide more flexibility in the future"""
     is_Equality = True
@@ -163,6 +162,7 @@ class OpenSBLIEquation(Equality):
     
     @property
     def required_datasets(self):
+        """Not required"""
         return self.lhs_datasets.union(self.rhs_datasets)
     
     @property
@@ -249,6 +249,7 @@ class SimulationEquations(Discretisation, Solution):
         
         :param SimulationBlock block: the block on which the equations are solved
         :return: None """
+        from opensbli.core.kernel import Kernel
         kernel = Kernel(block, computation_name="Zeroing residuals")
         eqs = [OpenSBLIEq(eq.residual, 0) for eq in flatten(cls.equations)]
         kernel.add_equation(eqs)
@@ -365,8 +366,7 @@ class SimulationEquations(Discretisation, Solution):
         # store the length of order
         input_order = len(order)
         key_list = [key for key in dictionary.keys() if key not in order]
-        requires_list = ([dictionary[key].required_data_sets for key in key_list])
-
+        requires_list = ([dictionary[key].rhs_datasets for key in key_list])
         zipped = zip(key_list, requires_list)
         # Breaks after 1000 iterations
         iter_count = 0
@@ -374,7 +374,7 @@ class SimulationEquations(Discretisation, Solution):
             iter_count = iter_count+1
             order += [x for (x, y) in zipped if all(req in order for req in y)]
             key_list = [key for key in dictionary.keys() if key not in order]
-            requires_list = [dictionary[key].required_data_sets for key in key_list]
+            requires_list = [dictionary[key].rhs_datasets for key in key_list]
             zipped = zip(key_list, requires_list)
             if iter_count > 1000:
                 print("Exiting because i cannot classify the following")
