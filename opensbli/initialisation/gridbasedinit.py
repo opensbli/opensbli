@@ -37,7 +37,13 @@ class GridBasedInitialisation(NonSimulationEquations):
                 elif isinstance(eq, GroupedPiecewise):
                     cls.equations += [eq]
         else:
-            raise TypeError("Provide the equations in a list")
+            if isinstance(equation, Equality):
+                eq = OpenSBLIEq(equation.lhs, equation.rhs)
+                cls.equations += [eq]
+            elif isinstance(equation, GroupedPiecewise):
+                cls.equations += [equation]
+            else:
+                raise TypeError("Provide the equations in a list")
             # equation = OpenSBLIEquation(equation.lhs, equation.rhs)
             # cls.equations += [equation]
         return
@@ -47,12 +53,9 @@ class GridBasedInitialisation(NonSimulationEquations):
         evaluated = set()
         for eq in cls.equations:
             if isinstance(eq, Equality):
-                if isinstance(eq.lhs, DataSet):
-                    evaluated.add(eq.lhs)
+                evaluated = evaluated.union(eq.lhs_datasets)
             elif isinstance(eq, GroupedPiecewise):
-                for equation in flatten(eq.grouped_equations):
-                    if isinstance(equation.lhs, DataSet):
-                        evaluated.add(equation.lhs) ## add conditions
+                evaluated = evaluated.union(eq.lhs_datasets)
         return evaluated
 
     def spatial_discretisation(cls, block):

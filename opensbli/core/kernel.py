@@ -1,4 +1,5 @@
 from sympy import flatten, Equality, Indexed
+from sympy.core.compatibility import is_sequence
 from sympy import Rational, Pow, Integer
 from sympy.printing import pprint
 from opensbli.core.opensbliobjects import DataSetBase, DataSet, ConstantIndexed, ConstantObject,\
@@ -173,7 +174,7 @@ class Kernel(object):
 
     @property
     def required_data_sets(self):
-        """This isnot used any more check for all apps and delete"""
+        """This is not used any more check for all apps and delete"""
         requires = []
         requires1 = []
         for eq in self.equations:
@@ -205,13 +206,8 @@ class Kernel(object):
     def Rational_constants(self):
         rcs = set()
         for eq in self.equations:
-            if isinstance(eq, Equality):
+            if isinstance(eq, _known_equation_types):
                 rcs = rcs.union(eq.atoms(Rational))
-            elif isinstance(eq, GroupedPiecewise):
-                for equation in flatten(eq.grouped_equations):
-                    rcs = rcs.union(equation.atoms(Rational))
-                for condition in flatten(eq.grouped_conditions):
-                    rcs = rcs.union(condition.atoms(Rational))
         out = set()
         # Integers are also being returned as Rational numbers, remove any integers
         for rc in rcs:
@@ -224,19 +220,10 @@ class Kernel(object):
         # Only negative powers i.e. they correspond to division and they are stored into constant arrays
         inverse_terms = set()
         for eq in self.equations:
-            if isinstance(eq, Equality):
+            if isinstance(eq, _known_equation_types):
                 for at in eq.atoms(Pow):
                     if _coeff_isneg(at.exp) and not (at.base.atoms(Indexed) or isinstance(at, GridVariable)):
                         inverse_terms.add(at)
-            elif isinstance(eq, GroupedPiecewise):
-                for equation in flatten(eq.grouped_equations):
-                    for at in equation.atoms(Pow):
-                        if _coeff_isneg(at.exp) and not (at.base.atoms(Indexed) or isinstance(at, GridVariable)):
-                            inverse_terms.add(at)
-                for condition in flatten(eq.grouped_conditions):
-                    for at in equation.atoms(Pow):
-                        if _coeff_isneg(at.exp) and not (at.base.atoms(Indexed) or isinstance(at, GridVariable)):
-                            inverse_terms.add(at)
         return inverse_terms
 
     @property
@@ -244,20 +231,15 @@ class Kernel(object):
         consts = set()
         for eq in self.equations:
             if isinstance(eq, _known_equation_types):
-                consts = consts.union(eq.get_constants)
+                consts = consts.union(eq.atoms(ConstantObject))
         return consts
 
     @property
     def IndexedConstants(self):
         consts = set()
         for eq in self.equations:
-            if isinstance(eq, Equality):
+            if isinstance(eq, _known_equation_types):
                 consts = consts.union(eq.atoms(ConstantIndexed))
-            elif isinstance(eq, GroupedPiecewise):
-                for equation in flatten(eq.grouped_equations):
-                    consts = consts.union(equation.atoms(ConstantIndexed))
-                for condition in flatten(eq.grouped_conditions):
-                    consts = consts.union(condition.atoms(ConstantIndexed))
         return consts
     
     @property
@@ -265,38 +247,26 @@ class Kernel(object):
         globals_vars_lhs = set()
         globals_vars_rhs = set()
         for eq in self.equations:
-            if isinstance(eq, Equality):
-                globals_vars_lhs = globals_vars_lhs.union(eq.lhs.atoms(GlobalValue))
-                globals_vars_rhs = globals_vars_rhs.union(eq.rhs.atoms(GlobalValue))
-            elif isinstance(eq, GroupedPiecewise):
-                for equation in flatten(eq.grouped_equations):
-                    globals_vars_lhs = globals_vars_lhs.union(equation.lhs.atoms(GlobalValue))
-                    globals_vars_rhs = globals_vars_rhs.union(equation.rhs.atoms(GlobalValue))
-                for condition in flatten(eq.grouped_conditions): ##WARNING: Terms in the conditions are considered RHS? CHECK
-                    globals_vars_rhs = globals_vars_rhs.union(condition.atoms(GlobalValue))
+            if isinstance(eq, _known_equation_types):
+                globals_vars_lhs = globals_vars_lhs.union(eq.atoms(GlobalValue))
         return globals_vars_rhs, globals_vars_lhs
 
     @property
     def grid_indices_used(self):
         for eq in self.equations:
-            if isinstance(eq, Equality):
+            if isinstance(eq, _known_equation_types):
                 if eq.atoms(Grididx):
                     return True
-            elif isinstance(eq, GroupedPiecewise):
-                for equation in eq.all_equations:
-                    if equation.atoms(Grididx):
-                        return True ##WARNING: Not sure about this one, any has a grid index for conditions and equations
         return False
     
     @property
     def grid_index_name(self):
         grid_id = set()
-        for eq in self.equations:#WARNING: not done this one
+        if isinstance(eq, _known_equation_types):
             grid_id = grid_id.union(eq.atoms(Grididx))
         if len(grid_id) > 1:
             print grid_id
             raise ValueError("Grid indices should be consistent.")
-
         return list(grid_id)[0]
 
     def get_stencils(self):
@@ -305,13 +275,9 @@ class Kernel(object):
         stencil_dictionary = {}
         datasets = set()
         for eq in self.equations:
-            if isinstance(eq, Equality):
+            if isinstance(eq, _known_equation_types):
                 datasets = datasets.union(eq.atoms(DataSet))
-            elif isinstance(eq, GroupedPiecewise):
-                for equation in flatten(eq.grouped_equations):
-                    datasets = datasets.union(equation.atoms(DataSet))
-                for condition in flatten(eq.grouped_conditions):
-                    datasets = datasets.union(condition.atoms(DataSet))
+
         for s in datasets:
             if s.base in stencil_dictionary.keys():
                 stencil_dictionary[s.base].add(tuple(s.indices))
@@ -325,14 +291,6 @@ class Kernel(object):
     def write_latex(self, latex):
         latex.write_string('The kernel is %s' % latex.latexify_expression(self.computation_name, mode='inline'))
         range_of_eval = self.total_range()
-        #halo_m, halo_p = get_min_max_halo_values(self.halo_ranges)
-        #range_of_eval = [[0, 0] for r in range(self.ndim)]
-        # print self.computation_name, self.halo_ranges
-        # print halo_m, halo_p
-        # print range_of_eval
-        #for d in range(self.ndim):
-            #range_of_eval[d][0] = self.ranges[d][0] + halo_m[d]
-            #range_of_eval[d][1] = self.ranges[d][1] + halo_p[d]
         latex.write_string('The ranges are %s' % (','.join([str(d) for d in flatten(range_of_eval)])))
         # latex.write_string('. The range of evaluation is  %s \\ \n\n the halo ranges are %s'%(self.ranges, self.halo_ranges))
         for index, eq in enumerate(self.equations):
@@ -340,7 +298,7 @@ class Kernel(object):
                 latex.write_expression(eq)
             elif isinstance(eq, GroupedPiecewise):
                 pprint(eq)
-                print "should be doing latex"
+                print "should be doing latex" # TODO
         return
 
     def total_range(self):
