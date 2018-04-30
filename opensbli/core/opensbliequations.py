@@ -345,7 +345,7 @@ class SimulationEquations(Discretisation, Solution):
     
     @property
     def evaluated_datasets(cls):
-        return set(flatten(cls.time_advance_arrays))
+        return set([c.base for c in flatten(cls.time_advance_arrays)])
 
     def sort_dictionary(cls, order, new_dictionary, block):
         """ Sort the evaluations based on the requirements of each term. For example, if we have
@@ -361,7 +361,7 @@ class SimulationEquations(Discretisation, Solution):
         """
         dictionary = new_dictionary
         # reverse_dictionary = {}
-        order = flatten(order + [a.base for a in block.known_datasets])
+        order = flatten(order + list(block.known_datasets))
         order = list(set(order))
         # store the length of order
         input_order = len(order)

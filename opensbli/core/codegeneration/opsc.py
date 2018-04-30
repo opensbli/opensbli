@@ -1,4 +1,4 @@
-
+from sympy.core.compatibility import is_sequence
 from sympy.printing.ccode import C99CodePrinter
 from sympy.core.relational import Equality
 from opensbli.core.opensbliobjects import ConstantObject, ConstantIndexed, Constant, DataSetBase, DataObject, GroupedPiecewise
@@ -119,10 +119,6 @@ class OPSCCodePrinter(C99CodePrinter):
         else:
             raise ValueError("Did not find the OPS Access for %s " % expr.base)
 
-    def _print_GroupedPiecewise(self, expr):
-
-
-        return out
     def _print_Indexed(self, expr):
         """ Print out an Indexed object.
 
@@ -335,23 +331,30 @@ class OPSC(object):
             if isinstance(eq, Equality):
                 out += [ccode(eq, settings={'kernel': True}) + ';\n']
             elif isinstance(eq, GroupedPiecewise):
-                n_conds = len(eq.grouped_conditions)
-                assert len(eq.grouped_equations) == n_conds
-                for index, condition in enumerate(eq.grouped_conditions):
-                    if index == 0:
+                for i, (expr, condition) in enumerate(eq.args):
+                    if i == 0:
                         out += ['if (%s)' % ccode(condition, settings={'kernel': True}) + '{\n']
-                        for eqn in eq.grouped_equations[index]:
-                            out += [ccode(eqn, settings={'kernel': True}) + ';\n']
+                        if is_sequence(expr):
+                            for eqn in expr:
+                                out += [ccode(eqn, settings={'kernel': True}) + ';\n']
+                        else:
+                            out += [ccode(expr, settings={'kernel': True}) + ';\n']
                         out += ['}\n']
                     elif condition != True:
                         out += ['else if (%s)' % ccode(condition, settings={'kernel': True}) + '{\n']
-                        for eqn in eq.grouped_equations[index]:
-                            out += [ccode(eqn, settings={'kernel': True}) + ';\n']
+                        if is_sequence(expr):
+                            for eqn in expr:
+                                out += [ccode(eqn, settings={'kernel': True}) + ';\n']
+                        else:
+                            out += [ccode(expr, settings={'kernel': True}) + ';\n']
                         out += ['}\n']
                     else:
                         out += ['else{\n']
-                        for eqn in eq.grouped_equations[index]:
-                            out += [ccode(eqn, settings={'kernel': True}) + ';\n']
+                        if is_sequence(expr):
+                            for eqn in expr:
+                                out += [ccode(eqn, settings={'kernel': True}) + ';\n']
+                        else:
+                            out += [ccode(expr, settings={'kernel': True}) + ';\n']
                         out += ['}\n']
             else:
                 raise TypeError("Unclassified type of equation.")

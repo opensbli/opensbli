@@ -1,4 +1,5 @@
 from sympy import Symbol, flatten
+from sympy.core.compatibility import is_sequence
 from sympy.tensor import Idx, IndexedBase, Indexed
 from sympy import pprint, srepr
 from sympy.tensor.indexed import IndexException
@@ -576,43 +577,13 @@ class GroupedCondition(Tuple):
     def __iter__(self):
         yield self.expressions
         yield self.cond
-#from sympy import Piecewise
-class GroupedPiecewise(Function):
+from sympy import Piecewise
+class GroupedPiecewise(Piecewise):
     nargs = None
     is_Piecewise = True
 
     def __new__(cls, *args, **options):
-        
-        # (Try to) sympify args first
-        cls.pairs = []
-        cls.all_equations = []
-        cls.all_conditions = []
-        cls.grouped_conditions = []
-        cls.grouped_equations = []
-        newargs = []
-        #return Piecewise.__new__(cls, *args, **options)
-        for ec in args:
-            pair = GroupedCondition(*ec)
-            cond = pair.cond
-            if cond == False:
-                continue
-            if not isinstance(cond, (bool, Relational, Boolean)):
-                raise TypeError(
-                    "Cond %s is of type %s, but must be a Relational,"
-                    " Boolean, or a built-in bool." % (cond, type(cond)))
-            newargs.append(pair)
-            if cond == True:
-                break
-
-        if options.pop('evaluate', True):
-            r = cls.eval(*newargs)
-        else:
-            r = None
-
-        if r is None:
-            return Basic.__new__(cls, *newargs, **options)
-        else:
-            return r
+        return Piecewise.__new__(cls, *args, **options)
 
     def add_pair(cls, expr_pair):
         cls.pairs.append(expr_pair)
@@ -623,28 +594,43 @@ class GroupedPiecewise(Function):
         cls.grouped_equations += [expr_pair[0]] ## add input checking here
         return
     
-    @property
-    def get_constants(self):
-        consts = set()
-        for prop in flatten(self.grouped_conditions + self.grouped_equations):
-            consts = consts.union(prop.atoms(ConstantObject))
-        return consts
+    #@property
+    #def gro
     
     def convert_to_datasets(self, block):
-        #print 'in args'
-        #print self._args
-        #for arg in self.args:
-            #print arg
-        #exit()
-        for index, list_of_eqn in enumerate(self.grouped_equations):
-            for eqn_no, equation in enumerate(list_of_eqn):
-                self.grouped_equations[index][eqn_no] = equation.convert_to_datasets(block)
-        for index, condition in enumerate(self.grouped_conditions):
-            for d in condition.atoms(DataObject):
-                new = block.location_dataset(str(d))
-                condition = condition.subs(d, new)
-            self.grouped_conditions[index] = condition
-        return
+        replacements = {}
+        for d in self.atoms(DataObject):
+            replacements[d] = block.location_dataset(d)
+        #for expr, c in self.args:
+            #if is_sequence(expr):
+                #for eq1 in e:
+                    #if is_sequence(eq1):
+                        #raise NotImplementedError("")
+                    #eq1.convert_to_datasets(block)
+                
+        #for index, list_of_eqn in enumerate(self.grouped_equations):
+            #for eqn_no, equation in enumerate(list_of_eqn):
+                #self.grouped_equations[index][eqn_no] = equation.convert_to_datasets(block)
+        #for index, condition in enumerate(self.grouped_conditions):
+            #for d in condition.atoms(DataObject):
+                #new = block.location_dataset(str(d))
+                #condition = condition.subs(d, new)
+            #self.grouped_conditions[index] = condition
+        return self.subs(replacements)
+    
+    def _eval_subs(self, old, new):
+        args = list(self.args)
+        for i, (e, c) in enumerate(args):
+            c = c._subs(old, new)
+            if is_sequence(e):
+                for no, eq1 in enumerate(e):
+                    if is_sequence(eq1):
+                        raise NotImplementedError("")
+                    e[no] = eq1._subs(old, new)
+            else:
+                e = e._subs(old, new)
+            args[i] = (e, c)
+        return self.func(*args)
     
     #@property
     #def required_datasets(self):
@@ -657,22 +643,44 @@ class GroupedPiecewise(Function):
     
     @property
     def lhs_datasets(self):
+        """ These are the datsets to be written out, so only expressions are considered and condition is omitted"""
         dsets = set()
-        for eq in flatten(self.grouped_equations):
-            dsets = dsets.union(eq.lhs_datasets)
-        for condition in flatten(self.grouped_conditions):
-            if condition != True:
-                dsets = dsets.union(condition.lhs.atoms(DataSetBase))
+        for e, c in self.args:
+            if is_sequence(e):
+                for eq1 in e:
+                    if is_sequence(eq1):
+                        raise NotImplementedError("")
+                    dsets = dsets.union(eq1.lhs_datasets)
+            else:
+                dsets = dsets.union(e.lhs_datasets)
+        return dsets
+    
+    @property
+    def lhs_datasets_full(self):
+        """ These are the datsets to be written out, so only expressions are considered and condition is omitted"""
+        dsets = set()
+        for e, c in self.args:
+            if is_sequence(e):
+                for eq1 in e:
+                    if is_sequence(eq1):
+                        raise NotImplementedError("")
+                    dsets = dsets.union(eq1.atoms(DataSet))
+            else:
+                dsets = dsets.union(e.atoms(DataSet))
         return dsets
     
     @property
     def rhs_datasets(self):
         dsets = set()
-        for eq in flatten(self.grouped_equations):
-            dsets = dsets.union(eq.rhs_datasets)
-        for condition in flatten(self.grouped_conditions):
-            if condition != True:
-                dsets = dsets.union(condition.rhs.atoms(DataSetBase))
+        for e, c in self.args:
+            if is_sequence(e):
+                for eq1 in e:
+                    if is_sequence(eq1):
+                        raise NotImplementedError("")
+                    dsets = dsets.union(eq1.rhs_datasets)
+            else:
+                dsets = dsets.union(e.rhs_datasets)
+            dsets = dsets.union(c.atoms(DataSetBase))
         return dsets
 
     @property
