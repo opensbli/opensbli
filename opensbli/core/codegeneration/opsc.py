@@ -177,7 +177,7 @@ def ccode(expr, settings={}):
         code = code_print.doprint(expr.lhs) \
             + ' = ' + OPSCCodePrinter(settings).doprint(expr.rhs)
         if isinstance(expr.lhs, GridVariable):
-            code = '%s ' % SimulationDataType.opsc() + code  # WARNING dtype
+            code = code
         return code
     else:
         return OPSCCodePrinter(settings).doprint(expr)
@@ -323,11 +323,14 @@ class OPSC(object):
         else:
             other_inputs = ''
         # print header_dictionary
-        out = ["void %s(" % kernel.kernelname + self.kernel_header(header_dictionary) + other_inputs + ')' + '\n{']
+        code = ["void %s(" % kernel.kernelname + self.kernel_header(header_dictionary) + other_inputs + ')' + '\n{']
         ops_accs = [OPSAccess(no) for no in range(len(all_dataset_inps))]
         OPSCCodePrinter.dataset_accs_dictionary = dict(zip(all_dataset_inps, ops_accs))
-        # out += [ccode(eq, settings={'kernel': True}) + ';\n' for eq in kernel.equations if isinstance(eq, Equality)] + ['}']
+        # Find all the grid variables and declare them at the top 
+        gridvariables = set()
+        out = []
         for eq in kernel.equations:
+            gridvariables = gridvariables.union(eq.atoms(GridVariable))
             if isinstance(eq, Equality):
                 out += [ccode(eq, settings={'kernel': True}) + ';\n']
             elif isinstance(eq, GroupedPiecewise):
@@ -358,9 +361,11 @@ class OPSC(object):
                         out += ['}\n']
             else:
                 raise TypeError("Unclassified type of equation.")
-        out += ['}'] # close Kernel
+        for gv in gridvariables:
+            code += ["%s %s;" %(SimulationDataType.opsc(), str(gv))]
+        code += out + ['}'] # close Kernel
         OPSCCodePrinter.dataset_accs_dictionary = {}
-        return out
+        return code
 
     def write_kernels(self, algorithm):
         kernels = self.loop_alg(algorithm, Kernel)
