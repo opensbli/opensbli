@@ -282,6 +282,7 @@ class Central(Scheme):
         # create_latex_kernel(kernels)
         # Add the kernels to the solutions
         type_of_eq.Kernels += kernels
+        block.reset_work_index
         return
 
     def set_halo_range_kernel(self, kernel, direction, sides=None):
