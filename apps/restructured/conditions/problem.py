@@ -90,17 +90,18 @@ eqn1 = left_eqns
 eqn2 = right_eqns
 cond1 = DataObject('x0')**2 > DataObject('rhou0')
 cond2 = DataObject('x0') <= 30
-eqn3 = [Eq(DataObject('rho'), ConstantObject('Minf')), Eq(GridVariable('x1'), 389800)]
+#eqn3 = [Eq(DataObject('rho'), ConstantObject('Minf')), Eq(GridVariable('x1'), 389800)]
+eqn3 = Eq(DataObject('rho'), ConstantObject('Minf'))
 cond3 = True
-pair1 = GroupedCondition(eqn1, cond1)
+pair1 = ExprCondPair(eqn1, cond1)
+
 pair2 = GroupedCondition(eqn2, cond2)
-pair3 = GroupedCondition(eqn3, cond3)
-pw = GroupedPiecewise()
-pw.add_pair(pair1)
-pw.add_pair(pair2)
-pw.add_pair(pair3)
-# pprint(pw.all_equations)
-pw = [pw]
+pair3 = ExprCondPair(eqn3, cond3)
+#pprint(pair1)
+pw = GroupedPiecewise(pair1, pair3)
+pprint(pw)
+pprint(pw.atoms(GridVariable))
+
 # Create boundaries, one for each side per dimension
 for direction in range(ndim):
     boundaries += [DirichletBC(direction, 0, left_eqns)]
@@ -109,6 +110,7 @@ for direction in range(ndim):
 # pprint(pw[0].all_equations)
 # exit()
 initial.add_equations(pw)
+pprint(initial.equations)
 
 schemes = {}
 # Local LaxFredirich scheme for weno
