@@ -362,7 +362,7 @@ class OPSC(object):
             else:
                 raise TypeError("Unclassified type of equation.")
         for gv in gridvariables:
-            code += ["%s %s;" %(SimulationDataType.opsc(), str(gv))]
+            code += ["%s %s = 0.0;" %(SimulationDataType.opsc(), str(gv))]
         code += out + ['}'] # close Kernel
         OPSCCodePrinter.dataset_accs_dictionary = {}
         return code
