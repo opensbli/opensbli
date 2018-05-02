@@ -396,7 +396,8 @@ class SymmetryBC(ModifyCentralDerivative, BoundaryConditionBase):
 
         transfer_indices = [tuple([from_side_factor*t, to_side_factor*t]) for t in range(1, abs(halos[direction][side]) + 1)]
         final_equations = self.create_boundary_equations(lhs_eqns, rhs_eqns, transfer_indices)
-        transfer_indices = [tuple([0, 1])]
+        transfer_indices = [tuple([0, to_side_factor])]
+        #kernel.add_equation(OpenSBLIEq(GridVariable('x0'), block.location_dataset('x0'))) ## Used for sidewall case to set the ramp
         final_equations += self.create_boundary_equations(lhs_eqns, boundary_values, transfer_indices)
         kernel.add_equation(final_equations)
         kernel.update_block_datasets(block)
