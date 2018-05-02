@@ -2,11 +2,12 @@ from opensbli.core.parsing import EinsteinEquation
 from sympy import Eq, zeros, flatten, Matrix, pprint, Function, S, Equality, Wild, WildFunction
 from opensbli.initialisation.common import BeforeSimulationStarts
 from opensbli.core.opensbliequations import NonSimulationEquations, Discretisation, Solution, OpenSBLIEquation, DataSet
-from opensbli.core.opensblifunctions import CentralDerivative
+from opensbli.core.opensblifunctions import CentralDerivative, WenoDerivative
 from sympy.tensor.array import MutableDenseNDimArray
 from opensbli.core.opensbliobjects import CoordinateObject, DataObject
 from opensbli.core.kernel import Kernel
 from opensbli.core.latex import LatexWriter
+from opensbli.core.bcs import BoundaryConditionBase
 
 
 def convert_dataset_base_expr_to_datasets(expression, index):
@@ -21,6 +22,10 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
         ret = super(MetricsEquation, cls).__new__(cls, **kwargs)
         ret.equations = []
         ret.kwargs = {'strong_differentiability': True}
+        if 'scheme' in kwargs:
+            ret.discretisation_scheme = scheme
+        else:
+            ret.discretisation_scheme = 'Central'
         ret.algorithm_place = [BeforeSimulationStarts()]
         ret.order = 1
         return ret
@@ -67,12 +72,19 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
         latex = self.latex_file
         latex.close()
         return
+    
+    @property
+    def evaluated_datasets(cls):
+        #evaluated = set(list(cls.FD_metrics)).union(set(list(cls.SD_metrics)))
+        evaluated = set()
+        return evaluated
 
     def transform_first_derivative(cls, coordinate_symbol):
         M2 = Matrix(cls.ndim, cls.ndim, lambda i, j: 0)
         # Full 3D curvilinear expansion of the first derivatives
         fds = cls.full3D_FD_transformation(coordinate_symbol)
         cls.detJ = DataObject("detJ")
+        cls.metric_subs = {}
         fd_subs = {}
         fd_jacobians = Matrix(cls.ndim, cls.ndim, lambda i, j: DataObject('D%d%d' % (i, j)))
         Cartesian_curvilinear_derivatives = zeros(cls.ndim, cls.ndim)
@@ -118,6 +130,8 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
         cls.transformation_eq[0] = fd_transformed
         cls.FD_metrics = fd_jacobians
         cls.generate_fd_metrics_equations(Cartesian_curvilinear_derivatives)
+        
+        cls.metric_subs = dict(zip(Matrix(cls.ndim, cls.ndim, lambda i, j: DataObject('D%d%d' % (i, j))), fd_jacobians))
 
         cls.classical_strong_differentiabilty_transformation = []
         for d in fd_transformed:
@@ -198,15 +212,16 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
                     args_orig = [cls.curvilinear_coordinates[i], cls.cartesian_coordinates[j], cls.curvilinear_coordinates[k]]
                     args_eval = [cls.curvilinear_coordinates[i], cls.cartesian_coordinates[j], SD[i, j, k]]
                     v = CentralDerivative(*args_eval).doit()
-                    if isinstance(v, CentralDerivative):
+                    derivative_args = [cls.FD_metrics[i, j], cls.curvilinear_coordinates[k]]
+                    sd = CentralDerivative(*derivative_args).doit()
+                    if sd == S.Zero:
+                        sd_subs[CentralDerivative(*args_orig)] = 0
+                    elif not isinstance(v, CentralDerivative):
+                        sd_subs[CentralDerivative(*args_orig)] = 0 
+                    else:
                         sd_subs[CentralDerivative(*args_orig)] = DataObject("SD%d%d%d" % (i, j, k))
                         SD_jacobians[i, j, k] = DataObject("SD%d%d%d" % (i, j, k))
-                        derivative_args = [cls.FD_metrics[i, j], cls.curvilinear_coordinates[k]]
-                        SD_evaluations[i, j, k] = CentralDerivative(*derivative_args)
-                    else:
-                        sd_subs[CentralDerivative(*args_orig)] = v
-                        SD_jacobians[i, j, k] = v
-                        SD_evaluations[i, j, k] = v
+                        SD_evaluations[i, j, k] = sd
 
         # Full 3D curvilinear expansion of the second derivatives
         sds = cls.full3D_SD_transformation(coordinate_symbol)
@@ -270,25 +285,42 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
             eq.residual = eq.lhs
         return
 
+    @property
+    def convert_to_weno(cls):
+        cds = set()
+        for eq in flatten(cls.equations):
+            cds = cds.union(eq.atoms(CentralDerivative))
+        subs_dictionary = dict(zip(cds, [WenoDerivative(c.args) for c in cds]))
+        cls.equations = [eq.subs(subs_dictionary) for eq in flatten(cls.equations)]
+        return
+
     def spatial_discretisation(cls, block):
         (Solution, cls).__init__(cls)
-        if any(cls.curvilinear_metric):
-            raise NotImplementedError("Handling curvilinear coordinates for the evaluation of metrics is not applied")
+        #if any(cls.curvilinear_metric):
+            #raise NotImplementedError("Handling curvilinear coordinates for the evaluation of metrics is not applied")
         spatialschemes = []
         # Get the schemes on the block
         schemes = block.discretisation_schemes
         for sc in schemes:
-            if schemes[sc].schemetype == "Spatial":
+            if schemes[sc].schemetype == "Spatial" and schemes[sc].name == 'CentralDerivative':
                 spatialschemes += [sc]
+        if len(spatialschemes) == 0:
+            raise ValueError("A Central scheme should be instantiated for metrics.")
         cls.requires = {}
         block.store_work_index  # store the work array index
         for no, sc in enumerate(spatialschemes):
             # discretise the First derivatives and then apply BC's then discretise Second derivatives
             cls.equations = block.dataobjects_to_datasets_on_block(cls.fdequations)  # First derivatives
+            #cls.convert_to_weno
+            #pprint(cls.equations)
+            #exit()
+
             cls.create_residual_arrays()
             schemes[sc].discretise(cls, block)
             schemes[sc].required_constituent_relations = {}
-            cls.apply_periodic_bc(block)
+            # Apply metric boundary conditions
+            cls.metric_boundary_condition(block)
+            # cls.apply_periodic_bc(block)
             cls.equations = block.dataobjects_to_datasets_on_block(cls.sdequations)  # Second derivatives
             cls.create_residual_arrays()
             schemes[sc].discretise(cls, block)
@@ -298,32 +330,32 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
         block.reset_work_to_stored  # reset the work array index on the block
         return
 
-    def apply_periodic_bc(self, block):
-        arrays = self.FD_metrics[:] + [self.detJ]
-        arrays = [a for a in arrays if isinstance(a, DataObject)]
-        arrays = block.dataobjects_to_datasets_on_block(arrays)
-        from opensbli.core.bcs import PeriodicBoundaryConditionBlock as pbc
-        modify = {}
-        for no, val in enumerate(block.boundary_types):
-            left = val[0]
-            right = val[1]
-            if isinstance(left, pbc):
-                if no in modify:
-                    modify[no][0] = left
-                else:
-                    modify[no] = [left, None]
-            if isinstance(right, pbc):
-                if no in modify:
-                    modify[no][1] = right
-                else:
-                    modify[no] = [None, right]
+    # def apply_periodic_bc(self, block):
+    #     arrays = self.FD_metrics[:] + [self.detJ]
+    #     arrays = [a for a in arrays if isinstance(a, DataObject)]
+    #     arrays = block.dataobjects_to_datasets_on_block(arrays)
+    #     from opensbli.core.bcs import PeriodicBC as pbc
+    #     modify = {}
+    #     for no, val in enumerate(block.boundary_types):
+    #         left = val[0]
+    #         right = val[1]
+    #         if isinstance(left, pbc):
+    #             if no in modify:
+    #                 modify[no][0] = left
+    #             else:
+    #                 modify[no] = [left, None]
+    #         if isinstance(right, pbc):
+    #             if no in modify:
+    #                 modify[no][1] = right
+    #             else:
+    #                 modify[no] = [None, right]
 
-        if modify:
-            for dire in modify:
-                boundary_mods = [k for k in modify[dire] if k]
-                for b in boundary_mods:
-                    self.Kernels += [b.apply(arrays, block)]
-        return
+    #     if modify:
+    #         for dire in modify:
+    #             boundary_mods = [k for k in modify[dire] if k]
+    #             for b in boundary_mods:
+    #                 self.Kernels += [b.apply(arrays, block)]
+    #     return
 
 
     def process_kernels(cls, block):
@@ -339,3 +371,37 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
         """ Used to fit in the abstraction, boundary conditions are applied for each equation class passed to block and discretised.
         Later once metrics are not part of the eqaution classes, this can be removed. """
         return
+
+    def metric_boundary_condition(cls, block):
+        arrays = cls.FD_metrics[:] + [cls.detJ]
+        arrays = [a for a in arrays if isinstance(a, DataObject)]
+        arrays = block.dataobjects_to_datasets_on_block(arrays)
+        from opensbli.core.bcs import PeriodicBC
+        bc_types = (PeriodicBC)
+        for direction in range(block.ndim):
+            for side in [0,1]:
+                # Apply Metric BC only if that direction and side is not periodic
+                if isinstance(block.boundary_types[direction][side], bc_types):
+                    bc = block.boundary_types[direction][side]
+                    cls.Kernels += [bc.apply(arrays, block)]
+                else:
+                    bc = MetricBoundaryCondition(direction, side)
+                    cls.Kernels += [bc.apply(arrays, block)]
+        return
+
+
+class MetricBoundaryCondition(BoundaryConditionBase):
+    def __init__(self, boundary_direction, side, plane=True):
+        BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
+        self.bc_name = 'Metric'
+        return
+
+    def apply(self, arrays, block):
+        direction, side = self.direction, self.side
+        halos, kernel = self.generate_boundary_kernel(block, self.bc_name)
+        from_side_factor, to_side_factor = self.set_side_factor()
+        transfer_indices = [tuple([from_side_factor*t, to_side_factor*t]) for t in range(1, abs(halos[self.direction][self.side]) + 1)]
+        final_equations = self.create_boundary_equations(arrays, arrays, transfer_indices)
+        kernel.add_equation(final_equations)
+        kernel.update_block_datasets(block)
+        return kernel

@@ -2,7 +2,7 @@
 from opensbli import *
 import numpy as np
 from opensbli.core.weno_opensbli import RoeAverage, LLFWeno
-from opensbli.utilities.helperfunctions import output_hdf5
+from opensbli.utilities.helperfunctions import output_hdf5, substitute_simulation_parameters
 
 ndim = 2
 # Specify TENO order and initialise characteristic scheme.
@@ -37,9 +37,9 @@ for eqn in constituent_eqns:
 
 block = SimulationBlock(ndim, block_number=0)
 
-weno_order = '5Z'
+weno_order = 5
 Avg = RoeAverage([0, 1])
-LLF = LLFWeno(weno_order, averaging=Avg)
+LLF = LLFWeno(weno_order, formulation='Z', averaging=Avg)
 
 schemes = {}
 schemes[LLF.name] = LLF
@@ -48,8 +48,8 @@ schemes[rk.name] = rk
 
 boundaries = []
 for direction in range(ndim):
-    boundaries += [PeriodicBoundaryConditionBlock(direction, 0)]
-    boundaries += [PeriodicBoundaryConditionBlock(direction, 1)]
+    boundaries += [PeriodicBC(direction, 0)]
+    boundaries += [PeriodicBC(direction, 1)]
 
 block.set_block_boundaries(boundaries)
 block.set_discretisation_schemes(schemes)
@@ -82,12 +82,16 @@ kwargs = {'iotype': "Write"}
 h5 = iohdf5(save_every=10000, **kwargs)
 h5.add_arrays(simulation_eq.time_advance_arrays)
 h5.add_arrays([DataObject('x0'), DataObject('x1')])
-block.setio(copy.deepcopy(h5))
+
+# read the random numbers dataset from hdf5
+kwargs = {'iotype': "Read"}
+h5_read = iohdf5(**kwargs)
+h5_read.add_arrays([DataObject('random_nums')])
+block.setio([copy.deepcopy(h5), h5_read])
 
 # Set equations on the block and discretise
 block.set_equations([constituent, initial, simulation_eq])
 block.discretise()
-block.block_datasets['%s_B0' % 'random_nums'].read_from_hdf5 = True
 
 alg = TraditionalAlgorithmRK(block)
 SimulationDataType.set_datatype(Double)
@@ -99,3 +103,7 @@ npoints = [512, 512]
 # Generate the initial white noise seeding
 random_numbers = np.random.rand(npoints[0]+2*halos[1], npoints[1]+2*halos[1])
 output_hdf5(random_numbers, name, halos, npoints, block)
+
+constants = ['gama', 'Minf', 'dt', 'niter', 'block0np0', 'block0np1', 'Delta0block0', 'Delta1block0', 'TENO_CT', 'eps']
+values = ['1.4', '2.0', '0.0001', '50000', '512', '512', '1.0/block0np0', '1.0/block0np1', '1e-5', '1e-15']
+substitute_simulation_parameters(constants, values)

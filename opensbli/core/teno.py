@@ -6,6 +6,7 @@ from opensbli.core.grid import GridVariable
 from opensbli.core.scheme import Scheme
 from opensbli.core.weno_opensbli import LLFCharacteristic, ShockCapturing
 from opensbli.core.kernel import ConstantsToDeclare as CTD
+from opensbli.core.opensbliequations import OpenSBLIEq
 
 
 class TenoHalos(object):
@@ -451,8 +452,8 @@ class TenoReconstructionVariable(object):
         all_evaluations = self.smoothness_indicators + self.tau_8_evaluated + self.alpha_evaluated + self.inv_alpha_sum_evaluated + self.kronecker_evaluated + self.omega_evaluated
 
         for no, value in enumerate(all_symbols):
-            kernel.add_equation(Eq(value, all_evaluations[no]))
-        kernel.add_equation(Eq(self.reconstructed_symbol, self.reconstructed_expression))
+            kernel.add_equation(OpenSBLIEq(value, all_evaluations[no]))
+        kernel.add_equation(OpenSBLIEq(self.reconstructed_symbol, self.reconstructed_expression))
         return
 
 

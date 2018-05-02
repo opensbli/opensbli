@@ -140,12 +140,11 @@ class LatexWriter(LatexPrinter):
     def _print_TenoDerivative(self, expr):
         return r'\left. %s \right|_{{%s }}' % (self._print(Derivative(*expr.args)), "Teno")
 
+    def _print_GroupedPiecewise(self, expr):
+        out = r'\[= \left\{\begin{array}{lr} x(n), & \text{for } 0\leq n\leq 1\\ x(n-1), & \text{for } 0\leq n\leq 1\\ x(n-1), & \text{for } 0\leq n\leq 1\end{array}\right\} = xy\]'
+        return out
+
     def _print_KD(self, expr):
-        # print expr
-        # print expr._latex_no_arg(self)
-        # for arg in expr.args:
-            # print self._print(arg)
-        # exit()
         return expr._latex_no_arg(self) + '_{%s}' % (' '.join([self._print(a) for a in expr.args]).replace('_', ''))
 
     def write_expression(self, expression, mode=None, substitutions={}):
@@ -173,7 +172,7 @@ class LatexWriter(LatexPrinter):
                 output[i] = output[i].replace(key, value)
 
         output = ' \n'.join(output)
-        output = ' \n'.join(textwrap.wrap(output, width=70, break_long_words=False))
+        output = ' \n'.join(textwrap.wrap(output, width=250, break_long_words=False))
         output = output + '\n\n'
         self.f.write(output)
         return

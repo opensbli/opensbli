@@ -1,5 +1,6 @@
 from opensbli.core.opensbliobjects import DataSet, CoordinateObject, ConstantIndexed
 import h5py
+from sympy import pprint
 
 
 def get_min_max_halo_values(halos):
@@ -82,13 +83,14 @@ def get_inverse_deltas(delta):
 
 def set_hdf5_metadata(dset, halos, npoints, block):
     """ Function to set hdf5 metadata required by OPS to a dataset. """
-    d_m = [halos[0], halos[0]]
-    d_p = [halos[1], halos[1]]
+    d_m = [halos[0]]*block.ndim
+    d_p = [halos[1]]*block.ndim
+
     dset.attrs.create("d_p", d_p, dtype="int32")
     dset.attrs.create("d_m", d_m, dtype="int32")
     dset.attrs.create("dim", [1], dtype="int32")
     dset.attrs.create("ops_type", u"ops_dat",dtype="S7")
-    dset.attrs.create("block_index", [0], dtype="int32")
+    dset.attrs.create("block_index", [block.blocknumber], dtype="int32")
     dset.attrs.create("base", [0 for i in range(block.ndim)], dtype="int32")
     dset.attrs.create("type", u"double",dtype="S15")
     dset.attrs.create("block", u"%s" % block.blockname,dtype="S25")
@@ -98,12 +100,76 @@ def set_hdf5_metadata(dset, halos, npoints, block):
 def output_hdf5(array, array_name, halos, npoints, block):
     """ Creates an HDF5 file for reading in data to a simulation, 
     sets the metadata required by the OPS library. """
+    if not isinstance(array, list):
+        array = [array]
+    if not isinstance(array_name, list):
+        array_name = [array_name]
+    assert len(array) == len(array_name)
     with h5py.File('data.h5', 'w') as hf:
-        # Set atttributes for group
+        # Create a group
         g1 = hf.create_group(block.blockname)
-        g1.attrs.create("dims", [block.ndim], dtype="int32")
-        g1.attrs.create("ops_type", u"ops_block",dtype="S9")
-        g1.attrs.create("index", [0], dtype="int32")
-        dset = g1.create_dataset('%s_B0' % array_name, data=array)
-        set_hdf5_metadata(dset, halos, npoints, block)
+        # Loop over all the dataset inputs and write to the hdf5 file
+        for ar, name in zip(array, array_name):
+            g1.attrs.create("dims", [block.ndim], dtype="int32")
+            g1.attrs.create("ops_type", u"ops_block",dtype="S9")
+            g1.attrs.create("index", [block.blocknumber], dtype="int32")
+            block_dset_name = block.location_dataset(name).base
+            dset = g1.create_dataset('%s' % (block_dset_name), data=ar)
+            set_hdf5_metadata(dset, halos, npoints, block)
+    return
+
+def substitute_simulation_parameters(constants, values, simulation_name='opensbli'):
+    """ Function to substitute user provided numerical values for constants 
+    defined in the simulation.
+
+    :arg list constants: List of strings, one for each input constant in the simulation.
+    :arg list values: Numerical values corresponding to the strings in the constants list."""
+    file_path = "./%s.cpp" % simulation_name
+    substitutions = dict(zip(constants, values))
+    print "Constant simulation values:"
+    pprint(substitutions)
+    with open(file_path) as f:
+        s = f.read()
+    with open(file_path, 'w') as f:
+        for const, value in substitutions.iteritems():
+            old_str = const + '=Input;'
+            if old_str in s:
+                new_str = const + ' = %s' % value + ';'
+                s = s.replace(old_str, new_str)
+        f.write(s)
+    return
+
+def dataset_attributes(dset):
+    """
+    Move to datasetbase? Should we??
+    """
+    dset.block_number = None
+    dset.read_from_hdf5 = False
+    dset.dtype = None
+    dset.size = None
+    dset.halo_ranges = None
+    dset.block_name = None
+    return dset
+
+def constant_attributes(const):
+    const.is_input = True
+    const.dtype = None
+    const.value = None
+    return const
+
+
+def print_iteration_ops(simulation_name='opensbli', every=100):
+    """
+    """
+    file_path = "./%s.cpp" % simulation_name
+    with open(file_path) as f:
+        lines = f.readlines()
+    for no,line in enumerate(lines):
+        check_string = "int iter=0;"
+        if check_string in line:
+            lines[no+1] = lines[no+1] + """if(fmod(iter+1, %d) == 0){
+        ops_printf("Iteration is %%d\\n", iter+1);
+    }\n""" %(every)
+    with open(file_path, 'w') as f:
+        f.write(''.join(lines))
     return

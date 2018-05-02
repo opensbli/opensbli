@@ -307,12 +307,20 @@ class BasicDiscretisation(EinsteinStructure):
     def _sanitise(cls):
         """ As of now CD(u0,x0,x1) --> CD(CD(u0,x0), x1)
         need a better formulation"""
-        args = [cls.args[0], cls.args[1]]
-        expr = type(cls)(*args)
-        for arg in cls.args[2:]:
-            args = [expr, arg]
+        # sort the differentiation variables based on direction so that the variables are
+        # sorted and we remove extra computation of derivatives
+        if not cls.is_homogeneous:
+            coordinate_directions = cls.get_direction
+            sorted_variables = [x for _,x in sorted(zip(coordinate_directions, cls.args[1:]))]
+            args = [cls.args[0], sorted_variables[0]]
             expr = type(cls)(*args)
-        return expr
+            for arg in sorted_variables[1:]:
+                args = [expr, arg]
+                expr = type(cls)(*args)
+            return expr
+        else:
+            return cls
+        
 
     @property
     def used_else_where(self):
@@ -549,6 +557,7 @@ class CentralDerivative(Function, BasicDiscretisation):
             metric_der = metric.classical_strong_differentiabilty_transformation[direction[0]]
             transformed_der = metric_der.subs(metric.general_function, cls.args[0])
         elif cls.order == 2:
+            metric.sd_used = True
             metric_der = metric.classical_strong_differentiabilty_transformation_sd[tuple(cls.get_direction)]
             transformed_der = metric_der.subs(metric.general_function, cls.args[0])
 

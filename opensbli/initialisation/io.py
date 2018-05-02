@@ -1,5 +1,6 @@
 from .common import InTheSimulation, AfterSimulationEnds, BeforeSimulationStarts
 from sympy import flatten
+from opensbli.utilities.helperfunctions import dataset_attributes, constant_attributes
 
 
 class opensbliIO(object):
@@ -17,10 +18,6 @@ class iohdf5(opensbliIO):
         ret.order = 0
         ret.group_number = cls.group_number
         cls.increase_io_group_number()
-        ret.arrays = []
-        if arrays:
-            ret.add_arrays(arrays)
-
         if kwargs:
             ret.kwargs = {}
             for key in kwargs:
@@ -30,6 +27,9 @@ class iohdf5(opensbliIO):
             ret.kwargs = {'iotype': "write"}
         ret.algorithm_place = []
         ret.get_algorithm_location(save_every=save_every)
+        ret.arrays = []
+        if arrays:
+            ret.add_arrays(arrays)
         return ret
 
     def get_algorithm_location(cls, save_every):
@@ -45,6 +45,18 @@ class iohdf5(opensbliIO):
 
     def add_arrays(cls, arrays):
         cls.arrays += flatten(arrays)
+        return
+    
+    def set_read_from_hdf5_arrays(cls, block):
+        if cls.kwargs['iotype'] == "read":
+            for ar in cls.arrays:
+                if str(ar) in block.block_datasets.keys():
+                    dset = block.block_datasets[str(ar)]
+                    dset.read_from_hdf5 = True
+                    block.block_datasets[str(ar)] = dset
+                else:
+                    block.block_datasets[str(ar)] = ar
+                    block.block_datasets[str(ar)].read_from_hdf5 = True
         return
 
     def write_latex(cls, latex):
@@ -94,8 +106,15 @@ class iohdf5(opensbliIO):
         return code
 
     def hdf5read_opsc_code(cls):
-
-        return
+        """To keep the abstraction going return nothing for HDF5 OPSC code"""
+        return []
+    
+    @property
+    def evaluated_datasets(cls):
+        evaluated = set()
+        if cls.kwargs['iotype'] == "read":
+            evaluated = evaluated.union(set([a.base for a in cls.arrays]))
+        return evaluated
 
 
 class IoGroup():

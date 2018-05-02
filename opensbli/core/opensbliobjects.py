@@ -1,9 +1,14 @@
 from sympy import Symbol, flatten
+from sympy.core.compatibility import is_sequence
 from sympy.tensor import Idx, IndexedBase, Indexed
-from sympy import pprint
+from sympy import pprint, srepr
 from sympy.tensor.indexed import IndexException
 from sympy.core.cache import cacheit
 from opensbli.core.datatypes import SimulationDataType
+from sympy.core import Basic, Tuple, Function, Equality
+from sympy.core.basic import *
+from sympy.logic.boolalg import Boolean
+
 
 _projectname = "opensbli"
 
@@ -256,6 +261,7 @@ class CoordinateObject(EinsteinTerm):
     is_commutative = True
     is_Atom = True
 
+    @cacheit
     def __new__(cls, label, **kwargs):
         ret = super(CoordinateObject, cls).__new__(cls, label)
         if 'time' in kwargs:
@@ -502,3 +508,195 @@ class Grididx(Symbol):
         self.number = number
         self.base = label
         return self
+
+class GlobalValue(object):
+    """A base class for values that are global to all processes, these are not
+    constants but they change with time or kind of mesh parameters which are 
+    updated in the simulation and not user input"""
+    
+
+class Globalvariable(EinsteinTerm, GlobalValue):
+    
+    is_commutative = True
+    
+    def __new__(cls, label, **kwargs):
+        ret = super(Globalvariable, cls).__new__(cls, label, **kwargs)
+        ret._datatype = SimulationDataType()
+        ret.is_input = True
+        ret._value = "Input"
+        return ret
+    
+    @property
+    def datatype(self):
+        """Numeric data type of the Globalvariable array.
+
+        :returns: Numerical datatype (see :class:`.SimulationDataType`)"""
+        return self._datatype
+
+    @datatype.setter
+    def datatype(self, dtype):
+        self._datatype = dtype
+
+    @property
+    def value(self):
+        return self._value
+
+
+class GroupedCondition(Tuple):
+    """Represents an expression, condition pair."""
+
+    def __new__(cls, expressions, condition):
+        return Tuple.__new__(cls, expressions, condition)
+
+    @property
+    def expressions(self):
+        """
+        Returns the expression of this pair.
+        """
+        return self.args[0]
+
+    @property
+    def cond(self):
+        """
+        Returns the condition of this pair.
+        """
+        return self.args[1]
+
+    @property
+    def lhs(self):
+        return [eq.lhs for eq in self.expressions]
+
+    @property
+    def rhs(self):
+        return [eq.rhs for eq in self.expressions]
+
+    @property
+    def is_commutative(self):
+        return self.expressions.is_commutative
+
+    def __iter__(self):
+        yield self.expressions
+        yield self.cond
+from sympy import Piecewise
+class GroupedPiecewise(Piecewise):
+    nargs = None
+    is_Piecewise = True
+
+    def __new__(cls, *args, **options):
+        return Piecewise.__new__(cls, *args, **options)
+
+    def add_pair(cls, expr_pair):
+        cls.pairs.append(expr_pair)
+        cls.extract_all_equations
+        cls.extract_all_conditions
+        # assert isinstance(Boolean, expr_pair[1])
+        cls.grouped_conditions += [expr_pair[1]]
+        cls.grouped_equations += [expr_pair[0]] ## add input checking here
+        return
+    
+    #@property
+    #def gro
+    
+    def convert_to_datasets(self, block):
+        replacements = {}
+        for d in self.atoms(DataObject):
+            replacements[d] = block.location_dataset(d)
+        #for expr, c in self.args:
+            #if is_sequence(expr):
+                #for eq1 in e:
+                    #if is_sequence(eq1):
+                        #raise NotImplementedError("")
+                    #eq1.convert_to_datasets(block)
+                
+        #for index, list_of_eqn in enumerate(self.grouped_equations):
+            #for eqn_no, equation in enumerate(list_of_eqn):
+                #self.grouped_equations[index][eqn_no] = equation.convert_to_datasets(block)
+        #for index, condition in enumerate(self.grouped_conditions):
+            #for d in condition.atoms(DataObject):
+                #new = block.location_dataset(str(d))
+                #condition = condition.subs(d, new)
+            #self.grouped_conditions[index] = condition
+        return self.subs(replacements)
+    
+    def _eval_subs(self, old, new):
+        args = list(self.args)
+        for i, (e, c) in enumerate(args):
+            c = c._subs(old, new)
+            if is_sequence(e):
+                for no, eq1 in enumerate(e):
+                    if is_sequence(eq1):
+                        raise NotImplementedError("")
+                    e[no] = eq1._subs(old, new)
+            else:
+                e = e._subs(old, new)
+            args[i] = (e, c)
+        return self.func(*args)
+    
+    #@property
+    #def required_datasets(self):
+        #dsets = set()
+        #for eq in flatten(self.grouped_equations):
+            #dsets = dsets.union(eq.required_datasets)
+        #for c in flatten(self.grouped_conditions):
+            #dsets = dsets.union(d.atoms(DataSet))
+        #return dsets
+    
+    @property
+    def lhs_datasets(self):
+        """ These are the datsets to be written out, so only expressions are considered and condition is omitted"""
+        dsets = set()
+        for e, c in self.args:
+            if is_sequence(e):
+                for eq1 in e:
+                    if is_sequence(eq1):
+                        raise NotImplementedError("")
+                    dsets = dsets.union(eq1.lhs_datasets)
+            else:
+                dsets = dsets.union(e.lhs_datasets)
+        return dsets
+    
+    @property
+    def lhs_datasets_full(self):
+        """ These are the datsets to be written out, so only expressions are considered and condition is omitted"""
+        dsets = set()
+        for e, c in self.args:
+            if is_sequence(e):
+                for eq1 in e:
+                    if is_sequence(eq1):
+                        raise NotImplementedError("")
+                    dsets = dsets.union(eq1.atoms(DataSet))
+            else:
+                dsets = dsets.union(e.atoms(DataSet))
+        return dsets
+    
+    @property
+    def rhs_datasets(self):
+        dsets = set()
+        for e, c in self.args:
+            if is_sequence(e):
+                for eq1 in e:
+                    if is_sequence(eq1):
+                        raise NotImplementedError("")
+                    dsets = dsets.union(eq1.rhs_datasets)
+            else:
+                dsets = dsets.union(e.rhs_datasets)
+            dsets = dsets.union(c.atoms(DataSetBase))
+        return dsets
+
+    @property
+    def expr_rhs(cls):
+        return flatten([pairs.rhs for pairs in cls.pairs])
+
+    @property
+    def expr_lhs(cls):
+        return flatten([pairs.lhs for pairs in cls.pairs])
+
+    @property
+    def extract_all_equations(cls):
+        cls.all_equations = flatten([pair.expressions for pair in cls.pairs])
+
+    @property
+    def extract_all_conditions(cls):
+        cls.all_conditions = flatten([pair.cond for pair in cls.pairs])
+
+    

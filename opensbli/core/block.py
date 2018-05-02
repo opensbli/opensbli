@@ -1,13 +1,15 @@
 from opensbli.core.grid import Grid
-from sympy import pprint
+from sympy import pprint, Equality
 from opensbli.core.bcs import BoundaryConditionTypes
-from opensbli.core.opensbliobjects import ConstantObject, DataObject, DataSetBase
+from opensbli.core.opensbliobjects import ConstantObject, DataObject, DataSetBase, GroupedCondition, GroupedPiecewise, DataSet
+from opensbli.core.opensbliequations import OpenSBLIEq
 from opensbli.core.opensbliequations import ConstituentRelations
-from sympy import flatten
-
+from opensbli.core.metrics import MetricsEquation
+from sympy import flatten, eye, srepr
+_known_equation_types = (GroupedPiecewise, OpenSBLIEq)
 
 class DataSetsToDeclare(object):
-    """
+    """Remove this we are not using it any more
     """
     datasetbases = []
 
@@ -106,27 +108,34 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes):  # BoundaryC
         self.boundary_halos[direction][side].add(types)
         return
 
+
     def dataobjects_to_datasets_on_block(self, eqs):
         """
         """
-        all_equations = flatten(eqs)[:]
+        store_equations = flatten(eqs)[:]
         consts = set()
 
-        for no, eq in enumerate(all_equations):
-            consts = consts.union(eq.atoms(ConstantObject))
-            for d in eq.atoms(DataObject):
-                new = self.location_dataset(d)
-                eq = eq.subs({d: new})
-            all_equations[no] = eq
+        for no, eq in enumerate(store_equations):
+            if isinstance(eq, _known_equation_types):
+                store_equations[no] = eq.convert_to_datasets(self)
+                consts = consts.union(eq.atoms(ConstantObject))
+            elif isinstance(eq, Equality):
+                new_eq = OpenSBLIEq(eq.lhs, eq.rhs)
+                consts = consts.union(new_eq.atoms(ConstantObject))
+                store_equations[no] = new_eq.convert_to_datasets(self)
+            elif isinstance(eq, DataObject):
+                store_equations[no] = self.location_dataset(str(eq))
+            else: # Integers and Floats from Eigensystem entering here
+                pass
         # Convert all equations into the format of input equations WARNING crude way
         out = []
         out_loc = 0
         for no, e in enumerate(eqs):
             if isinstance(e, list):
-                out += [all_equations[out_loc:out_loc+len(e)]]
+                out += [store_equations[out_loc:out_loc+len(e)]]
                 out_loc += len(e)
             else:
-                out += [all_equations[out_loc]]
+                out += [store_equations[out_loc]]
                 out_loc += 1
         # Add
         from .kernel import ConstantsToDeclare as CTD
@@ -142,6 +151,15 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes):  # BoundaryC
         otherclass.ndim = self.ndim
         otherclass.block_name = self.blockname
         return
+    
+    @property
+    def known_datasets(self):
+        known_dsets = set()
+        for eq in self.list_of_equation_classes:
+            known_dsets = known_dsets.union(eq.evaluated_datasets)
+        for io in self.InputOutput:
+            known_dsets = known_dsets.union(io.evaluated_datasets)
+        return known_dsets
 
     def discretise(self):
         """
@@ -166,6 +184,8 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes):  # BoundaryC
         for t in temporal:
             for eq in self.list_of_equation_classes:
                 self.discretisation_schemes[t.name].discretise(eq, self)
+        for io in self.InputOutput:
+            io.set_read_from_hdf5_arrays(self)
         return
 
     def create_datasetbase(self, name):
@@ -291,7 +311,28 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes):  # BoundaryC
         # CentralHalos_defdec()
         # halos.add(s.halotype)
         return halos
+    
+    @property
+    def get_metric_class(self):
+        metric_class = []
+        for EqClass in self.list_of_equation_classes:
+            if isinstance(EqClass, MetricsEquation):
+                metric_class += [EqClass]
+        if len(metric_class) == 0:
+            return None
+        if len(metric_class) > 1:
+            raise ValueError("more than one metric class found in the equations")
+        else:
+            return metric_class[0]
 
+    @property
+    def fd_metrics(self):
+        metric = self.get_metric_class
+        if metric:
+            fn = lambda x: self.dataobjects_to_datasets_on_block([x])[0]
+            return metric.FD_metrics.applyfunc(fn)
+        else:
+            return eye(self.ndim)
 
 def sort_constants(constants_dictionary):
     """

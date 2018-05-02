@@ -403,6 +403,10 @@ class TraditionalAlgorithmRK(object):
             after_time = []
             in_time = []
             non_simulation_eqs = []
+            # Raise an error if there are more than one temporal scheme
+            if len(b.get_temporal_schemes) > 1:
+                raise ValueError("Found more than one temporal scheme on the \
+                    block")
             for scheme in b.get_temporal_schemes:
                 for key, value in scheme.solution.iteritems():
                     if isinstance(key, SimulationEquations):
@@ -411,7 +415,7 @@ class TraditionalAlgorithmRK(object):
                         temporal_end += scheme.solution[key].end_kernels
                         inner_temporal_advance_kernels += scheme.solution[key].kernels
                         bc_kernels = key.boundary_kernels
-                        spatial_kernels = key.all_spatial_kernels
+                        spatial_kernels = key.all_spatial_kernels(b)
                     elif isinstance(key, NonSimulationEquations):  # Add all other types of equations
                         non_simulation_eqs += [key]
                         # for place in key.algorithm_place:
@@ -432,13 +436,16 @@ class TraditionalAlgorithmRK(object):
                     elif isinstance(place, AfterSimulationEnds):
                         after_time += key.Kernels
                     else:
-                        raise NotImplementedError("In Nonsimulation equations")
+                        if place.frequency:
+                            raise NotImplementedError("In Nonsimulation equations")
+                        else:
+                            in_time += key.Kernels
 
             sc = b.get_temporal_schemes[0]
             innerloop = sc.generate_inner_loop(spatial_kernels + inner_temporal_advance_kernels + bc_kernels)
             # Add BC kernels to temporal start
             temporal_start = bc_kernels + temporal_start
-            temporal_iteration = Idx("iter", ConstantObject('niter', integer=True))
+            temporal_iteration = sc.temporal_iteration
             for io in b.InputOutput:
                 for place in io.algorithm_place:
                     if isinstance(place, BeforeSimulationStarts):
@@ -459,9 +466,9 @@ class TraditionalAlgorithmRK(object):
                         in_time += [cond]
                     else:
                         raise NotImplementedError("In Nonsimulation equations")
-            niter_symbol = ConstantObject('niter')
-            niter_symbol.datatype = Int()
-            CTD.add_constant(niter_symbol)
+            #niter_symbol = ConstantObject('niter')
+            #niter_symbol.datatype = Int()
+            #CTD.add_constant(niter_symbol)
             tloop = DoLoop(temporal_iteration)
             tloop.add_components(temporal_start)
             tloop.add_components(innerloop)

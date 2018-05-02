@@ -2,10 +2,13 @@
 from sympy.calculus import finite_diff_weights
 from sympy import postorder_traversal, Function, flatten, Eq, Rational, Idx
 from sympy.core import Add, Mul
-from opensbli.core.opensbliobjects import ConstantObject, ConstantIndexed
+from opensbli.core.opensbliobjects import ConstantObject, ConstantIndexed, Globalvariable, DataSet
 from opensbli.core.opensblifunctions import CentralDerivative
+from opensbli.core.opensbliequations import OpenSBLIEq
 from opensbli.core.kernel import Kernel
 from opensbli.utilities.helperfunctions import increasing_order
+from opensbli.core.datatypes import Int
+from sympy import pprint
 
 
 class Scheme(object):
@@ -22,7 +25,6 @@ class Scheme(object):
         self.name = name
         self.order = order
         return
-
 
 class CentralHalos(object):
     def __init__(self, order):
@@ -176,6 +178,19 @@ class Central(Scheme):
                     self.required_constituent_relations[v].set_halo_range(direction, 1, self.halotype)
         return
 
+    def check_constituent_relations(self, block, list_of_eq):
+        """ Checks all the datasets in equations provided are evaluated in constituent relations."""
+        arrays = []
+        for eq in flatten(list_of_eq):
+            arrays += list(eq.atoms(DataSet))
+        arrays = set(arrays)
+        undefined = arrays.difference(self.required_constituent_relations.keys())
+
+        for dset in undefined:
+            self.required_constituent_relations[dset] = Kernel(block, computation_name="CR%s" % dset)
+            self.required_constituent_relations[dset].set_grid_range(block)
+        return
+
     def sbli_rhs_discretisation(self, type_of_eq, block):
         """
         This is the discretisation similar to the Southampton SBLI RHS, without
@@ -211,14 +226,14 @@ class Central(Scheme):
                     if len(v.required_datasets) > 1:
                         wk = block.work_array()
                         block.increase_work_index
-                        expr = Eq(wk, v.args[0])
+                        expr = OpenSBLIEq(wk, v.args[0])
                         ev_ker.add_equation(expr)
                         ev_ker.set_halo_range(key, 0, self.halotype)
                         ev_ker.set_halo_range(key, 1, self.halotype)
                         v1 = v.subs(v.args[0], wk)
                     else:
                         v1 = v
-                    expr = Eq(v.work, v1._discretise_derivative(self, block))
+                    expr = OpenSBLIEq(v.work, v1._discretise_derivative(self, block))
                     # pprint(expr)
                     ker = Kernel(block)
                     ker.add_equation(expr)
@@ -241,6 +256,7 @@ class Central(Scheme):
             # Create convective residual
 
             convective_descritised = convective[:]
+            self.check_constituent_relations(block, convective_descritised)
 
             for no, c in enumerate(convective_descritised):
                 convective_descritised[no] = convective_descritised[no].subs(subs_conv)
@@ -251,6 +267,7 @@ class Central(Scheme):
         block.reset_work_index
         # Discretise the viscous fluxes. This is straight forward as we need not modify anything
         viscous_kernels, viscous_discretised = self.genral_discretisation(viscous, block, name="Viscous")
+        self.check_constituent_relations(block, viscous)
         if viscous_kernels:
             for ker in sorted(viscous_kernels, cmp=increasing_order):
                 eval_ker = viscous_kernels[ker]
@@ -265,6 +282,7 @@ class Central(Scheme):
         # create_latex_kernel(kernels)
         # Add the kernels to the solutions
         type_of_eq.Kernels += kernels
+        block.reset_work_index
         return
 
     def set_halo_range_kernel(self, kernel, direction, sides=None):
@@ -280,7 +298,7 @@ class Central(Scheme):
             raise ValueError("")
         residue_kernel = Kernel(block)
         for no, array in enumerate(residual_arrays):
-            expr = Eq(array, array+discretised_eq[no])
+            expr = OpenSBLIEq(array, array+discretised_eq[no])
             residue_kernel.add_equation(expr)
         residue_kernel.set_grid_range(block)
         return residue_kernel
@@ -290,7 +308,7 @@ class Central(Scheme):
         This discretises the central derivatives, without any special treatment to
         group the derivatives or any thing
         """
-        descritised_equations = equations[:]
+        descritised_equations = flatten(equations)[:]
         cds = self.get_local_function(flatten(equations))
         if cds:
             local_kernels = {}
@@ -306,14 +324,13 @@ class Central(Scheme):
             for der in cds:
                 self.update_range_of_constituent_relations(der, block)
                 expr, local_kernels = self.traverse(der, local_kernels, block)
-                expr_discretised = Eq(der.work, expr._discretise_derivative(self, block))
+                expr_discretised = OpenSBLIEq(der.work, expr._discretise_derivative(self, block))
                 work_arry_subs[expr] = der.work
                 local_kernels[der].add_equation(expr_discretised)
                 local_kernels[der].set_grid_range(block)
                 # print "applying bcs for %s"%(expr)
                 # local_kernels[der] += expr.apply_boundary_derivative_modification(block, self, der.work) # Applys the boundary kernel modifications if any
             # Apply any Boundary conditions Reverted back
-            # pprint(work_arry_subs)
             for no, c in enumerate(descritised_equations):
                 descritised_equations[no] = descritised_equations[no].subs(work_arry_subs)
             return local_kernels, descritised_equations
@@ -409,6 +426,15 @@ class RungeKutta(Scheme):
         cls.get_coefficients
         # cls.solution_coeffs.value = coeffs[cls.solution_coeffs]
         # cls.stage_coeffs
+        niter_symbol = ConstantObject('niter', integer=True)
+        niter_symbol.datatype = Int()
+        cls.iteration_number = Globalvariable("iter", integer = True)
+        cls.iteration_number._value = None
+        cls.iteration_number.datatype = Int()
+        # As iteration number is used in a for loop we dont add them to
+        # constants to declare
+        cls.temporal_iteration = Idx(cls.iteration_number, niter_symbol)
+        CTD.add_constant(niter_symbol)
         CTD.add_constant(cls.solution_coeffs)
         CTD.add_constant(cls.stage_coeffs)
         cls.solution = {}
@@ -416,6 +442,8 @@ class RungeKutta(Scheme):
             raise NotImplementedError("")
         else:
             cls.constant_time_step = True
+        cls.time_step = ConstantObject("dt")
+        CTD.add_constant(cls.time_step)
         return
 
     @property
@@ -489,14 +517,12 @@ class RungeKutta(Scheme):
         return [stage_update_kernel, solution_update_kernel]
 
     def constant_time_step_solution(cls, zipped):
-        dt = ConstantObject("dt")
-        from .kernel import ConstantsToDeclare as CTD
-        CTD.add_constant(dt)
+        dt = cls.time_step
         old = []
         new = []
         for z in zipped:
-            old += [Eq(z[0], z[0] + dt*cls.solution_coeffs*z[2], evaluate=False)]
-            new += [Eq(z[1], z[0] + dt*cls.stage_coeffs*z[2], evaluate=False)]
+            old += [OpenSBLIEq(z[0], z[0] + dt*cls.solution_coeffs*z[2], evaluate=False)]
+            new += [OpenSBLIEq(z[1], z[0] + dt*cls.stage_coeffs*z[2], evaluate=False)]
         return old, new
 
     def create_start_computations(cls, zipped, block):
@@ -504,7 +530,7 @@ class RungeKutta(Scheme):
         kernel.computation_name = "Save equations"
         kernel.set_grid_range(block)
         for z in zipped:
-            kernel.add_equation(Eq(z[0], z[1]))
+            kernel.add_equation(OpenSBLIEq(z[0], z[1]))
         kernel.update_block_datasets(block)
         return kernel
 

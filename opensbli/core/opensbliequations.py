@@ -1,6 +1,5 @@
 from opensbli.core.opensbliobjects import DataSet, ConstantObject, DataSetBase
 from opensbli.core.opensblifunctions import TemporalDerivative
-from opensbli.core.kernel import Kernel
 from sympy import flatten, preorder_traversal, Expr, Eq
 from sympy import Equality, Function, pprint, srepr
 
@@ -91,6 +90,8 @@ class Discretisation(object):
         :param MetricsEquation metriceqclass: see :class:`.MetricsEquation` 
         :return: None"""
         out = []
+        if len(flatten(cls.equations)) == 0:
+            raise ValueError("%s class does not have equations to apply metrics to." % cls.__class__.__name__)
         for eq in cls.equations:
             if isinstance(eq, list):
                 out_inner = []
@@ -133,26 +134,44 @@ class Discretisation(object):
             equation = OpenSBLIEquation(equation.lhs, equation.rhs)
             self.equations += [equation]
         return
+    
+    @property
+    def evaluated_datasets(cls):
+        return set()
 
-
-
-
+from opensbli.core.opensbliobjects import DataObject, DataSetBase
 class OpenSBLIEquation(Equality):
     """A wrapper around SymPy's Equality class to provide more flexibility in the future"""
     is_Equality = True
 
-    def __new__(cls, lhs, rhs):
-        ret = super(OpenSBLIEquation, cls).__new__(cls, lhs, rhs)
-        ret.is_vector = False
+    def __new__(cls, lhs, rhs, **options):
+        ret = super(OpenSBLIEquation, cls).__new__(cls, lhs, rhs, **options)
         return ret
-
-    def _eval_evalf(self, prec):
-        return self.func(*[s._evalf(prec) for s in self.args])
 
     def set_vector(cls, component_number):
         cls.is_vector = True
         cls.vector_component = component_number
         return
+    
+    def convert_to_datasets(self, block):
+        replacements = {}
+        for d in self.atoms(DataObject):
+            replacements[d] = block.location_dataset(d)
+        args = [a.subs(replacements) for a in self.args]
+        return type(self)(*args)
+    
+    @property
+    def required_datasets(self):
+        """Not required"""
+        return self.lhs_datasets.union(self.rhs_datasets)
+    
+    @property
+    def lhs_datasets(self):
+        return self.lhs.atoms(DataSetBase)
+    
+    @property
+    def rhs_datasets(self):
+        return self.rhs.atoms(DataSetBase)
 
     @property
     def _sanitise_equation(cls):
@@ -166,6 +185,7 @@ class OpenSBLIEquation(Equality):
         eq = cls
         return eq.xreplace(replacements)
 
+OpenSBLIEq = OpenSBLIEquation
 
 class Solution(object):
     """An object to store the symbolic kernels generated while applying the numerical method to the equations"""
@@ -229,8 +249,9 @@ class SimulationEquations(Discretisation, Solution):
         
         :param SimulationBlock block: the block on which the equations are solved
         :return: None """
+        from opensbli.core.kernel import Kernel
         kernel = Kernel(block, computation_name="Zeroing residuals")
-        eqs = [Eq(eq.residual, 0) for eq in flatten(cls.equations)]
+        eqs = [OpenSBLIEq(eq.residual, 0) for eq in flatten(cls.equations)]
         kernel.add_equation(eqs)
         kernel.set_grid_range(block)
         cls.Kernels += [kernel]
@@ -303,8 +324,7 @@ class SimulationEquations(Discretisation, Solution):
             kernel.update_block_datasets(block)
         return
 
-    @property
-    def sort_constituents(cls):
+    def sort_constituents(cls, block):
         """Sort the constituent relation kernels
         """
         input_order = []
@@ -317,13 +337,17 @@ class SimulationEquations(Discretisation, Solution):
         dictionary = {}
         for key, value in cls.constituent_relations_kernels.iteritems():
             dictionary[key.base] = value
-        order_of_evaluation = cls.sort_dictionary(input_order, dictionary)
+        order_of_evaluation = cls.sort_dictionary(input_order, dictionary, block)
         ordered_kernels = []
         for o in order_of_evaluation:
             ordered_kernels += [dictionary[o]]
         return ordered_kernels
+    
+    @property
+    def evaluated_datasets(cls):
+        return set([c.base for c in flatten(cls.time_advance_arrays)])
 
-    def sort_dictionary(cls, order, new_dictionary):
+    def sort_dictionary(cls, order, new_dictionary, block):
         """ Sort the evaluations based on the requirements of each term. For example, if we have
         the primitive variables p, u0, u1, and T, then the pressure p may depend on the velocity u0 and u1, and T may depend on p,
         so we need this be evaluate in the following order: u0, u1, p, T.
@@ -337,13 +361,12 @@ class SimulationEquations(Discretisation, Solution):
         """
         dictionary = new_dictionary
         # reverse_dictionary = {}
-        order = flatten(order + [a.base for a in flatten(cls.time_advance_arrays)])
+        order = flatten(order + list(block.known_datasets))
         order = list(set(order))
         # store the length of order
         input_order = len(order)
         key_list = [key for key in dictionary.keys() if key not in order]
-        requires_list = ([dictionary[key].required_data_sets for key in key_list])
-
+        requires_list = ([dictionary[key].rhs_datasets for key in key_list])
         zipped = zip(key_list, requires_list)
         # Breaks after 1000 iterations
         iter_count = 0
@@ -351,7 +374,7 @@ class SimulationEquations(Discretisation, Solution):
             iter_count = iter_count+1
             order += [x for (x, y) in zipped if all(req in order for req in y)]
             key_list = [key for key in dictionary.keys() if key not in order]
-            requires_list = [dictionary[key].required_data_sets for key in key_list]
+            requires_list = [dictionary[key].rhs_datasets for key in key_list]
             zipped = zip(key_list, requires_list)
             if iter_count > 1000:
                 print("Exiting because i cannot classify the following")
@@ -398,9 +421,8 @@ class SimulationEquations(Discretisation, Solution):
     def algorithm_location(cls):
         return True
 
-    @property
-    def all_spatial_kernels(cls):
-        return cls.sort_constituents + cls.Kernels
+    def all_spatial_kernels(cls, block):
+        return cls.sort_constituents(block) + cls.Kernels
 
 
 class ConstituentRelations(Discretisation, Solution):
@@ -464,14 +486,42 @@ class ConstituentRelations(Discretisation, Solution):
         return
 
 
-class NonSimulationEquations():
+class NonSimulationEquations(Discretisation):
     """ Dummy place holder for all the equations that are not simulated but needs to be evaluated
     e.g, metrics or diagnostics or Statistics, """
     pass
 
+class DiagnosticEq(Equality):
+    """For diagnositcs we use a separate equation so that we can determine the type of the LHS depening on
+    the RHS"""
+    
+    def __new__(cls, *args, **kwargs):
+        if (len(args) != 2):
+            raise ValueError("")
+        lhs = args[1].get_lhs_variable(args[0])
+        rhs = args[1]
+        ret = super(DiagnosticEq, cls).__new__(cls, lhs, rhs)
+        return ret
 
-class DiagnosticsEquations(NonSimulationEquations):
+class DiagnosticsEquations(NonSimulationEquations, Solution):
 
     def __new__(cls):
-        # The order for this would be >100
+        ret = super(DiagnosticsEquations, cls).__new__(cls)
+        ret.equations = []
+        return ret
+    
+    def add_equations(self, equation):
+        """Adds the equations to the class. here the equations are processed
+        based on the type of RHS.
+        
+        :param equation: a list of equations or a single equation to be added to the class"""
+        if isinstance(equation, list):
+            local = []
+            for no, eq in enumerate(equation):
+                eq = DiagnosticEq(eq.lhs, eq.rhs)
+                local += [eq]
+            self.equations += [local]
+        else:
+            equation = DiagnosticEq(equation.lhs, equation.rhs)
+            self.equations += [equation]
         return

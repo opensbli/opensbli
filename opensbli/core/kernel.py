@@ -1,34 +1,18 @@
 from sympy import flatten, Equality, Indexed
+from sympy.core.compatibility import is_sequence
 from sympy import Rational, Pow, Integer
 from sympy.printing import pprint
-from opensbli.core.opensbliobjects import DataSetBase, DataSet, ConstantIndexed, ConstantObject
+from opensbli.core.opensbliobjects import DataSetBase, DataSet, ConstantIndexed, ConstantObject,\
+    GlobalValue, GroupedPiecewise
+from opensbli.core.opensbliequations import OpenSBLIEq
 from opensbli.core.grid import GridVariable, Grididx
 from opensbli.core.datatypes import SimulationDataType
 from sympy.core.function import _coeff_isneg
-from opensbli.utilities.helperfunctions import get_min_max_halo_values
+from opensbli.utilities.helperfunctions import get_min_max_halo_values, dataset_attributes, constant_attributes
 from opensbli.core.datatypes import Int
 import copy
 
-
-def dataset_attributes(dset):
-    """
-    Move to datasetbase? Should we??
-    """
-    dset.block_number = None
-    dset.read_from_hdf5 = False
-    dset.dtype = None
-    dset.size = None
-    dset.halo_ranges = None
-    dset.block_name = None
-    return dset
-
-
-def constant_attributes(const):
-    const.is_input = True
-    const.dtype = None
-    const.value = None
-    return const
-
+_known_equation_types = (GroupedPiecewise, OpenSBLIEq)
 
 class ConstantsToDeclare(object):
     constants = []
@@ -141,6 +125,8 @@ class Kernel(object):
             self.equations += flatten([equation])
         elif isinstance(equation, Equality):
             self.equations += [equation]
+        elif isinstance(equation, GroupedPiecewise):
+            self.equations += [equation]
         elif equation:
             pass
         else:
@@ -188,33 +174,39 @@ class Kernel(object):
 
     @property
     def required_data_sets(self):
+        """This is not used any more check for all apps and delete"""
         requires = []
+        requires1 = []
         for eq in self.equations:
-            if isinstance(eq, Equality):
-                requires += list(eq.rhs.atoms(DataSetBase))
+            if isinstance(eq, _known_equation_types):
+                requires += list(eq.rhs_datasets)
         return requires
 
     @property
     def lhs_datasets(self):
         datasets = set()
         for eq in self.equations:
-            if isinstance(eq, Equality):
-                datasets = datasets.union(eq.lhs.atoms(DataSetBase))
+            if isinstance(eq, _known_equation_types):
+                datasets = datasets.union(eq.lhs_datasets)
+            elif isinstance(eq, Equality):
+                raise TypeError("Equality should be of types %s" %_known_equation_types)
         return datasets
 
     @property
     def rhs_datasets(self):
         datasets = set()
         for eq in self.equations:
-            if isinstance(eq, Equality):
-                datasets = datasets.union(eq.rhs.atoms(DataSetBase))
+            if isinstance(eq, _known_equation_types):
+                datasets = datasets.union(eq.rhs_datasets)
+            elif isinstance(eq, Equality):
+                raise TypeError("Equality should be of types %s" %_known_equation_types)
         return datasets
 
     @property
     def Rational_constants(self):
         rcs = set()
         for eq in self.equations:
-            if isinstance(eq, Equality):
+            if isinstance(eq, _known_equation_types):
                 rcs = rcs.union(eq.atoms(Rational))
         out = set()
         # Integers are also being returned as Rational numbers, remove any integers
@@ -228,7 +220,7 @@ class Kernel(object):
         # Only negative powers i.e. they correspond to division and they are stored into constant arrays
         inverse_terms = set()
         for eq in self.equations:
-            if isinstance(eq, Equality):
+            if isinstance(eq, _known_equation_types):
                 for at in eq.atoms(Pow):
                     if _coeff_isneg(at.exp) and not (at.base.atoms(Indexed) or isinstance(at, GridVariable)):
                         inverse_terms.add(at)
@@ -238,7 +230,7 @@ class Kernel(object):
     def constants(self):
         consts = set()
         for eq in self.equations:
-            if isinstance(eq, Equality):
+            if isinstance(eq, _known_equation_types):
                 consts = consts.union(eq.atoms(ConstantObject))
         return consts
 
@@ -246,26 +238,35 @@ class Kernel(object):
     def IndexedConstants(self):
         consts = set()
         for eq in self.equations:
-            if isinstance(eq, Equality):
+            if isinstance(eq, _known_equation_types):
                 consts = consts.union(eq.atoms(ConstantIndexed))
         return consts
+    
+    @property
+    def global_variables(self):
+        globals_vars_lhs = set()
+        globals_vars_rhs = set()
+        for eq in self.equations:
+            if isinstance(eq, _known_equation_types):
+                globals_vars_lhs = globals_vars_lhs.union(eq.atoms(GlobalValue))
+        return globals_vars_rhs, globals_vars_lhs
 
     @property
     def grid_indices_used(self):
         for eq in self.equations:
-            if eq.atoms(Grididx):
-                return True
+            if isinstance(eq, _known_equation_types):
+                if eq.atoms(Grididx):
+                    return True
         return False
     
     @property
     def grid_index_name(self):
         grid_id = set()
-        for eq in self.equations:
+        if isinstance(eq, _known_equation_types):
             grid_id = grid_id.union(eq.atoms(Grididx))
         if len(grid_id) > 1:
             print grid_id
             raise ValueError("Grid indices should be consistent.")
-
         return list(grid_id)[0]
 
     def get_stencils(self):
@@ -274,8 +275,9 @@ class Kernel(object):
         stencil_dictionary = {}
         datasets = set()
         for eq in self.equations:
-            if isinstance(eq, Equality):
+            if isinstance(eq, _known_equation_types):
                 datasets = datasets.union(eq.atoms(DataSet))
+
         for s in datasets:
             if s.base in stencil_dictionary.keys():
                 stencil_dictionary[s.base].add(tuple(s.indices))
@@ -287,21 +289,16 @@ class Kernel(object):
         return stencil_dictionary
 
     def write_latex(self, latex):
-        latex.write_string('The kernel is %s' % self.computation_name)
+        latex.write_string('The kernel is %s' % latex.latexify_expression(self.computation_name, mode='inline'))
         range_of_eval = self.total_range()
-        #halo_m, halo_p = get_min_max_halo_values(self.halo_ranges)
-        #range_of_eval = [[0, 0] for r in range(self.ndim)]
-        # print self.computation_name, self.halo_ranges
-        # print halo_m, halo_p
-        # print range_of_eval
-        #for d in range(self.ndim):
-            #range_of_eval[d][0] = self.ranges[d][0] + halo_m[d]
-            #range_of_eval[d][1] = self.ranges[d][1] + halo_p[d]
         latex.write_string('The ranges are %s' % (','.join([str(d) for d in flatten(range_of_eval)])))
         # latex.write_string('. The range of evaluation is  %s \\ \n\n the halo ranges are %s'%(self.ranges, self.halo_ranges))
         for index, eq in enumerate(self.equations):
             if isinstance(eq, Equality):
                 latex.write_expression(eq)
+            elif isinstance(eq, GroupedPiecewise):
+                pprint(eq)
+                print "should be doing latex" # TODO
         return
 
     def total_range(self):
@@ -322,6 +319,7 @@ class Kernel(object):
             range_of_eval = flatten(range_of_eval)
         return range_of_eval
 
+
     @property
     def opsc_code(self):
         block_name = self.block_name
@@ -331,6 +329,8 @@ class Kernel(object):
         inouts = ins.intersection(outs)
         ins = ins.difference(inouts)
         outs = outs.difference(inouts)
+        if len(self.equations) == 0:
+            raise ValueError("Kernel %s does not have any equations." % self.computation_name)
         #halo_m, halo_p = get_min_max_halo_values(self.halo_ranges)
         #range_of_eval = [[0, 0] for r in range(self.ndim)]
         # print self.computation_name, self.ranges, self.halo_ranges
@@ -342,6 +342,7 @@ class Kernel(object):
         iter_name = "iteration_range_%d" % (self.kernel_no)
         iter_name_code = ['%s %s[] = {%s};' % (dtype, iter_name, ', '.join([str(s) for s in flatten(range_of_eval)]))]
         code = []
+        # TODO check the dtype from the dataset
         sim_dtype = SimulationDataType.opsc()
         code += ['ops_par_loop(%s, \"%s\", %s, %s, %s' % (name, self.computation_name, block_name, self.ndim, iter_name)]
         for i in ins:
@@ -353,6 +354,15 @@ class Kernel(object):
         if self.IndexedConstants:
             for c in self.IndexedConstants:
                 code += ["ops_arg_gbl(&%s, %d, \"%s\", %s)" % (c, 1, sim_dtype, self.opsc_access['ins'])]
+        if self.global_variables:
+            # we need to write the size of an array for global indexed
+            global_ins, global_outs = self.global_variables
+            if global_ins.intersection(global_outs):
+                raise NotImplementedError("Input output of global variables is not implemented")
+            for c in global_ins:
+                code += ["ops_arg_gbl(&%s, %d, \"%s\", %s)" % (c, 1, c.datatype.opsc(), self.opsc_access['ins'])]
+            for c in global_outs:
+                code += ["ops_arg_gbl(&%s, %d, \"%s\", %s)" % (c, 1, c.datatype.opsc(), self.opsc_access['outs'])]
         if self.grid_indices_used:
             code += ["ops_arg_idx()"]
         code = [',\n'.join(code) + ');\n\n']  # WARNING dtype
@@ -381,23 +391,6 @@ class Kernel(object):
         from opensbli.core.block import DataSetsToDeclare
         # New logic for the dataset delcarations across blocks
         for d in dsets:
-            if d in DataSetsToDeclare.datasetbases:
-                ind = DataSetsToDeclare.datasetbases.index(d)
-                d1 = DataSetsToDeclare.datasetbases[ind]
-                # for direction in range(len(d1.halo_ranges)):
-                # d1.halo_ranges[direction][0] = block.get_all_scheme_halos()
-                # d1.halo_ranges[direction][1] = block.get_all_scheme_halos()
-            else:
-                d = dataset_attributes(d)
-                d.size = block.shape
-                d.block_number = block.blocknumber
-                d.halo_ranges = [[set(), set()] for d1 in range(block.ndim)]
-                # [[set(), set()] for d in range(block.ndim)]
-                for direction in range(len(d.halo_ranges)):
-                    d.halo_ranges[direction][0] = block.get_all_scheme_halos()
-                    d.halo_ranges[direction][1] = block.get_all_scheme_halos()
-                d.block_name = block.blockname
-                DataSetsToDeclare.datasetbases += [d]
             if str(d) in block.block_datasets.keys():
                 dset = block.block_datasets[str(d)]
                 # for direction in range(len(dset.halo_ranges)):
@@ -432,14 +425,6 @@ class Kernel(object):
                 self.stencil_names[dset] = block.block_stencils[stencil].name
             else:
                 self.stencil_names[dset].add(block.block_stencils[stencil].name)
-
-        # pprint(block.block_stencils)
-        # print "\n"
-        # pprint(self.stencil_names)
-        # for key, value in self.stencil_names.iteritems():
-        #     print key, value, stens[key], block.block_stencils[stens[key]].name
-        # pprint([self.stencil_names])
-        # pprint(stens)
         return
 
     def update_stencils(self, block):

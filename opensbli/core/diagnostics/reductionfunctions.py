@@ -49,3 +49,11 @@ class BlockIntegral(Function, BasicDiscretisation):
         return ret
 
         return
+    
+class OpenSBLISum(object):
+    pass
+
+class OpenSBLIMean():
+    pass
+
+

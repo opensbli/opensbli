@@ -1,9 +1,11 @@
-from opensbli.core.opensbliequations import NonSimulationEquations, Discretisation, OpenSBLIEquation
+from opensbli.core.opensbliequations import NonSimulationEquations, Discretisation, OpenSBLIEq
 from opensbli.core.kernel import Kernel
+from opensbli.core.opensbliobjects import DataSet, GroupedPiecewise
+from sympy import Equality, pprint, flatten
 from .common import BeforeSimulationStarts
 
 
-class GridBasedInitialisation(Discretisation, NonSimulationEquations):
+class GridBasedInitialisation(NonSimulationEquations):
     def __new__(cls, order=None, **kwargs):
         ret = super(GridBasedInitialisation, cls).__new__(cls)
         if order:  # Local order if multiple instances of the class are declared on the block
@@ -25,27 +27,40 @@ class GridBasedInitialisation(Discretisation, NonSimulationEquations):
     def _hashable_content(self):
         return "GridBasedInitialisation"
 
-    def add_equations(cls, equation):
+    def add_equations(cls, equation): #TODO: Check if this is required, nonsimulation equations are derived from discretisation class
         # equation = cls._sanitise_equations(equation)
         if isinstance(equation, list):
             for no, eq in enumerate(equation):
-                eq = OpenSBLIEquation(eq.lhs, eq.rhs)
-                # eq.set_vector(no)
-                cls.equations += [eq]
+                if isinstance(eq, Equality):
+                    eq = OpenSBLIEq(eq.lhs, eq.rhs)
+                    cls.equations += [eq]
+                elif isinstance(eq, GroupedPiecewise):
+                    cls.equations += [eq]
         else:
-            equation = OpenSBLIEquation(equation.lhs, equation.rhs)
-            cls.equations += [equation]
+            if isinstance(equation, Equality):
+                eq = OpenSBLIEq(equation.lhs, equation.rhs)
+                cls.equations += [eq]
+            elif isinstance(equation, GroupedPiecewise):
+                cls.equations += [equation]
+            else:
+                raise TypeError("Provide the equations in a list")
+            # equation = OpenSBLIEquation(equation.lhs, equation.rhs)
+            # cls.equations += [equation]
         return
+    
+    @property
+    def evaluated_datasets(cls):
+        evaluated = set()
+        for eq in cls.equations:
+            if isinstance(eq, Equality):
+                evaluated = evaluated.union(eq.lhs_datasets)
+            elif isinstance(eq, GroupedPiecewise):
+                evaluated = evaluated.union(eq.lhs_datasets)
+        return evaluated
 
     def spatial_discretisation(cls, block):
         kernel1 = Kernel(block, computation_name="Grid_based_initialisation%d" % cls.order)
         kernel1.set_grid_range(block)
-        # Checking
-        # for eq in block.list_of_equation_classes:
-        # from opensbli.core.metrics import *
-        # if isinstance(eq, MetricsEquation):
-        # for k in eq.Kernels:
-        # print k.computation_name, k.halo_ranges, k.ranges
         schemes = block.discretisation_schemes
         for d in range(block.ndim):
             for sc in schemes:
@@ -55,19 +70,9 @@ class GridBasedInitialisation(Discretisation, NonSimulationEquations):
         kernel1.add_equation(cls.equations)
         kernel1.update_block_datasets(block)
         cls.Kernels = [kernel1]
-        # Checking
-        # for eq in block.list_of_equation_classes:
-        # from opensbli.core.metrics import *
-        # if isinstance(eq, MetricsEquation):
-        # for k in eq.Kernels:
-        # print k.computation_name, k.halo_ranges, k.ranges
         return
 
     def apply_boundary_conditions(cls, block):
         """No boundary conditions in the Initialisation
         """
         return
-
-
-# class GridGeneration(Discretisation, NonSimulationEquations):
-#     def __new__(cls, )

@@ -1,10 +1,10 @@
-
-from sympy.printing.ccode import CCodePrinter
+from sympy.core.compatibility import is_sequence
+from sympy.printing.ccode import C99CodePrinter
 from sympy.core.relational import Equality
-from opensbli.core.opensbliobjects import ConstantObject, ConstantIndexed, Constant, DataSetBase
+from opensbli.core.opensbliobjects import ConstantObject, ConstantIndexed, Constant, DataSetBase, DataObject, GroupedPiecewise
 from opensbli.core.kernel import Kernel, ConstantsToDeclare as CTD
 from opensbli.core.algorithm import Loop
-from sympy import Symbol, flatten
+from sympy import Symbol, flatten, pprint
 from opensbli.core.grid import GridVariable
 from opensbli.core.datatypes import SimulationDataType
 from sympy import Pow, Idx
@@ -40,19 +40,20 @@ class RationalCounter():
 rc = RationalCounter()
 
 
-class OPSCCodePrinter(CCodePrinter):
+class OPSCCodePrinter(C99CodePrinter):
 
     """ Prints OPSC code. """
     dataset_accs_dictionary = {}
-    settings_opsc = {'rational': False}
+    settings_opsc = {'rational': False, 'kernel':False}
 
     def __init__(self, settings={}):
         """ Initialise the code printer. """
+        self.settings_opsc = settings
         if 'rational' in settings.keys():
             self.settings_opsc = settings
         else:
             self.settings_opsc['rational'] = False
-        CCodePrinter.__init__(self, settings={})
+        C99CodePrinter.__init__(self, settings={})
 
     def _print_ReductionVariable(self, expr):
         return '*%s' % str(expr)
@@ -88,6 +89,18 @@ class OPSCCodePrinter(CCodePrinter):
             args_code.append(string_max)
         return str(args_code[0])
 
+    def _print_DataObject(self, expr):
+        raise TypeError("Data object found in code generation, convert it to a dataset first, %s" % expr)
+    
+    def _print_Globalvariable(self, expr):
+        # This should be handled in a different way if writing a kernel, if it is uses in the main cpp file it should
+        # be handled differently
+        is_kernel = self.settings_opsc.get('kernel', False)
+        if is_kernel:
+            return ' *%s' %(str(expr))
+        else:
+            return "%s" % (str(expr))
+
     def _print_DataSetBase(self, expr):
         return str(expr)
 
@@ -99,8 +112,6 @@ class OPSCCodePrinter(CCodePrinter):
 
     def _print_DataSet(self, expr):
         base = expr.base
-        # print base
-        # print self.dataset_accs_dictionary.keys()
         if self.dataset_accs_dictionary[base]:
             indices = expr.get_grid_indices
             out = "%s[%s(%s)]" % (self._print(base), self.dataset_accs_dictionary[base].name, ','.join([self._print(i) for i in indices]))
@@ -166,7 +177,7 @@ def ccode(expr, settings={}):
         code = code_print.doprint(expr.lhs) \
             + ' = ' + OPSCCodePrinter(settings).doprint(expr.rhs)
         if isinstance(expr.lhs, GridVariable):
-            code = '%s ' % SimulationDataType.opsc() + code  # WARNING dtype
+            code = code
         return code
     else:
         return OPSCCodePrinter(settings).doprint(expr)
@@ -207,7 +218,7 @@ def indent_code(code_lines):
     :rtype: list
     """
 
-    p = CCodePrinter()
+    p = C99CodePrinter()
     return p.indent_code(code_lines)
 
 
@@ -277,7 +288,11 @@ class OPSC(object):
         code = []
         dtype = SimulationDataType.opsc()
         for key, val in (tuple_list):
-            code += [self.ops_headers[val] % (dtype, key)]
+            # if any of the list has the datatype then use the data type
+            if hasattr(key, "datatype") and key.datatype:
+                code += [self.ops_headers[val] % (key.datatype.opsc(), key)]
+            else:
+                code += [self.ops_headers[val] % (dtype, key)]
         code = ', '.join(code)
         return code
 
@@ -290,24 +305,67 @@ class OPSC(object):
         # eqs = kernel.equations
         all_dataset_inps = list(ins) + list(outs) + list(inouts)
         all_dataset_types = ['input' for i in ins] + ['output' for o in outs] + ['inout' for io in inouts]
+        # add the global variables to the inputs and outputs
+        global_ins, global_outs = kernel.global_variables
+        if global_ins.intersection(global_outs):
+            raise NotImplementedError("Input output of global variables is not implemented")
+        all_dataset_inps += list(global_ins) + list(global_outs)
+        all_dataset_types += ['input' for i in global_ins] + ['output' for o in global_outs] 
         # Use list of tuples as dictionary messes the order
         header_dictionary = zip(all_dataset_inps, all_dataset_types)
         if kernel.IndexedConstants:
             for i in kernel.IndexedConstants:
                 header_dictionary += [tuple([(i.base), 'input'])]
+        other_inputs = ""
         if kernel.grid_indices_used:
             # print kernel.grid_index_name
-            kernel_index = ", const int *idx"  # WARNING hard coded here
+            other_inputs += ", const int *idx"  # WARNING hard coded here
         else:
-            kernel_index = ''
+            other_inputs = ''
         # print header_dictionary
-        out = ["void %s(" % kernel.kernelname + self.kernel_header(header_dictionary) + kernel_index + ')' + '\n{']
-        # all_dataset_inps = [str(i) for i in all_dataset_inps]
+        code = ["void %s(" % kernel.kernelname + self.kernel_header(header_dictionary) + other_inputs + ')' + '\n{']
         ops_accs = [OPSAccess(no) for no in range(len(all_dataset_inps))]
         OPSCCodePrinter.dataset_accs_dictionary = dict(zip(all_dataset_inps, ops_accs))
-        out += [ccode(eq) + ';\n' for eq in kernel.equations if isinstance(eq, Equality)] + ['}']
+        # Find all the grid variables and declare them at the top 
+        gridvariables = set()
+        out = []
+        for eq in kernel.equations:
+            gridvariables = gridvariables.union(eq.atoms(GridVariable))
+            if isinstance(eq, Equality):
+                out += [ccode(eq, settings={'kernel': True}) + ';\n']
+            elif isinstance(eq, GroupedPiecewise):
+                for i, (expr, condition) in enumerate(eq.args):
+                    if i == 0:
+                        out += ['if (%s)' % ccode(condition, settings={'kernel': True}) + '{\n']
+                        if is_sequence(expr):
+                            for eqn in expr:
+                                out += [ccode(eqn, settings={'kernel': True}) + ';\n']
+                        else:
+                            out += [ccode(expr, settings={'kernel': True}) + ';\n']
+                        out += ['}\n']
+                    elif condition != True:
+                        out += ['else if (%s)' % ccode(condition, settings={'kernel': True}) + '{\n']
+                        if is_sequence(expr):
+                            for eqn in expr:
+                                out += [ccode(eqn, settings={'kernel': True}) + ';\n']
+                        else:
+                            out += [ccode(expr, settings={'kernel': True}) + ';\n']
+                        out += ['}\n']
+                    else:
+                        out += ['else{\n']
+                        if is_sequence(expr):
+                            for eqn in expr:
+                                out += [ccode(eqn, settings={'kernel': True}) + ';\n']
+                        else:
+                            out += [ccode(expr, settings={'kernel': True}) + ';\n']
+                        out += ['}\n']
+            else:
+                raise TypeError("Unclassified type of equation.")
+        for gv in gridvariables:
+            code += ["%s %s = 0.0;" %(SimulationDataType.opsc(), str(gv))]
+        code += out + ['}'] # close Kernel
         OPSCCodePrinter.dataset_accs_dictionary = {}
-        return out
+        return code
 
     def write_kernels(self, algorithm):
         kernels = self.loop_alg(algorithm, Kernel)
@@ -404,12 +462,7 @@ class OPSC(object):
         name = s.name + 'temp'
         sorted_stencil = s.sort_stencil_indices()
         out = [self.declare_inline_array(dtype, name, [st for st in flatten(sorted_stencil) if not isinstance(st, Idx)])]
-        # pprint(flatten(s.stencil))
-
         out += [WriteString('ops_stencil %s = ops_decl_stencil(%d,%d,%s,\"%s\");' % (s.name, s.ndim, len(s.stencil), name, name))]
-        # pprint(out)
-        # print "\n"
-
         return out
 
     def ops_partition(self):
@@ -485,8 +538,8 @@ class OPSC(object):
                         pass
                     else:
                         type_list += [component1]
-
-        _generate(algorithm.prg.components, type_list)
+        for c in algorithm.prg.components:
+            _generate([c], type_list)
         return type_list
 
     def define_block(self, b):
