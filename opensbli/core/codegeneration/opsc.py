@@ -140,6 +140,8 @@ class OPSCCodePrinter(C99CodePrinter):
         return out
     
     def _print_UserFunction(self, fn):
+        """Prints the user defined funtion, we donot check if the funciton exists in the header files
+        This allows for users to write their own OPS functions and use them in the code."""
         return self._print(fn.args[0]) + '(%s)' % (', '.join([self._print(arg) for arg in fn.args[1:]]))
 
 
