@@ -3,7 +3,7 @@ from sympy.core.compatibility import is_sequence
 from sympy import Rational, Pow, Integer
 from sympy.printing import pprint
 from opensbli.core.opensbliobjects import DataSetBase, DataSet, ConstantIndexed, ConstantObject,\
-    GlobalValue, GroupedPiecewise
+    GlobalValue, GroupedPiecewise, Constant
 from opensbli.core.opensbliequations import OpenSBLIEq
 from opensbli.core.grid import GridVariable, Grididx
 from opensbli.core.datatypes import SimulationDataType
@@ -18,7 +18,7 @@ class ConstantsToDeclare(object):
     constants = []
 
     @staticmethod
-    def add_constant(const, value=None, dtype=None):
+    def add_constant(constant, value=None, dtype=None):
         # if value and const not in ConstantsToDeclare.constants:
         #     c = constant_attributes(const)
         #     c.is_input = False
@@ -36,8 +36,15 @@ class ConstantsToDeclare(object):
         #     else:
         #         c.dtype = SimulationDataType()
         #     ConstantsToDeclare.constants += [c]
-        if const not in ConstantsToDeclare.constants:
-            ConstantsToDeclare.constants += [const]
+        if isinstance(constant, Constant):
+            if constant not in ConstantsToDeclare.constants:
+                ConstantsToDeclare.constants += [constant]
+        elif isinstance(constant, list):
+            for c in constant:
+                if c not in ConstantsToDeclare.constants:
+                    ConstantsToDeclare.constants += [c]
+        else:
+            raise ValueError("Unknown type of constant")
         # print c.__dict__
         return
 
