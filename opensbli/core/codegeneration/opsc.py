@@ -138,6 +138,9 @@ class OPSCCodePrinter(C99CodePrinter):
     def _print_Grididx(self, expr):
         out = "%s[%s]" % (self._print(expr.base), ','.join([self._print(expr.number)]))
         return out
+    
+    def _print_UserFunction(self, fn):
+        return self._print(fn.args[0]) + '(%s)' % (', '.join([self._print(arg) for arg in fn.args[1:]]))
 
 
 def pow_to_constant(expr):
@@ -623,29 +626,30 @@ class OPSC(object):
         return halo_m, halo_p
 
     def declare_dataset(self, dset):
-
-        hm, hp = self.get_max_halos(dset.halo_ranges)
-        halo_p = self.declare_inline_array("int", "halo_p", hp)
-        halo_m = self.declare_inline_array("int", "halo_m", hm)
-        sizes = self.declare_inline_array("int", "size", [str(s) for s in (dset.size)])
-        base = self.declare_inline_array("int", "base", [0 for i in range(len(dset.size))])
+        declaration = WriteString("ops_dat %s;" % dset)
+        out = [declaration, WriteString("{")]
 
         if dset.dtype:
             dtype = dset.dtype
         else:
             dtype = SimulationDataType.dtype()
-        value = WriteString("%s* value = NULL;" % dtype.opsc())
 
-        fname = 'data.h5'
         if dset.read_from_hdf5:
             temp = '%s = ops_decl_dat_hdf5(%s, 1, \"%s\", \"%s\", \"%s\");' % (dset,
-                                                                               dset.block_name, dtype.opsc(), dset, fname)
+                                                                               dset.block_name, dtype.opsc(), dset, dset.input_file_name)
+            out += [WriteString(temp)]
         else:
+            hm, hp = self.get_max_halos(dset.halo_ranges)
+            halo_p = self.declare_inline_array("int", "halo_p", hp)
+            halo_m = self.declare_inline_array("int", "halo_m", hm)
+            sizes = self.declare_inline_array("int", "size", [str(s) for s in (dset.size)])
+            base = self.declare_inline_array("int", "base", [0 for i in range(len(dset.size))])
+            value = WriteString("%s* value = NULL;" % dtype.opsc())
             temp = '%s = ops_decl_dat(%s, 1, size, base, halo_m, halo_p, value, \"%s\", \"%s\");' % (dset,
                                                                                                      dset.block_name, dtype.opsc(), dset)
-        temp = WriteString(temp)
-        declaration = WriteString("ops_dat %s;" % dset)
-        out = [declaration, WriteString("{"), halo_p, halo_m, sizes, base, value, temp, WriteString("}")]
+            out += [halo_p, halo_m, sizes, base, value, WriteString(temp)]
+
+        out += [WriteString("}")]
         return out
 
     def add_block_name_to_kernel_sb(self, kernel):

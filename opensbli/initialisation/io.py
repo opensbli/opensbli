@@ -49,14 +49,20 @@ class iohdf5(opensbliIO):
     
     def set_read_from_hdf5_arrays(cls, block):
         if cls.kwargs['iotype'] == "read":
+            if 'filename' in cls.kwargs:
+                fname = cls.kwargs['filename']
+            else:
+                fname = 'data.h5'
             for ar in cls.arrays:
                 if str(ar) in block.block_datasets.keys():
                     dset = block.block_datasets[str(ar)]
                     dset.read_from_hdf5 = True
+                    dset.input_file_name = fname
                     block.block_datasets[str(ar)] = dset
                 else:
                     block.block_datasets[str(ar)] = ar
                     block.block_datasets[str(ar)].read_from_hdf5 = True
+                    dset.input_file_name = fname
         return
 
     def write_latex(cls, latex):
