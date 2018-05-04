@@ -97,7 +97,7 @@ def set_hdf5_metadata(dset, halos, npoints, block):
     dset.attrs.create("size", npoints, dtype="int32")
     return
 
-def output_hdf5(array, array_name, halos, npoints, block):
+def output_hdf5(array, array_name, halos, npoints, block, **kwargs):
     """ Creates an HDF5 file for reading in data to a simulation, 
     sets the metadata required by the OPS library. """
     if not isinstance(array, list):
@@ -105,7 +105,11 @@ def output_hdf5(array, array_name, halos, npoints, block):
     if not isinstance(array_name, list):
         array_name = [array_name]
     assert len(array) == len(array_name)
-    with h5py.File('data.h5', 'w') as hf:
+    if 'filename' in kwargs.keys():
+        fname = kwargs['filename']
+    else:
+        fname = "data.h5"
+    with h5py.File(fname, 'w') as hf:
         # Create a group
         g1 = hf.create_group(block.blockname)
         # Loop over all the dataset inputs and write to the hdf5 file
