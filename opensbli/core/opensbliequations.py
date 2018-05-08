@@ -1,6 +1,6 @@
-from opensbli.core.opensbliobjects import DataSet, ConstantObject, DataSetBase
+from opensbli.core.opensbliobjects import DataSet, ConstantObject, DataSetBase, DataObject
 from opensbli.core.opensblifunctions import TemporalDerivative
-from sympy import flatten, preorder_traversal, Expr, Eq
+from sympy import flatten, preorder_traversal, Expr
 from sympy import Equality, Function, pprint, srepr
 
 
@@ -11,7 +11,7 @@ class Discretisation(object):
     @property
     def required_datasets(cls):
         """Returns the set of all datasets in the equations of a class.
-        
+
         :return: a set of DataSet
         :rtype: set(DataSet) """
         objs = []
@@ -23,7 +23,7 @@ class Discretisation(object):
     @property
     def required_constants(cls):
         """Returns the set of all constants in the equations.
-        
+
         :return: a set of constants
         :rtype: set(ConstantObject) """
         constants = []
@@ -50,8 +50,8 @@ class Discretisation(object):
     @property
     def required_functions(cls):
         """Returns all the functions in the equations.
-        
-        :return: a set of functions 
+
+        :return: a set of functions
         :rtype: set(CentralDerivative, WenoDerivative, TemporalDerivative, etc.) """
         fns = cls.required_functions_local
         allfns = flatten([[fn, fn.required_functions] for fn in fns])
@@ -60,8 +60,8 @@ class Discretisation(object):
 
     def _sanitise_equations(cls, equation):
         """Sanitises the equation. Finds the non homogenous functions and replace them with
-        a funciton(function) approach. 
-        
+        a funciton(function) approach.
+
         .. note:
             **Example**\n
             CentralDerivative(u0, x0, x1) is transformed to CetralDerivative(CentralDerivative(u0, x0), x1)
@@ -86,8 +86,8 @@ class Discretisation(object):
 
     def apply_metrics(cls, metriceqclass):
         """Applies the metric transformation for the equations in the class using the metric class provided
-        
-        :param MetricsEquation metriceqclass: see :class:`.MetricsEquation` 
+
+        :param MetricsEquation metriceqclass: see :class:`.MetricsEquation`
         :return: None"""
         out = []
         if len(flatten(cls.equations)) == 0:
@@ -105,7 +105,7 @@ class Discretisation(object):
 
     def write_latex(self, latex):
         """Writes the latex form of the equations in the class to the file
-        
+
         :param LatexWriter latex"""
         latex.write_string('The euqations are %s' % type(self).__name__)
         for eq in flatten(self.equations):
@@ -121,7 +121,7 @@ class Discretisation(object):
 
     def add_equations(self, equation):
         """Adds the equations to the class
-        
+
         :param equation: a list of equations or a single equation to be added to the class"""
         if isinstance(equation, list):
             local = []
@@ -134,12 +134,12 @@ class Discretisation(object):
             equation = OpenSBLIEquation(equation.lhs, equation.rhs)
             self.equations += [equation]
         return
-    
+
     @property
     def evaluated_datasets(cls):
         return set()
 
-from opensbli.core.opensbliobjects import DataObject, DataSetBase
+
 class OpenSBLIEquation(Equality):
     """A wrapper around SymPy's Equality class to provide more flexibility in the future"""
     is_Equality = True
@@ -152,23 +152,23 @@ class OpenSBLIEquation(Equality):
         cls.is_vector = True
         cls.vector_component = component_number
         return
-    
+
     def convert_to_datasets(self, block):
         replacements = {}
         for d in self.atoms(DataObject):
             replacements[d] = block.location_dataset(d)
         args = [a.subs(replacements) for a in self.args]
         return type(self)(*args)
-    
+
     @property
     def required_datasets(self):
         """Not required"""
         return self.lhs_datasetbases.union(self.rhs_datasetbases)
-    
+
     @property
     def lhs_datasetbases(self):
         return self.lhs.atoms(DataSetBase)
-    
+
     @property
     def rhs_datasetbases(self):
         return self.rhs.atoms(DataSetBase)
@@ -185,10 +185,13 @@ class OpenSBLIEquation(Equality):
         eq = cls
         return eq.xreplace(replacements)
 
+
 OpenSBLIEq = OpenSBLIEquation
+
 
 class Solution(object):
     """An object to store the symbolic kernels generated while applying the numerical method to the equations"""
+
     def __init__(self):
         # Kernels would be spatial kernels
         self.Kernels = []
@@ -212,10 +215,10 @@ class OpenSBLIExpression(Expr):
 
 class SimulationEquations(Discretisation, Solution):
     """Class for the simulation equations. This performs the discretisation of the equations.
-    
+
     :param int order: priority in the algorithm if multiple simulation equations exitst
     """
- 
+
     def __new__(cls, order=None, **kwargs):
         ret = super(SimulationEquations, cls).__new__(cls)
         if order:
@@ -228,7 +231,7 @@ class SimulationEquations(Discretisation, Solution):
 
     def add_constituent_relations(cls, constituent_relations):
         """Convert the constituent relations passed to a dictionary for easier access in discretisation
-        
+
         :param ConstituentRelations constituent_relations: the constituent relations class on the block"""
 
         cls.constituent_relations_dictionary = cls.convert_to_dictionary(constituent_relations.equations)
@@ -236,7 +239,7 @@ class SimulationEquations(Discretisation, Solution):
 
     def create_residual_arrays(cls, block):
         """Creates the residual datasets for each of the simulation equations.
-        
+
         :param SimulationBlock block: the block on which the equations are solved
         :return: None """
         for no, eq in enumerate(flatten(cls.equations)):
@@ -246,7 +249,7 @@ class SimulationEquations(Discretisation, Solution):
 
     def zero_residuals_kernel(cls, block):
         """A symbolic kernel to equate all the residual arrays of the equations to zero
-        
+
         :param SimulationBlock block: the block on which the equations are solved
         :return: None """
         from opensbli.core.kernel import Kernel
@@ -268,7 +271,7 @@ class SimulationEquations(Discretisation, Solution):
     def spatial_discretisation(cls, block):
         """Apllies the spatial discretisation of the equations by calling the discretisation of each spatial 
         scheme provided on the block
-        
+
         :param SimulationBlock block: the block on which the equations are solved
         :return: None """
 
@@ -315,7 +318,7 @@ class SimulationEquations(Discretisation, Solution):
 
     def process_kernels(cls, block):
         """A function to update some dependant parameters of each kernel
-        
+
         :param SimulationBlock block: the block on which the equations are solved
         :return: None """
         for key, kernel in cls.constituent_relations_kernels.iteritems():
@@ -342,7 +345,7 @@ class SimulationEquations(Discretisation, Solution):
         for o in order_of_evaluation:
             ordered_kernels += [dictionary[o]]
         return ordered_kernels
-    
+
     @property
     def evaluated_datasets(cls):
         return set([c.base for c in flatten(cls.time_advance_arrays)])
@@ -441,9 +444,9 @@ class ConstituentRelations(Discretisation, Solution):
         return
 
     def spatial_discretisation(cls, block):
-        """Apllies the spatial discretisation of the equations by calling the discretisation of each spatial 
+        """Apllies the spatial discretisation of the equations by calling the discretisation of each spatial
         scheme provided on the block
-        
+
         :param SimulationBlock block: the block on which the equations are solved
         :return: None """
         # Instantiate the solution class
@@ -491,10 +494,11 @@ class NonSimulationEquations(Discretisation):
     e.g, metrics or diagnostics or Statistics, """
     pass
 
+
 class DiagnosticEq(Equality):
     """For diagnositcs we use a separate equation so that we can determine the type of the LHS depening on
     the RHS"""
-    
+
     def __new__(cls, *args, **kwargs):
         if (len(args) != 2):
             raise ValueError("")
@@ -503,17 +507,18 @@ class DiagnosticEq(Equality):
         ret = super(DiagnosticEq, cls).__new__(cls, lhs, rhs)
         return ret
 
+
 class DiagnosticsEquations(NonSimulationEquations, Solution):
 
     def __new__(cls):
         ret = super(DiagnosticsEquations, cls).__new__(cls)
         ret.equations = []
         return ret
-    
+
     def add_equations(self, equation):
         """Adds the equations to the class. here the equations are processed
         based on the type of RHS.
-        
+
         :param equation: a list of equations or a single equation to be added to the class"""
         if isinstance(equation, list):
             local = []
