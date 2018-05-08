@@ -1,7 +1,7 @@
-from opensbli.core.opensbliequations import NonSimulationEquations, Discretisation, OpenSBLIEq
+from opensbli.core.opensbliequations import NonSimulationEquations, OpenSBLIEq
 from opensbli.core.kernel import Kernel
-from opensbli.core.opensbliobjects import DataSet, GroupedPiecewise
-from sympy import Equality, pprint, flatten
+from opensbli.core.opensbliobjects import GroupedPiecewise
+from sympy import Equality
 from .common import BeforeSimulationStarts
 
 
@@ -27,7 +27,7 @@ class GridBasedInitialisation(NonSimulationEquations):
     def _hashable_content(self):
         return "GridBasedInitialisation"
 
-    def add_equations(cls, equation): #TODO: Check if this is required, nonsimulation equations are derived from discretisation class
+    def add_equations(cls, equation):  # TODO: Check if this is required, nonsimulation equations are derived from discretisation class
         # equation = cls._sanitise_equations(equation)
         if isinstance(equation, list):
             for no, eq in enumerate(equation):
@@ -47,7 +47,7 @@ class GridBasedInitialisation(NonSimulationEquations):
             # equation = OpenSBLIEquation(equation.lhs, equation.rhs)
             # cls.equations += [equation]
         return
-    
+
     @property
     def evaluated_datasets(cls):
         evaluated = set()

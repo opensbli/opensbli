@@ -1,6 +1,5 @@
 from .common import InTheSimulation, AfterSimulationEnds, BeforeSimulationStarts
 from sympy import flatten
-from opensbli.utilities.helperfunctions import dataset_attributes, constant_attributes
 
 
 class opensbliIO(object):
@@ -46,7 +45,7 @@ class iohdf5(opensbliIO):
     def add_arrays(cls, arrays):
         cls.arrays += flatten(arrays)
         return
-    
+
     def set_read_from_hdf5_arrays(cls, block):
         if cls.kwargs['iotype'] == "read":
             if 'filename' in cls.kwargs:
@@ -114,7 +113,7 @@ class iohdf5(opensbliIO):
     def hdf5read_opsc_code(cls):
         """To keep the abstraction going return nothing for HDF5 OPSC code"""
         return []
-    
+
     @property
     def evaluated_datasets(cls):
         evaluated = set()
