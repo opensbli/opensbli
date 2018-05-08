@@ -1,7 +1,7 @@
-from sympy import IndexedBase, Symbol, pprint, Rational, solve, interpolating_poly, srepr, integrate, Eq, sqrt, zeros, Abs, Float, Matrix, flatten, Max, diag, Function
+from sympy import IndexedBase, Symbol, Rational, solve, interpolating_poly, integrate, sqrt, zeros, Abs, Float, Matrix, flatten, Max, diag, Function
 from sympy.core.numbers import Zero
 from opensbli.core.opensblifunctions import WenoDerivative
-from opensbli.core.opensbliobjects import EinsteinTerm, DataSetBase, ConstantObject, DataObject, DataSet
+from opensbli.core.opensbliobjects import EinsteinTerm, DataSetBase, ConstantObject, DataSet
 from opensbli.core.opensbliequations import SimulationEquations, OpenSBLIEq
 from opensbli.core.kernel import Kernel
 from opensbli.core.grid import GridVariable
@@ -9,8 +9,7 @@ from opensbli.utilities.helperfunctions import increment_dataset
 from opensbli.physical_models.ns_physics import NSphysics
 from opensbli.physical_models.euler_eigensystem import EulerEquations
 from .scheme import Scheme
-from sympy import factor, simplify, count_ops, horner, Equality
-from opensbli.core.opensbliobjects import GroupedPiecewise, GroupedCondition
+from sympy import factor, horner
 
 
 class WenoHalos(object):
@@ -276,14 +275,14 @@ class WenoZ(object):
         return
 
     def global_smoothness_indicator(self, RV):
-        """ Creates the WENO-Z global smoothness indicator. 
+        """ Creates the WENO-Z global smoothness indicator.
         Formulae taken from 'Accuracy of the weighted essentially
-        non-oscillatory conservative finite difference schemes. 
+        non-oscillatory conservative finite difference schemes.
         W-S. Don, R. Borges (2013). http://dx.doi.org/10.1016/j.jcp.2013.05.018.'
 
         :arg object RV: The reconstruction variable object."""
         b = RV.smoothness_symbols
-        k = self.k # WENO coefficient, order of scheme = 2k-1
+        k = self.k  # WENO coefficient, order of scheme = 2k-1
         if k == 2:
             tau = Abs(b[0]-b[1])
         elif k == 3:
@@ -446,7 +445,6 @@ class ShockCapturing(object):
         :arg object block: The current block."""
         crs = {}
         for key in self.required_constituent_relations_symbols:
-            # pprint([key, self.required_constituent_relations_symbols[key]])
             kernel = Kernel(block, computation_name="CR%s" % key)
             kernel.set_grid_range(block)
             for direction in self.required_constituent_relations_symbols[key]:
@@ -486,7 +484,7 @@ class Weno(Scheme, ShockCapturing):
         if formulation.upper() == 'Z':
             WT = WenoZ(self.k)
             print "A WENO-Z scheme of order %s is being used for shock capturing." % str(self.order)
-        elif formulation.upper() == 'JS': # Default to WENO-JS if no WENO scheme type provided
+        elif formulation.upper() == 'JS':  # Default to WENO-JS if no WENO scheme type provided
             WT = WenoJS(self.k)
             print "A WENO-JS scheme of order %s is being used for shock capturing." % str(self.order)
         else:
@@ -613,6 +611,7 @@ class Characteristic(EigenSystem):
     """ Class containing the routines required to perform the characteristic decomposition.
 
         :arg object physics: Physics object, defaults to NSPhysics."""
+
     def __init__(self, physics):
         EigenSystem.__init__(self, physics)
         return
@@ -666,8 +665,8 @@ class Characteristic(EigenSystem):
             negative_flux = zeros(*negative.shape)
             for i in range(positive_flux.shape[0]):
                 for j in range(positive_flux.shape[1]):
-                    positive_flux[i,j] = factor(positive[i,j])
-                    negative_flux[i,j] = factor(negative[i,j])
+                    positive_flux[i, j] = factor(positive[i, j])
+                    negative_flux[i, j] = factor(negative[i, j])
             positive_flux.stencil_points = CF_matrix.stencil_points
             negative_flux.stencil_points = CF_matrix.stencil_points
             self.generate_right_reconstruction_variables(positive_flux, derivatives)
@@ -678,25 +677,6 @@ class Characteristic(EigenSystem):
         for eqn in pre_process_equations[:]:
             if isinstance(eqn, Zero) is True:
                 pre_process_equations.remove(eqn)
-
-        # # eqn1 = pre_process_equations[0:15]
-        # eqn1 = averaged_equations
-        # # eqn2 = pre_process_equations[15:]
-        # # block.location_dataset('rhou2')
-        # eqn2 = [OpenSBLIEq(block.location_dataset('rhou1'), ConstantObject('Minf')), OpenSBLIEq(block.location_dataset('x1'), 389800)]
-        # cond1 = block.location_dataset('x0')**2 > block.location_dataset('rho')
-        # cond2 = block.location_dataset('x0') <= 30
-        # eqn3 = [OpenSBLIEq(block.location_dataset('rho'), ConstantObject('Minf')), OpenSBLIEq(block.location_dataset('x1'), 389800)]
-        # cond3 = True
-        # pair1 = GroupedCondition(eqn1, cond1)
-        # pair2 = GroupedCondition(eqn2, cond2)
-        # pair3 = GroupedCondition(eqn3, cond3)
-        # pw = GroupedPiecewise()
-        # pw.add_pair(pair1)
-        # pw.add_pair(pair2)
-        # pw.add_pair(pair3)
-        # pre_process_equations += [pw]
-        # # pre_process_equations = averaged_equations
         kernel.add_equation(pre_process_equations)
         return
 
@@ -775,6 +755,7 @@ class LLFCharacteristic(Characteristic):
 
     :arg object physics: Physics object, defaults to NSPhysics.
     :arg object averaging: The averaging procedure to be applied for characteristics, defaults to Simple averaging."""
+
     def __init__(self, physics, averaging=None):
         Characteristic.__init__(self, physics)
         if averaging is None:
@@ -804,7 +785,6 @@ class LLFCharacteristic(Characteristic):
         for d in dsets:
             substitutions[d] = increment_dataset(d, direction, location)
         return symbolics.subs(substitutions)
-
 
     def create_max_characteristic_wave_speed(self, pre_process_equations, direction, block):
         stencil_points = sorted(list(set(self.reconstruction_classes[0].func_points + self.reconstruction_classes[1].func_points)))
@@ -843,7 +823,7 @@ class LLFCharacteristic(Characteristic):
             grouped = self.group_by_direction(eqs)
             all_derivatives_evaluated_locally = []
             reconstruction_halos = self.reconstruction_halotype(self.order, reconstruction=True)
-            
+
             # Instantiate eigensystems with block, but don't add metrics yet
             self.instantiate_eigensystem(block)
 
@@ -1022,6 +1002,7 @@ class LLFWeno(LLFCharacteristic, Weno):
 
 class ScalarWeno(Weno):
     """ Scalar WENO procedure."""
+
     def __init__(self, order, physics=None, averaging=None):
         print "A scalar WENO scheme of order %s is being used." % str(order)
         Weno.__init__(self, order)
@@ -1032,19 +1013,18 @@ class ScalarWeno(Weno):
         variables_to_interpolate = []
         for d in derivatives:
             required_symbols = required_symbols.union(d.atoms(DataSetBase))
-            variables_to_interpolate += [d.args[0]] 
+            variables_to_interpolate += [d.args[0]]
         self.update_constituent_relation_symbols(required_symbols, direction)
         self.direction = direction
         required_stencil_points = sorted(list(set(self.reconstruction_classes[0].func_points + self.reconstruction_classes[1].func_points)))
         variable_matrix = zeros(len(variables_to_interpolate), len(required_stencil_points))
         for i, expr in enumerate(variables_to_interpolate):
             for j, stencil_index in enumerate(required_stencil_points):
-                variable_matrix[i,j] = increment_dataset(expr, direction, stencil_index)
+                variable_matrix[i, j] = increment_dataset(expr, direction, stencil_index)
         variable_matrix.stencil_points = required_stencil_points
         self.generate_right_reconstruction_variables(variable_matrix, derivatives)
         self.generate_left_reconstruction_variables(variable_matrix, derivatives)
         return
-
 
     def reconstruction_halotype(self, order, reconstruction=True):
         return WenoHalos(order, reconstruction)
@@ -1090,9 +1070,6 @@ class ScalarWeno(Weno):
                 self.form_average(derivatives, kernel)
                 type_of_eq.Kernels += [kernel]
             if grouped:
-                # if isinstance(type_of_eq, SimulationEquations):
-                #     type_of_eq.Kernels += [self.evaluate_residuals(block, eqs, all_derivatives_evaluated_locally)]
-                # else:
                     type_of_eq.Kernels += [self.form_equations(block, type_of_eq, all_derivatives_evaluated_locally)]
 
             constituent_relations = self.generate_constituent_relations_kernels(block)
@@ -1118,7 +1095,6 @@ class ScalarWeno(Weno):
         post_process_equations = []
         left_plus_right = Matrix([d.evaluate_reconstruction for d in derivatives])
         reconstructed_work = [d.reconstruction_work for d in derivatives]
-        post_process_equations += [OpenSBLIEq(x, y) for x, y in zip(reconstructed_work, Rational(1,2)*left_plus_right)]
+        post_process_equations += [OpenSBLIEq(x, y) for x, y in zip(reconstructed_work, Rational(1, 2)*left_plus_right)]
         kernel.add_equation(post_process_equations)
         return
-
