@@ -7,6 +7,7 @@ from opensbli.utilities.helperfunctions import dot
 from opensbli.core.parsing import EinsteinEquation
 import itertools
 
+
 class Physics(object):
     """A base class defining physical model's that are to be used for
     codegeneration"""
@@ -15,6 +16,7 @@ class Physics(object):
 class PhysicsVariable(object):
     blocknumber = None
     shape = None
+
     def __init__(self, var):
         if not isinstance(var, DataObject):
             raise ValueError("")
@@ -237,13 +239,11 @@ class NSPhysics_Stats(NSphysics, StatsVariable):
         # Create mean Reynolds stresses
         indices = [i for i in range(self.ndim)]
         stress_components = sorted(set(tuple(sorted(t)) for t in set(itertools.product(indices, indices))), key=lambda element: (element[0], element[1]))
-        self._reynolds_stress_means = [StatsVariable(DataObject('rhou%d%dmean' % (i, j))) for (i,j) in stress_components]
+        self._reynolds_stress_means = [StatsVariable(DataObject('rhou%d%dmean' % (i, j))) for (i, j) in stress_components]
         for no, indices in enumerate(stress_components):
             self._reynolds_stress_means[no].relation = self._reynolds_stress_means[no].variable + \
                                                         (self._momentum[indices[0]].variable*self._momentum[indices[1]].variable)/self._density.variable
         return
-
-
 
     def init_stats(self):
         equations = [Eq(self._rho_mean.variable, 0.0)]
@@ -279,5 +279,3 @@ class NSPhysics_Stats(NSphysics, StatsVariable):
         for eqn in equations:
             pprint(eqn)
         return equations
-
-

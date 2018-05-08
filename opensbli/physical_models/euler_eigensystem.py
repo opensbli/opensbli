@@ -1,11 +1,11 @@
-from opensbli.core.opensbliobjects import CoordinateObject
-from sympy import diag, sqrt, Eq, eye, Rational, pprint
+from sympy import diag, eye, Rational
 from opensbli.core.opensbliobjects import ConstantObject, EinsteinTerm
 from sympy.parsing.sympy_parser import parse_expr
 
 
 class EulerEquations(object):
     """ Class to generate the Eigensystems used to diagonalize the Euler equations."""
+
     def __init__(self, ndim, **kwargs):
         self.ndim = ndim
         return
@@ -20,11 +20,12 @@ class EulerEquations(object):
         met_symbols = self.met_symbols
         # Metric terms for this direction to substitute into the matrix
         terms = [EinsteinTerm('k%d' % i) for i in range(self.ndim)]
-        metric_values = [met_symbols[direction,i] for i in range(self.ndim)]
-        subs_dict = dict([(x,y) for (x,y) in zip(terms, metric_values)])
+        metric_values = [met_symbols[direction, i] for i in range(self.ndim)]
+        subs_dict = dict([(x, y) for (x, y) in zip(terms, metric_values)])
         # Scaling factor based on metrics
-        factor = sum([met_symbols[direction, i]**2 for i in range(self.ndim)])**(Rational(1,2))
+        factor = sum([met_symbols[direction, i]**2 for i in range(self.ndim)])**(Rational(1, 2))
         subs_dict[EinsteinTerm('k')] = factor
+
         def g(x):
             return x.subs(subs_dict, evaluate=False)
         ev_dict[direction] = diag(*list(self.ev.applyfunc(g)))
@@ -33,8 +34,8 @@ class EulerEquations(object):
         return ev_dict, LEV_dict, REV_dict
 
     def generate_eig_system(self, block):
-        """ Creates the Eigensystems used to diagonalize the Euler equations. No direction is 
-        passed at this stage, the Eigensystems are in general form. 
+        """ Creates the Eigensystems used to diagonalize the Euler equations. No direction is
+        passed at this stage, the Eigensystems are in general form.
 
         :arg object block: OpenSBLI SimulationBlock.
         :returns: None """
@@ -86,9 +87,11 @@ class EulerEquations(object):
             ev = parse_expr(ev, local_dict=local_dict, evaluate=False)
             REV = parse_expr(REV, local_dict=local_dict, evaluate=False)
             LEV = parse_expr(LEV, local_dict=local_dict, evaluate=False)
+
             # Apply the sub
             def f(x):
                 return x.subs(subs_dict, evaluate=False)
+
             def g(x):
                 return x.subs(subs_dict2, evaluate=False)
             self.ev = ev.applyfunc(f).applyfunc(g).applyfunc(g)
