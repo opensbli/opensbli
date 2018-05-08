@@ -81,6 +81,7 @@ def get_inverse_deltas(delta):
         rc.name = name
         return inv_delta_name
 
+
 def set_hdf5_metadata(dset, halos, npoints, block):
     """ Function to set hdf5 metadata required by OPS to a dataset. """
     d_m = [halos[0]]*block.ndim
@@ -89,16 +90,17 @@ def set_hdf5_metadata(dset, halos, npoints, block):
     dset.attrs.create("d_p", d_p, dtype="int32")
     dset.attrs.create("d_m", d_m, dtype="int32")
     dset.attrs.create("dim", [1], dtype="int32")
-    dset.attrs.create("ops_type", u"ops_dat",dtype="S7")
+    dset.attrs.create("ops_type", u"ops_dat", dtype="S7")
     dset.attrs.create("block_index", [block.blocknumber], dtype="int32")
     dset.attrs.create("base", [0 for i in range(block.ndim)], dtype="int32")
-    dset.attrs.create("type", u"double",dtype="S15")
-    dset.attrs.create("block", u"%s" % block.blockname,dtype="S25")
+    dset.attrs.create("type", u"double", dtype="S15")
+    dset.attrs.create("block", u"%s" % block.blockname, dtype="S25")
     dset.attrs.create("size", npoints, dtype="int32")
     return
 
+
 def output_hdf5(array, array_name, halos, npoints, block, **kwargs):
-    """ Creates an HDF5 file for reading in data to a simulation, 
+    """ Creates an HDF5 file for reading in data to a simulation,
     sets the metadata required by the OPS library. """
     if not isinstance(array, list):
         array = [array]
@@ -115,15 +117,16 @@ def output_hdf5(array, array_name, halos, npoints, block, **kwargs):
         # Loop over all the dataset inputs and write to the hdf5 file
         for ar, name in zip(array, array_name):
             g1.attrs.create("dims", [block.ndim], dtype="int32")
-            g1.attrs.create("ops_type", u"ops_block",dtype="S9")
+            g1.attrs.create("ops_type", u"ops_block", dtype="S9")
             g1.attrs.create("index", [block.blocknumber], dtype="int32")
             block_dset_name = block.location_dataset(name).base
             dset = g1.create_dataset('%s' % (block_dset_name), data=ar)
             set_hdf5_metadata(dset, halos, npoints, block)
     return
 
+
 def substitute_simulation_parameters(constants, values, simulation_name='opensbli'):
-    """ Function to substitute user provided numerical values for constants 
+    """ Function to substitute user provided numerical values for constants
     defined in the simulation.
 
     :arg list constants: List of strings, one for each input constant in the simulation.
@@ -143,6 +146,7 @@ def substitute_simulation_parameters(constants, values, simulation_name='opensbl
         f.write(s)
     return
 
+
 def dataset_attributes(dset):
     """
     Move to datasetbase? Should we??
@@ -154,6 +158,7 @@ def dataset_attributes(dset):
     dset.halo_ranges = None
     dset.block_name = None
     return dset
+
 
 def constant_attributes(const):
     const.is_input = True
@@ -168,12 +173,12 @@ def print_iteration_ops(simulation_name='opensbli', every=100):
     file_path = "./%s.cpp" % simulation_name
     with open(file_path) as f:
         lines = f.readlines()
-    for no,line in enumerate(lines):
+    for no, line in enumerate(lines):
         check_string = "int iter=0;"
         if check_string in line:
             lines[no+1] = lines[no+1] + """if(fmod(iter+1, %d) == 0){
         ops_printf("Iteration is %%d\\n", iter+1);
-    }\n""" %(every)
+    }\n""" % (every)
     with open(file_path, 'w') as f:
         f.write(''.join(lines))
     return
