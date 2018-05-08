@@ -1,8 +1,7 @@
-from sympy import IndexedBase, Symbol, pprint, Rational, Eq, Abs, flatten, Max, horner, S, ceiling
+from sympy import IndexedBase, Symbol, Rational, Abs, flatten, Max, horner, S, ceiling
 from opensbli.core.opensblifunctions import TenoDerivative
 from opensbli.core.opensbliobjects import ConstantObject
 from opensbli.core.grid import GridVariable
-# from opensbli.utilities.helperfunctions import increment_dataset as incr_dset
 from opensbli.core.scheme import Scheme
 from opensbli.core.weno_opensbli import LLFCharacteristic, ShockCapturing
 from opensbli.core.kernel import ConstantsToDeclare as CTD
