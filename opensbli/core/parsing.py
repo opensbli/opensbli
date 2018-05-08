@@ -1,10 +1,10 @@
 import logging
 
-from sympy import pprint, flatten, Function, Derivative, Eq, Equality, Symbol, Rational, postorder_traversal, Subs, preorder_traversal, srepr
+from sympy import pprint, flatten, Function, Derivative, Equality, Symbol, Rational, postorder_traversal, Subs, preorder_traversal, srepr
 from sympy.core.function import AppliedUndef
 from opensbli.core.opensbliobjects import ConstantObject, MetricObject, CoordinateObject, DataSet, DataObject, EinsteinTerm
 from opensbli.core.opensblifunctions import WenoDerivative, CentralDerivative, TenoDerivative, MetricDerivative, TemporalDerivative,\
-    KD, LC, EinsteinStructure, Dot, expand_free_indices
+    EinsteinStructure, expand_free_indices
 from sympy.parsing.sympy_parser import parse_expr, standard_transformations
 from opensbli.core.opensbliequations import OpenSBLIEq
 
@@ -28,9 +28,9 @@ class ParsingSchemes(object):
                 else:
                     _list2 = list(d.variables)
                     if order_dictionary:
-                        # Order the derivative variables according to the input list 
+                        # Order the derivative variables according to the input list
                         # as sympy sorts the order of differentiation
-                        # The sorting of the variables is done in scheme when we 
+                        # The sorting of the variables is done in scheme when we
                         # sanitise the equations
                         _list2.sort(key=order_dictionary.get)
                     substitutions[d] = classdict[cls.args[-1]](d.expr, *_list2)
@@ -43,7 +43,7 @@ class ParsingSchemes(object):
             if not (m.args[0].atoms(Derivative).difference(m.args[0].atoms(classdict[cls.args[-1]]))):
                 _list2 = list(m.variables)
                 if order_dictionary:
-                    # Order the derivative variables according to the input list 
+                    # Order the derivative variables according to the input list
                     # as sympy sorts the order of differentiation
                     _list2.sort(key=order_dictionary.get)
                 expr = expr.xreplace({m: classdict[cls.args[-1]](m.expr, *_list2)})
@@ -179,10 +179,8 @@ class Der(AppliedUndef, ParsingSchemes):
         # Remove the functions
         expr = expr.subs(revertback)
         pot = postorder_traversal(expr)
-        substitutions = {}
-        modifications = []
         # Create a dictionary for the order of differentiation variables
-        order_dictionary = {k:v for v,k in enumerate(order_of_diff)}
+        order_dictionary = {k: v for v, k in enumerate(order_of_diff)}
         # Set the schemes
         expr = cls.set_schemes(expr, order_dictionary)
         return expr
@@ -207,36 +205,13 @@ class Conservative(AppliedUndef, ParsingSchemes):
         TODO Requires more rigorous testing
         """
         localfuncs = (Conservative)
-        # notdiff = (ConstantObject, CoordinateObject)
         pot = postorder_traversal(cls)
         expr = cls
         for p in pot:
             if isinstance(p, localfuncs):
-                # if local_subs:
-                    # p = p.subs(local_subs)
-                # print p, p.args, Derivative(p.args[0], p.args[1])
-                # pprint([p, p.args[0]])
-                # local_subs[p] = Derivative(p.args[0], *p.args[1:-1])
                 expr = expr.subs(p, Derivative(p.args[0], *p.args[1:-1]))
-                # local_subs += [p]
-                # local_subs[p] = Derivative(p.args[0], *p.args[1:-1])
             else:
                 continue
-        # pprint(local_subs)
-        # expr = expr.subs(local_subs)
-        # print "Inside conservative"
-        # pprint(expr)
-        # exit()
-        # pprint(expr)
-        # pprint(*cls.args[1:-1])
-        # pprint(local_subs)
-        # pprint(cls)
-        # for sub in reversed(local_subs[1:]):
-        # expr = expr.subs(sub, evaluate=False)
-        # pprint(['jere-1', expr])
-        # exit()
-        # expr = Derivative(expr, *cls.args[1:-1])
-        # pprint(['jere', Derivative(Derivative(cls.args[0], cls.args[1]), cls.args[1])])
         expr = cls.set_schemes(expr)
         return expr
 
@@ -311,7 +286,6 @@ class MetricDer(AppliedUndef, ParsingSchemes):
         expr = cls.remove_fn(expr)
         expr = cls.remove_fn(expr)
         expr = cls.set_schemes(expr)
-        # pprint(expr)
         return expr
 
     def convert_to_functions(cls, expr):
@@ -336,8 +310,6 @@ class MetricDer(AppliedUndef, ParsingSchemes):
             f = Function('f%d' % index)
             index = index + 1
             newfn = f(mobj(*cls.fndeps))
-
-            # ppritn(cls.fndeps)
             var_args = []
             for v in at.variables:
                 var_args += [cls.remove_fn(v)]
@@ -393,25 +365,13 @@ class MetricDer(AppliedUndef, ParsingSchemes):
             if free_indices:
                 expanded_equations = expand_free_indices(expanded_lhs, free_indices, 3)
             pprint(srepr(expanded_equations[0]))
-            # new = coordinates[0](cls.metricobject)
-            # new = new.diff(cls.metricobject)
-            # new = cls.remove_fn(new)
-            # new = cls.remove_fn(new)
-            # new = cls.set_schemes(new)
-            # new, free_indices = EinsteinEquation()._structure(new)
-            # new = EinsteinEquation().substitute_indexed(new)
-            # expanded_lhs = EinsteinEquation().expand_summations(new, 3)
-            # if free_indices:
-            # expanded_equations = expand_free_indices(expanded_lhs, free_indices, 3)
-            # pprint(new)
-            # pprint(srepr(expanded_equations[0]))
         elif order == 2:
             pass
         return expr
 
 
 class EinsteinEquation(EinsteinStructure):
-    
+
     optional_subs_dict = {}
 
     """ Describes an equation that is to be solved. """
@@ -439,7 +399,6 @@ class EinsteinEquation(EinsteinStructure):
         exec_('from opensbli.core import *', local_dict)
         local_dict.update({'coordinate': coordinate_symbol, 'time': 't'})
         local_dict.update(constant_dictionary)
-        # pprint(self.original)
         # Parse the equation.
         self.parsed = parse_expr(self.original, local_dict, tuple([convert_coordinate])+standard_transformations, evaluate=False)
         # Perform substitutions, if any.
@@ -473,13 +432,7 @@ class EinsteinEquation(EinsteinStructure):
             expanded_rhs = self.expand_summations(rhs, ndim)
             expanded_equation = OpenSBLIEq(expanded_lhs, expanded_rhs)
             if not lhs_indices and not rhs_indices:
-                # THIS SHOULD BE MOVED TODO
                 expanded_equation = self.apply_functions(expanded_equation)
-                # expanded_equation = self.convert_to_data_sets(expanded_equation)
-                # Converting to dataObjects
-                # for at in expanded_equation.atoms(DataObject):
-                # obj = DataSet(str(at)) # By default the location of the dataset is node (0,0,0)
-                # type_ofeq.add_equations(expanded_equation)
                 expanded_equations = expanded_equation
 
             elif lhs_indices == rhs_indices:
@@ -487,11 +440,10 @@ class EinsteinEquation(EinsteinStructure):
                 for no, eq in enumerate(expanded_equations):
                     eq = self.apply_functions(eq)
                     expanded_equations[no] = eq
-                # type_ofeq.add_equations(expanded_equations)
             else:
                 pprint(lhs_indices)
                 pprint(rhs_indices)
-                # pprint(expanded_equation)
+                pprint(expanded_equation)
                 raise ValueError("LHS indices and rhs indices are not consistent")
             return expanded_equations
         else:
