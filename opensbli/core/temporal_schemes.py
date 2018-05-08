@@ -1,15 +1,14 @@
-from sympy import flatten, Eq, Idx
+from sympy import flatten, Idx, sqrt
 from opensbli.core.opensbliobjects import ConstantObject, ConstantIndexed, Globalvariable
 from opensbli.core.opensbliequations import OpenSBLIEq
 from opensbli.core.kernel import Kernel
 from opensbli.core.datatypes import Int
-from sympy import pprint, sqrt
 from opensbli.core.scheme import Scheme, TemproalSolution
 
 
 class RungeKuttaSSP(Scheme):
     """ Applies a low storage (2 Register, Williamson form) Runge-Kutta Strong stability preserving time-stepping scheme.
-        Optimal coefficients taken from "Gottlieb, Shu, Tadmor (2001): Strong Stability-Preserving High-Order Time 
+        Optimal coefficients taken from "Gottlieb, Shu, Tadmor (2001): Strong Stability-Preserving High-Order Time
         Discretization Methods, SIAM Review Vol. 43, No.1, pp 89-112.
 
         For m=3 stages and current time 'n' with u^0 = u^n, du^0 = 0:
