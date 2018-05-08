@@ -4,6 +4,7 @@ from opensbli.core.kernel import Kernel
 from opensbli.core.scheme import Central
 from opensbli.utilities.helperfunctions import increasing_order, decreasing_order
 from opensbli.core.opensbliobjects import ConstantObject
+from opensbli.core.opensbliequations import OpenSBLIEquation
 from sympy import pprint, flatten, Eq, postorder_traversal
 from opensbli.core.grid import GridVariable
 from opensbli.core.latex import LatexWriter
@@ -26,7 +27,7 @@ class Store_some_original(Central):
         equations = [e._sanitise_equation for e in equations]
         self.required_constituent_relations = {}
         rhs_eq = [e.rhs for e in equations]
-        equations = [Eq(x, y) for x, y in zip(residual_arrays, rhs_eq)]
+        equations = [OpenSBLIEquation(x, y) for x, y in zip(residual_arrays, rhs_eq)]
         # Now do discretise the store derivatives, first step
         self.local_kernels = {}
         discretised_eq = self.process_store(block, equations, "ss")
@@ -60,7 +61,7 @@ class Store_some_original(Central):
                 if der in block.derivatives_to_store:
                     self.update_range_of_constituent_relations(der, block)
                     expr, self.local_kernels = self.traverse(der, self.local_kernels, block)
-                    expr_discretised = Eq(der.work, expr._discretise_derivative(self, block))
+                    expr_discretised = OpenSBLIEquation(der.work, expr._discretise_derivative(self, block))
                     self.local_kernels[der].add_equation(expr_discretised)
                     self.local_kernels[der].set_grid_range(block)
                     for no, c in enumerate(discretised_eq):
@@ -88,7 +89,7 @@ class Store_some_original(Central):
                 self.update_range_of_constituent_relations(der, block)
                 expr, self.local_kernels = self.traverse(der, self.local_kernels, block)
                 gv = gridvars.pop(0)
-                grid_variable_evaluations += [Eq(gv, expr._discretise_derivative(self, block))]
+                grid_variable_evaluations += [OpenSBLIEquation(gv, expr._discretise_derivative(self, block))]
                 for no, c in enumerate(descritised_equations):
                     descritised_equations[no] = descritised_equations[no].subs(expr, gv)
             return grid_variable_evaluations+descritised_equations
@@ -113,7 +114,7 @@ class Store_some_level2(Central):
         equations = [e._sanitise_equation for e in equations]
         self.required_constituent_relations = {}
         rhs_eq = [e.rhs for e in equations]
-        equations = [Eq(x, y) for x, y in zip(residual_arrays, rhs_eq)]
+        equations = [OpenSBLIEquation(x, y) for x, y in zip(residual_arrays, rhs_eq)]
         self.required_constituent_relations = {}
         self.local_kernels = {}
         # Now do discretise the store derivatives, first step
@@ -123,9 +124,9 @@ class Store_some_level2(Central):
         viscous, convective = self.classify_equations_on_parameter(discretised_eq, classify_parameter)
         # pprint(convective)
         # exit()
-        convective = [Eq(x, x+y) for x, y in zip(residual_arrays, convective)]
+        convective = [OpenSBLIEquation(x, x+y) for x, y in zip(residual_arrays, convective)]
         discretised_eq = self.SS(convective, block)
-        viscous = [Eq(x, x+y) for x, y in zip(residual_arrays, viscous)]
+        viscous = [OpenSBLIEquation(x, x+y) for x, y in zip(residual_arrays, viscous)]
         discretised_eq1 = self.SS(viscous, block)
         if discretised_eq and discretised_eq1:
             for ker in self.local_kernels:
@@ -165,7 +166,7 @@ class Store_some_level2(Central):
                 if der in block.derivatives_to_store:
                     self.update_range_of_constituent_relations(der, block)
                     expr, self.local_kernels = self.traverse(der, self.local_kernels, block)
-                    expr_discretised = Eq(der.work, expr._discretise_derivative(self, block))
+                    expr_discretised = OpenSBLIEquation(der.work, expr._discretise_derivative(self, block))
                     self.local_kernels[der].add_equation(expr_discretised)
                     self.local_kernels[der].set_grid_range(block)
                     for no, c in enumerate(discretised_eq):
@@ -191,7 +192,7 @@ class Store_some_level2(Central):
             for der in sorted(cds, cmp=decreasing_order):
                 expr, self.local_kernels = self.traverse(der, self.local_kernels, block)
                 gv = gridvars.pop(0)
-                grid_variable_evaluations += [Eq(gv, expr._discretise_derivative(self, block))]
+                grid_variable_evaluations += [OpenSBLIEquation(gv, expr._discretise_derivative(self, block))]
                 for no, c in enumerate(descritised_equations):
                     descritised_equations[no] = descritised_equations[no].subs(expr, gv)
             return grid_variable_evaluations+descritised_equations
@@ -237,7 +238,7 @@ class Store_some_optimisation(Central):
                 if not v.used_else_where:
                     v.update_work(block)
                     block.increase_work_index
-                    kernels[key].add_equation(Eq(v.work, v._discretise_derivative(self, block)))
+                    kernels[key].add_equation(OpenSBLIEquation(v.work, v._discretise_derivative(self, block)))
         print block.work_index
         return
 
@@ -339,7 +340,7 @@ class RA_optimisation(Central):
         rhs_eq = [e.rhs for e in equations]
         # print "nhere"
         self.required_constituent_relations = {}
-        equations = [Eq(x, y) for x, y in zip(residual_arrays, rhs_eq)]
+        equations = [OpenSBLIEquation(x, y) for x, y in zip(residual_arrays, rhs_eq)]
         discretised_eq = self.RA(equations, block)
         if discretised_eq:
             discretisation_kernel = Kernel(block, computation_name="%s evaluation" % type_of_eq.__class__.__name__)
@@ -399,7 +400,7 @@ class SN_optimisation(Central):
         rhs_eq = [e.rhs for e in equations]
         # print "nhere"
         self.required_constituent_relations = {}
-        equations = [Eq(x, y) for x, y in zip(residual_arrays, rhs_eq)]
+        equations = [OpenSBLIEquation(x, y) for x, y in zip(residual_arrays, rhs_eq)]
         discretised_eq = self.SN(equations, block)
         if discretised_eq:
             discretisation_kernel = Kernel(block, computation_name="%s evaluation" % type_of_eq.__class__.__name__)
@@ -436,7 +437,7 @@ class SN_optimisation(Central):
                         expr = expr.subs(cd, cd._discretise_derivative(self, block))
                 expr_discretised = expr._discretise_derivative(self, block)
                 var = gvs.pop(0)
-                local_eq += [Eq(var, expr_discretised)]
+                local_eq += [OpenSBLIEquation(var, expr_discretised)]
                 for no, c in enumerate(descritised_equations):
                     descritised_equations[no] = descritised_equations[no].subs(der, var)
             # add the local equations to discretised
@@ -466,7 +467,7 @@ class SN_optimisation_level_2(Central):
         self.required_constituent_relations = {}
         viscous, convective = self.classify_equations_on_parameter(equations, classify_parameter)
         # First process the convective terms
-        equations = [Eq(x, x+y) for x, y in zip(residual_arrays, convective)]
+        equations = [OpenSBLIEquation(x, x+y) for x, y in zip(residual_arrays, convective)]
         self.latex = LatexWriter()
         self.latex.open('./discretise.tex')
         metadata = {"title": "Discretise", "author": "Jammy", "institution": ""}
@@ -480,7 +481,7 @@ class SN_optimisation_level_2(Central):
             discretisation_kernel.update_block_datasets(block)
             type_of_eq.Kernels += [discretisation_kernel]
         # The viscous terms
-        equations = [Eq(x, x+y) for x, y in zip(residual_arrays, viscous)]
+        equations = [OpenSBLIEquation(x, x+y) for x, y in zip(residual_arrays, viscous)]
         discretised_eq = self.SN(equations, block)
         if discretised_eq:
             discretisation_kernel = Kernel(block, computation_name="%s Viscous evaluation" % type_of_eq.__class__.__name__)
@@ -520,8 +521,8 @@ class SN_optimisation_level_2(Central):
                         expr = expr.subs(cd, cd._discretise_derivative(self, block))
                 expr_discretised = expr._discretise_derivative(self, block)
                 var = gvs.pop(0)
-                self.latex.write_expression(Eq(der, Eq(var, expr_discretised)))
-                local_eq += [Eq(var, expr_discretised)]
+                self.latex.write_expression(OpenSBLIEquation(der, OpenSBLIEquation(var, expr_discretised)))
+                local_eq += [OpenSBLIEquation(var, expr_discretised)]
                 for no, c in enumerate(descritised_equations):
                     descritised_equations[no] = descritised_equations[no].subs(der, var)
             # add the local equations to discretised
@@ -550,7 +551,7 @@ class RA_optimisation_level_2(Central):
         self.required_constituent_relations = {}
         viscous, convective = self.classify_equations_on_parameter(equations, classify_parameter)
         # First process the convective terms
-        equations = [Eq(x, x+y) for x, y in zip(residual_arrays, convective)]
+        equations = [OpenSBLIEquation(x, x+y) for x, y in zip(residual_arrays, convective)]
         discretised_eq = self.RA(equations, block)
         if discretised_eq:
             discretisation_kernel = Kernel(block, computation_name="%s Convective evaluation" % type_of_eq.__class__.__name__)
@@ -560,7 +561,7 @@ class RA_optimisation_level_2(Central):
             discretisation_kernel.update_block_datasets(block)
             type_of_eq.Kernels += [discretisation_kernel]
         # The viscous terms
-        equations = [Eq(x, x+y) for x, y in zip(residual_arrays, viscous)]
+        equations = [OpenSBLIEquation(x, x+y) for x, y in zip(residual_arrays, viscous)]
         discretised_eq = self.RA(equations, block)
         if discretised_eq:
             discretisation_kernel = Kernel(block, computation_name="%s Viscous evaluation" % type_of_eq.__class__.__name__)
@@ -621,7 +622,7 @@ class RA_optimisation_level_3(Central):
         rhs_eq = [e.rhs for e in equations]
         # print "nhere"
         self.required_constituent_relations = {}
-        equations = [Eq(x, y) for x, y in zip(residual_arrays, rhs_eq)]
+        equations = [OpenSBLIEquation(x, y) for x, y in zip(residual_arrays, rhs_eq)]
         discretised_eq = self.RA(equations, block)
         if discretised_eq:
             for no, eq in enumerate(discretised_eq):
@@ -682,7 +683,7 @@ class Hybrid_RA_SN(Central):
         rhs_eq = [e.rhs for e in equations]
         # print "nhere"
         self.required_constituent_relations = {}
-        equations = [Eq(x, y) for x, y in zip(residual_arrays, rhs_eq)]
+        equations = [OpenSBLIEquation(x, y) for x, y in zip(residual_arrays, rhs_eq)]
         discretised_eq = self.RA(equations, block)
         if discretised_eq:
             for no, eq in enumerate(discretised_eq):

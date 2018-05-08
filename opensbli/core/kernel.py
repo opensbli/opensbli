@@ -180,31 +180,32 @@ class Kernel(object):
         return
 
     @property
-    def required_data_sets(self):
+    def required_datasetbases(self):
         """This is not used any more check for all apps and delete"""
         requires = []
         requires1 = []
         for eq in self.equations:
             if isinstance(eq, _known_equation_types):
-                requires += list(eq.rhs_datasets)
+                requires += list(eq.rhs_datasetbases)
         return requires
 
     @property
-    def lhs_datasets(self):
+    def lhs_datasetbases(self):
         datasets = set()
         for eq in self.equations:
             if isinstance(eq, _known_equation_types):
-                datasets = datasets.union(eq.lhs_datasets)
+                datasets = datasets.union(eq.lhs_datasetbases)
             elif isinstance(eq, Equality):
+                print eq
                 raise TypeError("Equality should be of types %s" %_known_equation_types)
         return datasets
 
     @property
-    def rhs_datasets(self):
+    def rhs_datasetbases(self):
         datasets = set()
         for eq in self.equations:
             if isinstance(eq, _known_equation_types):
-                datasets = datasets.union(eq.rhs_datasets)
+                datasets = datasets.union(eq.rhs_datasetbases)
             elif isinstance(eq, Equality):
                 raise TypeError("Equality should be of types %s" %_known_equation_types)
         return datasets
@@ -331,8 +332,8 @@ class Kernel(object):
     def opsc_code(self):
         block_name = self.block_name
         name = self.kernelname
-        ins = self.rhs_datasets
-        outs = self.lhs_datasets
+        ins = self.rhs_datasetbases
+        outs = self.lhs_datasetbases
         inouts = ins.intersection(outs)
         ins = ins.difference(inouts)
         outs = outs.difference(inouts)
@@ -394,7 +395,7 @@ class Kernel(object):
         3. d.halo_ranges to kernel halo ranges
         """
         self.stencil_names = {}
-        dsets = self.lhs_datasets.union(self.rhs_datasets)
+        dsets = self.lhs_datasetbases.union(self.rhs_datasetbases)
         from opensbli.core.block import DataSetsToDeclare
         # New logic for the dataset delcarations across blocks
         for d in dsets:

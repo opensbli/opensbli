@@ -302,8 +302,8 @@ class OPSC(object):
         return code
 
     def kernel_computation_opsc(self, kernel):
-        ins = kernel.rhs_datasets
-        outs = kernel.lhs_datasets
+        ins = kernel.rhs_datasetbases
+        outs = kernel.lhs_datasetbases
         inouts = ins.intersection(outs)
         ins = ins.difference(inouts)
         outs = outs.difference(inouts)

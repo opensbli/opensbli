@@ -642,7 +642,7 @@ class GroupedPiecewise(Piecewise):
         #return dsets
     
     @property
-    def lhs_datasets(self):
+    def lhs_datasetbases(self):
         """ These are the datsets to be written out, so only expressions are considered and condition is omitted"""
         dsets = set()
         for e, c in self.args:
@@ -650,9 +650,9 @@ class GroupedPiecewise(Piecewise):
                 for eq1 in e:
                     if is_sequence(eq1):
                         raise NotImplementedError("")
-                    dsets = dsets.union(eq1.lhs_datasets)
+                    dsets = dsets.union(eq1.lhs_datasetbases)
             else:
-                dsets = dsets.union(e.lhs_datasets)
+                dsets = dsets.union(e.lhs_datasetbases)
         return dsets
     
     @property
@@ -670,16 +670,16 @@ class GroupedPiecewise(Piecewise):
         return dsets
     
     @property
-    def rhs_datasets(self):
+    def rhs_datasetbases(self):
         dsets = set()
         for e, c in self.args:
             if is_sequence(e):
                 for eq1 in e:
                     if is_sequence(eq1):
                         raise NotImplementedError("")
-                    dsets = dsets.union(eq1.rhs_datasets)
+                    dsets = dsets.union(eq1.rhs_datasetbases)
             else:
-                dsets = dsets.union(e.rhs_datasets)
+                dsets = dsets.union(e.rhs_datasetbases)
             dsets = dsets.union(c.atoms(DataSetBase))
         return dsets
 

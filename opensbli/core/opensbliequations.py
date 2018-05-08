@@ -163,14 +163,14 @@ class OpenSBLIEquation(Equality):
     @property
     def required_datasets(self):
         """Not required"""
-        return self.lhs_datasets.union(self.rhs_datasets)
+        return self.lhs_datasetbases.union(self.rhs_datasetbases)
     
     @property
-    def lhs_datasets(self):
+    def lhs_datasetbases(self):
         return self.lhs.atoms(DataSetBase)
     
     @property
-    def rhs_datasets(self):
+    def rhs_datasetbases(self):
         return self.rhs.atoms(DataSetBase)
 
     @property
@@ -366,7 +366,7 @@ class SimulationEquations(Discretisation, Solution):
         # store the length of order
         input_order = len(order)
         key_list = [key for key in dictionary.keys() if key not in order]
-        requires_list = ([dictionary[key].rhs_datasets for key in key_list])
+        requires_list = ([dictionary[key].rhs_datasetbases for key in key_list])
         zipped = zip(key_list, requires_list)
         # Breaks after 1000 iterations
         iter_count = 0
@@ -374,7 +374,7 @@ class SimulationEquations(Discretisation, Solution):
             iter_count = iter_count+1
             order += [x for (x, y) in zipped if all(req in order for req in y)]
             key_list = [key for key in dictionary.keys() if key not in order]
-            requires_list = [dictionary[key].rhs_datasets for key in key_list]
+            requires_list = [dictionary[key].rhs_datasetbases for key in key_list]
             zipped = zip(key_list, requires_list)
             if iter_count > 1000:
                 print("Exiting because i cannot classify the following")

@@ -183,7 +183,7 @@ class PostProcessEquations(NonSimulationEquations, Discretisation, Solution):
         # store the length of order
         input_order = len(order)
         key_list = [key for key in dictionary.keys() if key not in order]
-        requires_list = ([dictionary[key].required_data_sets for key in key_list])
+        requires_list = ([dictionary[key].required_datasetbases for key in key_list])
 
         zipped = zip(key_list, requires_list)
         # Breaks after 1000 iterations
@@ -192,7 +192,7 @@ class PostProcessEquations(NonSimulationEquations, Discretisation, Solution):
             iter_count = iter_count+1
             order += [x for (x, y) in zipped if all(req in order for req in y)]
             key_list = [key for key in dictionary.keys() if key not in order]
-            requires_list = [dictionary[key].required_data_sets for key in key_list]
+            requires_list = [dictionary[key].required_datasetbases for key in key_list]
             zipped = zip(key_list, requires_list)
             if iter_count > 1000:
                 print("Exiting because i cannot classify the following")

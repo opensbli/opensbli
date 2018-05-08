@@ -53,9 +53,9 @@ class GridBasedInitialisation(NonSimulationEquations):
         evaluated = set()
         for eq in cls.equations:
             if isinstance(eq, Equality):
-                evaluated = evaluated.union(eq.lhs_datasets)
+                evaluated = evaluated.union(eq.lhs_datasetbases)
             elif isinstance(eq, GroupedPiecewise):
-                evaluated = evaluated.union(eq.lhs_datasets)
+                evaluated = evaluated.union(eq.lhs_datasetbases)
         return evaluated
 
     def spatial_discretisation(cls, block):
