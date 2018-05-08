@@ -1,16 +1,15 @@
 from sympy import Symbol, flatten
 from sympy.core.compatibility import is_sequence
 from sympy.tensor import Idx, IndexedBase, Indexed
-from sympy import pprint, srepr
+from sympy import pprint
 from sympy.tensor.indexed import IndexException
 from sympy.core.cache import cacheit
 from opensbli.core.datatypes import SimulationDataType
-from sympy.core import Basic, Tuple, Function, Equality
-from sympy.core.basic import *
-from sympy.logic.boolalg import Boolean
+from sympy.core import Tuple
 
 
 _projectname = "opensbli"
+
 
 class EinsteinTerm(Symbol):
 
@@ -26,7 +25,7 @@ class EinsteinTerm(Symbol):
     :arg str name: The name of the symbol under consideration. This can have zero or more indices."""
 
     is_commutative = False
-    
+
     def __new__(self, name, **assumptions):
         self._sanitize(assumptions, self)  # Remove any 'None's, etc.
         self.name = str(name)
@@ -96,7 +95,7 @@ class EinsteinTerm(Symbol):
                 val.direction = value
             else:
                 val = int(value)
-        else: # Idx doesn't exist in the EinsteinTerm.
+        else:  # Idx doesn't exist in the EinsteinTerm.
             val = self
         return val
 
@@ -144,7 +143,7 @@ class ConstantObject(EinsteinTerm, Constant):
         ret._datatype = SimulationDataType()
         ret._value = "Input"
         return ret
-    
+
     def __hash__(self):
         h = hash(self._hashable_content())
         self._mhash = h
@@ -170,7 +169,7 @@ class ConstantObject(EinsteinTerm, Constant):
     def value(self):
         """Returns the value of Constant."""
         return self._value
-    
+
     @value.setter
     def value(self, numerical_value, dtype=None):
         """Sets the value of the Constant.
@@ -226,7 +225,7 @@ class ConstantIndexed(Indexed, Constant):
     @property
     def name(self):
         return str(self.base)
-    
+
     @value.setter
     def value(self, numerical_values, dtype=None):
         self.is_input = False
@@ -238,13 +237,13 @@ class ConstantIndexed(Indexed, Constant):
         else:
             self.datatype = SimulationDataType()
         return
-    
+
     @property
     def value_access_c(self):
         """Returns the C code for accessing the values of the ConstantIndexedObject."""
         return ["%s[%d]" % (self.base, i) for i in range(0, len(self.value))]
 
-    @property ## WARNING: Is this required?
+    @property  # TODO: Is this required?
     def location(cls):
         return list(cls.args[1:])
 
@@ -358,10 +357,10 @@ class DataSetBase(IndexedBase):
         h = hash(self._hashable_content())
         self._mhash = h
         return h
-    
+
     @property
     def blockname(self):
-        return "%sblock%02d" %(_projectname, self.blocknumber)
+        return "%sblock%02d" % (_projectname, self.blocknumber)
 
     @property
     def noblockname(self):
@@ -451,12 +450,11 @@ class GridIndex(Indexed):
             raise ValueError("GridIndex base should be GridIndexedBase object")
         ret = Indexed.__new__(cls, base, *indices)
         return ret
-    # def free_symbols(self):
-        # return self
 
 
 class GridIndexedBase(IndexedBase):
-    """ Base object to locate the global index of the grid point NOT USED ANY MORE WARNING
+    """ TODO is it used?
+    Base object to locate the global index of the grid point NOT USED ANY MORE WARNING
     """
     is_commutative = True
     is_Symbol = True
@@ -500,6 +498,7 @@ class Grididx(Symbol):
     :param str label: name of the coordinate object to be defined
     :returns: declared coordinate
     :rtype: CoordinateObject """
+
     def __new__(self, label, number, **assumptions):
         self._sanitize(assumptions, self)  # Remove any 'None's, etc.
         self.name = str(label) + str(number)
@@ -509,23 +508,24 @@ class Grididx(Symbol):
         self.base = label
         return self
 
+
 class GlobalValue(object):
     """A base class for values that are global to all processes, these are not
-    constants but they change with time or kind of mesh parameters which are 
+    constants but they change with time or kind of mesh parameters which are
     updated in the simulation and not user input"""
-    
+
 
 class Globalvariable(EinsteinTerm, GlobalValue):
-    
+
     is_commutative = True
-    
+
     def __new__(cls, label, **kwargs):
         ret = super(Globalvariable, cls).__new__(cls, label, **kwargs)
         ret._datatype = SimulationDataType()
         ret.is_input = True
         ret._value = "Input"
         return ret
-    
+
     @property
     def datatype(self):
         """Numeric data type of the Globalvariable array.
@@ -543,7 +543,8 @@ class Globalvariable(EinsteinTerm, GlobalValue):
 
 
 class GroupedCondition(Tuple):
-    """Represents an expression, condition pair."""
+    """ TODO is it used now?
+    Represents an expression, condition pair."""
 
     def __new__(cls, expressions, condition):
         return Tuple.__new__(cls, expressions, condition)
@@ -577,7 +578,11 @@ class GroupedCondition(Tuple):
     def __iter__(self):
         yield self.expressions
         yield self.cond
+
+
 from sympy import Piecewise
+
+
 class GroupedPiecewise(Piecewise):
     nargs = None
     is_Piecewise = True
@@ -591,33 +596,15 @@ class GroupedPiecewise(Piecewise):
         cls.extract_all_conditions
         # assert isinstance(Boolean, expr_pair[1])
         cls.grouped_conditions += [expr_pair[1]]
-        cls.grouped_equations += [expr_pair[0]] ## add input checking here
+        cls.grouped_equations += [expr_pair[0]]  # add input checking here
         return
-    
-    #@property
-    #def gro
-    
+
     def convert_to_datasets(self, block):
         replacements = {}
         for d in self.atoms(DataObject):
             replacements[d] = block.location_dataset(d)
-        #for expr, c in self.args:
-            #if is_sequence(expr):
-                #for eq1 in e:
-                    #if is_sequence(eq1):
-                        #raise NotImplementedError("")
-                    #eq1.convert_to_datasets(block)
-                
-        #for index, list_of_eqn in enumerate(self.grouped_equations):
-            #for eqn_no, equation in enumerate(list_of_eqn):
-                #self.grouped_equations[index][eqn_no] = equation.convert_to_datasets(block)
-        #for index, condition in enumerate(self.grouped_conditions):
-            #for d in condition.atoms(DataObject):
-                #new = block.location_dataset(str(d))
-                #condition = condition.subs(d, new)
-            #self.grouped_conditions[index] = condition
         return self.subs(replacements)
-    
+
     def _eval_subs(self, old, new):
         args = list(self.args)
         for i, (e, c) in enumerate(args):
@@ -631,16 +618,7 @@ class GroupedPiecewise(Piecewise):
                 e = e._subs(old, new)
             args[i] = (e, c)
         return self.func(*args)
-    
-    #@property
-    #def required_datasets(self):
-        #dsets = set()
-        #for eq in flatten(self.grouped_equations):
-            #dsets = dsets.union(eq.required_datasets)
-        #for c in flatten(self.grouped_conditions):
-            #dsets = dsets.union(d.atoms(DataSet))
-        #return dsets
-    
+
     @property
     def lhs_datasetbases(self):
         """ These are the datsets to be written out, so only expressions are considered and condition is omitted"""
@@ -654,7 +632,7 @@ class GroupedPiecewise(Piecewise):
             else:
                 dsets = dsets.union(e.lhs_datasetbases)
         return dsets
-    
+
     @property
     def lhs_datasets_full(self):
         """ These are the datsets to be written out, so only expressions are considered and condition is omitted"""
@@ -668,7 +646,7 @@ class GroupedPiecewise(Piecewise):
             else:
                 dsets = dsets.union(e.atoms(DataSet))
         return dsets
-    
+
     @property
     def rhs_datasetbases(self):
         dsets = set()
@@ -698,5 +676,3 @@ class GroupedPiecewise(Piecewise):
     @property
     def extract_all_conditions(cls):
         cls.all_conditions = flatten([pair.cond for pair in cls.pairs])
-
-    
