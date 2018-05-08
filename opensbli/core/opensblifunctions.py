@@ -1,13 +1,3 @@
-"""
-# Imports required are
-from .opensbliobjects impot *
-from sympy import the following
-a. Sum
-b. get_contraction_structure
-c. get_indices
-d. EXPR
-_remove_repeated
-"""
 from sympy import Sum, Symbol, Function, Eq, flatten, S, pprint, Mul, Expr
 from sympy.tensor import IndexedBase, Indexed, get_contraction_structure
 from sympy.tensor.index_methods import get_indices as get_indices_sympy
@@ -22,7 +12,6 @@ from sympy.functions.special.tensor_functions import eval_levicivita
 def summation_apply(final_expr, sumindices):
     for k in sumindices:
         final_expr = Sum(final_expr, (k, 0, Symbol('ndim', integer=True)))
-
     return final_expr
 
 
@@ -43,13 +32,12 @@ def expand_expr(expr, ndim):
             for at in input_expr.atoms(EinsteinTerm):
                 dictionary[at] = at.apply_index(k, dim)
             expanded_expr += input_expr.xreplace(dictionary)
-    # pprint(expanded_expr)
     return expanded_expr
 
 
 def expand_free_indices(expr, indices, ndim):
     shape = tuple([ndim for i in indices])
-    out = []  # [expr for i in range(ndim**len(indices))]
+    out = []
     it = mutidimindex(shape)
     indices = list(indices)
     for i in it:
@@ -60,7 +48,6 @@ def expand_free_indices(expr, indices, ndim):
         for at in local_expr.atoms(EinsteinTerm):
             evaluated = at.apply_multiple_indices(indices, local_map)
             local_expr = local_expr.replace(at, evaluated)
-
         out += [local_expr]
     return out
 
@@ -179,18 +166,10 @@ class EinsteinStructure(object):
                 raise ValueError("This derivative is not classified", p)
             else:
                 continue
-        # Store the expressions for the indexed objects as they need to
-        # pprint(substits)
-        # pprint(expr)
         expr = expr.xreplace(obj_substitutions)
-        # pprint(expr)
-        # pprint(reversesubs)
-        # get the contraction structure of the expression
-        # print(expr)
         contraction_dictionary = (get_contraction_structure(expr))
         indices, dummies = get_indices_sympy(expr)
         expr = cls.apply_contraction(contraction_dictionary, expr, reversesubs)
-        # pprint(expr)
         return expr, indices
 
     def substitute_indexed(cls, indexedexpr):
@@ -206,7 +185,6 @@ class EinsteinStructure(object):
                 pot.skip()
             else:
                 continue
-
         # now substitute them in the original expression
         indexedexpr = indexedexpr.xreplace(indexed_subs)
         indexedexpr = indexedexpr.xreplace(indexedBaseSubs)
@@ -214,7 +192,6 @@ class EinsteinStructure(object):
         return indexedexpr
 
     def expand_summations(cls, expression, ndim):
-        # pprint(expression.atoms(Sum))
         # To expand the summation notation. Do a postorder traversal of the tree
         pot = postorder_traversal(expression)
         to_expand = []
@@ -305,13 +282,10 @@ class BasicDiscretisation(EinsteinStructure):
 
     @property
     def _sanitise(cls):
-        """ As of now CD(u0,x0,x1) --> CD(CD(u0,x0), x1)
-        need a better formulation"""
-        # sort the differentiation variables based on direction so that the variables are
-        # sorted and we remove extra computation of derivatives
+        """ As of now CD(u0,x0,x1) --> CD(CD(u0,x0), x1) need a better formulation"""
         if not cls.is_homogeneous:
             coordinate_directions = cls.get_direction
-            sorted_variables = [x for _,x in sorted(zip(coordinate_directions, cls.args[1:]))]
+            sorted_variables = [x for _, x in sorted(zip(coordinate_directions, cls.args[1:]))]
             args = [cls.args[0], sorted_variables[0]]
             expr = type(cls)(*args)
             for arg in sorted_variables[1:]:
@@ -320,7 +294,6 @@ class BasicDiscretisation(EinsteinStructure):
             return expr
         else:
             return cls
-        
 
     @property
     def used_else_where(self):
@@ -334,7 +307,7 @@ class BasicDiscretisation(EinsteinStructure):
         return
 
     def update_work(cls, block):
-        """
+        """ #TODO check if used
         For this we set the indices of the work array to be same as that of
         the derivaitve indices. This way no mapping is required.
         Block work array will be implemented
