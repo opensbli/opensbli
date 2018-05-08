@@ -1,10 +1,8 @@
 from opensbli.core.block import SimulationBlock as SB
-from sympy import flatten, pprint, Idx, Equality
+from sympy import flatten, Equality
 from opensbli.core.latex import LatexWriter
-from opensbli.core.kernel import ConstantsToDeclare as CTD
 from opensbli.core.opensbliequations import SimulationEquations, NonSimulationEquations, ConstituentRelations
-from opensbli.core.opensbliobjects import Constant, DataSetBase, ConstantObject
-from opensbli.core.datatypes import Int
+from opensbli.core.opensbliobjects import Constant, DataSetBase
 from opensbli.initialisation.common import BeforeSimulationStarts, AfterSimulationEnds, InTheSimulation
 import copy
 
@@ -323,8 +321,6 @@ class Timers(object):
         code += ["ops_printf(\"Total Wall time %%lf\\n\",%s-%s);" % (self._end_variables[1], self._start_variables[1])]
         return code
 
-# class If
-
 
 class BlockDescription(object):
     def __init__(self, block):
@@ -418,13 +414,6 @@ class TraditionalAlgorithmRK(object):
                         spatial_kernels = key.all_spatial_kernels(b)
                     elif isinstance(key, NonSimulationEquations):  # Add all other types of equations
                         non_simulation_eqs += [key]
-                        # for place in key.algorithm_place:
-                        # if isinstance(place, BeforeSimulationStarts):
-                        # before_time += key.Kernels
-                        # elif isinstance(place, AfterSimulationEnds):
-                        # after_time += key.Kernels
-                        # else:
-                        # raise NotImplementedError("In Nonsimulation equations")
                     else:
                         if not isinstance(key, ConstituentRelations):
                             print "NOT classified", type(key)
@@ -466,16 +455,11 @@ class TraditionalAlgorithmRK(object):
                         in_time += [cond]
                     else:
                         raise NotImplementedError("In Nonsimulation equations")
-            #niter_symbol = ConstantObject('niter')
-            #niter_symbol.datatype = Int()
-            #CTD.add_constant(niter_symbol)
             tloop = DoLoop(temporal_iteration)
             tloop.add_components(temporal_start)
             tloop.add_components(innerloop)
             tloop.add_components(in_time)
             tloop.add_components(temporal_end)
-            # tloop.write_latex(latex)
-            # Process the initial conditions and Diagnostics if any here
             timed_tloop = self.add_timers(tloop)
             self.prg.add_components(before_time)
             self.prg.add_components(timed_tloop)
