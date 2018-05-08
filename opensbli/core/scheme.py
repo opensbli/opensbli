@@ -1,6 +1,6 @@
 
 from sympy.calculus import finite_diff_weights
-from sympy import postorder_traversal, Function, flatten, Eq, Rational, Idx
+from sympy import postorder_traversal, Function, flatten, Rational, Idx, S
 from sympy.core import Add, Mul
 from opensbli.core.opensbliobjects import ConstantObject, ConstantIndexed, Globalvariable, DataSet
 from opensbli.core.opensblifunctions import CentralDerivative
@@ -8,7 +8,6 @@ from opensbli.core.opensbliequations import OpenSBLIEq
 from opensbli.core.kernel import Kernel
 from opensbli.utilities.helperfunctions import increasing_order
 from opensbli.core.datatypes import Int
-from sympy import pprint
 
 
 class Scheme(object):
@@ -25,6 +24,7 @@ class Scheme(object):
         self.name = name
         self.order = order
         return
+
 
 class CentralHalos(object):
     def __init__(self, order):
@@ -127,8 +127,6 @@ class Central(Scheme):
             if discretised_eq:
                 for ker in local_kernels:
                     eval_ker = local_kernels[ker]
-                    # eval_ker.set_computation_name("%s "%(ker))
-                    # eval_ker.update_block_datasets(block)
                     type_of_eq.Kernels += [eval_ker]
 
                 discretisation_kernel = Kernel(block, computation_name="%s evaluation" % type_of_eq.__class__.__name__)
@@ -234,18 +232,12 @@ class Central(Scheme):
                     else:
                         v1 = v
                     expr = OpenSBLIEq(v.work, v1._discretise_derivative(self, block))
-                    # pprint(expr)
                     ker = Kernel(block)
                     ker.add_equation(expr)
                     ker.set_computation_name("Convective %s " % (v))
                     ker.set_grid_range(block)
-                    # pprint(ker.__dict__)
-                    # expr.work = v.work
                     local += [ker]
-                    # create any Boundary modification kernels Reverted back
-                    # local += v1.apply_boundary_derivative_modification(block, self, v.work)
                     subs_conv[v] = v.work
-                # pprint(ev_ker.__dict__)
                 if ev_ker.equations:
                     local_evaluations_group[key] += [ev_ker]
                 function_expressions_group[key] = local
@@ -262,7 +254,7 @@ class Central(Scheme):
                 convective_descritised[no] = convective_descritised[no].subs(subs_conv)
             conv_residual_kernel = self.create_residual_kernel(residual_arrays, convective_descritised, block)
             conv_residual_kernel.set_computation_name("Convective residual ")
-            kernels += [conv_residual_kernel]        
+            kernels += [conv_residual_kernel]
         # reset the work index of blocks
         block.reset_work_index
         # Discretise the viscous fluxes. This is straight forward as we need not modify anything
@@ -271,15 +263,11 @@ class Central(Scheme):
         if viscous_kernels:
             for ker in sorted(viscous_kernels, cmp=increasing_order):
                 eval_ker = viscous_kernels[ker]
-                # eval_ker.set_computation_name("Viscous %s "%(ker))
                 kernels += [eval_ker]
-                # pprint(['Viscous things going', ker])
-                # kernels += ker.apply_boundary_derivative_modification(block, self, ker.work)
         if viscous_discretised:
             visc_residual_kernel = self.create_residual_kernel(residual_arrays, viscous_discretised, block)
             visc_residual_kernel.set_computation_name("Viscous residual")
             kernels += [visc_residual_kernel]
-        # create_latex_kernel(kernels)
         # Add the kernels to the solutions
         type_of_eq.Kernels += kernels
         block.reset_work_index
@@ -328,9 +316,6 @@ class Central(Scheme):
                 work_arry_subs[expr] = der.work
                 local_kernels[der].add_equation(expr_discretised)
                 local_kernels[der].set_grid_range(block)
-                # print "applying bcs for %s"%(expr)
-                # local_kernels[der] += expr.apply_boundary_derivative_modification(block, self, der.work) # Applys the boundary kernel modifications if any
-            # Apply any Boundary conditions Reverted back
             for no, c in enumerate(descritised_equations):
                 descritised_equations[no] = descritised_equations[no].subs(work_arry_subs)
             return local_kernels, descritised_equations
@@ -338,7 +323,6 @@ class Central(Scheme):
             return None, None
 
     def classify_equations_on_parameter(self, equations, parameter):
-        from sympy import S
         containing_terms = [S.Zero for eq in equations]
         other_terms = [S.Zero for eq in equations]
         for number, eq in enumerate(equations):
@@ -388,11 +372,7 @@ class Central(Scheme):
                     for direction in dires:
                         kernel_dictionary[cd].set_halo_range(direction, 0, self.halotype)
                         kernel_dictionary[cd].set_halo_range(direction, 1, self.halotype)
-                    # print "applying bcs for %s"%(cd)
-                    # kernel_dictionary[cd] += cd.apply_boundary_derivative_modification(block, self, cd.work) # Applys the boundary kernel modifications if any (REVERTED BACK)
                 elif cd.is_store:
-                    # THIS raises an error when the CD(u0,x0) is not there in all derivatives ,
-                    # while evaluating CD(CD(u0,x0),x1)
                     raise ValueError("NOT IMPLEMENTED THIS")
                 elif not cd.is_store:  # Donot store derivatives
                     raise ValueError("This dependency sgould be validated for Carpenter BC")
@@ -428,7 +408,7 @@ class RungeKutta(Scheme):
         # cls.stage_coeffs
         niter_symbol = ConstantObject('niter', integer=True)
         niter_symbol.datatype = Int()
-        cls.iteration_number = Globalvariable("iter", integer = True)
+        cls.iteration_number = Globalvariable("iter", integer=True)
         cls.iteration_number._value = None
         cls.iteration_number.datatype = Int()
         # As iteration number is used in a for loop we dont add them to
@@ -455,12 +435,9 @@ class RungeKutta(Scheme):
         """
 
         if cls.order == 3:
-            coeffs = {}
-            # coeffs[cls.solution_coeffs] = [Rational(1.0, 4.0), Rational(3.0, 20), Rational(3.0, 5.0)]
             cls.solution_coeffs.value = [Rational(1.0, 4.0), Rational(3.0, 20), Rational(3.0, 5.0)]
-            # coeffs[cls.stage_coeffs] = [Rational(2, 3), Rational(5, 12), Rational(3, 5)]
             cls.stage_coeffs.value = [Rational(2, 3), Rational(5, 12), Rational(3, 5)]
-        return 
+        return
 
     def __str__(cls):
         return "%s" % (cls.__class__.__name__)
