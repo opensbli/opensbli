@@ -1,12 +1,13 @@
 from opensbli.core.grid import Grid
 from sympy import pprint, Equality
 from opensbli.core.bcs import BoundaryConditionTypes
-from opensbli.core.opensbliobjects import ConstantObject, DataObject, DataSetBase, GroupedCondition, GroupedPiecewise, DataSet
+from opensbli.core.opensbliobjects import ConstantObject, DataObject, DataSetBase, GroupedPiecewise
 from opensbli.core.opensbliequations import OpenSBLIEq
 from opensbli.core.opensbliequations import ConstituentRelations
 from opensbli.core.metrics import MetricsEquation
-from sympy import flatten, eye, srepr
+from sympy import flatten, eye
 _known_equation_types = (GroupedPiecewise, OpenSBLIEq)
+
 
 class DataSetsToDeclare(object):
     """Remove this we are not using it any more
@@ -91,15 +92,6 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes):  # BoundaryC
         """
         """
         self.set_boundary_types(bclist, self)
-        # Convert the equations into block datasets
-        # for b in flatten(self.boundary_types):
-        #     if b.equations:
-        #         b.equations = self.dataobjects_to_datasets_on_block(b.equations)
-                # print srepr(b.equations[0].lhs)
-        # for b in bcli
-        # for eq in self.list_of_equation_classes:
-        #     block_eq = self.dataobjects_to_datasets_on_block(eq.equations)
-        #     eq.equations = block_eq
         return
 
     def set_block_boundary_halos(self, direction, side, types):
@@ -107,7 +99,6 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes):  # BoundaryC
         """
         self.boundary_halos[direction][side].add(types)
         return
-
 
     def dataobjects_to_datasets_on_block(self, eqs):
         """
@@ -125,7 +116,7 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes):  # BoundaryC
                 store_equations[no] = new_eq.convert_to_datasets(self)
             elif isinstance(eq, DataObject):
                 store_equations[no] = self.location_dataset(str(eq))
-            else: # Integers and Floats from Eigensystem entering here
+            else:  # Integers and Floats from Eigensystem entering here
                 pass
         # Convert all equations into the format of input equations WARNING crude way
         out = []
@@ -151,7 +142,7 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes):  # BoundaryC
         otherclass.ndim = self.ndim
         otherclass.block_name = self.blockname
         return
-    
+
     @property
     def known_datasets(self):
         known_dsets = set()
@@ -173,13 +164,6 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes):  # BoundaryC
         for eq in self.list_of_equation_classes:
             eq.spatial_discretisation(self)
             eq.apply_boundary_conditions(self)
-        # Get the classes for the constituent relations
-        # for clas in self.list_of_equation_classes:
-        # if clas not in crs:
-        # print clas, "Exitting"
-        # exit()
-        # perform the temporal discretisation of the equations for all equation classes
-        # Later move TD to equations.td
         temporal = self.get_temporal_schemes
         for t in temporal:
             for eq in self.list_of_equation_classes:
@@ -203,7 +187,7 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes):  # BoundaryC
         """
         kernels = []
         for no, b in enumerate(self.boundary_types):
-            for side in [0,1]:
+            for side in [0, 1]:
                 k = self.apply_bc_direction(no, side, arrays)
                 if isinstance(k, list):
                     kernels += k
@@ -264,7 +248,7 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes):  # BoundaryC
 
     @property
     def collect_all_spatial_kernels(self):
-        """
+        """ TODO check if we are using this
         """
         all_kernels = []
         for scheme in self.get_temporal_schemes:
@@ -307,11 +291,8 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes):  # BoundaryC
                 spatialschemes += [self.discretisation_schemes[sc]]
         from opensbli.core.scheme import CentralHalos_defdec
         halos = set([CentralHalos_defdec()])
-        # for s in spatialschemes:
-        # CentralHalos_defdec()
-        # halos.add(s.halotype)
         return halos
-    
+
     @property
     def get_metric_class(self):
         metric_class = []
@@ -333,6 +314,7 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes):  # BoundaryC
             return metric.FD_metrics.applyfunc(fn)
         else:
             return eye(self.ndim)
+
 
 def sort_constants(constants_dictionary):
     """
