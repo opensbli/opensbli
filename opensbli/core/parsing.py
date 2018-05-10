@@ -6,7 +6,7 @@ from opensbli.core.opensbliobjects import ConstantObject, MetricObject, Coordina
 from opensbli.core.opensblifunctions import WenoDerivative, CentralDerivative, TenoDerivative, MetricDerivative, TemporalDerivative,\
     EinsteinStructure, expand_free_indices
 from sympy.parsing.sympy_parser import parse_expr, standard_transformations
-from opensbli.core.opensbliequations import OpenSBLIEq
+from opensbli.equation_types.opensbliequations import OpenSBLIEq
 
 from sympy.parsing.sympy_tokenize import NAME, OP
 

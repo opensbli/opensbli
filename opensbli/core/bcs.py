@@ -2,13 +2,13 @@ from sympy import flatten, zeros, Matrix, S, sqrt, Equality, nsimplify, Abs, Pie
 from sympy import Idx
 from opensbli.core.kernel import Kernel, ConstantsToDeclare
 from opensbli.core.opensbliobjects import DataSet, ConstantIndexed, ConstantObject
-from opensbli.core.opensbliequations import OpenSBLIEq
+from opensbli.equation_types.opensbliequations import OpenSBLIEq
 from opensbli.core.datatypes import Int
 from opensbli.core.grid import GridVariable
 from opensbli.physical_models.ns_physics import NSphysics
 from opensbli.utilities.helperfunctions import dot, get_min_max_halo_values, increment_dataset
 from sympy.functions.elementary.piecewise import ExprCondPair
-from opensbli.core.weno_opensbli import ShockCapturing
+from opensbli.schemes.spatial.weno import ShockCapturing
 side_names = {0: 'left', 1: 'right'}
 
 

@@ -1,6 +1,8 @@
+*.tex
 *.o
 *.f
 *.mod
 opensbli/*.pyc
 bin/*.pyc
 tests/__pycache__
+*.pyc

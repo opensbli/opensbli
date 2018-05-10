@@ -26,4 +26,5 @@ LOG.addHandler(_HANDLER)
 del(_HANDLER)
 LOG.setLevel(logging.DEBUG)  # Default to DEBUG level.
 
-from opensbli.utilities import *
+# from opensbli.utilities import *
+from .helperfunctions import *

@@ -1,4 +1,4 @@
-from .common import InTheSimulation, AfterSimulationEnds, BeforeSimulationStarts
+from opensbli.code_generation.algorithm.common import InTheSimulation, AfterSimulationEnds, BeforeSimulationStarts
 from sympy import flatten
 
 

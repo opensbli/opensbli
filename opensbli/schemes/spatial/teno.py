@@ -2,10 +2,10 @@ from sympy import IndexedBase, Symbol, Rational, Abs, flatten, Max, horner, S, c
 from opensbli.core.opensblifunctions import TenoDerivative
 from opensbli.core.opensbliobjects import ConstantObject
 from opensbli.core.grid import GridVariable
-from opensbli.core.scheme import Scheme
-from opensbli.core.weno_opensbli import LLFCharacteristic, ShockCapturing
+from opensbli.schemes.spatial.scheme import Scheme
+from opensbli.schemes.spatial.weno import LLFCharacteristic, ShockCapturing
 from opensbli.core.kernel import ConstantsToDeclare as CTD
-from opensbli.core.opensbliequations import OpenSBLIEq
+from opensbli.equation_types.opensbliequations import OpenSBLIEq
 
 
 class TenoHalos(object):

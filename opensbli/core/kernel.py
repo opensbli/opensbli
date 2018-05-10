@@ -3,7 +3,7 @@ from sympy import Rational, Pow, Integer
 from sympy.printing import pprint
 from opensbli.core.opensbliobjects import DataSet, ConstantIndexed, ConstantObject,\
     GlobalValue, GroupedPiecewise, Constant
-from opensbli.core.opensbliequations import OpenSBLIEq
+from opensbli.equation_types.opensbliequations import OpenSBLIEq
 from opensbli.core.grid import GridVariable, Grididx
 from opensbli.core.datatypes import SimulationDataType
 from sympy.core.function import _coeff_isneg

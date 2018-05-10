@@ -1,8 +1,8 @@
-from opensbli.core.opensbliequations import NonSimulationEquations, OpenSBLIEq
+from opensbli.equation_types.opensbliequations import NonSimulationEquations, OpenSBLIEq
 from opensbli.core.kernel import Kernel
 from opensbli.core.opensbliobjects import GroupedPiecewise
 from sympy import Equality
-from .common import BeforeSimulationStarts
+from opensbli.code_generation.algorithm.common import BeforeSimulationStarts
 
 
 class GridBasedInitialisation(NonSimulationEquations):

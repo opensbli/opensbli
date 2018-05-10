@@ -1,9 +1,9 @@
-from opensbli.core.block import SimulationBlock as SB
+# from opensbli.core.block import SimulationBlock as SB
 from sympy import flatten, Equality
-from opensbli.core.latex import LatexWriter
-from opensbli.core.opensbliequations import SimulationEquations, NonSimulationEquations, ConstituentRelations
+from opensbli.code_generation.latex import LatexWriter
+# from opensbli.equation_types.opensbliequations import SimulationEquations, NonSimulationEquations, ConstituentRelations
 from opensbli.core.opensbliobjects import Constant, DataSetBase
-from opensbli.initialisation.common import BeforeSimulationStarts, AfterSimulationEnds, InTheSimulation
+# from opensbli.initialisation.common import BeforeSimulationStarts, AfterSimulationEnds, InTheSimulation
 import copy
 
 

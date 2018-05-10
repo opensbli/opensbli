@@ -1,4 +1,4 @@
-from opensbli.core.opensbliequations import NonSimulationEquations, Discretisation, Solution
+from opensbli.equation_types.opensbliequations import NonSimulationEquations, Discretisation, Solution
 
 
 class BlockReduction():

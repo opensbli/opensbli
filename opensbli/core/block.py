@@ -2,12 +2,11 @@ from opensbli.core.grid import Grid
 from sympy import pprint, Equality
 from opensbli.core.bcs import BoundaryConditionTypes
 from opensbli.core.opensbliobjects import ConstantObject, DataObject, DataSetBase, GroupedPiecewise
-from opensbli.core.opensbliequations import OpenSBLIEq
-from opensbli.core.opensbliequations import ConstituentRelations
-from opensbli.core.metrics import MetricsEquation
+from opensbli.equation_types.opensbliequations import OpenSBLIEq, ConstituentRelations
+from opensbli.equation_types.metric import MetricsEquation
 from sympy import flatten, eye
 _known_equation_types = (GroupedPiecewise, OpenSBLIEq)
-
+from opensbli.schemes.spatial.scheme import CentralHalos_defdec
 
 class DataSetsToDeclare(object):
     """Remove this we are not using it any more
@@ -289,7 +288,6 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes):  # BoundaryC
         for sc in self.discretisation_schemes:
             if self.discretisation_schemes[sc].schemetype == "Spatial":
                 spatialschemes += [self.discretisation_schemes[sc]]
-        from opensbli.core.scheme import CentralHalos_defdec
         halos = set([CentralHalos_defdec()])
         return halos
 

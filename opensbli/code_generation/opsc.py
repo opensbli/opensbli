@@ -2,12 +2,12 @@ from sympy.core.compatibility import is_sequence
 from sympy.printing.ccode import C99CodePrinter
 from sympy.core.relational import Equality
 from opensbli.core.opensbliobjects import ConstantObject, ConstantIndexed, Constant, DataSetBase, DataObject, GroupedPiecewise
-from opensbli.core.kernel import Kernel, ConstantsToDeclare as CTD
-from opensbli.core.algorithm import Loop
+from opensbli.code_generation.algorithm.algorithm import Loop
 from sympy import Symbol, flatten, pprint
 from opensbli.core.grid import GridVariable
 from opensbli.core.datatypes import SimulationDataType
 from sympy import Pow, Idx
+from opensbli.core.kernel import ConstantsToDeclare
 import os
 import logging
 LOG = logging.getLogger(__name__)
@@ -33,7 +33,7 @@ class RationalCounter():
         ret = ConstantObject(name)
         ret.value = numerical_value
         self.existing[numerical_value] = ret
-        CTD.add_constant(ret)
+        ConstantsToDeclare.add_constant(ret)
         return ret
 
 
@@ -394,7 +394,7 @@ class OPSC(object):
 
     def before_main(self, algorithm):
         out = ['#include <stdlib.h> \n#include <string.h> \n#include <math.h>']
-        for d in CTD.constants:
+        for d in ConstantsToDeclare.constants:
             if isinstance(d, ConstantObject):
                 out += ["%s %s;" % (d.datatype.opsc(), d)]
             elif isinstance(d, ConstantIndexed):
@@ -416,8 +416,7 @@ class OPSC(object):
         # Add OPS_init to the declarations as it should be called before all ops
         decls += self.ops_init()
         # First process all the constants in the definitions
-        # from .kernel import ConstantsToDeclare as CTD
-        for d in CTD.constants:
+        for d in ConstantsToDeclare.constants:
             if isinstance(d, Constant):
                 defs += self.define_constants(d)
                 decls += self.declare_ops_constants(d)

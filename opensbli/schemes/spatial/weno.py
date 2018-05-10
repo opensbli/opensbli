@@ -2,7 +2,7 @@ from sympy import IndexedBase, Symbol, Rational, solve, interpolating_poly, inte
 from sympy.core.numbers import Zero
 from opensbli.core.opensblifunctions import WenoDerivative
 from opensbli.core.opensbliobjects import EinsteinTerm, DataSetBase, ConstantObject, DataSet
-from opensbli.core.opensbliequations import SimulationEquations, OpenSBLIEq
+from opensbli.equation_types.opensbliequations import SimulationEquations, OpenSBLIEq
 from opensbli.core.kernel import Kernel
 from opensbli.core.grid import GridVariable
 from opensbli.utilities.helperfunctions import increment_dataset

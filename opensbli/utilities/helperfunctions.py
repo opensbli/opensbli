@@ -1,5 +1,6 @@
 from opensbli.core.opensbliobjects import DataSet, CoordinateObject, ConstantIndexed
 import h5py
+from opensbli.code_generation.opsc import rc
 from sympy import pprint
 
 
@@ -70,7 +71,6 @@ def sort_funcitons(fns, increasing_order=True):
 
 
 def get_inverse_deltas(delta):
-    from opensbli.core.codegeneration.opsc import rc
     if delta in rc.existing:
         return rc.existing[delta]
     else:

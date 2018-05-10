@@ -26,6 +26,6 @@ LOG.addHandler(_HANDLER)
 del(_HANDLER)
 LOG.setLevel(logging.DEBUG)  # Default to DEBUG level.
 
-#from sympy.printing
-from .gridbasedinit import *
-#from .common import *
+from .scheme import *
+from .weno import *
+from .teno import *

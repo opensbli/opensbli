@@ -1,9 +1,9 @@
 from sympy import flatten, Idx, sqrt
 from opensbli.core.opensbliobjects import ConstantObject, ConstantIndexed, Globalvariable
-from opensbli.core.opensbliequations import OpenSBLIEq
+from opensbli.equation_types.opensbliequations import OpenSBLIEq
 from opensbli.core.kernel import Kernel
 from opensbli.core.datatypes import Int
-from opensbli.core.scheme import Scheme, TemproalSolution
+from opensbli.schemes.spatial.scheme import Scheme, TemporalSolution
 
 
 class RungeKuttaSSP(Scheme):
@@ -90,7 +90,7 @@ class RungeKuttaSSP(Scheme):
         if type_of_eq in cls.solution.keys():
             pass
         else:
-            cls.solution[type_of_eq] = TemproalSolution()
+            cls.solution[type_of_eq] = TemporalSolution()
         td_fns = cls.get_local_function(type_of_eq.equations)
         if td_fns:
             # Create a Kernel for the update ()
@@ -106,7 +106,7 @@ class RungeKuttaSSP(Scheme):
             kernels = cls.create_discretisation_kernel(zipped, block)
             cls.solution[type_of_eq].kernels += kernels
             # New testing
-            type_of_eq.temporalsolution = TemproalSolution()
+            type_of_eq.temporalsolution = TemporalSolution()
             type_of_eq.temporalsolution.kernels += kernels
             type_of_eq.temporalsolution.start_kernels += cls.solution[type_of_eq].start_kernels
         return

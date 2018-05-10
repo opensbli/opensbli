@@ -1,13 +1,13 @@
 
 from opensbli.core.opensblifunctions import CentralDerivative
 from opensbli.core.kernel import Kernel
-from opensbli.core.scheme import Central
+from opensbli.schemes.spatial.scheme import Central
 from opensbli.utilities.helperfunctions import increasing_order, decreasing_order
 from opensbli.core.opensbliobjects import ConstantObject
-from opensbli.core.opensbliequations import OpenSBLIEquation
+from opensbli.equation_types.opensbliequations import OpenSBLIEquation
 from sympy import pprint, flatten, Eq, postorder_traversal
 from opensbli.core.grid import GridVariable
-from opensbli.core.latex import LatexWriter
+from opensbli.code_generation.latex import LatexWriter
 
 
 class Store_some_original(Central):

@@ -26,18 +26,15 @@ LOG.addHandler(_HANDLER)
 del(_HANDLER)
 LOG.setLevel(logging.DEBUG)  # Default to DEBUG level.
 
-from .codegeneration import *
-from .parsing import *
-from .opensblifunctions import *
+# from .opensblifunctions import *
 from .opensbliobjects import *
-from .scheme import *
-from .opensbliequations import *
 from .block import *
 from .grid import *
-from .algorithm import *
 from .diagnostics import *
-from .metrics import *
 from .optimisations import *
 from .datatypes import *
 from .bcs import *
-from .temporal_schemes import *
+from .parsing import *
+from .io import *
+from .kernel import *
+
