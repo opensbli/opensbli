@@ -37,11 +37,10 @@ class MainPrg(Loop):
         return
 
     def write_latex(self, latex):
-        """ Writes the LaTeX of the main program by looping over the components
+        """Writes the LaTeX of the main program by looping over the components
 
         :param latex: the opened file pointer to which the generated LaTeX code should be written.
         :returns: None
-
         """
         latex.write_string("Starting of the main program\\\\\n")
         for c in self.components:
@@ -479,7 +478,7 @@ class TraditionalAlgorithmRK(object):
         If Multi-block this checks the temporal scheme is the same for all the blocks
         """
         if self.MultiBlock:
-            raise NotImplementedError("")
+            raise NotImplementedError("Multi-Block algorithm is not implemented")
         else:
             if len(blocks[0].get_temporal_schemes) > 1:
                 raise ValueError("More than one temporal scheme for a block")
