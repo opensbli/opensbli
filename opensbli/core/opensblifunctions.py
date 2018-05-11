@@ -3,7 +3,7 @@ from sympy.tensor import IndexedBase, Indexed, get_contraction_structure
 from sympy.tensor.index_methods import get_indices as get_indices_sympy
 from sympy import Derivative, preorder_traversal, postorder_traversal, Equality
 from sympy.tensor.index_methods import _remove_repeated
-from .opensbliobjects import DataObject, CoordinateObject, ConstantObject, EinsteinTerm, DataSet, DataSetBase
+from opensbli.core.opensbliobjects import DataObject, CoordinateObject, ConstantObject, EinsteinTerm, DataSet, DataSetBase
 from sympy.functions.elementary.piecewise import ExprCondPair, Piecewise
 from numpy import ndindex as mutidimindex
 from sympy.functions.special.tensor_functions import eval_levicivita

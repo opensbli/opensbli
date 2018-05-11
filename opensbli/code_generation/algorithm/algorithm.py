@@ -1,9 +1,7 @@
-# from opensbli.core.block import SimulationBlock as SB
 from sympy import flatten, Equality
 from opensbli.code_generation.latex import LatexWriter
-# from opensbli.equation_types.opensbliequations import SimulationEquations, NonSimulationEquations, ConstituentRelations
 from opensbli.core.opensbliobjects import Constant, DataSetBase
-# from opensbli.initialisation.common import BeforeSimulationStarts, AfterSimulationEnds, InTheSimulation
+from opensbli.code_generation.algorithm.common import BeforeSimulationStarts, AfterSimulationEnds, InTheSimulation
 import copy
 
 
@@ -119,7 +117,7 @@ class Condition(object):
     def opsc_condition_start(self):
         """ The starting loop for a if condition in OPS C
         """
-        from .codegeneration.opsc import OPSCCodePrinter
+        from opensbli.code_generation.opsc import OPSCCodePrinter
         code = OPSCCodePrinter().doprint(self.condition)
         code = 'if (' + code + '){'
         return [code]
@@ -335,6 +333,7 @@ class TraditionalAlgorithmRK(object):
     """
 
     def __init__(self, blocks, dtype=None):
+        from opensbli.core.block import SimulationBlock as SB
         self.block_descriptions = []
         self.ntimers = 0
         if isinstance(blocks, SB):
@@ -381,6 +380,7 @@ class TraditionalAlgorithmRK(object):
     def spatial_solution(self, blocks):
         """ Add the spatial kernels to the temporal solution i.e temporalscheme.solution
         """
+        from opensbli.equation_types.opensbliequations import SimulationEquations, NonSimulationEquations, ConstituentRelations
         print "Writing algorithm"
         fname = 'algorithm.tex'
         latex = LatexWriter()

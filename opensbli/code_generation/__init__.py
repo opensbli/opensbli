@@ -26,6 +26,7 @@ LOG.addHandler(_HANDLER)
 del(_HANDLER)
 LOG.setLevel(logging.DEBUG)  # Default to DEBUG level.
 
-# from .algorithm import *
-# from .opsc import *
+from .algorithm import *
+from .opsc import *
 # from .common import *
+from .latex import LatexWriter

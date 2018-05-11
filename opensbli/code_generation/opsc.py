@@ -7,7 +7,7 @@ from sympy import Symbol, flatten, pprint
 from opensbli.core.grid import GridVariable
 from opensbli.core.datatypes import SimulationDataType
 from sympy import Pow, Idx
-from opensbli.core.kernel import ConstantsToDeclare
+
 import os
 import logging
 LOG = logging.getLogger(__name__)
@@ -28,6 +28,7 @@ class RationalCounter():
         return
 
     def get_next_rational_constant(self, numerical_value):
+        from opensbli.core.kernel import ConstantsToDeclare
         name = self.name % self.rational_counter
         self.increase_rational_counter
         ret = ConstantObject(name)
@@ -373,6 +374,7 @@ class OPSC(object):
         return code
 
     def write_kernels(self, algorithm):
+        from opensbli.core.kernel import Kernel
         kernels = self.loop_alg(algorithm, Kernel)
         files = [open('%s_kernels.h' % b.block_name, 'w') for b in algorithm.block_descriptions]
         for f in files:
@@ -394,6 +396,7 @@ class OPSC(object):
 
     def before_main(self, algorithm):
         out = ['#include <stdlib.h> \n#include <string.h> \n#include <math.h>']
+        from opensbli.core.kernel import ConstantsToDeclare
         for d in ConstantsToDeclare.constants:
             if isinstance(d, ConstantObject):
                 out += ["%s %s;" % (d.datatype.opsc(), d)]
@@ -416,6 +419,7 @@ class OPSC(object):
         # Add OPS_init to the declarations as it should be called before all ops
         decls += self.ops_init()
         # First process all the constants in the definitions
+        from opensbli.core.kernel import ConstantsToDeclare
         for d in ConstantsToDeclare.constants:
             if isinstance(d, Constant):
                 defs += self.define_constants(d)

@@ -58,7 +58,7 @@ class RungeKutta(Scheme):
         return "%s" % (cls.__class__.__name__)
 
     def get_local_function(cls, list_of_components):
-        from .opensblifunctions import TemporalDerivative
+        from opensbli.core.opensblifunctions import TemporalDerivative
         CD_fns = []
         for c in flatten(list_of_components):
             CD_fns += list(c.atoms(TemporalDerivative))
@@ -134,7 +134,7 @@ class RungeKutta(Scheme):
         return old_data_sets
 
     def generate_inner_loop(cls, kernels):
-        from .algorithm import DoLoop
+        from opensbli.code_generation.algorithm import DoLoop
         rkloop = DoLoop(cls.stage)
         rkloop.add_components(kernels)
         return rkloop
