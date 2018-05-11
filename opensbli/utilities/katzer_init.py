@@ -11,7 +11,7 @@ from opensbli.core.kernel import Kernel
 import warnings
 from sympy import pprint, flatten
 from scipy.optimize import curve_fit
-from opensbli.core.opensbliequations import OpenSBLIEq
+from opensbli.equation_types.opensbliequations import OpenSBLIEq
 
 
 plt.style.use('classic')

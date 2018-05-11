@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # Import all the functions from opensbli
 from opensbli import *
-from opensbli.core.weno_opensbli import *
 import copy
 from opensbli.utilities.helperfunctions import substitute_simulation_parameters
 

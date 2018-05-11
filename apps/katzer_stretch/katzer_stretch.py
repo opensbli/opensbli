@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 from opensbli import *
 import copy
-from opensbli.core.teno import *
-from opensbli.core.weno_opensbli import RoeAverage, SimpleAverage, LLFWeno
 from opensbli.utilities.katzer_init import Initialise_Katzer
 from opensbli.utilities.helperfunctions import substitute_simulation_parameters
 

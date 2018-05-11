@@ -1,10 +1,6 @@
 #!/usr/bin/env python
-from opensbli.core import *
+from opensbli import *
 from opensbli.utilities.katzer_init import *
-from opensbli.core.weno_opensbli import SimpleAverage, RoeAverage, LLFWeno
-from opensbli.core.teno import LLFTeno
-from opensbli.physical_models.euler_eigensystem import *
-from opensbli.initialisation import GridBasedInitialisation, iohdf5
 from opensbli.utilities.helperfunctions import substitute_simulation_parameters
 import copy
 
@@ -109,7 +105,7 @@ for eqn in base_eqns:
 
 for eqn in constituent_eqns:
     constituent.add_equations(eqn)
-weno_order = 5
+weno_order = 7
 Avg = RoeAverage([0, 1])
 LLF = LLFWeno(weno_order, formulation='Z', averaging=Avg)
 schemes = {}

@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # Import all the functions from opensbli
 from opensbli import *
-from opensbli.core.weno_opensbli import *
 import copy
 from opensbli.utilities.helperfunctions import substitute_simulation_parameters
 
@@ -94,14 +93,14 @@ for direction in range(ndim):
 
 schemes = {}
 # Local LaxFredirich scheme for weno
-weno_order = 7
+weno_order = 5
 # Averaging procedure to be used for the eigen system evaluation
 Avg = RoeAverage([0, 1])
 # LLF scheme
 LLF = LLFWeno(weno_order, formulation='Z', averaging=Avg)
 # Add to schemes
 schemes[LLF.name] = LLF
-rk = RungeKutta(3)
+rk = RungeKuttaSSP(3)
 schemes[rk.name] = rk
 
 block.set_block_boundaries(boundaries)

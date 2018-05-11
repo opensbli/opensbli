@@ -27,7 +27,7 @@ class RungeKuttaSSP(Scheme):
         cls.stage = Idx('stage', order)
         cls.solution_coeffs = ConstantIndexed('rkB', cls.stage)
         cls.stage_coeffs = ConstantIndexed('rkA', cls.stage)
-        from .kernel import ConstantsToDeclare as CTD
+        from opensbli.core.kernel import ConstantsToDeclare as CTD
         # Update coefficient values
         cls.get_coefficients
         niter_symbol = ConstantObject('niter', integer=True)
@@ -78,7 +78,7 @@ class RungeKuttaSSP(Scheme):
     def get_local_function(cls, list_of_components):
         """ Finds the time derivatives to be advanced."""
 
-        from .opensblifunctions import TemporalDerivative
+        from opensbli.core.opensblifunctions import TemporalDerivative
         CD_fns = []
         for c in flatten(list_of_components):
             CD_fns += list(c.atoms(TemporalDerivative))
@@ -172,7 +172,7 @@ class RungeKuttaSSP(Scheme):
         return temp_data_sets
 
     def generate_inner_loop(cls, kernels):
-        from .algorithm import DoLoop
+        from opensbli.code_generation.algorithm.algorithm import DoLoop
         rkloop = DoLoop(cls.stage)
         rkloop.add_components(kernels)
         return rkloop

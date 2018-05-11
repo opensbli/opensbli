@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 from opensbli import *
 import numpy as np
-from opensbli.core.weno_opensbli import RoeAverage, LLFWeno
 from opensbli.utilities.helperfunctions import output_hdf5, substitute_simulation_parameters
 
 ndim = 2
