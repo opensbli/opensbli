@@ -1,7 +1,7 @@
 from sympy import IndexedBase, Symbol, Rational, solve, interpolating_poly, integrate, sqrt, zeros, Abs, Float, Matrix, flatten, Max, diag, Function
 from sympy.core.numbers import Zero
 from opensbli.core.opensblifunctions import WenoDerivative
-from opensbli.core.opensbliobjects import EinsteinTerm, DataSetBase, ConstantObject, DataSet
+from opensbli.core.opensbliobjects import EinsteinTerm, DataSetBase, ConstantObject, DataSet, GroupedPiecewise
 from opensbli.equation_types.opensbliequations import SimulationEquations, OpenSBLIEq
 from opensbli.core.kernel import Kernel
 from opensbli.core.grid import GridVariable
@@ -9,7 +9,8 @@ from opensbli.utilities.helperfunctions import increment_dataset
 from opensbli.physical_models.ns_physics import NSphysics
 from opensbli.physical_models.euler_eigensystem import EulerEquations
 from .scheme import Scheme
-from sympy import factor, horner
+from sympy import factor, horner, pprint
+from sympy.functions.elementary.piecewise import ExprCondPair, Piecewise
 
 
 class WenoHalos(object):
@@ -225,9 +226,9 @@ class WenoReconstructionVariable(object):
         """ Updates the quantities required by WENO in the reconstruction variable.
 
         :arg object original: Reconstruction object variable, either left or right reconstruction."""
-        self.smoothness_symbols += [GridVariable('%s%s' % (s, self.name)) for s in original.smoothness_symbols]
-        self.alpha_symbols += [GridVariable('%s_%s' % (s, self.name)) for s in original.alpha_symbols]
-        self.omega_symbols += [GridVariable('%s_%s' % (s, self.name)) for s in original.omega_symbols]
+        self.smoothness_symbols += [GridVariable('%s' % (s)) for s in original.smoothness_symbols]
+        self.alpha_symbols += [GridVariable('%s' % (s)) for s in original.alpha_symbols]
+        self.omega_symbols += [GridVariable('%s' % (s)) for s in original.omega_symbols]
 
         subs_dict = dict(zip(original.smoothness_symbols+original.alpha_symbols+original.omega_symbols, self.smoothness_symbols+self.alpha_symbols+self.omega_symbols))
         for key, value in original.function_stencil_dictionary.iteritems():
@@ -240,11 +241,18 @@ class WenoReconstructionVariable(object):
         return
 
     def add_evaluations_to_kernel(self, kernel):
+        for eqn in self.final_equations:
+            kernel.add_equation(eqn)
+        return
+
+    def evaluate_quantities(self, component_index):
         all_symbols = self.smoothness_symbols + self.alpha_symbols + self.omega_symbols
         all_evaluations = self.smoothness_indicators + self.alpha_evaluated + self.omega_evaluated
+        final_equations = []
         for no, value in enumerate(all_symbols):
-            kernel.add_equation(OpenSBLIEq(value, all_evaluations[no]))
-        kernel.add_equation(OpenSBLIEq(self.reconstructed_symbol, self.reconstructed_expression))
+            final_equations += [OpenSBLIEq(value, all_evaluations[no])]
+        self.final_equations = final_equations
+        self.final_equations += [OpenSBLIEq(GridVariable('Recon_%d' % component_index), GridVariable('Recon_%d' % component_index) + self.reconstructed_expression)]
         return
 
 
@@ -406,7 +414,7 @@ class ShockCapturing(object):
 
         :arg list derivatives: A list of the TENO derivatives to be computed.
         :arg object kernel: The current computational kernel."""
-        for d in derivatives:
+        for no, d in enumerate(derivatives):
             for rv in d.reconstructions:
                 if isinstance(rv, type(self.reconstruction_classes[1])):
                     original_rv = self.reconstruction_classes[1]
@@ -415,8 +423,12 @@ class ShockCapturing(object):
                 else:
                     raise ValueError("Reconstruction must be left or right")
                 rv.update_quantities(original_rv)
+                rv.evaluate_quantities(no)
                 rv.add_evaluations_to_kernel(kernel)
+            # Reconstruction variable for this component (derivative)
+            d.reconstructed_rhs = GridVariable('Recon_%d' % no)
         return
+
 
     def update_constituent_relation_symbols(self, sym, direction):
         """ Function to take the set of required quantities from the constituent relations in symbolic form
@@ -553,7 +565,7 @@ class EigenSystem(object):
 
     def generate_grid_variable_ev(self, direction, name):
         """ Create a matrix of eigenvalue GridVariable elements. """
-        name = '%s_%d_lambda' % (name, direction)
+        name = '%s_lambda_%d' % (name, direction)
         return self.symbol_matrix(self.eigen_value[direction], name)
 
     def generate_grid_variable_REV(self, direction, name):
@@ -616,70 +628,6 @@ class Characteristic(EigenSystem):
         EigenSystem.__init__(self, physics)
         return
 
-    def pre_process(self, direction, derivatives, solution_vector, kernel, block):
-        """ Performs the transformation of the derivatives into characteristic space using the eigensystems provided to Characteristic. Flux splitting is then applied
-        to the characteristic variables in preparation for the WENO interpolation. Required quantities are added to pre_process_equations.
-
-        :arg int direction: Integer direction to apply the characteristic decomposition and WENO (x0, x1, ...).
-        :arg list derivatives: The derivatives to perform the characteristic decomposition and WENO on.
-        :arg list solution_vector: Solution vector from the Euler equations (rho, rhou0, rhou1, rhou2, rhoE) in vector form.
-        :arg object kernel: The current computational kernel."""
-        self.direction = direction
-        pre_process_equations = []
-        # Update the ev, LEV and REV dicts to keep the current dictionary structure. Can change after.
-        ev_dict, LEV_dict, REV_dict = self.euler.apply_direction(direction)
-        self.eigen_value.update(ev_dict)
-        self.left_eigen_vector.update(LEV_dict)
-        self.right_eigen_vector.update(REV_dict)
-        # Finding metric terms to average
-        required_metrics = self.get_DataSets_in_ev(direction).union(self.get_DataSets_in_LEV(direction)).union(self.get_DataSets_in_REV(direction))
-        # Finding flow variables to average
-        required_symbols = self.get_symbols_in_ev(direction).union(self.get_symbols_in_LEV(direction)).union(self.get_symbols_in_REV(direction))
-        required_terms = required_symbols.union(required_metrics)
-        averaged_suffix_name = 'AVG_%d' % direction
-
-        self.averaged_suffix_name = averaged_suffix_name
-        averaged_equations = self.average(required_terms, direction, averaged_suffix_name, block)
-        pre_process_equations += averaged_equations
-        # Eigensystem based on averaged quantities
-        avg_LEV_values = self.convert_matrix_to_grid_variable(self.left_eigen_vector[direction], averaged_suffix_name)
-        # Grid variables to store averaged eigensystems
-        grid_LEV = self.generate_grid_variable_LEV(direction, averaged_suffix_name)
-        pre_process_equations += flatten(self.generate_equations_from_matrices(grid_LEV, avg_LEV_values))
-        # Transform the flux vector and the solution vector to characteristic space
-        characteristic_flux_vector, CF_matrix = self.flux_vector_to_characteristic(derivatives, direction, averaged_suffix_name)
-        characteristic_solution_vector, CS_matrix = self.solution_vector_to_characteristic(solution_vector, direction, averaged_suffix_name)
-        # Can use horner here on characteristic flux
-        pre_process_equations += flatten(self.generate_equations_from_matrices(CF_matrix, characteristic_flux_vector))
-        pre_process_equations += flatten(self.generate_equations_from_matrices(CS_matrix, characteristic_solution_vector))
-
-        for d in derivatives:
-            required_symbols = required_symbols.union(d.atoms(DataSetBase))
-        self.update_constituent_relation_symbols(required_symbols, direction)
-
-        if hasattr(self, 'flux_split') and self.flux_split:
-            max_wavespeed_matrix, pre_process_equations = self.create_max_characteristic_wave_speed(pre_process_equations, direction, block)
-            positive = Rational(1, 2)*(CF_matrix + max_wavespeed_matrix*CS_matrix)
-            positive_flux = zeros(*positive.shape)
-            negative = factor(Rational(1, 2)*(CF_matrix - max_wavespeed_matrix*CS_matrix))
-            negative_flux = zeros(*negative.shape)
-            for i in range(positive_flux.shape[0]):
-                for j in range(positive_flux.shape[1]):
-                    positive_flux[i, j] = factor(positive[i, j])
-                    negative_flux[i, j] = factor(negative[i, j])
-            positive_flux.stencil_points = CF_matrix.stencil_points
-            negative_flux.stencil_points = CF_matrix.stencil_points
-            self.generate_right_reconstruction_variables(positive_flux, derivatives)
-            self.generate_left_reconstruction_variables(negative_flux, derivatives)
-        else:
-            raise NotImplementedError("Only flux splitting is implemented in characteristic.")
-        # Remove '0' entries from pre_process_equations
-        for eqn in pre_process_equations[:]:
-            if isinstance(eqn, Zero) is True:
-                pre_process_equations.remove(eqn)
-        kernel.add_equation(pre_process_equations)
-        return
-
     def post_process(self, derivatives, kernel):
         """ Transforms the characteristic WENO interpolated fluxes back into real space by multiplying by the right
         eigenvector matrix.
@@ -689,7 +637,7 @@ class Characteristic(EigenSystem):
         post_process_equations = []
         averaged_suffix_name = self.averaged_suffix_name
         avg_REV_values = self.convert_matrix_to_grid_variable(self.right_eigen_vector[self.direction], averaged_suffix_name)
-        reconstructed_characteristics = Matrix([d.evaluate_reconstruction for d in derivatives])
+        reconstructed_characteristics = Matrix([d.reconstructed_rhs for d in derivatives])
         reconstructed_flux = avg_REV_values*reconstructed_characteristics
         reconstructed_work = [d.reconstruction_work for d in derivatives]
         post_process_equations += [OpenSBLIEq(x, y) for x, y in zip(reconstructed_work, reconstructed_flux)]
@@ -765,6 +713,81 @@ class LLFCharacteristic(Characteristic):
         self.flux_split = True
         return
 
+
+    def pre_process(self, direction, derivatives, solution_vector, kernel, block):
+        """ Performs the transformation of the derivatives into characteristic space using the eigensystems provided to Characteristic. Flux splitting is then applied
+        to the characteristic variables in preparation for the WENO interpolation. Required quantities are added to pre_process_equations.
+
+        :arg int direction: Integer direction to apply the characteristic decomposition and WENO (x0, x1, ...).
+        :arg list derivatives: The derivatives to perform the characteristic decomposition and WENO on.
+        :arg list solution_vector: Solution vector from the Euler equations (rho, rhou0, rhou1, rhou2, rhoE) in vector form.
+        :arg object kernel: The current computational kernel."""
+        self.direction = direction
+        pre_process_equations = []
+        # Update the ev, LEV and REV dicts to keep the current dictionary structure. Can change after.
+        ev_dict, LEV_dict, REV_dict = self.euler.apply_direction(direction)
+        self.eigen_value.update(ev_dict)
+        self.left_eigen_vector.update(LEV_dict)
+        self.right_eigen_vector.update(REV_dict)
+        # Finding metric terms to average
+        required_metrics = self.get_DataSets_in_ev(direction).union(self.get_DataSets_in_LEV(direction)).union(self.get_DataSets_in_REV(direction))
+        # Finding flow variables to average
+        required_symbols = self.get_symbols_in_ev(direction).union(self.get_symbols_in_LEV(direction)).union(self.get_symbols_in_REV(direction))
+        required_terms = required_symbols.union(required_metrics)
+        averaged_suffix_name = 'AVG_%d' % direction
+
+        self.averaged_suffix_name = averaged_suffix_name
+        averaged_equations = self.average(required_terms, direction, averaged_suffix_name, block)
+        pre_process_equations += averaged_equations
+        # Eigensystem based on averaged quantities
+        avg_LEV_values = self.convert_matrix_to_grid_variable(self.left_eigen_vector[direction], averaged_suffix_name)
+        # Grid variables to store averaged eigensystems
+        grid_LEV = self.generate_grid_variable_LEV(direction, averaged_suffix_name)
+        pre_process_equations += flatten(self.generate_equations_from_matrices(grid_LEV, avg_LEV_values))
+        # Transform the flux vector and the solution vector to characteristic space
+        characteristic_flux_vector, CF_matrix = self.flux_vector_to_characteristic(derivatives, direction, averaged_suffix_name)
+        characteristic_solution_vector, CS_matrix = self.solution_vector_to_characteristic(solution_vector, direction, averaged_suffix_name)
+        # Can use horner here on characteristic flux
+        ## Added CF/CS to fn here
+        indexed_datasets = list(characteristic_solution_vector.atoms(DataSet).union(characteristic_flux_vector.atoms(DataSet)))
+        indexed_grid_vars = [GridVariable('fn_%d' % index) for index in range(len(indexed_datasets))]
+        subs_dict = dict(zip(indexed_datasets, indexed_grid_vars))
+        pre_process_equations  += [OpenSBLIEq(a, b) for a,b in zip(indexed_grid_vars, indexed_datasets)]
+
+        pre_process_equations += flatten(self.generate_equations_from_matrices(CF_matrix, characteristic_flux_vector.xreplace(subs_dict)))
+        pre_process_equations += flatten(self.generate_equations_from_matrices(CS_matrix, characteristic_solution_vector.xreplace(subs_dict)))
+
+        # eq = flatten(self.generate_equations_from_matrices(CF_matrix, characteristic_flux_vector.xreplace(subs_dict)))
+        # eq = flatten(self.generate_equations_from_matrices(CS_matrix, characteristic_solution_vector.xreplace(subs_dict)))
+
+        # Update constituent relations
+        for d in derivatives:
+            required_symbols = required_symbols.union(d.atoms(DataSetBase))
+        self.update_constituent_relation_symbols(required_symbols, direction)
+
+        if hasattr(self, 'flux_split') and self.flux_split:
+            max_wavespeed_matrix, pre_process_equations = self.create_max_characteristic_wave_speed(pre_process_equations, direction, block)
+            positive = Rational(1, 2)*(CF_matrix + max_wavespeed_matrix*CS_matrix)
+            positive_flux = zeros(*positive.shape)
+            negative = factor(Rational(1, 2)*(CF_matrix - max_wavespeed_matrix*CS_matrix))
+            negative_flux = zeros(*negative.shape)
+            for i in range(positive_flux.shape[0]):
+                for j in range(positive_flux.shape[1]):
+                    positive_flux[i, j] = factor(positive[i, j])
+                    negative_flux[i, j] = factor(negative[i, j])
+            positive_flux.stencil_points = CF_matrix.stencil_points
+            negative_flux.stencil_points = CF_matrix.stencil_points
+            self.generate_right_reconstruction_variables(positive_flux, derivatives)
+            self.generate_left_reconstruction_variables(negative_flux, derivatives)
+        else:
+            raise NotImplementedError("Only flux splitting is implemented in characteristic.")
+        # Remove '0' entries from pre_process_equations
+        for eqn in pre_process_equations[:]:
+            if isinstance(eqn, Zero) is True:
+                pre_process_equations.remove(eqn)
+        kernel.add_equation(pre_process_equations)
+        return
+
     def convert_symbolic_to_dataset(self, symbolics, location, direction, block):
         """ Converts symbolic terms to DataSets.
 
@@ -808,6 +831,193 @@ class LLFCharacteristic(Characteristic):
         pre_process_equations += ev_equations
         max_wave_speed = diag(*([max_wave_speed[i, i] for i in range(ev.shape[0])]))
         return max_wave_speed, pre_process_equations
+
+    def discretise(self, type_of_eq, block):
+        """ This is the place where the logic of vector form of equations are implemented.
+        Find physical fluxes by grouping derivatives by direction --> in central, copy over
+        Then the physical fluxes are transformed to characteristic space ---> a function in Characteristic
+        Find max lambda and update f+ and f- ------> This would be in this class (GLF)
+        For each f+ and f-, find f_hat of i+1/2, i-1/2, (L+R) are evaluated  ----> Function in WENO scheme, called from in here
+        flux at i+1/2 evaluated -- > Function in WENO scheme
+        Then WENO derivative class is instantiated with the flux at i+1/2 array --> Function in WENO scheme, called from in here
+        Final derivatives are evaluated from Weno derivative class --> Using WD.discretise."""
+        if isinstance(type_of_eq, SimulationEquations):
+            eqs = flatten(type_of_eq.equations)
+            grouped = self.group_by_direction(eqs)
+            all_derivatives_evaluated_locally = []
+            reconstruction_halos = self.reconstruction_halotype(self.order, reconstruction=True)
+
+            # Instantiate eigensystems with block, but don't add metrics yet
+            self.instantiate_eigensystem(block)
+
+            for key, derivatives in grouped.iteritems():
+                all_derivatives_evaluated_locally += derivatives
+                for no, deriv in enumerate(derivatives):
+                    deriv.create_reconstruction_work_array(block)
+                kernel = Kernel(block, computation_name="%s_reconstruction_%d_direction" % (self.__class__.__name__, key))
+                kernel.set_grid_range(block)
+                # WENO reconstruction should be evaluated for extra point on each side
+                kernel.set_halo_range(key, 0, reconstruction_halos)
+                kernel.set_halo_range(key, 1, reconstruction_halos)
+                self.pre_process(key, derivatives, flatten(type_of_eq.time_advance_arrays), kernel, block)
+                self.interpolate_reconstruction_variables(derivatives, kernel)
+                block.set_block_boundary_halos(key, 0, self.halotype)
+                block.set_block_boundary_halos(key, 1, self.halotype)
+                self.post_process(derivatives, kernel)
+                type_of_eq.Kernels += [kernel]
+            if grouped:
+                constituent_relations = self.generate_constituent_relations_kernels(block)
+                type_of_eq.Kernels += [self.evaluate_residuals(block, eqs, all_derivatives_evaluated_locally)]
+                constituent_relations = self.check_constituent_relations(block, eqs, constituent_relations)
+            return constituent_relations
+
+    def evaluate_residuals(self, block, eqns, local_ders):
+        residue_eq = []
+        for eq in eqns:
+            substitutions = {}
+            for d in eq.rhs.atoms(Function):
+                if d in local_ders:
+                    substitutions[d] = d._discretise_derivative(block)
+                else:
+                    substitutions[d] = 0
+            residue_eq += [OpenSBLIEq(eq.residual, eq.residual + eq.rhs.subs(substitutions))]
+        residue_kernel = Kernel(block, computation_name="%s Residual" % self.__class__.__name__)
+        residue_kernel.set_grid_range(block)
+        residue_kernel.add_equation(residue_eq)
+        return residue_kernel
+
+
+class RFCharacteristic(Characteristic):
+    """ This class contains the base Local Lax-Fedrich scheme performed in characteristic space.
+
+    :arg object physics: Physics object, defaults to NSPhysics.
+    :arg object averaging: The averaging procedure to be applied for characteristics, defaults to Simple averaging."""
+
+    def __init__(self, physics, averaging=None):
+        Characteristic.__init__(self, physics)
+        if averaging is None:
+            self.average = RoeAverage([0, 1]).average
+        else:
+            self.average = averaging.average
+        self.flux_split = True
+        return
+
+    def entropy_fix(self, grid_EV, avg_a):
+        """ Creates the piecewise equations for the Harten entropy fix to Roe averages."""
+        avg_a = avg_a.lhs
+        eps = 0.1
+        output_eqns = []
+        for i in range(grid_EV.shape[0]):
+            # cond1 = ExprCondPair(OpenSBLIEq(grid_EV[i,i], Abs(grid_EV[i,i])), Abs(grid_EV[i,i]) >= 2*eps*avg_a)
+            # cond2 = ExprCondPair(OpenSBLIEq(grid_EV[i,i], grid_EV[i,i]**2 / (4*eps*avg_a) + eps*avg_a), True)
+            # output_eqns.append(GroupedPiecewise(cond1, cond2))
+            cond1 = ExprCondPair(Abs(grid_EV[i,i]), Abs(grid_EV[i,i]) >= 2*eps*avg_a)
+            cond2 = ExprCondPair(grid_EV[i,i]**2 / (4*eps*avg_a) + eps*avg_a, True)
+            output_eqns.append(OpenSBLIEq(grid_EV[i,i], Piecewise(cond1, cond2)))
+        return output_eqns
+
+
+    def pre_process(self, direction, derivatives, solution_vector, kernel, block):
+        """ Performs the transformation of the derivatives into characteristic space using the eigensystems provided to Characteristic. Flux splitting is then applied
+        to the characteristic variables in preparation for the WENO interpolation. Required quantities are added to pre_process_equations.
+
+        :arg int direction: Integer direction to apply the characteristic decomposition and WENO (x0, x1, ...).
+        :arg list derivatives: The derivatives to perform the characteristic decomposition and WENO on.
+        :arg list solution_vector: Solution vector from the Euler equations (rho, rhou0, rhou1, rhou2, rhoE) in vector form.
+        :arg object kernel: The current computational kernel."""
+        self.direction = direction
+        pre_process_equations = []
+        # Update the ev, LEV and REV dicts to keep the current dictionary structure. Can change after.
+        ev_dict, LEV_dict, REV_dict = self.euler.apply_direction(direction)
+        self.eigen_value.update(ev_dict)
+        self.left_eigen_vector.update(LEV_dict)
+        self.right_eigen_vector.update(REV_dict)
+        # Finding metric terms to average
+        required_metrics = self.get_DataSets_in_ev(direction).union(self.get_DataSets_in_LEV(direction)).union(self.get_DataSets_in_REV(direction))
+        # Finding flow variables to average
+        required_symbols = self.get_symbols_in_ev(direction).union(self.get_symbols_in_LEV(direction)).union(self.get_symbols_in_REV(direction))
+        required_terms = required_symbols.union(required_metrics)
+        averaged_suffix_name = 'AVG_%d' % direction
+
+        self.averaged_suffix_name = averaged_suffix_name
+
+        averaged_equations = self.average(required_terms, direction, averaged_suffix_name, block)
+        avg_speed_of_sound = averaged_equations[-1]
+
+        pre_process_equations += averaged_equations
+        # Eigensystem based on averaged quantities
+        avg_LEV_values = self.convert_matrix_to_grid_variable(self.left_eigen_vector[direction], averaged_suffix_name)
+        # Grid variables to store averaged eigensystems
+        grid_LEV = self.generate_grid_variable_LEV(direction, averaged_suffix_name)
+        pre_process_equations += flatten(self.generate_equations_from_matrices(grid_LEV, avg_LEV_values))
+
+        # Roe average eigenvalues
+        grid_EV = self.generate_grid_variable_ev(direction, averaged_suffix_name)
+        # Add ev equations
+        avg_EV_values = self.convert_matrix_to_grid_variable(self.eigen_value[direction], averaged_suffix_name)
+        store_EV_values = [term for term in avg_EV_values if not isinstance(term, Zero)]
+
+        pre_process_equations += flatten(self.generate_equations_from_matrices(grid_EV, avg_EV_values))
+
+        # Create entropy fix for Roe averaging, requires averaged speed of sound
+        entropy_eigvals = self.entropy_fix(grid_EV, avg_speed_of_sound)
+        pre_process_equations += entropy_eigvals
+
+
+        # Transform the flux vector and the solution vector to characteristic space
+        characteristic_flux_vector, CF_matrix = self.flux_vector_to_characteristic(derivatives, direction, averaged_suffix_name)
+        characteristic_solution_vector, CS_matrix = self.solution_vector_to_characteristic(solution_vector, direction, averaged_suffix_name)
+        # Can use horner here on characteristic flux
+        pre_process_equations += flatten(self.generate_equations_from_matrices(CF_matrix, characteristic_flux_vector))
+        pre_process_equations += flatten(self.generate_equations_from_matrices(CS_matrix, characteristic_solution_vector))
+
+        for d in derivatives:
+            required_symbols = required_symbols.union(d.atoms(DataSetBase))
+        self.update_constituent_relation_symbols(required_symbols, direction)
+
+        if hasattr(self, 'flux_split') and self.flux_split:
+            positive = Rational(1, 2)*(CF_matrix + grid_EV*CS_matrix)
+            positive_flux = zeros(*positive.shape)
+            negative = factor(Rational(1, 2)*(CF_matrix - grid_EV*CS_matrix))
+            negative_flux = zeros(*negative.shape)
+            for i in range(positive_flux.shape[0]):
+                for j in range(positive_flux.shape[1]):
+                    positive_flux[i, j] = factor(positive[i, j])
+                    negative_flux[i, j] = factor(negative[i, j])
+            positive_flux.stencil_points = CF_matrix.stencil_points
+            negative_flux.stencil_points = CF_matrix.stencil_points
+            self.generate_right_reconstruction_variables(positive_flux, derivatives)
+            self.generate_left_reconstruction_variables(negative_flux, derivatives)
+        else:
+            raise NotImplementedError("Only flux splitting is implemented in characteristic.")
+        # Remove '0' entries from pre_process_equations
+        for eqn in pre_process_equations[:]:
+            if isinstance(eqn, Zero) is True:
+                pre_process_equations.remove(eqn)
+        kernel.add_equation(pre_process_equations)
+        return
+
+    def convert_symbolic_to_dataset(self, symbolics, location, direction, block):
+        """ Converts symbolic terms to DataSets.
+
+        :arg object symbolics: Expression containing Symbols to be converted into DataSets.
+        :arg int location: The integer location to apply to the DataSet.
+        :arg int direction: The integer direction (axis) of the DataSet to apply the location to.
+        returns: object: symbolics: The original expression updated to be in terms of DataSets rather than Symbols."""
+        dsets = symbolics.atoms(DataSet).difference(symbolics.atoms(ConstantObject))
+        symbols = symbolics.atoms(EinsteinTerm).difference(symbolics.atoms(ConstantObject))
+        substitutions = {}
+        # Increment flow variables
+        for s in symbols:
+            dest = block.create_datasetbase(s)
+            loc = dest.location
+            loc[direction] = loc[direction] + location
+            substitutions[s] = dest[loc]
+        # Increment metric datasets
+        for d in dsets:
+            substitutions[d] = increment_dataset(d, direction, location)
+        return symbolics.subs(substitutions)
+
 
     def discretise(self, type_of_eq, block):
         """ This is the place where the logic of vector form of equations are implemented.
@@ -975,7 +1185,41 @@ class LLFWeno(LLFCharacteristic, Weno):
     :arg object averaging: The averaging procedure to be applied for characteristics, defaults to Simple averaging. """
 
     def __init__(self, order, physics=None, averaging=None, formulation="JS"):
+        print("Local Lax-Friedrich flux splitting.")
         LLFCharacteristic.__init__(self, physics, averaging)
+        Weno.__init__(self, order, formulation)
+        return
+
+    def reconstruction_halotype(self, order, reconstruction=True):
+        return WenoHalos(order, reconstruction)
+
+    def group_by_direction(self, eqs):
+        """ Groups the input equations by the direction (x0, x1, ...) they depend upon.
+
+        :arg list eqs: List of equations to group by direction.
+        :returns: dict: grouped: Dictionary of {direction: equations} key, value pairs for equations grouped by direction."""
+        all_WDS = []
+        for eq in eqs:
+            all_WDS += list(eq.atoms(WenoDerivative))
+        grouped = {}
+        for cd in all_WDS:
+            direction = cd.get_direction[0]
+            if direction in grouped.keys():
+                grouped[direction] += [cd]
+            else:
+                grouped[direction] = [cd]
+        return grouped
+
+class RFWeno(RFCharacteristic, Weno):
+    """ Performs the Local Lax Friedrichs flux splitting with a WENO scheme.
+
+    :arg int order: Order of the WENO/TENO scheme.
+    :arg object physics: Physics object, defaults to NSPhysics.
+    :arg object averaging: The averaging procedure to be applied for characteristics, defaults to Simple averaging. """
+
+    def __init__(self, order, physics=None, averaging=None, formulation="JS"):
+        print("Roe-flux differencing.")
+        RFCharacteristic.__init__(self, physics, averaging)
         Weno.__init__(self, order, formulation)
         return
 

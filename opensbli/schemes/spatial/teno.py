@@ -3,7 +3,7 @@ from opensbli.core.opensblifunctions import TenoDerivative
 from opensbli.core.opensbliobjects import ConstantObject
 from opensbli.core.grid import GridVariable
 from opensbli.schemes.spatial.scheme import Scheme
-from opensbli.schemes.spatial.weno import LLFCharacteristic, ShockCapturing
+from opensbli.schemes.spatial.weno import LLFCharacteristic, ShockCapturing, RFCharacteristic
 from opensbli.core.kernel import ConstantsToDeclare as CTD
 from opensbli.equation_types.opensbliequations import OpenSBLIEq
 
@@ -408,11 +408,11 @@ class TenoReconstructionVariable(object):
         """ Updates the quantities required by TENO in the reconstruction variable.
 
         :arg object original: Reconstruction object variable, either left or right reconstruction."""
-        self.smoothness_symbols += [GridVariable('%s%s' % (s, self.name)) for s in original.smoothness_symbols]
-        self.alpha_symbols += [GridVariable('%s_%s' % (s, self.name)) for s in original.alpha_symbols]
-        self.inv_alpha_sum_symbols += [GridVariable('%s_%s' % (s, self.name)) for s in original.inv_alpha_sum_symbols]
-        self.omega_symbols += [GridVariable('%s_%s' % (s, self.name)) for s in original.omega_symbols]
-        self.kronecker_symbols += [GridVariable('%s_%s' % (s, self.name)) for s in original.kronecker_symbols]
+        self.smoothness_symbols += [GridVariable('%s' % (s)) for s in original.smoothness_symbols]
+        self.alpha_symbols += [GridVariable('%s' % (s)) for s in original.alpha_symbols]
+        self.inv_alpha_sum_symbols += [GridVariable('%s' % (s)) for s in original.inv_alpha_sum_symbols]
+        self.omega_symbols += [GridVariable('%s' % (s)) for s in original.omega_symbols]
+        self.kronecker_symbols += [GridVariable('%s' % (s)) for s in original.kronecker_symbols]
 
         if original.order == 8:
             new_name = self.name.split('_')[-1]
@@ -442,17 +442,24 @@ class TenoReconstructionVariable(object):
         self.kronecker_evaluated = [s.subs(subs_dict) for s in original.kronecker_evaluated]
         self.reconstructed_expression = original.reconstructed_expression.subs(subs_dict)
         return
-
+    
     def add_evaluations_to_kernel(self, kernel):
+        for eqn in self.final_equations:
+            kernel.add_equation(eqn)
+        return
+
+    def evaluate_quantities(self, component_index):
         """ Adds the evaluations of the TENO quantities to the computational kernel.
 
         :arg object kernel: OpenSBLI Kernel for the TENO computation."""
         all_symbols = self.smoothness_symbols + self.tau_8_symbol + self.alpha_symbols + self.inv_alpha_sum_symbols + self.kronecker_symbols + self.omega_symbols
         all_evaluations = self.smoothness_indicators + self.tau_8_evaluated + self.alpha_evaluated + self.inv_alpha_sum_evaluated + self.kronecker_evaluated + self.omega_evaluated
 
+        final_equations = []
         for no, value in enumerate(all_symbols):
-            kernel.add_equation(OpenSBLIEq(value, all_evaluations[no]))
-        kernel.add_equation(OpenSBLIEq(self.reconstructed_symbol, self.reconstructed_expression))
+            final_equations += [OpenSBLIEq(value, all_evaluations[no])]
+        self.final_equations = final_equations
+        self.final_equations += [OpenSBLIEq(GridVariable('Recon_%d' % component_index), GridVariable('Recon_%d' % component_index) + self.reconstructed_expression)]
         return
 
 
@@ -551,6 +558,41 @@ class LLFTeno(LLFCharacteristic, Teno):
     def __init__(self, order, physics=None, averaging=None):
         LLFCharacteristic.__init__(self, physics, averaging)
         print "A TENO scheme of order %s is being used for shock capturing" % str(order)
+        Teno.__init__(self, order)
+        return
+
+    def reconstruction_halotype(self, order, reconstruction=True):
+        return TenoHalos(order, reconstruction)
+
+    def group_by_direction(self, eqs):
+        """ Groups the input equations by the direction (x0, x1, ...) they depend upon.
+
+        :arg list eqs: List of equations to group by direction.
+        :returns: grouped: Dictionary of {direction: equations} key, value pairs for equations grouped by direction."""
+        all_WDS = []
+        for eq in eqs:
+            all_WDS += list(eq.atoms(TenoDerivative))
+        grouped = {}
+        for cd in all_WDS:
+            direction = cd.get_direction[0]
+            if direction in grouped.keys():
+                grouped[direction] += [cd]
+            else:
+                grouped[direction] = [cd]
+        return grouped
+
+class RFTeno(RFCharacteristic, Teno):
+    """ Local Lax-Friedrichs flux splitting applied to characteristic variables using a TENO scheme.
+
+    :arg dict eigenvalue: Dictionary of diagonal matrices containing the eigenvalues in each direction.
+    :arg dict left_ev: Dictionary of matrices containing the left eigenvectors in each direction.
+    :arg dict right_ev: Dictionary of matrices containing the right eigenvectors in each direction.
+    :arg int order: Order of the WENO/TENO scheme.
+    :arg int ndim: Number of dimensions of the problem.
+    :arg object averaging: The averaging procedure to be applied for characteristics, defaults to Simple averaging."""
+    def __init__(self, order, physics=None, averaging=None):
+        RFCharacteristic.__init__(self, physics, averaging)
+        print "A TENO scheme of order %s is being used for shock capturing with Roe-flux differencing" % str(order)
         Teno.__init__(self, order)
         return
 

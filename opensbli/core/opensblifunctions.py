@@ -583,14 +583,6 @@ class WenoDerivative(Function, BasicDiscretisation):
         block.increase_work_index
         return
 
-    @property
-    def evaluate_reconstruction(self):
-
-        total = 0
-        for r in self.reconstructions:
-            total += r.reconstructed_symbol
-        return total
-
     def _sympystr(self, p):
         args = list(map(p.doprint, self.args))
         return "%s %s" % (self.simple_name, " ".join(args))

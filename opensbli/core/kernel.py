@@ -304,7 +304,6 @@ class Kernel(object):
             if isinstance(eq, Equality):
                 latex.write_expression(eq)
             elif isinstance(eq, GroupedPiecewise):
-                pprint(eq)
                 print "should be doing latex"  # TODO
         return
 
