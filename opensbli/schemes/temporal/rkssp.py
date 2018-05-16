@@ -1,8 +1,9 @@
-from sympy import flatten, Idx, sqrt
+from sympy import flatten, Idx, sqrt, pprint
 from opensbli.core.opensbliobjects import ConstantObject, ConstantIndexed, Globalvariable
 from opensbli.equation_types.opensbliequations import OpenSBLIEq
 from opensbli.core.kernel import Kernel
 from opensbli.core.datatypes import Int
+from opensbli.core.grid import GridVariable
 from opensbli.schemes.spatial.scheme import Scheme, TemporalSolution
 
 
@@ -118,18 +119,14 @@ class RungeKuttaSSP(Scheme):
         :arg object block: OpenSBLI SimulationBlock.
         :returns: list: List of the two discretised Kernels required for the RK scheme."""
         solution_update_kernel = Kernel(block, "Temporal solution advancement")
-        stage_update_kernel = Kernel(block, "Sub stage advancement")
         # Update the range of evaluation
         solution_update_kernel.set_grid_range(block)
-        stage_update_kernel.set_grid_range(block)
         # Update the solution and stages
         if cls.constant_time_step:
-            solution_update, intermediate_update = cls.constant_time_step_solution(zipped)
+            solution_update = cls.constant_time_step_solution(zipped)
         solution_update_kernel.add_equation(solution_update)
-        stage_update_kernel.add_equation(intermediate_update)
         solution_update_kernel.update_block_datasets(block)
-        stage_update_kernel.update_block_datasets(block)
-        return [stage_update_kernel, solution_update_kernel]
+        return [solution_update_kernel]
 
     def constant_time_step_solution(cls, zipped):
         """ Creates the equations for the intermediate step and solution update kernels.
@@ -138,12 +135,13 @@ class RungeKuttaSSP(Scheme):
         :returns: list solution_update: Equations for the time advancement of the solution.
         :returns: list intermediate_update: Equations for the intermediate update step."""
         dt = cls.time_step
-        intermediate_update = []
         solution_update = []
         for z in zipped:
-            intermediate_update += [OpenSBLIEq(z[0], cls.stage_coeffs*z[0] + dt*z[2], evaluate=False)]
+            temp_grid = GridVariable('old_temp')
+            solution_update += [OpenSBLIEq(temp_grid, z[0])]
+            solution_update += [OpenSBLIEq(z[0], cls.stage_coeffs*temp_grid + dt*z[2], evaluate=False)]
             solution_update += [OpenSBLIEq(z[1], z[1] + cls.solution_coeffs*z[0], evaluate=False)]
-        return solution_update, intermediate_update
+        return solution_update
 
     def create_start_computations(cls, temp_data_sets, block):
         """ Creates a kernel to zero the arrays for the intermediate update step
