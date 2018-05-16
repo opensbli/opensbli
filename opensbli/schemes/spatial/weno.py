@@ -628,7 +628,7 @@ class Characteristic(EigenSystem):
         EigenSystem.__init__(self, physics)
         return
 
-    def post_process(self, derivatives, kernel):
+    def post_process(self, direction, derivatives, kernel):
         """ Transforms the characteristic WENO interpolated fluxes back into real space by multiplying by the right
         eigenvector matrix.
 
@@ -637,9 +637,19 @@ class Characteristic(EigenSystem):
         post_process_equations = []
         averaged_suffix_name = self.averaged_suffix_name
         avg_REV_values = self.convert_matrix_to_grid_variable(self.right_eigen_vector[self.direction], averaged_suffix_name)
+        from sympy import srepr, Mul, Pow, Add, Integer
+        # Manually remove the divides
+        inverses = [GridVariable('inv_gamma_m1'), GridVariable('inv_AVG_a'), GridVariable('inv_AVG_rho')]
+        to_be_replaced = [Mul(Pow(Add(ConstantObject('gama'), Integer(-1)), Integer(-1))), 1/GridVariable('AVG_%d_a' % direction), 1/GridVariable('AVG_%d_rho' % direction)]
+        for i, term in enumerate(avg_REV_values):
+            for old, new in zip(to_be_replaced, inverses):
+                term = term.replace(old, new)
+            avg_REV_values[i] = term
+
         reconstructed_characteristics = Matrix([d.reconstructed_rhs for d in derivatives])
         reconstructed_flux = avg_REV_values*reconstructed_characteristics
         reconstructed_work = [d.reconstruction_work for d in derivatives]
+        post_process_equations += [OpenSBLIEq(inverses[0], to_be_replaced[0])]
         post_process_equations += [OpenSBLIEq(x, y) for x, y in zip(reconstructed_work, reconstructed_flux)]
         kernel.add_equation(post_process_equations)
         return
@@ -743,6 +753,17 @@ class LLFCharacteristic(Characteristic):
         avg_LEV_values = self.convert_matrix_to_grid_variable(self.left_eigen_vector[direction], averaged_suffix_name)
         # Grid variables to store averaged eigensystems
         grid_LEV = self.generate_grid_variable_LEV(direction, averaged_suffix_name)
+
+        # Manually replace re-used divides by inverses
+        inverses = [GridVariable('inv_AVG_a'), GridVariable('inv_AVG_rho')]
+        to_be_replaced = [ 1/GridVariable('AVG_%d_a' % direction), 1/GridVariable('AVG_%d_rho' % direction)]
+        inverse_evals = [OpenSBLIEq(a,b) for (a,b) in zip(inverses, to_be_replaced)]
+        pre_process_equations += inverse_evals
+        for i, term in enumerate(avg_LEV_values):
+            for old, new in zip(to_be_replaced, inverses):
+                term = term.subs({old: new})
+            avg_LEV_values[i] = term
+
         pre_process_equations += flatten(self.generate_equations_from_matrices(grid_LEV, avg_LEV_values))
         # Transform the flux vector and the solution vector to characteristic space
         characteristic_flux_vector, CF_matrix = self.flux_vector_to_characteristic(derivatives, direction, averaged_suffix_name)
@@ -863,7 +884,7 @@ class LLFCharacteristic(Characteristic):
                 self.interpolate_reconstruction_variables(derivatives, kernel)
                 block.set_block_boundary_halos(key, 0, self.halotype)
                 block.set_block_boundary_halos(key, 1, self.halotype)
-                self.post_process(derivatives, kernel)
+                self.post_process(key, derivatives, kernel)
                 type_of_eq.Kernels += [kernel]
             if grouped:
                 constituent_relations = self.generate_constituent_relations_kernels(block)
@@ -902,17 +923,14 @@ class RFCharacteristic(Characteristic):
         self.flux_split = True
         return
 
-    def entropy_fix(self, grid_EV, avg_a):
+    def entropy_fix(self, grid_EV, avg_a, inv_avg_a):
         """ Creates the piecewise equations for the Harten entropy fix to Roe averages."""
         avg_a = avg_a.lhs
         eps = 0.1
         output_eqns = []
         for i in range(grid_EV.shape[0]):
-            # cond1 = ExprCondPair(OpenSBLIEq(grid_EV[i,i], Abs(grid_EV[i,i])), Abs(grid_EV[i,i]) >= 2*eps*avg_a)
-            # cond2 = ExprCondPair(OpenSBLIEq(grid_EV[i,i], grid_EV[i,i]**2 / (4*eps*avg_a) + eps*avg_a), True)
-            # output_eqns.append(GroupedPiecewise(cond1, cond2))
             cond1 = ExprCondPair(Abs(grid_EV[i,i]), Abs(grid_EV[i,i]) >= 2*eps*avg_a)
-            cond2 = ExprCondPair(grid_EV[i,i]**2 / (4*eps*avg_a) + eps*avg_a, True)
+            cond2 = ExprCondPair(inv_avg_a*grid_EV[i,i]**2 / (4*eps) + eps*avg_a, True)
             output_eqns.append(OpenSBLIEq(grid_EV[i,i], Piecewise(cond1, cond2)))
         return output_eqns
 
@@ -947,6 +965,17 @@ class RFCharacteristic(Characteristic):
         pre_process_equations += averaged_equations
         # Eigensystem based on averaged quantities
         avg_LEV_values = self.convert_matrix_to_grid_variable(self.left_eigen_vector[direction], averaged_suffix_name)
+        # Manually replace re-used divides by inverses
+        inverses = [GridVariable('inv_AVG_a'), GridVariable('inv_AVG_rho')]
+        inv_avg_a = GridVariable('inv_AVG_a')
+        to_be_replaced = [ 1/GridVariable('AVG_%d_a' % direction), 1/GridVariable('AVG_%d_rho' % direction)]
+        inverse_evals = [OpenSBLIEq(a,b) for (a,b) in zip(inverses, to_be_replaced)]
+        pre_process_equations += inverse_evals
+        for i, term in enumerate(avg_LEV_values):
+            for old, new in zip(to_be_replaced, inverses):
+                term = term.subs({old: new})
+            avg_LEV_values[i] = term
+
         # Grid variables to store averaged eigensystems
         grid_LEV = self.generate_grid_variable_LEV(direction, averaged_suffix_name)
         pre_process_equations += flatten(self.generate_equations_from_matrices(grid_LEV, avg_LEV_values))
@@ -960,9 +989,14 @@ class RFCharacteristic(Characteristic):
         pre_process_equations += flatten(self.generate_equations_from_matrices(grid_EV, avg_EV_values))
 
         # Create entropy fix for Roe averaging, requires averaged speed of sound
-        entropy_eigvals = self.entropy_fix(grid_EV, avg_speed_of_sound)
+        entropy_eigvals = self.entropy_fix(grid_EV, avg_speed_of_sound, inv_avg_a)
+        # Don't recalculate the same eigenvalues ordered as u, u, u, u+a, u-a
+        if block.ndim == 2:
+            entropy_eigvals[1] = OpenSBLIEq(entropy_eigvals[1].lhs, entropy_eigvals[0].lhs)
+        elif block.ndim == 3:
+            entropy_eigvals[1] = OpenSBLIEq(entropy_eigvals[1].lhs, entropy_eigvals[0].lhs)
+            entropy_eigvals[2] = OpenSBLIEq(entropy_eigvals[2].lhs, entropy_eigvals[0].lhs)
         pre_process_equations += entropy_eigvals
-
 
         # Transform the flux vector and the solution vector to characteristic space
         characteristic_flux_vector, CF_matrix = self.flux_vector_to_characteristic(derivatives, direction, averaged_suffix_name)
@@ -1050,7 +1084,7 @@ class RFCharacteristic(Characteristic):
                 self.interpolate_reconstruction_variables(derivatives, kernel)
                 block.set_block_boundary_halos(key, 0, self.halotype)
                 block.set_block_boundary_halos(key, 1, self.halotype)
-                self.post_process(derivatives, kernel)
+                self.post_process(key, derivatives, kernel)
                 type_of_eq.Kernels += [kernel]
             if grouped:
                 constituent_relations = self.generate_constituent_relations_kernels(block)

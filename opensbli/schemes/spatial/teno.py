@@ -1,4 +1,4 @@
-from sympy import IndexedBase, Symbol, Rational, Abs, flatten, Max, horner, S, ceiling
+from sympy import IndexedBase, Symbol, Rational, Abs, flatten, Max, horner, S, ceiling, pprint
 from opensbli.core.opensblifunctions import TenoDerivative
 from opensbli.core.opensbliobjects import ConstantObject
 from opensbli.core.grid import GridVariable
@@ -246,9 +246,12 @@ class Teno5(object):
 
         :arg object RV: The reconstruction variable object.
         :arg object TC: Configuration settings for a reconstruction of either left or right."""
-        weight_sum = sum([TC.opt_coeffs[i]*RV.kronecker_symbols[i] for i in range(RV.n_stencils)])
+        inv_omega_sum_symbols = [Symbol('inv_omega_sum')]
+        inv_omega_sum_evaluated = [S.One/sum([TC.opt_coeffs[i]*RV.kronecker_symbols[i] for i in range(RV.n_stencils)])]
         RV.omega_symbols = [Symbol('omega_%d' % r) for r in range(RV.n_stencils)]
-        RV.omega_evaluated = [TC.opt_coeffs[r]*RV.kronecker_symbols[r] / weight_sum for r in range(RV.n_stencils)]
+        RV.omega_evaluated = [TC.opt_coeffs[r]*RV.kronecker_symbols[r]*inv_omega_sum_symbols[0] for r in range(RV.n_stencils)]
+        RV.inv_omega_sum_symbols = inv_omega_sum_symbols
+        RV.inv_omega_sum_evaluated = inv_omega_sum_evaluated
         return
 
     def generate_reconstruction(self, RV, TC):
@@ -292,9 +295,14 @@ class Teno6(object):
 
         :arg object RV: The reconstruction variable object.
         :arg object TC: Configuration settings for a reconstruction of either left or right."""
-        weight_sum = sum([TC.opt_coeffs[i]*RV.kronecker_symbols[i] for i in range(RV.n_stencils)])
+        # Create inverse to avoid multiple divides
+        inv_omega_sum_symbols = [Symbol('inv_omega_sum')]
+        inv_omega_sum_evaluated = [S.One/sum([TC.opt_coeffs[i]*RV.kronecker_symbols[i] for i in range(RV.n_stencils)])]
+
         RV.omega_symbols = [Symbol('omega_%d' % r) for r in range(RV.n_stencils)]
-        RV.omega_evaluated = [TC.opt_coeffs[r]*RV.kronecker_symbols[r] / weight_sum for r in range(RV.n_stencils)]
+        RV.omega_evaluated = [TC.opt_coeffs[r]*RV.kronecker_symbols[r]*inv_omega_sum_symbols[0] for r in range(RV.n_stencils)]
+        RV.inv_omega_sum_symbols = inv_omega_sum_symbols
+        RV.inv_omega_sum_evaluated = inv_omega_sum_evaluated
         return
 
     def generate_reconstruction(self, RV, TC):
@@ -360,9 +368,12 @@ class Teno8(object):
 
         :arg object RV: The reconstruction variable object.
         :arg object TC: Configuration settings for a reconstruction of either left or right."""
-        weight_sum = sum([TC.opt_coeffs[i]*RV.kronecker_symbols[i] for i in range(RV.n_stencils)])
+        inv_omega_sum_symbols = [Symbol('inv_omega_sum')]
+        inv_omega_sum_evaluated = [S.One/sum([TC.opt_coeffs[i]*RV.kronecker_symbols[i] for i in range(RV.n_stencils)])]
         RV.omega_symbols = [Symbol('omega_%d' % r) for r in range(RV.n_stencils)]
-        RV.omega_evaluated = [TC.opt_coeffs[r]*RV.kronecker_symbols[r] / weight_sum for r in range(RV.n_stencils)]
+        RV.omega_evaluated = [TC.opt_coeffs[r]*RV.kronecker_symbols[r]*inv_omega_sum_symbols[0] for r in range(RV.n_stencils)]
+        RV.inv_omega_sum_symbols = inv_omega_sum_symbols
+        RV.inv_omega_sum_evaluated = inv_omega_sum_evaluated
         return
 
     def generate_reconstruction(self, RV, TC):
@@ -393,6 +404,8 @@ class TenoReconstructionVariable(object):
         self.alpha_symbols = []
         self.inv_alpha_sum_symbols = []
         self.inv_alpha_sum_evaluated = []
+        self.inv_omega_sum_symbols = []
+        self.inv_omega_sum_evaluated = []
         self.tau_8_symbol = []
         self.tau_8_evaluated = []
         self.omega_evaluated = []
@@ -411,6 +424,7 @@ class TenoReconstructionVariable(object):
         self.smoothness_symbols += [GridVariable('%s' % (s)) for s in original.smoothness_symbols]
         self.alpha_symbols += [GridVariable('%s' % (s)) for s in original.alpha_symbols]
         self.inv_alpha_sum_symbols += [GridVariable('%s' % (s)) for s in original.inv_alpha_sum_symbols]
+        self.inv_omega_sum_symbols += [GridVariable('%s' % (s)) for s in original.inv_omega_sum_symbols]
         self.omega_symbols += [GridVariable('%s' % (s)) for s in original.omega_symbols]
         self.kronecker_symbols += [GridVariable('%s' % (s)) for s in original.kronecker_symbols]
 
@@ -422,8 +436,8 @@ class TenoReconstructionVariable(object):
         else:
             originals = []
             new = []
-        originals += original.smoothness_symbols + original.alpha_symbols + original.inv_alpha_sum_symbols + original.kronecker_symbols + original.omega_symbols
-        new += self.smoothness_symbols + self.alpha_symbols + self.inv_alpha_sum_symbols + self.kronecker_symbols + self.omega_symbols
+        originals += original.smoothness_symbols + original.alpha_symbols + original.inv_alpha_sum_symbols  + original.kronecker_symbols + original.inv_omega_sum_symbols + original.omega_symbols
+        new += self.smoothness_symbols + self.alpha_symbols + self.inv_alpha_sum_symbols + self.kronecker_symbols + self.inv_omega_sum_symbols + self.omega_symbols
         subs_dict = dict(zip(originals, new))
 
         for key, value in original.function_stencil_dictionary.iteritems():
@@ -438,6 +452,7 @@ class TenoReconstructionVariable(object):
                 self.tau_8_evaluated = [s.subs(subs_dict) for s in original.tau_8_evaluated]
         self.alpha_evaluated = [s.subs(subs_dict) for s in original.alpha_evaluated]
         self.inv_alpha_sum_evaluated = [s.subs(subs_dict) for s in original.inv_alpha_sum_evaluated]
+        self.inv_omega_sum_evaluated = [s.subs(subs_dict) for s in original.inv_omega_sum_evaluated]
         self.omega_evaluated = [s.subs(subs_dict) for s in original.omega_evaluated]
         self.kronecker_evaluated = [s.subs(subs_dict) for s in original.kronecker_evaluated]
         self.reconstructed_expression = original.reconstructed_expression.subs(subs_dict)
@@ -452,8 +467,8 @@ class TenoReconstructionVariable(object):
         """ Adds the evaluations of the TENO quantities to the computational kernel.
 
         :arg object kernel: OpenSBLI Kernel for the TENO computation."""
-        all_symbols = self.smoothness_symbols + self.tau_8_symbol + self.alpha_symbols + self.inv_alpha_sum_symbols + self.kronecker_symbols + self.omega_symbols
-        all_evaluations = self.smoothness_indicators + self.tau_8_evaluated + self.alpha_evaluated + self.inv_alpha_sum_evaluated + self.kronecker_evaluated + self.omega_evaluated
+        all_symbols = self.smoothness_symbols + self.tau_8_symbol + self.alpha_symbols + self.inv_alpha_sum_symbols + self.kronecker_symbols + self.inv_omega_sum_symbols + self.omega_symbols
+        all_evaluations = self.smoothness_indicators + self.tau_8_evaluated + self.alpha_evaluated + self.inv_alpha_sum_evaluated + self.kronecker_evaluated + self.inv_omega_sum_evaluated + self.omega_evaluated
 
         final_equations = []
         for no, value in enumerate(all_symbols):
