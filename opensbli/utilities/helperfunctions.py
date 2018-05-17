@@ -90,7 +90,7 @@ def set_hdf5_metadata(dset, halos, npoints, block):
     dset.attrs.create("d_p", d_p, dtype="int32")
     dset.attrs.create("d_m", d_m, dtype="int32")
     dset.attrs.create("dim", [1], dtype="int32")
-    dset.attrs.create("ops_type", u"ops_dat", dtype="S7")
+    dset.attrs.create("ops_type", u"ops_dat", dtype="S10")
     dset.attrs.create("block_index", [block.blocknumber], dtype="int32")
     dset.attrs.create("base", [0 for i in range(block.ndim)], dtype="int32")
     dset.attrs.create("type", u"double", dtype="S15")
