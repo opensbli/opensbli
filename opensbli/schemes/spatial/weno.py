@@ -554,14 +554,14 @@ class EigenSystem(object):
         """ Retrieve the unique symbols present in the right rigenvector matrix for a given direction."""
         return self.right_eigen_vector[direction].atoms(EinsteinTerm).difference(self.right_eigen_vector[direction].atoms(ConstantObject))
 
-    def get_DataSets_in_ev(self, direction):
-        return self.eigen_value[direction].atoms(DataSet).difference(self.eigen_value[direction].atoms(ConstantObject))
+    # def get_DataSets_in_ev(self, direction):
+    #     return self.eigen_value[direction].atoms(DataSet).difference(self.eigen_value[direction].atoms(ConstantObject))
 
-    def get_DataSets_in_LEV(self, direction):
-        return self.left_eigen_vector[direction].atoms(DataSet).difference(self.left_eigen_vector[direction].atoms(ConstantObject))
+    # def get_DataSets_in_LEV(self, direction):
+    #     return self.left_eigen_vector[direction].atoms(DataSet).difference(self.left_eigen_vector[direction].atoms(ConstantObject))
 
-    def get_DataSets_in_REV(self, direction):
-        return self.right_eigen_vector[direction].atoms(DataSet).difference(self.right_eigen_vector[direction].atoms(ConstantObject))
+    # def get_DataSets_in_REV(self, direction):
+    #     return self.right_eigen_vector[direction].atoms(DataSet).difference(self.right_eigen_vector[direction].atoms(ConstantObject))
 
     def generate_grid_variable_ev(self, direction, name):
         """ Create a matrix of eigenvalue GridVariable elements. """
@@ -639,13 +639,12 @@ class Characteristic(EigenSystem):
         avg_REV_values = self.convert_matrix_to_grid_variable(self.right_eigen_vector[self.direction], averaged_suffix_name)
         from sympy import srepr, Mul, Pow, Add, Integer
         # Manually remove the divides
-        inverses = [GridVariable('inv_gamma_m1'), GridVariable('inv_AVG_a'), GridVariable('inv_AVG_rho')]
-        to_be_replaced = [Mul(Pow(Add(ConstantObject('gama'), Integer(-1)), Integer(-1))), 1/GridVariable('AVG_%d_a' % direction), 1/GridVariable('AVG_%d_rho' % direction)]
+        inverses = [GridVariable('inv_gamma_m1'), GridVariable('inv_AVG_a'), GridVariable('inv_AVG_rho'), GridVariable('inv_AVG_met_fact')]
+        to_be_replaced = [Mul(Pow(Add(ConstantObject('gama'), Integer(-1)), Integer(-1))), 1/GridVariable('AVG_%d_a' % direction), 1/GridVariable('AVG_%d_rho' % direction), 1/self.inv_metric]
         for i, term in enumerate(avg_REV_values):
             for old, new in zip(to_be_replaced, inverses):
                 term = term.replace(old, new)
             avg_REV_values[i] = term
-
         reconstructed_characteristics = Matrix([d.reconstructed_rhs for d in derivatives])
         reconstructed_flux = avg_REV_values*reconstructed_characteristics
         reconstructed_work = [d.reconstruction_work for d in derivatives]
@@ -735,28 +734,29 @@ class LLFCharacteristic(Characteristic):
         self.direction = direction
         pre_process_equations = []
         # Update the ev, LEV and REV dicts to keep the current dictionary structure. Can change after.
-        ev_dict, LEV_dict, REV_dict = self.euler.apply_direction(direction)
+        ev_dict, LEV_dict, REV_dict, required_metrics, inv_metric = self.euler.apply_direction(direction)
         self.eigen_value.update(ev_dict)
         self.left_eigen_vector.update(LEV_dict)
         self.right_eigen_vector.update(REV_dict)
-        # Finding metric terms to average
-        required_metrics = self.get_DataSets_in_ev(direction).union(self.get_DataSets_in_LEV(direction)).union(self.get_DataSets_in_REV(direction))
+        averaged_suffix_name = 'AVG_%d' % direction
+        self.averaged_suffix_name = averaged_suffix_name
+        self.inv_metric = self.convert_matrix_to_grid_variable(inv_metric, averaged_suffix_name)
         # Finding flow variables to average
         required_symbols = self.get_symbols_in_ev(direction).union(self.get_symbols_in_LEV(direction)).union(self.get_symbols_in_REV(direction))
         required_terms = required_symbols.union(required_metrics)
-        averaged_suffix_name = 'AVG_%d' % direction
 
-        self.averaged_suffix_name = averaged_suffix_name
+
         averaged_equations = self.average(required_terms, direction, averaged_suffix_name, block)
         pre_process_equations += averaged_equations
         # Eigensystem based on averaged quantities
         avg_LEV_values = self.convert_matrix_to_grid_variable(self.left_eigen_vector[direction], averaged_suffix_name)
+
         # Grid variables to store averaged eigensystems
         grid_LEV = self.generate_grid_variable_LEV(direction, averaged_suffix_name)
 
-        # Manually replace re-used divides by inverses
-        inverses = [GridVariable('inv_AVG_a'), GridVariable('inv_AVG_rho')]
-        to_be_replaced = [ 1/GridVariable('AVG_%d_a' % direction), 1/GridVariable('AVG_%d_rho' % direction)]
+        # Replace re-used divides by inverses
+        inverses = [GridVariable('inv_AVG_a'), GridVariable('inv_AVG_rho'), GridVariable('inv_AVG_met_fact')]
+        to_be_replaced = [ 1/GridVariable('AVG_%d_a' % direction), 1/GridVariable('AVG_%d_rho' % direction), 1/self.inv_metric]
         inverse_evals = [OpenSBLIEq(a,b) for (a,b) in zip(inverses, to_be_replaced)]
         pre_process_equations += inverse_evals
         for i, term in enumerate(avg_LEV_values):
@@ -769,17 +769,15 @@ class LLFCharacteristic(Characteristic):
         characteristic_flux_vector, CF_matrix = self.flux_vector_to_characteristic(derivatives, direction, averaged_suffix_name)
         characteristic_solution_vector, CS_matrix = self.solution_vector_to_characteristic(solution_vector, direction, averaged_suffix_name)
         # Can use horner here on characteristic flux
-        ## Added CF/CS to fn here
-        indexed_datasets = list(characteristic_solution_vector.atoms(DataSet).union(characteristic_flux_vector.atoms(DataSet)))
-        indexed_grid_vars = [GridVariable('fn_%d' % index) for index in range(len(indexed_datasets))]
-        subs_dict = dict(zip(indexed_datasets, indexed_grid_vars))
-        pre_process_equations  += [OpenSBLIEq(a, b) for a,b in zip(indexed_grid_vars, indexed_datasets)]
-
-        pre_process_equations += flatten(self.generate_equations_from_matrices(CF_matrix, characteristic_flux_vector.xreplace(subs_dict)))
-        pre_process_equations += flatten(self.generate_equations_from_matrices(CS_matrix, characteristic_solution_vector.xreplace(subs_dict)))
-
-        # eq = flatten(self.generate_equations_from_matrices(CF_matrix, characteristic_flux_vector.xreplace(subs_dict)))
-        # eq = flatten(self.generate_equations_from_matrices(CS_matrix, characteristic_solution_vector.xreplace(subs_dict)))
+        # ## Added CF/CS to fn here
+        # indexed_datasets = list(characteristic_solution_vector.atoms(DataSet).union(characteristic_flux_vector.atoms(DataSet)))
+        # indexed_grid_vars = [GridVariable('fn_%d' % index) for index in range(len(indexed_datasets))]
+        # subs_dict = dict(zip(indexed_datasets, indexed_grid_vars))
+        # pre_process_equations  += [OpenSBLIEq(a, b) for a,b in zip(indexed_grid_vars, indexed_datasets)]
+        # pre_process_equations += flatten(self.generate_equations_from_matrices(CF_matrix, characteristic_flux_vector.xreplace(subs_dict)))
+        # pre_process_equations += flatten(self.generate_equations_from_matrices(CS_matrix, characteristic_solution_vector.xreplace(subs_dict)))
+        pre_process_equations += flatten(self.generate_equations_from_matrices(CF_matrix, characteristic_flux_vector))
+        pre_process_equations += flatten(self.generate_equations_from_matrices(CS_matrix, characteristic_solution_vector))
 
         # Update constituent relations
         for d in derivatives:
@@ -925,7 +923,6 @@ class RFCharacteristic(Characteristic):
 
     def entropy_fix(self, grid_EV, avg_a, inv_avg_a):
         """ Creates the piecewise equations for the Harten entropy fix to Roe averages."""
-        avg_a = avg_a.lhs
         eps = 0.1
         output_eqns = []
         for i in range(grid_EV.shape[0]):
@@ -946,29 +943,27 @@ class RFCharacteristic(Characteristic):
         self.direction = direction
         pre_process_equations = []
         # Update the ev, LEV and REV dicts to keep the current dictionary structure. Can change after.
-        ev_dict, LEV_dict, REV_dict = self.euler.apply_direction(direction)
+        ev_dict, LEV_dict, REV_dict, required_metrics, inv_metric = self.euler.apply_direction(direction)
         self.eigen_value.update(ev_dict)
         self.left_eigen_vector.update(LEV_dict)
         self.right_eigen_vector.update(REV_dict)
-        # Finding metric terms to average
-        required_metrics = self.get_DataSets_in_ev(direction).union(self.get_DataSets_in_LEV(direction)).union(self.get_DataSets_in_REV(direction))
+        averaged_suffix_name = 'AVG_%d' % direction
+        self.averaged_suffix_name = averaged_suffix_name
+        self.inv_metric = self.convert_matrix_to_grid_variable(inv_metric, averaged_suffix_name)
         # Finding flow variables to average
         required_symbols = self.get_symbols_in_ev(direction).union(self.get_symbols_in_LEV(direction)).union(self.get_symbols_in_REV(direction))
         required_terms = required_symbols.union(required_metrics)
-        averaged_suffix_name = 'AVG_%d' % direction
-
-        self.averaged_suffix_name = averaged_suffix_name
 
         averaged_equations = self.average(required_terms, direction, averaged_suffix_name, block)
-        avg_speed_of_sound = averaged_equations[-1]
+        avg_speed_of_sound = GridVariable('AVG_%d_a' % direction)
 
         pre_process_equations += averaged_equations
         # Eigensystem based on averaged quantities
         avg_LEV_values = self.convert_matrix_to_grid_variable(self.left_eigen_vector[direction], averaged_suffix_name)
         # Manually replace re-used divides by inverses
-        inverses = [GridVariable('inv_AVG_a'), GridVariable('inv_AVG_rho')]
+        inverses = [GridVariable('inv_AVG_a'), GridVariable('inv_AVG_rho'), GridVariable('inv_AVG_met_fact')]
         inv_avg_a = GridVariable('inv_AVG_a')
-        to_be_replaced = [ 1/GridVariable('AVG_%d_a' % direction), 1/GridVariable('AVG_%d_rho' % direction)]
+        to_be_replaced = [ 1/GridVariable('AVG_%d_a' % direction), 1/GridVariable('AVG_%d_rho' % direction), 1/self.inv_metric]
         inverse_evals = [OpenSBLIEq(a,b) for (a,b) in zip(inverses, to_be_replaced)]
         pre_process_equations += inverse_evals
         for i, term in enumerate(avg_LEV_values):
@@ -990,6 +985,7 @@ class RFCharacteristic(Characteristic):
 
         # Create entropy fix for Roe averaging, requires averaged speed of sound
         entropy_eigvals = self.entropy_fix(grid_EV, avg_speed_of_sound, inv_avg_a)
+
         # Don't recalculate the same eigenvalues ordered as u, u, u, u+a, u-a
         if block.ndim == 2:
             entropy_eigvals[1] = OpenSBLIEq(entropy_eigvals[1].lhs, entropy_eigvals[0].lhs)

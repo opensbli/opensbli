@@ -1,5 +1,5 @@
-from sympy import diag, eye, Rational
-from opensbli.core.opensbliobjects import ConstantObject, EinsteinTerm
+from sympy import diag, eye, Rational, pprint
+from opensbli.core.opensbliobjects import ConstantObject, EinsteinTerm, DataSet
 from sympy.parsing.sympy_parser import parse_expr
 
 
@@ -24,6 +24,7 @@ class EulerEquations(object):
         subs_dict = dict([(x, y) for (x, y) in zip(terms, metric_values)])
         # Scaling factor based on metrics
         factor = sum([met_symbols[direction, i]**2 for i in range(self.ndim)])**(Rational(1, 2))
+        required_metrics = factor.atoms(DataSet)
         subs_dict[EinsteinTerm('k')] = factor
 
         def g(x):
@@ -31,7 +32,7 @@ class EulerEquations(object):
         ev_dict[direction] = diag(*list(self.ev.applyfunc(g)))
         LEV_dict[direction] = self.LEV.applyfunc(g)
         REV_dict[direction] = self.REV.applyfunc(g)
-        return ev_dict, LEV_dict, REV_dict
+        return ev_dict, LEV_dict, REV_dict, required_metrics, factor
 
     def generate_eig_system(self, block):
         """ Creates the Eigensystems used to diagonalize the Euler equations. No direction is
