@@ -1,4 +1,4 @@
-from sympy import IndexedBase, Symbol, Rational, solve, interpolating_poly, integrate, sqrt, zeros, Abs, Float, Matrix, flatten, Max, diag, Function
+from sympy import IndexedBase, Symbol, Rational, solve, interpolating_poly, integrate, sqrt, zeros, Abs, Float, Matrix, flatten, Max, diag, Function, S
 from sympy.core.numbers import Zero
 from opensbli.core.opensblifunctions import WenoDerivative
 from opensbli.core.opensbliobjects import EinsteinTerm, DataSetBase, ConstantObject, DataSet, GroupedPiecewise
@@ -215,6 +215,8 @@ class WenoReconstructionVariable(object):
         self.smoothness_symbols = []
         self.alpha_evaluated = []
         self.alpha_symbols = []
+        self.inv_alpha_sum_symbols = []
+        self.inv_alpha_sum_evaluated = []
         self.omega_evaluated = []
         self.omega_symbols = []
         self.function_stencil_dictionary = {}
@@ -228,14 +230,16 @@ class WenoReconstructionVariable(object):
         :arg object original: Reconstruction object variable, either left or right reconstruction."""
         self.smoothness_symbols += [GridVariable('%s' % (s)) for s in original.smoothness_symbols]
         self.alpha_symbols += [GridVariable('%s' % (s)) for s in original.alpha_symbols]
+        self.inv_alpha_sum_symbols += [GridVariable('%s' % (s)) for s in original.inv_alpha_sum_symbols]
         self.omega_symbols += [GridVariable('%s' % (s)) for s in original.omega_symbols]
 
-        subs_dict = dict(zip(original.smoothness_symbols+original.alpha_symbols+original.omega_symbols, self.smoothness_symbols+self.alpha_symbols+self.omega_symbols))
+        subs_dict = dict(zip(original.smoothness_symbols+original.alpha_symbols+original.inv_alpha_sum_symbols + original.omega_symbols, self.smoothness_symbols+self.alpha_symbols+self.inv_alpha_sum_symbols+self.omega_symbols))
         for key, value in original.function_stencil_dictionary.iteritems():
             subs_dict[value] = self.function_stencil_dictionary[key]
 
         self.smoothness_indicators = [s.subs(subs_dict) for s in original.smoothness_indicators]
         self.alpha_evaluated = [s.subs(subs_dict) for s in original.alpha_evaluated]
+        self.inv_alpha_sum_evaluated = [s.subs(subs_dict) for s in original.inv_alpha_sum_evaluated ]
         self.omega_evaluated = [s.subs(subs_dict) for s in original.omega_evaluated]
         self.reconstructed_expression = original.reconstructed_expression.subs(subs_dict)
         return
@@ -246,8 +250,8 @@ class WenoReconstructionVariable(object):
         return
 
     def evaluate_quantities(self, component_index):
-        all_symbols = self.smoothness_symbols + self.alpha_symbols + self.omega_symbols
-        all_evaluations = self.smoothness_indicators + self.alpha_evaluated + self.omega_evaluated
+        all_symbols = self.smoothness_symbols + self.alpha_symbols + self.inv_alpha_sum_symbols + self.omega_symbols
+        all_evaluations = self.smoothness_indicators + self.alpha_evaluated + self.inv_alpha_sum_evaluated + self.omega_evaluated
         final_equations = []
         for no, value in enumerate(all_symbols):
             final_equations += [OpenSBLIEq(value, all_evaluations[no])]
@@ -324,9 +328,13 @@ class WenoZ(object):
 
         :arg object RV: The reconstruction variable object.
         :arg object WenoConfig: Configuration settings for a reconstruction of either left or right."""
+        inv_alpha_sum_symbols = [Symbol('inv_alpha_sum')]
+        inv_alpha_sum_evaluated = [S.One/sum(RV.alpha_symbols)]
         for r in range(self.k):
             RV.omega_symbols += [Symbol('omega_%d' % r)]
-            RV.omega_evaluated += [RV.alpha_symbols[r]/sum(RV.alpha_symbols)]
+            RV.omega_evaluated += [RV.alpha_symbols[r]*inv_alpha_sum_symbols[0]]
+        RV.inv_alpha_sum_symbols = inv_alpha_sum_symbols
+        RV.inv_alpha_sum_evaluated = inv_alpha_sum_evaluated
         return
 
     def generate_reconstruction(self, RV, WenoConfig):
@@ -364,10 +372,15 @@ class WenoJS(object):
 
         :arg object RV: The reconstruction variable object.
         :arg object WenoConfig: Configuration settings for a reconstruction of either left or right."""
+        inv_alpha_sum_symbols = [Symbol('inv_alpha_sum')]
+        inv_alpha_sum_evaluated = [S.One/sum(RV.alpha_symbols)]
         for r in range(self.k):
             RV.omega_symbols += [Symbol('omega_%d' % r)]
-            RV.omega_evaluated += [RV.alpha_symbols[r]/sum(RV.alpha_symbols)]
+            RV.omega_evaluated += [RV.alpha_symbols[r]*inv_alpha_sum_symbols[0]]
+        RV.inv_alpha_sum_symbols = inv_alpha_sum_symbols
+        RV.inv_alpha_sum_evaluated = inv_alpha_sum_evaluated
         return
+
 
     def generate_reconstruction(self, RV, WenoConfig):
         """ Create the final WENO stencil by summing the stencil points, ENO coefficients and WENO weights.
@@ -639,8 +652,12 @@ class Characteristic(EigenSystem):
         avg_REV_values = self.convert_matrix_to_grid_variable(self.right_eigen_vector[self.direction], averaged_suffix_name)
         from sympy import srepr, Mul, Pow, Add, Integer
         # Manually remove the divides
-        inverses = [GridVariable('inv_gamma_m1'), GridVariable('inv_AVG_a'), GridVariable('inv_AVG_rho'), GridVariable('inv_AVG_met_fact')]
-        to_be_replaced = [Mul(Pow(Add(ConstantObject('gama'), Integer(-1)), Integer(-1))), 1/GridVariable('AVG_%d_a' % direction), 1/GridVariable('AVG_%d_rho' % direction), 1/self.inv_metric]
+        inverses = [GridVariable('inv_gamma_m1'), GridVariable('inv_AVG_a'), GridVariable('inv_AVG_rho')]
+        to_be_replaced = [Mul(Pow(Add(ConstantObject('gama'), Integer(-1)), Integer(-1))), 1/GridVariable('AVG_%d_a' % direction), 1/GridVariable('AVG_%d_rho' % direction)]
+        if len(self.inv_metric.atoms(GridVariable)) > 0: # Don't substitute if there are no metrics
+            inverses += [GridVariable('inv_AVG_met_fact')]
+            to_be_replaced += [1/self.inv_metric]
+
         for i, term in enumerate(avg_REV_values):
             for old, new in zip(to_be_replaced, inverses):
                 term = term.replace(old, new)
@@ -755,8 +772,13 @@ class LLFCharacteristic(Characteristic):
         grid_LEV = self.generate_grid_variable_LEV(direction, averaged_suffix_name)
 
         # Replace re-used divides by inverses
-        inverses = [GridVariable('inv_AVG_a'), GridVariable('inv_AVG_rho'), GridVariable('inv_AVG_met_fact')]
-        to_be_replaced = [ 1/GridVariable('AVG_%d_a' % direction), 1/GridVariable('AVG_%d_rho' % direction), 1/self.inv_metric]
+        inverses = [GridVariable('inv_AVG_a'), GridVariable('inv_AVG_rho')]
+        to_be_replaced = [ 1/GridVariable('AVG_%d_a' % direction), 1/GridVariable('AVG_%d_rho' % direction)]
+
+        if len(self.inv_metric.atoms(GridVariable)) > 0: # Don't substitute if there are no metrics
+            inverses += [GridVariable('inv_AVG_met_fact')]
+            to_be_replaced += [1/self.inv_metric]
+
         inverse_evals = [OpenSBLIEq(a,b) for (a,b) in zip(inverses, to_be_replaced)]
         pre_process_equations += inverse_evals
         for i, term in enumerate(avg_LEV_values):
@@ -769,13 +791,6 @@ class LLFCharacteristic(Characteristic):
         characteristic_flux_vector, CF_matrix = self.flux_vector_to_characteristic(derivatives, direction, averaged_suffix_name)
         characteristic_solution_vector, CS_matrix = self.solution_vector_to_characteristic(solution_vector, direction, averaged_suffix_name)
         # Can use horner here on characteristic flux
-        # ## Added CF/CS to fn here
-        # indexed_datasets = list(characteristic_solution_vector.atoms(DataSet).union(characteristic_flux_vector.atoms(DataSet)))
-        # indexed_grid_vars = [GridVariable('fn_%d' % index) for index in range(len(indexed_datasets))]
-        # subs_dict = dict(zip(indexed_datasets, indexed_grid_vars))
-        # pre_process_equations  += [OpenSBLIEq(a, b) for a,b in zip(indexed_grid_vars, indexed_datasets)]
-        # pre_process_equations += flatten(self.generate_equations_from_matrices(CF_matrix, characteristic_flux_vector.xreplace(subs_dict)))
-        # pre_process_equations += flatten(self.generate_equations_from_matrices(CS_matrix, characteristic_solution_vector.xreplace(subs_dict)))
         pre_process_equations += flatten(self.generate_equations_from_matrices(CF_matrix, characteristic_flux_vector))
         pre_process_equations += flatten(self.generate_equations_from_matrices(CS_matrix, characteristic_solution_vector))
 
@@ -961,9 +976,12 @@ class RFCharacteristic(Characteristic):
         # Eigensystem based on averaged quantities
         avg_LEV_values = self.convert_matrix_to_grid_variable(self.left_eigen_vector[direction], averaged_suffix_name)
         # Manually replace re-used divides by inverses
-        inverses = [GridVariable('inv_AVG_a'), GridVariable('inv_AVG_rho'), GridVariable('inv_AVG_met_fact')]
+        inverses = [GridVariable('inv_AVG_a'), GridVariable('inv_AVG_rho')]
         inv_avg_a = GridVariable('inv_AVG_a')
-        to_be_replaced = [ 1/GridVariable('AVG_%d_a' % direction), 1/GridVariable('AVG_%d_rho' % direction), 1/self.inv_metric]
+        to_be_replaced = [ 1/GridVariable('AVG_%d_a' % direction), 1/GridVariable('AVG_%d_rho' % direction)]
+        if len(self.inv_metric.atoms(GridVariable)) > 0: # Don't substitute if there are no metrics
+            inverses += [GridVariable('inv_AVG_met_fact')]
+            to_be_replaced += [1/self.inv_metric]
         inverse_evals = [OpenSBLIEq(a,b) for (a,b) in zip(inverses, to_be_replaced)]
         pre_process_equations += inverse_evals
         for i, term in enumerate(avg_LEV_values):
