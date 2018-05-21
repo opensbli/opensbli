@@ -137,7 +137,7 @@ class OPSCCodePrinter(C99CodePrinter):
         return out
 
     def _print_Grididx(self, expr):
-        out = "%s[%s]" % (self._print(expr.base), ','.join([self._print(expr.number)]))
+        out = "%s[%s]" % (self._print(expr.base.label), ','.join([self._print(expr.number)]))
         return out
     
     def _print_UserFunction(self, fn):
@@ -516,7 +516,10 @@ class OPSC(object):
         code += ['int from_base[] = {%s}%s' % (', '.join([str(s) for s in instance.transfer_from]), ";")]
         code += ['int to_base[] = {%s}%s' % (', '.join([str(s) for s in instance.transfer_to]), ";")]
         # dir in OPSC. WARNING: Not sure what it is, but 1 to ndim works.
-        code += ['int dir[] = {%s}%s' % (', '.join([str(ind+1) for ind in range(len(instance.transfer_to))]), ";")]
+        from_dir = [ind+1 for ind in range(len(instance.transfer_to))]
+        to_dir = [ind+1 for ind in range(len(instance.transfer_to))]
+        code += ['int from_dir[] = {%s}%s' % (', '.join([str(ind) for ind in from_dir]), ";")]
+        code += ['int to_dir[] = {%s}%s' % (', '.join([str(ind) for ind in to_dir]), ";")]
         # Process the arrays
         for no, arr in enumerate(instance.transfer_arrays):
             from_array = instance.from_arrays[no]
