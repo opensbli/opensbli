@@ -296,10 +296,13 @@ class Kernel(object):
         return stencil_dictionary
 
     def write_latex(self, latex):
-        latex.write_string('The kernel is %s' % latex.latexify_expression(self.computation_name, mode='inline'))
+        if isinstance(self.computation_name, str):
+            name = self.computation_name
+        else:
+            name = latex.latexify_expression(self.computation_name, mode='inline')
+        latex.write_string('The kernel is %s, block is %d' % (name, self.block_number))
         range_of_eval = self.total_range()
         latex.write_string('The ranges are %s' % (','.join([str(d) for d in flatten(range_of_eval)])))
-        # latex.write_string('. The range of evaluation is  %s \\ \n\n the halo ranges are %s'%(self.ranges, self.halo_ranges))
         for index, eq in enumerate(self.equations):
             if isinstance(eq, Equality):
                 latex.write_expression(eq)
@@ -338,7 +341,7 @@ class Kernel(object):
             raise ValueError("Kernel %s does not have any equations." % self.computation_name)
         range_of_eval = self.total_range()
         dtype = Int().opsc()
-        iter_name = "iteration_range_%d" % (self.kernel_no)
+        iter_name = "iteration_range_%d_block%d" % (self.kernel_no, self.block_number)
         iter_name_code = ['%s %s[] = {%s};' % (dtype, iter_name, ', '.join([str(s) for s in flatten(range_of_eval)]))]
         code = []
         # TODO check the dtype from the dataset

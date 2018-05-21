@@ -12,11 +12,15 @@ class WorkDataSet(object):
     def __init__(self):
         """
         """
-        self.work_name = 'wk%d'  # Work array name
+        self.work_name_base = "wk"  # Work array name
         self.work_index = 0  # Index of the work array, this is update when ever a new work array is called
         self.stored_index = 0
         self.dtype = None  # Place holder to save dtype not used currently
         return
+    
+    @property
+    def work_name(self):
+        return "%s%%d" %(self.work_name_base)
 
     def work_array(self, name=None, location=None):
         """ Sets up a opensbli DataSet, indexed by the relative location.

@@ -70,6 +70,7 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes):  # BoundaryC
         self.Rational_constants = {}
         self.block_stencils = {}
         self.InputOutput = []
+        self.list_of_equation_classes = []
         return
 
     @property
@@ -203,11 +204,10 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes):  # BoundaryC
     def set_equations(self, list_of_equations):
         """
         """
-        self.list_of_equation_classes = list_of_equations
-        # Convert the equations into block datasets
-        for eq in self.list_of_equation_classes:
-            block_eq = self.dataobjects_to_datasets_on_block(eq.equations)
-            eq.equations = block_eq
+        for eq in list_of_equations:
+             block_eq = self.dataobjects_to_datasets_on_block(eq.equations)
+             eq.equations = block_eq
+        self.list_of_equation_classes += list_of_equations
         self.sort_equation_classes
         return
 

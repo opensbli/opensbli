@@ -489,7 +489,7 @@ class GridIndexedBase(IndexedBase):
         return "%s" % (str(self.label))
 
 
-class Grididx(Symbol):
+class Grididx(Indexed):
     """ A coordinate object which can have Einstein indices to be expanded, this is used to
     differentiate between different Einstein terms, while performing differentiation.
 
@@ -498,15 +498,14 @@ class Grididx(Symbol):
     :param str label: name of the coordinate object to be defined
     :returns: declared coordinate
     :rtype: CoordinateObject """
+    is_Atom = False
 
-    def __new__(self, label, number, **assumptions):
-        self._sanitize(assumptions, self)  # Remove any 'None's, etc.
-        self.name = str(label) + str(number)
-        # Make this into a new SymPy Symbol object.
-        self = Symbol.__xnew__(self, self.name, **assumptions)
-        self.number = number
-        self.base = label
-        return self
+    def __new__(cls, label, number, **assumptions):
+        name = str(label)
+        ret = Indexed.__new__(cls, name, number, **assumptions)
+        ret.number = number
+        ret._args = tuple([ret.base, ret.number])
+        return ret
 
 
 class GlobalValue(object):
