@@ -1,7 +1,7 @@
 from sympy import IndexedBase, Symbol, Rational, solve, interpolating_poly, integrate, sqrt, zeros, Abs, Float, Matrix, flatten, Max, diag, Function, S
 from sympy.core.numbers import Zero
 from opensbli.core.opensblifunctions import WenoDerivative
-from opensbli.core.opensbliobjects import EinsteinTerm, DataSetBase, ConstantObject, DataSet, GroupedPiecewise
+from opensbli.core.opensbliobjects import EinsteinTerm, DataSetBase, ConstantObject, DataSet
 from opensbli.equation_types.opensbliequations import SimulationEquations, OpenSBLIEq
 from opensbli.core.kernel import Kernel
 from opensbli.core.grid import GridVariable
@@ -239,7 +239,7 @@ class WenoReconstructionVariable(object):
 
         self.smoothness_indicators = [s.subs(subs_dict) for s in original.smoothness_indicators]
         self.alpha_evaluated = [s.subs(subs_dict) for s in original.alpha_evaluated]
-        self.inv_alpha_sum_evaluated = [s.subs(subs_dict) for s in original.inv_alpha_sum_evaluated ]
+        self.inv_alpha_sum_evaluated = [s.subs(subs_dict) for s in original.inv_alpha_sum_evaluated]
         self.omega_evaluated = [s.subs(subs_dict) for s in original.omega_evaluated]
         self.reconstructed_expression = original.reconstructed_expression.subs(subs_dict)
         return
@@ -381,7 +381,6 @@ class WenoJS(object):
         RV.inv_alpha_sum_evaluated = inv_alpha_sum_evaluated
         return
 
-
     def generate_reconstruction(self, RV, WenoConfig):
         """ Create the final WENO stencil by summing the stencil points, ENO coefficients and WENO weights.
 
@@ -441,7 +440,6 @@ class ShockCapturing(object):
             # Reconstruction variable for this component (derivative)
             d.reconstructed_rhs = GridVariable('Recon_%d' % no)
         return
-
 
     def update_constituent_relation_symbols(self, sym, direction):
         """ Function to take the set of required quantities from the constituent relations in symbolic form
@@ -544,7 +542,7 @@ class EigenSystem(object):
         return
 
     def instantiate_eigensystem(self, block):
-        if self.physics == None:
+        if self.physics is None:
             Euler_eq = EulerEquations(block.ndim)
             Euler_eq.generate_eig_system(block)
         else:
@@ -650,11 +648,11 @@ class Characteristic(EigenSystem):
         post_process_equations = []
         averaged_suffix_name = self.averaged_suffix_name
         avg_REV_values = self.convert_matrix_to_grid_variable(self.right_eigen_vector[self.direction], averaged_suffix_name)
-        from sympy import srepr, Mul, Pow, Add, Integer
+        from sympy import Mul, Pow, Add, Integer
         # Manually remove the divides
         inverses = [GridVariable('inv_gamma_m1'), GridVariable('inv_AVG_a'), GridVariable('inv_AVG_rho')]
         to_be_replaced = [Mul(Pow(Add(ConstantObject('gama'), Integer(-1)), Integer(-1))), 1/GridVariable('AVG_%d_a' % direction), 1/GridVariable('AVG_%d_rho' % direction)]
-        if len(self.inv_metric.atoms(GridVariable)) > 0: # Don't substitute if there are no metrics
+        if len(self.inv_metric.atoms(GridVariable)) > 0:  # Don't substitute if there are no metrics
             inverses += [GridVariable('inv_AVG_met_fact')]
             to_be_replaced += [1/self.inv_metric]
 
@@ -739,7 +737,6 @@ class LLFCharacteristic(Characteristic):
         self.flux_split = True
         return
 
-
     def pre_process(self, direction, derivatives, solution_vector, kernel, block):
         """ Performs the transformation of the derivatives into characteristic space using the eigensystems provided to Characteristic. Flux splitting is then applied
         to the characteristic variables in preparation for the WENO interpolation. Required quantities are added to pre_process_equations.
@@ -762,7 +759,6 @@ class LLFCharacteristic(Characteristic):
         required_symbols = self.get_symbols_in_ev(direction).union(self.get_symbols_in_LEV(direction)).union(self.get_symbols_in_REV(direction))
         required_terms = required_symbols.union(required_metrics)
 
-
         averaged_equations = self.average(required_terms, direction, averaged_suffix_name, block)
         pre_process_equations += averaged_equations
         # Eigensystem based on averaged quantities
@@ -773,13 +769,13 @@ class LLFCharacteristic(Characteristic):
 
         # Replace re-used divides by inverses
         inverses = [GridVariable('inv_AVG_a'), GridVariable('inv_AVG_rho')]
-        to_be_replaced = [ 1/GridVariable('AVG_%d_a' % direction), 1/GridVariable('AVG_%d_rho' % direction)]
+        to_be_replaced = [1/GridVariable('AVG_%d_a' % direction), 1/GridVariable('AVG_%d_rho' % direction)]
 
-        if len(self.inv_metric.atoms(GridVariable)) > 0: # Don't substitute if there are no metrics
+        if len(self.inv_metric.atoms(GridVariable)) > 0:  # Don't substitute if there are no metrics
             inverses += [GridVariable('inv_AVG_met_fact')]
             to_be_replaced += [1/self.inv_metric]
 
-        inverse_evals = [OpenSBLIEq(a,b) for (a,b) in zip(inverses, to_be_replaced)]
+        inverse_evals = [OpenSBLIEq(a, b) for (a, b) in zip(inverses, to_be_replaced)]
         pre_process_equations += inverse_evals
         for i, term in enumerate(avg_LEV_values):
             for old, new in zip(to_be_replaced, inverses):
@@ -929,8 +925,8 @@ class RFCharacteristic(Characteristic):
 
     def __init__(self, physics, averaging=None):
         Characteristic.__init__(self, physics)
-        if averaging is None:
-            self.average = RoeAverage([0, 1]).average
+        if not isinstance(averaging, RoeAverage):
+            raise ValueError("Roe flux-differencing requires Roe averaging.")
         else:
             self.average = averaging.average
         self.flux_split = True
@@ -941,11 +937,10 @@ class RFCharacteristic(Characteristic):
         eps = 0.1
         output_eqns = []
         for i in range(grid_EV.shape[0]):
-            cond1 = ExprCondPair(Abs(grid_EV[i,i]), Abs(grid_EV[i,i]) >= 2*eps*avg_a)
-            cond2 = ExprCondPair(inv_avg_a*grid_EV[i,i]**2 / (4*eps) + eps*avg_a, True)
-            output_eqns.append(OpenSBLIEq(grid_EV[i,i], Piecewise(cond1, cond2)))
+            cond1 = ExprCondPair(Abs(grid_EV[i, i]), Abs(grid_EV[i, i]) >= 2*eps*avg_a)
+            cond2 = ExprCondPair(inv_avg_a*grid_EV[i, i]**2 / (4*eps) + eps*avg_a, True)
+            output_eqns.append(OpenSBLIEq(grid_EV[i, i], Piecewise(cond1, cond2)))
         return output_eqns
-
 
     def pre_process(self, direction, derivatives, solution_vector, kernel, block):
         """ Performs the transformation of the derivatives into characteristic space using the eigensystems provided to Characteristic. Flux splitting is then applied
@@ -970,6 +965,7 @@ class RFCharacteristic(Characteristic):
         required_terms = required_symbols.union(required_metrics)
 
         averaged_equations = self.average(required_terms, direction, averaged_suffix_name, block)
+
         avg_speed_of_sound = GridVariable('AVG_%d_a' % direction)
 
         pre_process_equations += averaged_equations
@@ -978,11 +974,11 @@ class RFCharacteristic(Characteristic):
         # Manually replace re-used divides by inverses
         inverses = [GridVariable('inv_AVG_a'), GridVariable('inv_AVG_rho')]
         inv_avg_a = GridVariable('inv_AVG_a')
-        to_be_replaced = [ 1/GridVariable('AVG_%d_a' % direction), 1/GridVariable('AVG_%d_rho' % direction)]
-        if len(self.inv_metric.atoms(GridVariable)) > 0: # Don't substitute if there are no metrics
+        to_be_replaced = [1/GridVariable('AVG_%d_a' % direction), 1/GridVariable('AVG_%d_rho' % direction)]
+        if len(self.inv_metric.atoms(GridVariable)) > 0:  # Don't substitute if there are no metrics
             inverses += [GridVariable('inv_AVG_met_fact')]
             to_be_replaced += [1/self.inv_metric]
-        inverse_evals = [OpenSBLIEq(a,b) for (a,b) in zip(inverses, to_be_replaced)]
+        inverse_evals = [OpenSBLIEq(a, b) for (a, b) in zip(inverses, to_be_replaced)]
         pre_process_equations += inverse_evals
         for i, term in enumerate(avg_LEV_values):
             for old, new in zip(to_be_replaced, inverses):
@@ -997,8 +993,6 @@ class RFCharacteristic(Characteristic):
         grid_EV = self.generate_grid_variable_ev(direction, averaged_suffix_name)
         # Add ev equations
         avg_EV_values = self.convert_matrix_to_grid_variable(self.eigen_value[direction], averaged_suffix_name)
-        store_EV_values = [term for term in avg_EV_values if not isinstance(term, Zero)]
-
         pre_process_equations += flatten(self.generate_equations_from_matrices(grid_EV, avg_EV_values))
 
         # Create entropy fix for Roe averaging, requires averaged speed of sound
@@ -1021,6 +1015,9 @@ class RFCharacteristic(Characteristic):
 
         for d in derivatives:
             required_symbols = required_symbols.union(d.atoms(DataSetBase))
+        # Remove speed of sound from CRs, not required for Roe-Flux
+        required_symbols.difference_update({EinsteinTerm('a')})
+
         self.update_constituent_relation_symbols(required_symbols, direction)
 
         if hasattr(self, 'flux_split') and self.flux_split:
@@ -1065,7 +1062,6 @@ class RFCharacteristic(Characteristic):
         for d in dsets:
             substitutions[d] = increment_dataset(d, direction, location)
         return symbolics.subs(substitutions)
-
 
     def discretise(self, type_of_eq, block):
         """ This is the place where the logic of vector form of equations are implemented.
@@ -1257,6 +1253,7 @@ class LLFWeno(LLFCharacteristic, Weno):
             else:
                 grouped[direction] = [cd]
         return grouped
+
 
 class RFWeno(RFCharacteristic, Weno):
     """ Performs the Local Lax Friedrichs flux splitting with a WENO scheme.
