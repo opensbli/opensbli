@@ -524,7 +524,7 @@ class OPSC(object):
         for no, arr in enumerate(instance.transfer_arrays):
             from_array = instance.from_arrays[no]
             to_array = instance.to_arrays[no]
-            code += ['ops_halo %s%d = ops_decl_halo(%s, %s, halo_iter, from_base, to_base, dir, dir)%s'
+            code += ['ops_halo %s%d = ops_decl_halo(%s, %s, halo_iter, from_base, to_base, from_dir, to_dir)%s'
                      % (halo, off, from_array.base, to_array.base, ";")]
             off = off+1
         code += ['ops_halo grp[] = {%s}%s' % (','.join([str('%s%s' % (halo, of)) for of in range(off)]), ";")]
