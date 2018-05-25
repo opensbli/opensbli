@@ -244,11 +244,6 @@ class WenoReconstructionVariable(object):
         self.reconstructed_expression = original.reconstructed_expression.subs(subs_dict)
         return
 
-    def add_evaluations_to_kernel(self, kernel):
-        for eqn in self.final_equations:
-            kernel.add_equation(eqn)
-        return
-
     def evaluate_quantities(self, component_index):
         all_symbols = self.smoothness_symbols + self.alpha_symbols + self.inv_alpha_sum_symbols + self.omega_symbols
         all_evaluations = self.smoothness_indicators + self.alpha_evaluated + self.inv_alpha_sum_evaluated + self.omega_evaluated
@@ -426,6 +421,7 @@ class ShockCapturing(object):
 
         :arg list derivatives: A list of the TENO derivatives to be computed.
         :arg object kernel: The current computational kernel."""
+        output_eqns = []
         for no, d in enumerate(derivatives):
             for rv in d.reconstructions:
                 if isinstance(rv, type(self.reconstruction_classes[1])):
@@ -436,10 +432,11 @@ class ShockCapturing(object):
                     raise ValueError("Reconstruction must be left or right")
                 rv.update_quantities(original_rv)
                 rv.evaluate_quantities(no)
-                rv.add_evaluations_to_kernel(kernel)
+                # Add all of the current equations
+                output_eqns += [rv.final_equations]
             # Reconstruction variable for this component (derivative)
             d.reconstructed_rhs = GridVariable('Recon_%d' % no)
-        return
+        return output_eqns
 
     def update_constituent_relation_symbols(self, sym, direction):
         """ Function to take the set of required quantities from the constituent relations in symbolic form
@@ -506,10 +503,10 @@ class Weno(Scheme, ShockCapturing):
         self.order = order
         if formulation.upper() == 'Z':
             WT = WenoZ(self.k)
-            print "A WENO-Z scheme of order %s is being used for shock capturing." % str(self.order)
+            print("A WENO-Z scheme of order %s is being used for shock capturing." % str(self.order))
         elif formulation.upper() == 'JS':  # Default to WENO-JS if no WENO scheme type provided
             WT = WenoJS(self.k)
-            print "A WENO-JS scheme of order %s is being used for shock capturing." % str(self.order)
+            print("A WENO-JS scheme of order %s is being used for shock capturing." % str(self.order))
         else:
             raise NotImplementedError("Only WENO-Z and WENO-JS schemes are implemented.")
         JS = JS_smoothness(self.k)
@@ -639,7 +636,7 @@ class Characteristic(EigenSystem):
         EigenSystem.__init__(self, physics)
         return
 
-    def post_process(self, direction, derivatives, kernel):
+    def post_process(self, direction, derivatives):
         """ Transforms the characteristic WENO interpolated fluxes back into real space by multiplying by the right
         eigenvector matrix.
 
@@ -665,8 +662,7 @@ class Characteristic(EigenSystem):
         reconstructed_work = [d.reconstruction_work for d in derivatives]
         post_process_equations += [OpenSBLIEq(inverses[0], to_be_replaced[0])]
         post_process_equations += [OpenSBLIEq(x, y) for x, y in zip(reconstructed_work, reconstructed_flux)]
-        kernel.add_equation(post_process_equations)
-        return
+        return post_process_equations
 
     def generate_left_reconstruction_variables(self, flux, derivatives):
         if isinstance(flux, Matrix):
@@ -737,14 +733,13 @@ class LLFCharacteristic(Characteristic):
         self.flux_split = True
         return
 
-    def pre_process(self, direction, derivatives, solution_vector, kernel, block):
+    def pre_process(self, direction, derivatives, solution_vector, block):
         """ Performs the transformation of the derivatives into characteristic space using the eigensystems provided to Characteristic. Flux splitting is then applied
         to the characteristic variables in preparation for the WENO interpolation. Required quantities are added to pre_process_equations.
 
         :arg int direction: Integer direction to apply the characteristic decomposition and WENO (x0, x1, ...).
         :arg list derivatives: The derivatives to perform the characteristic decomposition and WENO on.
-        :arg list solution_vector: Solution vector from the Euler equations (rho, rhou0, rhou1, rhou2, rhoE) in vector form.
-        :arg object kernel: The current computational kernel."""
+        :arg list solution_vector: Solution vector from the Euler equations (rho, rhou0, rhou1, rhou2, rhoE) in vector form."""
         self.direction = direction
         pre_process_equations = []
         # Update the ev, LEV and REV dicts to keep the current dictionary structure. Can change after.
@@ -815,8 +810,8 @@ class LLFCharacteristic(Characteristic):
         for eqn in pre_process_equations[:]:
             if isinstance(eqn, Zero) is True:
                 pre_process_equations.remove(eqn)
-        kernel.add_equation(pre_process_equations)
-        return
+        
+        return pre_process_equations
 
     def convert_symbolic_to_dataset(self, symbolics, location, direction, block):
         """ Converts symbolic terms to DataSets.
@@ -889,11 +884,13 @@ class LLFCharacteristic(Characteristic):
                 # WENO reconstruction should be evaluated for extra point on each side
                 kernel.set_halo_range(key, 0, reconstruction_halos)
                 kernel.set_halo_range(key, 1, reconstruction_halos)
-                self.pre_process(key, derivatives, flatten(type_of_eq.time_advance_arrays), kernel, block)
-                self.interpolate_reconstruction_variables(derivatives, kernel)
+                pre_process_eqn = self.pre_process(key, derivatives, flatten(type_of_eq.time_advance_arrays), block)
+                interpolated_eqn = self.interpolate_reconstruction_variables(derivatives, kernel)
                 block.set_block_boundary_halos(key, 0, self.halotype)
                 block.set_block_boundary_halos(key, 1, self.halotype)
-                self.post_process(key, derivatives, kernel)
+                post_process_eqn = self.post_process(key, derivatives, kernel)
+                # Add all of the equations to the kernel
+                kernel.add_equation(pre_process_eqn + interpolated_eqn + post_process_eqn)
                 type_of_eq.Kernels += [kernel]
             if grouped:
                 constituent_relations = self.generate_constituent_relations_kernels(block)
@@ -942,7 +939,7 @@ class RFCharacteristic(Characteristic):
             output_eqns.append(OpenSBLIEq(grid_EV[i, i], Piecewise(cond1, cond2)))
         return output_eqns
 
-    def pre_process(self, direction, derivatives, solution_vector, kernel, block):
+    def pre_process(self, direction, derivatives, solution_vector, block):
         """ Performs the transformation of the derivatives into characteristic space using the eigensystems provided to Characteristic. Flux splitting is then applied
         to the characteristic variables in preparation for the WENO interpolation. Required quantities are added to pre_process_equations.
 
@@ -1039,8 +1036,7 @@ class RFCharacteristic(Characteristic):
         for eqn in pre_process_equations[:]:
             if isinstance(eqn, Zero) is True:
                 pre_process_equations.remove(eqn)
-        kernel.add_equation(pre_process_equations)
-        return
+        return pre_process_equations
 
     def convert_symbolic_to_dataset(self, symbolics, location, direction, block):
         """ Converts symbolic terms to DataSets.
@@ -1090,11 +1086,13 @@ class RFCharacteristic(Characteristic):
                 # WENO reconstruction should be evaluated for extra point on each side
                 kernel.set_halo_range(key, 0, reconstruction_halos)
                 kernel.set_halo_range(key, 1, reconstruction_halos)
-                self.pre_process(key, derivatives, flatten(type_of_eq.time_advance_arrays), kernel, block)
-                self.interpolate_reconstruction_variables(derivatives, kernel)
+                pre_process_eqn = self.pre_process(key, derivatives, flatten(type_of_eq.time_advance_arrays), block)
+                interpolated_eqn = self.interpolate_reconstruction_variables(derivatives, kernel)
                 block.set_block_boundary_halos(key, 0, self.halotype)
                 block.set_block_boundary_halos(key, 1, self.halotype)
-                self.post_process(key, derivatives, kernel)
+                post_process_eqn = self.post_process(key, derivatives)
+                # Add the equations
+                kernel.add_equation(pre_process_eqn + interpolated_eqn + post_process_eqn)
                 type_of_eq.Kernels += [kernel]
             if grouped:
                 constituent_relations = self.generate_constituent_relations_kernels(block)
@@ -1121,7 +1119,7 @@ class RFCharacteristic(Characteristic):
 class SimpleAverage(object):
     def __init__(self, locations):
         self.locations = locations
-        print "Simple averaging is being used for the characteristic system"
+        print("Simple averaging is being used for the characteristic system")
         return
 
     def average(self, functions, direction, name_suffix, block):
@@ -1157,7 +1155,7 @@ class SimpleAverage(object):
 
 class RoeAverage(object):
     def __init__(self, locations, physics=None):
-        print "Roe averaging is being used for the characteristic system"
+        print("Roe averaging is being used for the characteristic system")
         self.locations = locations
         self.physics = physics
         return
@@ -1293,7 +1291,7 @@ class ScalarWeno(Weno):
     """ Scalar WENO procedure."""
 
     def __init__(self, order, physics=None, averaging=None):
-        print "A scalar WENO scheme of order %s is being used." % str(order)
+        print("A scalar WENO scheme of order %s is being used." % str(order))
         Weno.__init__(self, order)
         return
 
