@@ -416,11 +416,10 @@ class ShockCapturing(object):
             raise TypeError("Input should be a matrix.")
         return
 
-    def interpolate_reconstruction_variables(self, derivatives, kernel):
+    def interpolate_reconstruction_variables(self, derivatives):
         """ Perform the WENO/TENO interpolation on the reconstruction variables.
 
-        :arg list derivatives: A list of the TENO derivatives to be computed.
-        :arg object kernel: The current computational kernel."""
+        :arg list derivatives: A list of the TENO derivatives to be computed."""
         output_eqns = []
         for no, d in enumerate(derivatives):
             for rv in d.reconstructions:
@@ -885,10 +884,10 @@ class LLFCharacteristic(Characteristic):
                 kernel.set_halo_range(key, 0, reconstruction_halos)
                 kernel.set_halo_range(key, 1, reconstruction_halos)
                 pre_process_eqn = self.pre_process(key, derivatives, flatten(type_of_eq.time_advance_arrays), block)
-                interpolated_eqn = self.interpolate_reconstruction_variables(derivatives, kernel)
+                interpolated_eqn = self.interpolate_reconstruction_variables(derivatives)
                 block.set_block_boundary_halos(key, 0, self.halotype)
                 block.set_block_boundary_halos(key, 1, self.halotype)
-                post_process_eqn = self.post_process(key, derivatives, kernel)
+                post_process_eqn = self.post_process(key, derivatives)
                 # Add all of the equations to the kernel
                 kernel.add_equation(pre_process_eqn + interpolated_eqn + post_process_eqn)
                 type_of_eq.Kernels += [kernel]
@@ -1087,7 +1086,7 @@ class RFCharacteristic(Characteristic):
                 kernel.set_halo_range(key, 0, reconstruction_halos)
                 kernel.set_halo_range(key, 1, reconstruction_halos)
                 pre_process_eqn = self.pre_process(key, derivatives, flatten(type_of_eq.time_advance_arrays), block)
-                interpolated_eqn = self.interpolate_reconstruction_variables(derivatives, kernel)
+                interpolated_eqn = self.interpolate_reconstruction_variables(derivatives)
                 block.set_block_boundary_halos(key, 0, self.halotype)
                 block.set_block_boundary_halos(key, 1, self.halotype)
                 post_process_eqn = self.post_process(key, derivatives)
