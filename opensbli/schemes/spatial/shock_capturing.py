@@ -61,6 +61,8 @@ class ShockCapturing(object):
         output_eqns = []
         for no, d in enumerate(derivatives):
             for rv in d.reconstructions:
+                combined_left_right_variable = GridVariable('Recon_%d' % no)
+                settings = {"combine_reconstructions":True, "combine_variable":combined_left_right_variable}
                 if isinstance(rv, type(self.reconstruction_classes[1])):
                     original_rv = self.reconstruction_classes[1]
                 elif isinstance(rv, type(self.reconstruction_classes[0])):
@@ -68,11 +70,11 @@ class ShockCapturing(object):
                 else:
                     raise ValueError("Reconstruction must be left or right")
                 rv.update_quantities(original_rv)
-                rv.evaluate_quantities(no)
+                rv.evaluate_quantities(**settings)
                 # Add all of the current equations
                 output_eqns += [rv.final_equations]
             # Reconstruction variable for this component (derivative)
-            d.reconstructed_rhs = GridVariable('Recon_%d' % no)
+            d.reconstructed_rhs = combined_left_right_variable
         return output_eqns
 
     def update_constituent_relation_symbols(self, sym, direction):
