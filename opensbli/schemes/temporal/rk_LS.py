@@ -1,4 +1,4 @@
-from sympy import flatten, Idx, sqrt, pprint
+from sympy import flatten, Idx, sqrt, Rational
 from opensbli.core.opensbliobjects import ConstantObject, ConstantIndexed, Globalvariable
 from opensbli.equation_types.opensbliequations import OpenSBLIEq
 from opensbli.core.kernel import Kernel
@@ -7,25 +7,36 @@ from opensbli.core.grid import GridVariable
 from opensbli.schemes.spatial.scheme import Scheme, TemporalSolution
 
 
-class RungeKuttaSSP(Scheme):
-    """ Applies a low storage (2 Register, Williamson form) Runge-Kutta Strong stability preserving time-stepping scheme.
-        Optimal coefficients taken from "Gottlieb, Shu, Tadmor (2001): Strong Stability-Preserving High-Order Time
+class RungeKuttaLS(Scheme):
+    """ Applies a low storage (2 Register, Williamson form) Runge-Kutta scheme from: Fourth-Order Kutta Schemes 2N-Storage (Carpenter, 1994).
+        Optimal SSP coefficients for the 3rd order scheme are taken from "Gottlieb, Shu, Tadmor (2001): Strong Stability-Preserving High-Order Time
         Discretization Methods, SIAM Review Vol. 43, No.1, pp 89-112.
 
-        For m=3 stages and current time 'n' with u^0 = u^n, du^0 = 0:
-        do i = 1..3:
+        For m stages and current time 'n' with u^0 = u^n, du^0 = 0:
+        do i = 1..m:
             du^i = A[i]*du^(i-1) + dt*Residual
             u^i = u^(i-1) + B[i]*du^i
         u^n+1 = u^m."
 
         :arg int order: The order of accuracy of the scheme."""
 
-    def __init__(cls, order, constant_dt=None):
+    def __init__(cls, order, formulation=None, constant_dt=None):
         Scheme.__init__(cls, "RungeKutta", order)
-        print("An SSP Runge-Kutta scheme of order %d is being used for time-stepping." % order)
+        if order == 3:  # 3rd order schemes are 3-stage
+            n_stages = order
+        elif order == 4:  # 4th order scheme is 5-stage
+            n_stages = order + 1
+        cls.formulation = formulation
+        if formulation == 'SSP':
+            if order != 3:
+                raise ValueError("RK-SSP is only available for the 3rd order scheme.")
+            else:
+                print("An SSP Runge-Kutta scheme of order %d is being used for time-stepping." % order)
+        else:
+            print("A Runge-Kutta scheme of order %d is being used for time-stepping." % order)
         cls.schemetype = "Temporal"
         cls.nloops = 2
-        cls.stage = Idx('stage', order)
+        cls.stage = Idx('stage', n_stages)
         cls.solution_coeffs = ConstantIndexed('rkB', cls.stage)
         cls.stage_coeffs = ConstantIndexed('rkA', cls.stage)
         from opensbli.core.kernel import ConstantsToDeclare as CTD
@@ -54,23 +65,35 @@ class RungeKuttaSSP(Scheme):
     @property
     def get_coefficients(cls):
         """ Create A (intermediate update) and B (solution advance) coefficients for the RK scheme."""
-
         if cls.order == 3:
-            c = 0.924574
-            z1 = float(sqrt(36*c**4 + 36*c**3 - 135*c**2 + 84*c - 12))
-            z2 = float(2*c**2 + c - 2)
-            z3 = float(12*c**4 - 18*c**3 + 18*c**2 - 11*c + 2)
-            z4 = float(36*c**4 - 36*c**3 + 13*c**2 - 8*c + 4)
-            z5 = float(69*c**3 - 62*c**2 + 28*c - 8)
-            z6 = float(34*c**4 - 46*c**3 + 34*c**2 - 13*c + 2)
-            B1 = 0.924574
-            B2 = (12*c*(c-1)*(3*z2-z1) - (3*z2-z1)**2)/(144*c*(3*c-2)*(c-1)**2)
-            B3 = (-24*(3*c-2)*(c-1)**2)/((3*z2-z1)**2 - 12*c*(c-1)*(3*z2-z1))
-            A1 = 0.0
-            A2 = (-z1*(6*c**2 - 4*c + 1) + 3*z3)/((2*c+1)*z1 - 3*(c+2)*(2*c-1)**2)
-            A3 = (-z1*z4 + 108*(2*c-1)*c**5 - 3*(2*c-1)*z5)/(24*z1*c*(c-1)**4 + 72*c*z6 + 72*c**6 * (2*c-13))
-            cls.solution_coeffs.value = [B1, B2, B3]
-            cls.stage_coeffs.value = [A1, A2, A3]
+            if cls.formulation == 'SSP':
+                c = 0.924574
+                z1 = float(sqrt(36*c**4 + 36*c**3 - 135*c**2 + 84*c - 12))
+                z2 = float(2*c**2 + c - 2)
+                z3 = float(12*c**4 - 18*c**3 + 18*c**2 - 11*c + 2)
+                z4 = float(36*c**4 - 36*c**3 + 13*c**2 - 8*c + 4)
+                z5 = float(69*c**3 - 62*c**2 + 28*c - 8)
+                z6 = float(34*c**4 - 46*c**3 + 34*c**2 - 13*c + 2)
+                B1 = 0.924574
+                B2 = (12*c*(c-1)*(3*z2-z1) - (3*z2-z1)**2)/(144*c*(3*c-2)*(c-1)**2)
+                B3 = (-24*(3*c-2)*(c-1)**2)/((3*z2-z1)**2 - 12*c*(c-1)*(3*z2-z1))
+                A1 = 0.0
+                A2 = (-z1*(6*c**2 - 4*c + 1) + 3*z3)/((2*c+1)*z1 - 3*(c+2)*(2*c-1)**2)
+                A3 = (-z1*z4 + 108*(2*c-1)*c**5 - 3*(2*c-1)*z5)/(24*z1*c*(c-1)**4 + 72*c*z6 + 72*c**6 * (2*c-13))
+                cls.solution_coeffs.value = [B1, B2, B3]
+                cls.stage_coeffs.value = [A1, A2, A3]
+            else:
+                A1, A2, A3 = 0, Rational(-5, 9), Rational(-153, 128)
+                B1, B2, B3 = Rational(1, 3), Rational(15, 16), Rational(8, 15)
+                cls.solution_coeffs.value = [B1, B2, B3]
+                cls.stage_coeffs.value = [A1, A2, A3]
+        elif cls.order == 4:
+            A1, A2, A3, A4, A5 = 0, -0.4178904745, -1.192151694643, -1.697784692471, -1.514183444257
+            B1, B2, B3, B4, B5 = 0.1496590219993, 0.3792103129999, 0.8229550293869, 0.6994504559488, 0.1530572479681
+            cls.solution_coeffs.value = [B1, B2, B3, B4, B5]
+            cls.stage_coeffs.value = [A1, A2, A3, A4, A5]
+        else:
+            raise NotImplementedError("Only 3rd and 4th order RK schemes are currently implemented.")
         return
 
     def __str__(cls):
