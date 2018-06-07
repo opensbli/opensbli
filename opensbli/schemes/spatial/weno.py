@@ -1,16 +1,13 @@
-from sympy import IndexedBase, Symbol, Rational, solve, interpolating_poly, integrate, sqrt, zeros, Abs, Float, Matrix, flatten, Max, diag, Function, S
-from sympy.core.numbers import Zero
+from sympy import IndexedBase, Symbol, Rational, solve, interpolating_poly, integrate, zeros, Abs, Float, Matrix, flatten, Function, S
 from opensbli.core.opensblifunctions import WenoDerivative
-from opensbli.core.opensbliobjects import EinsteinTerm, DataSetBase, ConstantObject, DataSet
+from opensbli.core.opensbliobjects import DataSetBase
 from opensbli.equation_types.opensbliequations import SimulationEquations, OpenSBLIEq
 from opensbli.core.kernel import Kernel
 from opensbli.core.grid import GridVariable
 from opensbli.utilities.helperfunctions import increment_dataset
-from opensbli.physical_models.ns_physics import NSphysics
-from opensbli.physical_models.euler_eigensystem import EulerEquations
 from .scheme import Scheme
 from sympy import factor, horner, pprint
-from sympy.functions.elementary.piecewise import ExprCondPair, Piecewise
+from opensbli.schemes.spatial.shock_capturing import ShockCapturing, LLFCharacteristic, RFCharacteristic
 
 
 class WenoHalos(object):
@@ -332,19 +329,6 @@ class WenoZ(object):
         RV.inv_alpha_sum_evaluated = inv_alpha_sum_evaluated
         return
 
-    def generate_reconstruction(self, RV, WenoConfig):
-        """ Create the final WENO stencil by summing the stencil points, ENO coefficients and WENO weights.
-
-        :arg object RV: The reconstruction variable object.
-        :arg object WenoConfig: Configuration settings for a reconstruction of either left or right."""
-        stencil = 0
-        k, c_rj = self.k, WenoConfig.c_rj
-        for r in range(k):
-            eno_expansion = [c_rj.get((r, j))*RV.function_stencil_dictionary[WenoConfig.func_points[r*k+j]] for j in range(k)]
-            stencil += RV.omega_symbols[r]*sum(eno_expansion)
-        RV.reconstructed_expression = stencil
-        return
-
 
 class WenoJS(object):
     def __init__(self, k):
@@ -375,115 +359,6 @@ class WenoJS(object):
         RV.inv_alpha_sum_symbols = inv_alpha_sum_symbols
         RV.inv_alpha_sum_evaluated = inv_alpha_sum_evaluated
         return
-
-    def generate_reconstruction(self, RV, WenoConfig):
-        """ Create the final WENO stencil by summing the stencil points, ENO coefficients and WENO weights.
-
-        :arg object RV: The reconstruction variable object.
-        :arg object WenoConfig: Configuration settings for a reconstruction of either left or right."""
-        stencil = 0
-        k, c_rj = self.k, WenoConfig.c_rj
-        for r in range(k):
-            eno_expansion = [c_rj.get((r, j))*RV.function_stencil_dictionary[WenoConfig.func_points[r*k+j]] for j in range(k)]
-            stencil += RV.omega_symbols[r]*sum(eno_expansion)
-        RV.reconstructed_expression = stencil
-        return
-
-
-class ShockCapturing(object):
-
-    def generate_left_reconstruction_variables(self, expression_matrix, derivatives):
-        if isinstance(expression_matrix, Matrix):
-            stencil = expression_matrix.stencil_points
-            for i in range(expression_matrix.shape[0]):
-                rv = type(self.reconstruction_classes[1])('L_X%d_%d' % (self.direction, i))
-                for p in sorted(set(self.reconstruction_classes[1].func_points)):
-                    rv.function_stencil_dictionary[p] = expression_matrix[i, stencil.index(p)]
-                derivatives[i].add_reconstruction_classes([rv])
-        else:
-            raise TypeError("Input should be a matrix.")
-        return
-
-    def generate_right_reconstruction_variables(self, expression_matrix, derivatives):
-        if isinstance(expression_matrix, Matrix):
-            stencil = expression_matrix.stencil_points
-            for i in range(expression_matrix.shape[0]):
-                rv = type(self.reconstruction_classes[0])('R_X%d_%d' % (self.direction, i))
-                for p in sorted(set(self.reconstruction_classes[0].func_points)):
-                    rv.function_stencil_dictionary[p] = expression_matrix[i, stencil.index(p)]
-                derivatives[i].add_reconstruction_classes([rv])
-        else:
-            raise TypeError("Input should be a matrix.")
-        return
-
-    def interpolate_reconstruction_variables(self, derivatives):
-        """ Perform the WENO/TENO interpolation on the reconstruction variables.
-
-        :arg list derivatives: A list of the TENO derivatives to be computed."""
-        output_eqns = []
-        for no, d in enumerate(derivatives):
-            for rv in d.reconstructions:
-                if isinstance(rv, type(self.reconstruction_classes[1])):
-                    original_rv = self.reconstruction_classes[1]
-                elif isinstance(rv, type(self.reconstruction_classes[0])):
-                    original_rv = self.reconstruction_classes[0]
-                else:
-                    raise ValueError("Reconstruction must be left or right")
-                rv.update_quantities(original_rv)
-                rv.evaluate_quantities(no)
-                # Add all of the current equations
-                output_eqns += [rv.final_equations]
-            # Reconstruction variable for this component (derivative)
-            d.reconstructed_rhs = GridVariable('Recon_%d' % no)
-        return output_eqns
-
-    def update_constituent_relation_symbols(self, sym, direction):
-        """ Function to take the set of required quantities from the constituent relations in symbolic form
-        and update the directions in which they are used.
-
-        :arg set sym: Set of required symbols.
-        :arg int direction: The axis on which WENO is being applied to (x0, x1 ..)."""
-        if isinstance(sym, Symbol):
-            sym = [sym]
-        elif isinstance(sym, list) or isinstance(sym, set):
-            pass
-        else:
-            raise ValueError("The symbol provided should be either a list or symbols")
-        for s in sym:
-            if isinstance(s, DataSetBase):
-                s = s.noblockname
-            if s in self.required_constituent_relations_symbols.keys():
-                self.required_constituent_relations_symbols[s] += [direction]
-            else:
-                self.required_constituent_relations_symbols[s] = [direction]
-        return
-
-    def generate_constituent_relations_kernels(self, block):
-        """ Generates constituent relation kernels on the block.
-
-        :arg object block: The current block."""
-        crs = {}
-        for key in self.required_constituent_relations_symbols:
-            kernel = Kernel(block, computation_name="CR%s" % key)
-            kernel.set_grid_range(block)
-            for direction in self.required_constituent_relations_symbols[key]:
-                kernel.set_halo_range(direction, 0, self.halotype)
-                kernel.set_halo_range(direction, 1, self.halotype)
-            crs[block.location_dataset(key)] = kernel
-        return crs
-
-    def check_constituent_relations(self, block, list_of_eq, current_constituents):
-        """ Checks all the datasets in equations provided are evaluated in constituent relations."""
-        arrays = []
-        for eq in flatten(list_of_eq):
-            arrays += list(eq.atoms(DataSet))
-        arrays = set(arrays)
-        undefined = arrays.difference(current_constituents.keys())
-
-        for dset in undefined:
-            current_constituents[dset] = Kernel(block, computation_name="CR%s" % dset)
-            current_constituents[dset].set_grid_range(block)
-        return current_constituents
 
 
 class Weno(Scheme, ShockCapturing):
@@ -522,700 +397,43 @@ class Weno(Scheme, ShockCapturing):
             JS.generate_function_smoothness_indicators(RV)
             WT.generate_alphas(RV, WenoConfig)
             WT.generate_omegas(RV, WenoConfig)
-            WT.generate_reconstruction(RV, WenoConfig)
+            # Final reconstruction is the same for WENO-JS and WENO-Z
+            self.generate_reconstruction(RV, WenoConfig)
             self.reconstruction_classes[no] = RV
         return
 
+    def reconstruction_halotype(self, order, reconstruction=True):
+        return WenoHalos(order, reconstruction)
 
-class EigenSystem(object):
-    """ Class to hold the routines required by the characteristic decomposition of the Euler equations. The input
-    is the eigensystems used to diagonalise the Jacobian in each direction.
+    def group_by_direction(self, eqs):
+        """ Groups the input equations by the direction (x0, x1, ...) they depend upon.
 
-    :arg object physics: Physics object, defaults to NSPhysics."""
+        :arg list eqs: List of equations to group by direction.
+        :returns: dict: grouped: Dictionary of {direction: equations} key, value pairs for equations grouped by direction."""
+        all_WDS = []
+        for eq in eqs:
+            all_WDS += list(eq.atoms(WenoDerivative))
+        grouped = {}
+        for cd in all_WDS:
+            direction = cd.get_direction[0]
+            if direction in grouped.keys():
+                grouped[direction] += [cd]
+            else:
+                grouped[direction] = [cd]
+        return grouped
 
-    def __init__(self, physics):
-        self.physics = physics
+    def generate_reconstruction(self, RV, WenoConfig):
+        """ Create the final WENO stencil by summing the stencil points, ENO coefficients and WENO weights.
+
+        :arg object RV: The reconstruction variable object.
+        :arg object WenoConfig: Configuration settings for a reconstruction of either left or right."""
+        stencil = 0
+        k, c_rj = self.k, WenoConfig.c_rj
+        for r in range(k):
+            eno_expansion = [c_rj.get((r, j))*RV.function_stencil_dictionary[WenoConfig.func_points[r*k+j]] for j in range(k)]
+            stencil += RV.omega_symbols[r]*sum(eno_expansion)
+        RV.reconstructed_expression = stencil
         return
-
-    def instantiate_eigensystem(self, block):
-        if self.physics is None:
-            Euler_eq = EulerEquations(block.ndim)
-            Euler_eq.generate_eig_system(block)
-        else:
-            self.physics.generate_eig_system(block)
-        self.euler = Euler_eq
-        self.eigen_value = {}
-        self.left_eigen_vector = {}
-        self.right_eigen_vector = {}
-        return
-
-    def get_symbols_in_ev(self, direction):
-        """ Retrieve the unique symbols present in the eigenvalue matrix for a given direction."""
-        return self.eigen_value[direction].atoms(EinsteinTerm).difference(self.eigen_value[direction].atoms(ConstantObject))
-
-    def get_symbols_in_LEV(self, direction):
-        """ Retrieve the unique symbols present in the left eigenvector matrix for a given direction."""
-        return self.left_eigen_vector[direction].atoms(EinsteinTerm).difference(self.left_eigen_vector[direction].atoms(ConstantObject))
-
-    def get_symbols_in_REV(self, direction):
-        """ Retrieve the unique symbols present in the right rigenvector matrix for a given direction."""
-        return self.right_eigen_vector[direction].atoms(EinsteinTerm).difference(self.right_eigen_vector[direction].atoms(ConstantObject))
-
-    # def get_DataSets_in_ev(self, direction):
-    #     return self.eigen_value[direction].atoms(DataSet).difference(self.eigen_value[direction].atoms(ConstantObject))
-
-    # def get_DataSets_in_LEV(self, direction):
-    #     return self.left_eigen_vector[direction].atoms(DataSet).difference(self.left_eigen_vector[direction].atoms(ConstantObject))
-
-    # def get_DataSets_in_REV(self, direction):
-    #     return self.right_eigen_vector[direction].atoms(DataSet).difference(self.right_eigen_vector[direction].atoms(ConstantObject))
-
-    def generate_grid_variable_ev(self, direction, name):
-        """ Create a matrix of eigenvalue GridVariable elements. """
-        name = '%s_lambda_%d' % (name, direction)
-        return self.symbol_matrix(self.eigen_value[direction], name)
-
-    def generate_grid_variable_REV(self, direction, name):
-        """ Create a matrix of right eigenvector GridVariable elements. """
-        name = '%s_%d_REV' % (name, direction)
-        return self.symbol_matrix(self.right_eigen_vector[direction], name)
-
-    def generate_grid_variable_LEV(self, direction, name):
-        """ Create a matrix of left eigenvector GridVariable elements. """
-        name = '%s_%d_LEV' % (name, direction)
-        return self.symbol_matrix(self.left_eigen_vector[direction], name)
-
-    def symbol_matrix(self, mat, name):
-        """ Generic function to populate a matrix of GridVariables for a given name and shape."""
-        shape = mat.shape
-        symbolic_matrix = zeros(*shape)
-        for i in range(shape[0]):
-            for j in range(shape[1]):
-                if mat[i, j]:
-                    symbolic_matrix[i, j] = GridVariable('%s_%d%d' % (name, i, j))
-        return symbolic_matrix
-
-    def convert_matrix_to_grid_variable(self, mat, name):
-        """ Converts the given symbolic matrix to grid variable equivalent.
-
-        :arg Matrix mat: Symbolic matrix to convert to GridVariable elements.
-        :arg str name: Base name to use for the GridVariables
-        :returns: mat: The matrix updated to contain GridVariables."""
-        syms = list(mat.atoms(EinsteinTerm).difference(mat.atoms(ConstantObject)))
-        new_syms = [GridVariable('%s_%s' % (name, str(sym))) for sym in syms]
-        substitutions = dict(zip(syms, new_syms))
-        # Find Metric terms which are datasets
-        dsets = list(mat.atoms(DataSet).difference(mat.atoms(ConstantObject)))
-        new_dsets = [GridVariable('%s_%s' % (name, d.base.simplelabel())) for d in dsets]
-        substitutions.update(dict(zip(dsets, new_dsets)))
-        mat = mat.subs(substitutions)
-        return mat
-
-    def generate_equations_from_matrices(self, lhs_matrix, rhs_matrix):
-        """ Forms a matrix containing Sympy equations at each element, given two input matrices.
-
-        :arg Matrix lhs_matrix: The elements of lhs_matrix form the LHS of the output equations.
-        :arg Matrix rhs_matrix: The elements of rhs_matrix form the RHS of the output equations.
-        returns: Matrix: equations: A matrix containing an Eq(lhs, rhs) pair in each element."""
-        if lhs_matrix.shape != rhs_matrix.shape:
-            raise ValueError("Matrices should have the same dimension.")
-        equations = zeros(*lhs_matrix.shape)
-        for no, v in enumerate(lhs_matrix):
-            if rhs_matrix[no] != 0:
-                equations[no] = OpenSBLIEq(v, factor(rhs_matrix[no]))
-        return equations
-
-
-class Characteristic(EigenSystem):
-    """ Class containing the routines required to perform the characteristic decomposition.
-
-        :arg object physics: Physics object, defaults to NSPhysics."""
-
-    def __init__(self, physics):
-        EigenSystem.__init__(self, physics)
-        return
-
-    def post_process(self, direction, derivatives):
-        """ Transforms the characteristic WENO interpolated fluxes back into real space by multiplying by the right
-        eigenvector matrix.
-
-        :arg list derivatives: The derivatives to perform the characteristic decomposition and WENO on.
-        :arg object kernel: The current computational kernel."""
-        post_process_equations = []
-        averaged_suffix_name = self.averaged_suffix_name
-        avg_REV_values = self.convert_matrix_to_grid_variable(self.right_eigen_vector[self.direction], averaged_suffix_name)
-        from sympy import Mul, Pow, Add, Integer
-        # Manually remove the divides
-        inverses = [GridVariable('inv_gamma_m1'), GridVariable('inv_AVG_a'), GridVariable('inv_AVG_rho')]
-        to_be_replaced = [Mul(Pow(Add(ConstantObject('gama'), Integer(-1)), Integer(-1))), 1/GridVariable('AVG_%d_a' % direction), 1/GridVariable('AVG_%d_rho' % direction)]
-        if len(self.inv_metric.atoms(GridVariable)) > 0:  # Don't substitute if there are no metrics
-            inverses += [GridVariable('inv_AVG_met_fact')]
-            to_be_replaced += [1/self.inv_metric]
-
-        for i, term in enumerate(avg_REV_values):
-            for old, new in zip(to_be_replaced, inverses):
-                term = term.replace(old, new)
-            avg_REV_values[i] = term
-        reconstructed_characteristics = Matrix([d.reconstructed_rhs for d in derivatives])
-        reconstructed_flux = avg_REV_values*reconstructed_characteristics
-        reconstructed_work = [d.reconstruction_work for d in derivatives]
-        post_process_equations += [OpenSBLIEq(inverses[0], to_be_replaced[0])]
-        post_process_equations += [OpenSBLIEq(x, y) for x, y in zip(reconstructed_work, reconstructed_flux)]
-        return post_process_equations
-
-    def generate_left_reconstruction_variables(self, flux, derivatives):
-        if isinstance(flux, Matrix):
-            stencil = flux.stencil_points
-            for i in range(flux.shape[0]):
-                rv = type(self.reconstruction_classes[1])('L_X%d_%d' % (self.direction, i))
-                for p in sorted(set(self.reconstruction_classes[1].func_points)):
-                    rv.function_stencil_dictionary[p] = flux[i, stencil.index(p)]
-                derivatives[i].add_reconstruction_classes([rv])
-        return
-
-    def generate_right_reconstruction_variables(self, flux, derivatives):
-        if isinstance(flux, Matrix):
-            stencil = flux.stencil_points
-            for i in range(flux.shape[0]):
-                rv = type(self.reconstruction_classes[0])('R_X%d_%d' % (self.direction, i))
-                for p in sorted(set(self.reconstruction_classes[0].func_points)):
-                    rv.function_stencil_dictionary[p] = flux[i, stencil.index(p)]
-                derivatives[i].add_reconstruction_classes([rv])
-        return
-
-    def solution_vector_to_characteristic(self, solution_vector, direction, name):
-        stencil_points = sorted(list(set(self.reconstruction_classes[0].func_points + self.reconstruction_classes[1].func_points)))
-        solution_vector_stencil = zeros(len(solution_vector), len(stencil_points))
-        CS_matrix = zeros(len(solution_vector), len(stencil_points))
-        for j, val in enumerate(stencil_points):  # j in fv stencil matrix
-            for i, flux in enumerate(solution_vector):
-                solution_vector_stencil[i, j] = increment_dataset(flux, direction, val)
-                CS_matrix[i, j] = GridVariable('CS_%d%d' % (i, j))
-        grid_LEV = self.generate_grid_variable_LEV(direction, name)
-        characteristic_solution_stencil = grid_LEV*solution_vector_stencil
-        characteristic_solution_stencil.stencil_points = stencil_points
-        CS_matrix.stencil_points = stencil_points
-        return characteristic_solution_stencil, CS_matrix
-
-    def flux_vector_to_characteristic(self, derivatives, direction, name):
-        fv = []
-        for d in derivatives:
-            if d.get_direction[0] != direction:
-                raise ValueError("Derivatives provided for flux vector are not homogeneous in direction.")
-            fv += [d.args[0]]
-        stencil_points = sorted(list(set(self.reconstruction_classes[0].func_points + self.reconstruction_classes[1].func_points)))
-        flux_stencil = zeros(len(fv), len(stencil_points))
-        CF_matrix = zeros(len(fv), len(stencil_points))
-        for j, val in enumerate(stencil_points):  # j in fv stencil matrix
-            for i, flux in enumerate(fv):
-                flux_stencil[i, j] = increment_dataset(flux, direction, val)
-                CF_matrix[i, j] = GridVariable('CF_%d%d' % (i, j))
-        grid_LEV = self.generate_grid_variable_LEV(direction, name)
-        characteristic_flux_stencil = grid_LEV*flux_stencil
-        characteristic_flux_stencil.stencil_points = stencil_points
-        CF_matrix.stencil_points = stencil_points
-        return characteristic_flux_stencil, CF_matrix
-
-
-class LLFCharacteristic(Characteristic):
-    """ This class contains the base Local Lax-Fedrich scheme performed in characteristic space.
-
-    :arg object physics: Physics object, defaults to NSPhysics.
-    :arg object averaging: The averaging procedure to be applied for characteristics, defaults to Simple averaging."""
-
-    def __init__(self, physics, averaging=None):
-        Characteristic.__init__(self, physics)
-        if averaging is None:
-            self.average = SimpleAverage([0, 1]).average
-        else:
-            self.average = averaging.average
-        self.flux_split = True
-        return
-
-    def pre_process(self, direction, derivatives, solution_vector, block):
-        """ Performs the transformation of the derivatives into characteristic space using the eigensystems provided to Characteristic. Flux splitting is then applied
-        to the characteristic variables in preparation for the WENO interpolation. Required quantities are added to pre_process_equations.
-
-        :arg int direction: Integer direction to apply the characteristic decomposition and WENO (x0, x1, ...).
-        :arg list derivatives: The derivatives to perform the characteristic decomposition and WENO on.
-        :arg list solution_vector: Solution vector from the Euler equations (rho, rhou0, rhou1, rhou2, rhoE) in vector form."""
-        self.direction = direction
-        pre_process_equations = []
-        # Update the ev, LEV and REV dicts to keep the current dictionary structure. Can change after.
-        ev_dict, LEV_dict, REV_dict, required_metrics, inv_metric = self.euler.apply_direction(direction)
-        self.eigen_value.update(ev_dict)
-        self.left_eigen_vector.update(LEV_dict)
-        self.right_eigen_vector.update(REV_dict)
-        averaged_suffix_name = 'AVG_%d' % direction
-        self.averaged_suffix_name = averaged_suffix_name
-        self.inv_metric = self.convert_matrix_to_grid_variable(inv_metric, averaged_suffix_name)
-        # Finding flow variables to average
-        required_symbols = self.get_symbols_in_ev(direction).union(self.get_symbols_in_LEV(direction)).union(self.get_symbols_in_REV(direction))
-        required_terms = required_symbols.union(required_metrics)
-
-        averaged_equations = self.average(required_terms, direction, averaged_suffix_name, block)
-        pre_process_equations += averaged_equations
-        # Eigensystem based on averaged quantities
-        avg_LEV_values = self.convert_matrix_to_grid_variable(self.left_eigen_vector[direction], averaged_suffix_name)
-
-        # Grid variables to store averaged eigensystems
-        grid_LEV = self.generate_grid_variable_LEV(direction, averaged_suffix_name)
-
-        # Replace re-used divides by inverses
-        inverses = [GridVariable('inv_AVG_a'), GridVariable('inv_AVG_rho')]
-        to_be_replaced = [1/GridVariable('AVG_%d_a' % direction), 1/GridVariable('AVG_%d_rho' % direction)]
-
-        if len(self.inv_metric.atoms(GridVariable)) > 0:  # Don't substitute if there are no metrics
-            inverses += [GridVariable('inv_AVG_met_fact')]
-            to_be_replaced += [1/self.inv_metric]
-
-        inverse_evals = [OpenSBLIEq(a, b) for (a, b) in zip(inverses, to_be_replaced)]
-        pre_process_equations += inverse_evals
-        for i, term in enumerate(avg_LEV_values):
-            for old, new in zip(to_be_replaced, inverses):
-                term = term.subs({old: new})
-            avg_LEV_values[i] = term
-
-        pre_process_equations += flatten(self.generate_equations_from_matrices(grid_LEV, avg_LEV_values))
-        # Transform the flux vector and the solution vector to characteristic space
-        characteristic_flux_vector, CF_matrix = self.flux_vector_to_characteristic(derivatives, direction, averaged_suffix_name)
-        characteristic_solution_vector, CS_matrix = self.solution_vector_to_characteristic(solution_vector, direction, averaged_suffix_name)
-        # Can use horner here on characteristic flux
-        pre_process_equations += flatten(self.generate_equations_from_matrices(CF_matrix, characteristic_flux_vector))
-        pre_process_equations += flatten(self.generate_equations_from_matrices(CS_matrix, characteristic_solution_vector))
-
-        # Update constituent relations
-        for d in derivatives:
-            required_symbols = required_symbols.union(d.atoms(DataSetBase))
-        self.update_constituent_relation_symbols(required_symbols, direction)
-
-        if hasattr(self, 'flux_split') and self.flux_split:
-            max_wavespeed_matrix, pre_process_equations = self.create_max_characteristic_wave_speed(pre_process_equations, direction, block)
-            positive = Rational(1, 2)*(CF_matrix + max_wavespeed_matrix*CS_matrix)
-            positive_flux = zeros(*positive.shape)
-            negative = factor(Rational(1, 2)*(CF_matrix - max_wavespeed_matrix*CS_matrix))
-            negative_flux = zeros(*negative.shape)
-            for i in range(positive_flux.shape[0]):
-                for j in range(positive_flux.shape[1]):
-                    positive_flux[i, j] = factor(positive[i, j])
-                    negative_flux[i, j] = factor(negative[i, j])
-            positive_flux.stencil_points = CF_matrix.stencil_points
-            negative_flux.stencil_points = CF_matrix.stencil_points
-            self.generate_right_reconstruction_variables(positive_flux, derivatives)
-            self.generate_left_reconstruction_variables(negative_flux, derivatives)
-        else:
-            raise NotImplementedError("Only flux splitting is implemented in characteristic.")
-        # Remove '0' entries from pre_process_equations
-        for eqn in pre_process_equations[:]:
-            if isinstance(eqn, Zero) is True:
-                pre_process_equations.remove(eqn)
-        
-        return pre_process_equations
-
-    def convert_symbolic_to_dataset(self, symbolics, location, direction, block):
-        """ Converts symbolic terms to DataSets.
-
-        :arg object symbolics: Expression containing Symbols to be converted into DataSets.
-        :arg int location: The integer location to apply to the DataSet.
-        :arg int direction: The integer direction (axis) of the DataSet to apply the location to.
-        returns: object: symbolics: The original expression updated to be in terms of DataSets rather than Symbols."""
-        dsets = symbolics.atoms(DataSet).difference(symbolics.atoms(ConstantObject))
-        symbols = symbolics.atoms(EinsteinTerm).difference(symbolics.atoms(ConstantObject))
-        substitutions = {}
-        # Increment flow variables
-        for s in symbols:
-            dest = block.create_datasetbase(s)
-            loc = dest.location
-            loc[direction] = loc[direction] + location
-            substitutions[s] = dest[loc]
-        # Increment metric datasets
-        for d in dsets:
-            substitutions[d] = increment_dataset(d, direction, location)
-        return symbolics.subs(substitutions)
-
-    def create_max_characteristic_wave_speed(self, pre_process_equations, direction, block):
-        stencil_points = sorted(list(set(self.reconstruction_classes[0].func_points + self.reconstruction_classes[1].func_points)))
-        ev = self.eigen_value[direction]
-        out = zeros(*ev.shape)
-        for p in stencil_points:
-            location_ev = self.convert_symbolic_to_dataset(ev, p, direction, block)
-            for no, val in enumerate(location_ev):
-                out[no] = Max(out[no], Abs(val))
-        max_wave_speed = self.generate_grid_variable_ev(direction, 'max')
-        ev_equations = self.generate_equations_from_matrices(max_wave_speed, out)
-        ev_equations = [x for x in ev_equations if x != 0]
-        ev_lhs = [x.lhs for x in ev_equations]
-        ev_rhs = [x.rhs for x in ev_equations]
-        # If there are repeated eigenvalues we do compute them multiple times
-        for no, eqn in enumerate(ev_rhs):
-            if no > 0:
-                if eqn == ev_rhs[no-1]:
-                    ev_rhs[no] = ev_lhs[no-1]
-        ev_equations = [OpenSBLIEq(left, right) for (left, right) in zip(ev_lhs, ev_rhs)]
-        pre_process_equations += ev_equations
-        max_wave_speed = diag(*([max_wave_speed[i, i] for i in range(ev.shape[0])]))
-        return max_wave_speed, pre_process_equations
-
-    def discretise(self, type_of_eq, block):
-        """ This is the place where the logic of vector form of equations are implemented.
-        Find physical fluxes by grouping derivatives by direction --> in central, copy over
-        Then the physical fluxes are transformed to characteristic space ---> a function in Characteristic
-        Find max lambda and update f+ and f- ------> This would be in this class (GLF)
-        For each f+ and f-, find f_hat of i+1/2, i-1/2, (L+R) are evaluated  ----> Function in WENO scheme, called from in here
-        flux at i+1/2 evaluated -- > Function in WENO scheme
-        Then WENO derivative class is instantiated with the flux at i+1/2 array --> Function in WENO scheme, called from in here
-        Final derivatives are evaluated from Weno derivative class --> Using WD.discretise."""
-        if isinstance(type_of_eq, SimulationEquations):
-            eqs = flatten(type_of_eq.equations)
-            grouped = self.group_by_direction(eqs)
-            all_derivatives_evaluated_locally = []
-            reconstruction_halos = self.reconstruction_halotype(self.order, reconstruction=True)
-
-            # Instantiate eigensystems with block, but don't add metrics yet
-            self.instantiate_eigensystem(block)
-
-            for key, derivatives in grouped.iteritems():
-                all_derivatives_evaluated_locally += derivatives
-                for no, deriv in enumerate(derivatives):
-                    deriv.create_reconstruction_work_array(block)
-                kernel = Kernel(block, computation_name="%s_reconstruction_%d_direction" % (self.__class__.__name__, key))
-                kernel.set_grid_range(block)
-                # WENO reconstruction should be evaluated for extra point on each side
-                kernel.set_halo_range(key, 0, reconstruction_halos)
-                kernel.set_halo_range(key, 1, reconstruction_halos)
-                pre_process_eqn = self.pre_process(key, derivatives, flatten(type_of_eq.time_advance_arrays), block)
-                interpolated_eqn = self.interpolate_reconstruction_variables(derivatives)
-                block.set_block_boundary_halos(key, 0, self.halotype)
-                block.set_block_boundary_halos(key, 1, self.halotype)
-                post_process_eqn = self.post_process(key, derivatives)
-                # Add all of the equations to the kernel
-                kernel.add_equation(pre_process_eqn + interpolated_eqn + post_process_eqn)
-                type_of_eq.Kernels += [kernel]
-            if grouped:
-                constituent_relations = self.generate_constituent_relations_kernels(block)
-                type_of_eq.Kernels += [self.evaluate_residuals(block, eqs, all_derivatives_evaluated_locally)]
-                constituent_relations = self.check_constituent_relations(block, eqs, constituent_relations)
-            return constituent_relations
-
-    def evaluate_residuals(self, block, eqns, local_ders):
-        residue_eq = []
-        for eq in eqns:
-            substitutions = {}
-            for d in eq.rhs.atoms(Function):
-                if d in local_ders:
-                    substitutions[d] = d._discretise_derivative(block)
-                else:
-                    substitutions[d] = 0
-            residue_eq += [OpenSBLIEq(eq.residual, eq.residual + eq.rhs.subs(substitutions))]
-        residue_kernel = Kernel(block, computation_name="%s Residual" % self.__class__.__name__)
-        residue_kernel.set_grid_range(block)
-        residue_kernel.add_equation(residue_eq)
-        return residue_kernel
-
-
-class RFCharacteristic(Characteristic):
-    """ This class contains the base Local Lax-Fedrich scheme performed in characteristic space.
-
-    :arg object physics: Physics object, defaults to NSPhysics.
-    :arg object averaging: The averaging procedure to be applied for characteristics, defaults to Simple averaging."""
-
-    def __init__(self, physics, averaging=None):
-        Characteristic.__init__(self, physics)
-        if not isinstance(averaging, RoeAverage):
-            raise ValueError("Roe flux-differencing requires Roe averaging.")
-        else:
-            self.average = averaging.average
-        self.flux_split = True
-        return
-
-    def entropy_fix(self, grid_EV, avg_a, inv_avg_a):
-        """ Creates the piecewise equations for the Harten entropy fix to Roe averages."""
-        eps = 0.1
-        output_eqns = []
-        for i in range(grid_EV.shape[0]):
-            cond1 = ExprCondPair(Abs(grid_EV[i, i]), Abs(grid_EV[i, i]) >= 2*eps*avg_a)
-            cond2 = ExprCondPair(inv_avg_a*grid_EV[i, i]**2 / (4*eps) + eps*avg_a, True)
-            output_eqns.append(OpenSBLIEq(grid_EV[i, i], Piecewise(cond1, cond2)))
-        return output_eqns
-
-    def pre_process(self, direction, derivatives, solution_vector, block):
-        """ Performs the transformation of the derivatives into characteristic space using the eigensystems provided to Characteristic. Flux splitting is then applied
-        to the characteristic variables in preparation for the WENO interpolation. Required quantities are added to pre_process_equations.
-
-        :arg int direction: Integer direction to apply the characteristic decomposition and WENO (x0, x1, ...).
-        :arg list derivatives: The derivatives to perform the characteristic decomposition and WENO on.
-        :arg list solution_vector: Solution vector from the Euler equations (rho, rhou0, rhou1, rhou2, rhoE) in vector form.
-        :arg object kernel: The current computational kernel."""
-        self.direction = direction
-        pre_process_equations = []
-        # Update the ev, LEV and REV dicts to keep the current dictionary structure. Can change after.
-        ev_dict, LEV_dict, REV_dict, required_metrics, inv_metric = self.euler.apply_direction(direction)
-        self.eigen_value.update(ev_dict)
-        self.left_eigen_vector.update(LEV_dict)
-        self.right_eigen_vector.update(REV_dict)
-        averaged_suffix_name = 'AVG_%d' % direction
-        self.averaged_suffix_name = averaged_suffix_name
-        self.inv_metric = self.convert_matrix_to_grid_variable(inv_metric, averaged_suffix_name)
-        # Finding flow variables to average
-        required_symbols = self.get_symbols_in_ev(direction).union(self.get_symbols_in_LEV(direction)).union(self.get_symbols_in_REV(direction))
-        required_terms = required_symbols.union(required_metrics)
-
-        averaged_equations = self.average(required_terms, direction, averaged_suffix_name, block)
-
-        avg_speed_of_sound = GridVariable('AVG_%d_a' % direction)
-
-        pre_process_equations += averaged_equations
-        # Eigensystem based on averaged quantities
-        avg_LEV_values = self.convert_matrix_to_grid_variable(self.left_eigen_vector[direction], averaged_suffix_name)
-        # Manually replace re-used divides by inverses
-        inverses = [GridVariable('inv_AVG_a'), GridVariable('inv_AVG_rho')]
-        inv_avg_a = GridVariable('inv_AVG_a')
-        to_be_replaced = [1/GridVariable('AVG_%d_a' % direction), 1/GridVariable('AVG_%d_rho' % direction)]
-        if len(self.inv_metric.atoms(GridVariable)) > 0:  # Don't substitute if there are no metrics
-            inverses += [GridVariable('inv_AVG_met_fact')]
-            to_be_replaced += [1/self.inv_metric]
-        inverse_evals = [OpenSBLIEq(a, b) for (a, b) in zip(inverses, to_be_replaced)]
-        pre_process_equations += inverse_evals
-        for i, term in enumerate(avg_LEV_values):
-            for old, new in zip(to_be_replaced, inverses):
-                term = term.subs({old: new})
-            avg_LEV_values[i] = term
-
-        # Grid variables to store averaged eigensystems
-        grid_LEV = self.generate_grid_variable_LEV(direction, averaged_suffix_name)
-        pre_process_equations += flatten(self.generate_equations_from_matrices(grid_LEV, avg_LEV_values))
-
-        # Roe average eigenvalues
-        grid_EV = self.generate_grid_variable_ev(direction, averaged_suffix_name)
-        # Add ev equations
-        avg_EV_values = self.convert_matrix_to_grid_variable(self.eigen_value[direction], averaged_suffix_name)
-        pre_process_equations += flatten(self.generate_equations_from_matrices(grid_EV, avg_EV_values))
-
-        # Create entropy fix for Roe averaging, requires averaged speed of sound
-        entropy_eigvals = self.entropy_fix(grid_EV, avg_speed_of_sound, inv_avg_a)
-
-        # Don't recalculate the same eigenvalues ordered as u, u, u, u+a, u-a
-        if block.ndim == 2:
-            entropy_eigvals[1] = OpenSBLIEq(entropy_eigvals[1].lhs, entropy_eigvals[0].lhs)
-        elif block.ndim == 3:
-            entropy_eigvals[1] = OpenSBLIEq(entropy_eigvals[1].lhs, entropy_eigvals[0].lhs)
-            entropy_eigvals[2] = OpenSBLIEq(entropy_eigvals[2].lhs, entropy_eigvals[0].lhs)
-        pre_process_equations += entropy_eigvals
-
-        # Transform the flux vector and the solution vector to characteristic space
-        characteristic_flux_vector, CF_matrix = self.flux_vector_to_characteristic(derivatives, direction, averaged_suffix_name)
-        characteristic_solution_vector, CS_matrix = self.solution_vector_to_characteristic(solution_vector, direction, averaged_suffix_name)
-        # Can use horner here on characteristic flux
-        pre_process_equations += flatten(self.generate_equations_from_matrices(CF_matrix, characteristic_flux_vector))
-        pre_process_equations += flatten(self.generate_equations_from_matrices(CS_matrix, characteristic_solution_vector))
-
-        for d in derivatives:
-            required_symbols = required_symbols.union(d.atoms(DataSetBase))
-        # Remove speed of sound from CRs, not required for Roe-Flux
-        required_symbols.difference_update({EinsteinTerm('a')})
-
-        self.update_constituent_relation_symbols(required_symbols, direction)
-
-        if hasattr(self, 'flux_split') and self.flux_split:
-            positive = Rational(1, 2)*(CF_matrix + grid_EV*CS_matrix)
-            positive_flux = zeros(*positive.shape)
-            negative = factor(Rational(1, 2)*(CF_matrix - grid_EV*CS_matrix))
-            negative_flux = zeros(*negative.shape)
-            for i in range(positive_flux.shape[0]):
-                for j in range(positive_flux.shape[1]):
-                    positive_flux[i, j] = factor(positive[i, j])
-                    negative_flux[i, j] = factor(negative[i, j])
-            positive_flux.stencil_points = CF_matrix.stencil_points
-            negative_flux.stencil_points = CF_matrix.stencil_points
-            self.generate_right_reconstruction_variables(positive_flux, derivatives)
-            self.generate_left_reconstruction_variables(negative_flux, derivatives)
-        else:
-            raise NotImplementedError("Only flux splitting is implemented in characteristic.")
-        # Remove '0' entries from pre_process_equations
-        for eqn in pre_process_equations[:]:
-            if isinstance(eqn, Zero) is True:
-                pre_process_equations.remove(eqn)
-        return pre_process_equations
-
-    def convert_symbolic_to_dataset(self, symbolics, location, direction, block):
-        """ Converts symbolic terms to DataSets.
-
-        :arg object symbolics: Expression containing Symbols to be converted into DataSets.
-        :arg int location: The integer location to apply to the DataSet.
-        :arg int direction: The integer direction (axis) of the DataSet to apply the location to.
-        returns: object: symbolics: The original expression updated to be in terms of DataSets rather than Symbols."""
-        dsets = symbolics.atoms(DataSet).difference(symbolics.atoms(ConstantObject))
-        symbols = symbolics.atoms(EinsteinTerm).difference(symbolics.atoms(ConstantObject))
-        substitutions = {}
-        # Increment flow variables
-        for s in symbols:
-            dest = block.create_datasetbase(s)
-            loc = dest.location
-            loc[direction] = loc[direction] + location
-            substitutions[s] = dest[loc]
-        # Increment metric datasets
-        for d in dsets:
-            substitutions[d] = increment_dataset(d, direction, location)
-        return symbolics.subs(substitutions)
-
-    def discretise(self, type_of_eq, block):
-        """ This is the place where the logic of vector form of equations are implemented.
-        Find physical fluxes by grouping derivatives by direction --> in central, copy over
-        Then the physical fluxes are transformed to characteristic space ---> a function in Characteristic
-        Find max lambda and update f+ and f- ------> This would be in this class (GLF)
-        For each f+ and f-, find f_hat of i+1/2, i-1/2, (L+R) are evaluated  ----> Function in WENO scheme, called from in here
-        flux at i+1/2 evaluated -- > Function in WENO scheme
-        Then WENO derivative class is instantiated with the flux at i+1/2 array --> Function in WENO scheme, called from in here
-        Final derivatives are evaluated from Weno derivative class --> Using WD.discretise."""
-        if isinstance(type_of_eq, SimulationEquations):
-            eqs = flatten(type_of_eq.equations)
-            grouped = self.group_by_direction(eqs)
-            all_derivatives_evaluated_locally = []
-            reconstruction_halos = self.reconstruction_halotype(self.order, reconstruction=True)
-
-            # Instantiate eigensystems with block, but don't add metrics yet
-            self.instantiate_eigensystem(block)
-
-            for key, derivatives in grouped.iteritems():
-                all_derivatives_evaluated_locally += derivatives
-                for no, deriv in enumerate(derivatives):
-                    deriv.create_reconstruction_work_array(block)
-                kernel = Kernel(block, computation_name="%s_reconstruction_%d_direction" % (self.__class__.__name__, key))
-                kernel.set_grid_range(block)
-                # WENO reconstruction should be evaluated for extra point on each side
-                kernel.set_halo_range(key, 0, reconstruction_halos)
-                kernel.set_halo_range(key, 1, reconstruction_halos)
-                pre_process_eqn = self.pre_process(key, derivatives, flatten(type_of_eq.time_advance_arrays), block)
-                interpolated_eqn = self.interpolate_reconstruction_variables(derivatives)
-                block.set_block_boundary_halos(key, 0, self.halotype)
-                block.set_block_boundary_halos(key, 1, self.halotype)
-                post_process_eqn = self.post_process(key, derivatives)
-                # Add the equations
-                kernel.add_equation(pre_process_eqn + interpolated_eqn + post_process_eqn)
-                type_of_eq.Kernels += [kernel]
-            if grouped:
-                constituent_relations = self.generate_constituent_relations_kernels(block)
-                type_of_eq.Kernels += [self.evaluate_residuals(block, eqs, all_derivatives_evaluated_locally)]
-                constituent_relations = self.check_constituent_relations(block, eqs, constituent_relations)
-            return constituent_relations
-
-    def evaluate_residuals(self, block, eqns, local_ders):
-        residue_eq = []
-        for eq in eqns:
-            substitutions = {}
-            for d in eq.rhs.atoms(Function):
-                if d in local_ders:
-                    substitutions[d] = d._discretise_derivative(block)
-                else:
-                    substitutions[d] = 0
-            residue_eq += [OpenSBLIEq(eq.residual, eq.residual + eq.rhs.subs(substitutions))]
-        residue_kernel = Kernel(block, computation_name="%s Residual" % self.__class__.__name__)
-        residue_kernel.set_grid_range(block)
-        residue_kernel.add_equation(residue_eq)
-        return residue_kernel
-
-
-class SimpleAverage(object):
-    def __init__(self, locations):
-        self.locations = locations
-        print("Simple averaging is being used for the characteristic system")
-        return
-
-    def average(self, functions, direction, name_suffix, block):
-        """Performs a simple average.
-
-        :arg functions: List of function (Symbols) to apply averaging on.
-        :arg locations: Relative index used for averaging (e.g. [0,1] for i and i+1)
-        :arg direction: Axis of the dataset on which the location should be applied.
-        :arg name_suffix: Name to be appended to the functions. """
-        avg_equations = []
-        for f in functions:
-            if isinstance(f, EinsteinTerm):
-                name = f.get_base()
-                d = DataSetBase(name, block.shape, block.blocknumber)
-                loc = d.location
-                loc1 = loc[:]
-                loc2 = loc[:]
-                loc1[direction] = loc[direction] + self.locations[0]
-                loc2[direction] = loc[direction] + self.locations[1]
-                a = d[loc1]
-                b = d[loc2]
-                avg_equations += [OpenSBLIEq(GridVariable('%s_%s' % (name_suffix, name)), factor((a+b)/2))]
-        # Average metric terms with simple average
-        averaged_metrics = []
-        for item in functions:
-            if isinstance(item, DataSet):
-                name = item.base.simplelabel()
-                a = item
-                b = increment_dataset(item, direction, 1)
-                averaged_metrics += [OpenSBLIEq(GridVariable('%s_%s' % (name_suffix, name)), factor((a+b)/2))]
-        return avg_equations + averaged_metrics
-
-
-class RoeAverage(object):
-    def __init__(self, locations, physics=None):
-        print("Roe averaging is being used for the characteristic system")
-        self.locations = locations
-        self.physics = physics
-        return
-
-    def get_dsets(self, dset_base):
-        loc = dset_base.location
-        loc1, loc2 = loc[:], loc[:]
-        loc1[self.direction], loc2[self.direction] = loc[self.direction]+self.locations[0], loc[self.direction]+self.locations[1]
-        dset1, dset2 = dset_base[loc1], dset_base[loc2]
-        return dset1, dset2
-
-    def average(self, functions, direction, name_suffix, block):
-        self.direction = direction
-        evaluations = []
-        names = []
-        # Averaged density rho_hat = sqrt(rho_L*rho_R)
-        if self.physics:
-            physics = self.physics
-        else:
-            physics = NSphysics(block)
-        rho_base = physics.density().base
-        rho_L, rho_R = self.get_dsets(rho_base)
-        evaluations += [sqrt(rho_L*rho_R)]
-        grid_vars = [GridVariable('%s_%s' % (name_suffix, rho_base.label))]
-        # Store inverse factor 1/(sqrt(rho_R)+sqrt(rho_L))
-        grid_vars += [GridVariable('%s_%s' % (name_suffix, 'inv_rho'))]
-        evaluations += [(sqrt(rho_R)+sqrt(rho_L))**(-1)]
-
-        # Average velocity components
-        for i, velocity in enumerate(physics.velocity()):
-            velocity_base = velocity.base
-            vel_L, vel_R = self.get_dsets(velocity_base)
-            names += [velocity_base.label]
-            evaluations += [(sqrt(rho_L)*vel_L+sqrt(rho_R)*vel_R)*grid_vars[1]]
-            grid_vars += [GridVariable('%s_%s' % (name_suffix, velocity_base.label))]
-        # Averaged kinetic energy in terms of u0, u1, u2 grid variables
-        KE = factor(Rational(1, 2)*sum([u**2 for u in grid_vars[2:]]))
-
-        # Calcualte enthalpy h = rhoE + P/rho
-        pressure_base = physics.pressure().base
-        P_L, P_R = self.get_dsets(pressure_base)
-        rhoE_base = physics.total_energy().base
-        rhoE_L, rhoE_R = self.get_dsets(rhoE_base)
-        H_L = (rhoE_L + P_L)/rho_L
-        H_R = (rhoE_R + P_R)/rho_R
-        roe_enthalpy = (sqrt(rho_L)*H_L+sqrt(rho_R)*H_R)*grid_vars[1]
-        # Average speed of sound
-        a_base = physics.speed_of_sound().base
-        roe_a = sqrt((physics.specific_heat_ratio()-1)*(roe_enthalpy - KE))
-        evaluations += [roe_a]
-        grid_vars += [GridVariable('%s_%s' % (name_suffix, a_base.label))]
-
-        # Average metric terms with simple average
-        averaged_metrics = []
-        for item in functions:
-            if isinstance(item, DataSet):
-                name = item.base.simplelabel()
-                a = item
-                b = increment_dataset(item, direction, 1)
-                averaged_metrics += [OpenSBLIEq(GridVariable('%s_%s' % (name_suffix, name)), factor((a+b)/2))]
-        return [OpenSBLIEq(x, y) for (x, y) in zip(grid_vars, evaluations)] + averaged_metrics
 
 
 class LLFWeno(LLFCharacteristic, Weno):
@@ -1231,25 +449,43 @@ class LLFWeno(LLFCharacteristic, Weno):
         Weno.__init__(self, order, formulation)
         return
 
-    def reconstruction_halotype(self, order, reconstruction=True):
-        return WenoHalos(order, reconstruction)
+    def discretise(self, type_of_eq, block):
+        """ This is the place where the logic of vector form of equations are implemented.
+        Find physical fluxes by grouping derivatives by direction --> in central, copy over
+        Then the physical fluxes are transformed to characteristic space ---> a function in Characteristic
+        For each f+ and f-, find f_hat of i+1/2, i-1/2, (L+R) are evaluated  ----> Function in WENO scheme, called from in here
+        flux at i+1/2 evaluated -- > Function in WENO scheme
+        Then WENO derivative class is instantiated with the flux at i+1/2 array --> Function in WENO scheme, called from in here
+        Final derivatives are evaluated from Weno derivative class --> Using WD.discretise."""
+        if isinstance(type_of_eq, SimulationEquations):
+            eqs = flatten(type_of_eq.equations)
+            grouped = self.group_by_direction(eqs)
+            all_derivatives_evaluated_locally = []
+            reconstruction_halos = self.reconstruction_halotype(self.order, reconstruction=True)
+            solution_vector = flatten(type_of_eq.time_advance_arrays)
 
-    def group_by_direction(self, eqs):
-        """ Groups the input equations by the direction (x0, x1, ...) they depend upon.
+            # Instantiate eigensystems with block, but don't add metrics yet
+            self.instantiate_eigensystem(block)
 
-        :arg list eqs: List of equations to group by direction.
-        :returns: dict: grouped: Dictionary of {direction: equations} key, value pairs for equations grouped by direction."""
-        all_WDS = []
-        for eq in eqs:
-            all_WDS += list(eq.atoms(WenoDerivative))
-        grouped = {}
-        for cd in all_WDS:
-            direction = cd.get_direction[0]
-            if direction in grouped.keys():
-                grouped[direction] += [cd]
-            else:
-                grouped[direction] = [cd]
-        return grouped
+            for direction, derivatives in grouped.iteritems():
+                # Create a work array for each component of the system
+                all_derivatives_evaluated_locally += derivatives
+                for no, deriv in enumerate(derivatives):
+                    deriv.create_reconstruction_work_array(block)
+                # Kernel for the reconstruction in this direction
+                kernel = self.create_reconstruction_kernel(direction, reconstruction_halos, block)
+                # Get the equations for a characteristic reconstruction
+                characteristic_eqns = self.get_characteristic_equations(direction, derivatives, solution_vector, block)
+                pre_process, interpolated, post_process = characteristic_eqns[0], characteristic_eqns[1], characteristic_eqns[2]
+                # Add the equations to the kernel and add the kernel to SimulationEquations
+                kernel.add_equation(pre_process + interpolated + post_process)
+                type_of_eq.Kernels += [kernel]
+            # Generate kernels for the constituent relations
+            if grouped:
+                constituent_relations = self.generate_constituent_relations_kernels(block)
+                type_of_eq.Kernels += [self.evaluate_residuals(block, eqs, all_derivatives_evaluated_locally)]
+                constituent_relations = self.check_constituent_relations(block, eqs, constituent_relations)
+            return constituent_relations
 
 
 class RFWeno(RFCharacteristic, Weno):
@@ -1265,25 +501,43 @@ class RFWeno(RFCharacteristic, Weno):
         Weno.__init__(self, order, formulation)
         return
 
-    def reconstruction_halotype(self, order, reconstruction=True):
-        return WenoHalos(order, reconstruction)
+    def discretise(self, type_of_eq, block):
+        """ This is the place where the logic of vector form of equations are implemented.
+        Find physical fluxes by grouping derivatives by direction --> in central, copy over
+        Then the physical fluxes are transformed to characteristic space ---> a function in Characteristic
+        For each f+ and f-, find f_hat of i+1/2, i-1/2, (L+R) are evaluated  ----> Function in WENO scheme, called from in here
+        flux at i+1/2 evaluated -- > Function in WENO scheme
+        Then WENO derivative class is instantiated with the flux at i+1/2 array --> Function in WENO scheme, called from in here
+        Final derivatives are evaluated from Weno derivative class --> Using WD.discretise."""
+        if isinstance(type_of_eq, SimulationEquations):
+            eqs = flatten(type_of_eq.equations)
+            grouped = self.group_by_direction(eqs)
+            all_derivatives_evaluated_locally = []
+            reconstruction_halos = self.reconstruction_halotype(self.order, reconstruction=True)
+            solution_vector = flatten(type_of_eq.time_advance_arrays)
 
-    def group_by_direction(self, eqs):
-        """ Groups the input equations by the direction (x0, x1, ...) they depend upon.
+            # Instantiate eigensystems with block, but don't add metrics yet
+            self.instantiate_eigensystem(block)
 
-        :arg list eqs: List of equations to group by direction.
-        :returns: dict: grouped: Dictionary of {direction: equations} key, value pairs for equations grouped by direction."""
-        all_WDS = []
-        for eq in eqs:
-            all_WDS += list(eq.atoms(WenoDerivative))
-        grouped = {}
-        for cd in all_WDS:
-            direction = cd.get_direction[0]
-            if direction in grouped.keys():
-                grouped[direction] += [cd]
-            else:
-                grouped[direction] = [cd]
-        return grouped
+            for direction, derivatives in grouped.iteritems():
+                # Create a work array for each component of the system
+                all_derivatives_evaluated_locally += derivatives
+                for no, deriv in enumerate(derivatives):
+                    deriv.create_reconstruction_work_array(block)
+                # Kernel for the reconstruction in this direction
+                kernel = self.create_reconstruction_kernel(direction, reconstruction_halos, block)
+                # Get the equations for a characteristic reconstruction
+                characteristic_eqns = self.get_characteristic_equations(direction, derivatives, solution_vector, block)
+                pre_process, interpolated, post_process = characteristic_eqns[0], characteristic_eqns[1], characteristic_eqns[2]
+                # Add the equations to the kernel and add the kernel to SimulationEquations
+                kernel.add_equation(pre_process + interpolated + post_process)
+                type_of_eq.Kernels += [kernel]
+            # Generate kernels for the constituent relations
+            if grouped:
+                constituent_relations = self.generate_constituent_relations_kernels(block)
+                type_of_eq.Kernels += [self.evaluate_residuals(block, eqs, all_derivatives_evaluated_locally)]
+                constituent_relations = self.check_constituent_relations(block, eqs, constituent_relations)
+            return constituent_relations
 
 
 class ScalarWeno(Weno):
@@ -1312,26 +566,6 @@ class ScalarWeno(Weno):
         self.generate_left_reconstruction_variables(variable_matrix, derivatives)
         return
 
-    def reconstruction_halotype(self, order, reconstruction=True):
-        return WenoHalos(order, reconstruction)
-
-    def group_by_direction(self, eqs):
-        """ Groups the input equations by the direction (x0, x1, ...) they depend upon.
-
-        :arg list eqs: List of equations to group by direction.
-        :returns: dict: grouped: Dictionary of {direction: equations} key, value pairs for equations grouped by direction."""
-        all_WDS = []
-        for eq in eqs:
-            all_WDS += list(eq.atoms(WenoDerivative))
-        grouped = {}
-        for cd in all_WDS:
-            direction = cd.get_direction[0]
-            if direction in grouped.keys():
-                grouped[direction] += [cd]
-            else:
-                grouped[direction] = [cd]
-        return grouped
-
     def discretise(self, type_of_eq, block):
         if isinstance(type_of_eq, SimulationEquations):
             eqs = flatten(type_of_eq.equations)
@@ -1350,7 +584,7 @@ class ScalarWeno(Weno):
                 kernel.set_halo_range(key, 0, reconstruction_halos)
                 kernel.set_halo_range(key, 1, reconstruction_halos)
                 self.pre_process(key, derivatives, flatten(type_of_eq.time_advance_arrays), kernel, block)
-                self.interpolate_reconstruction_variables(derivatives, kernel)
+                self.interpolate_reconstruction_variables(derivatives)
                 block.set_block_boundary_halos(key, 0, self.halotype)
                 block.set_block_boundary_halos(key, 1, self.halotype)
                 self.form_average(derivatives, kernel)

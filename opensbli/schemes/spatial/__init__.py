@@ -27,5 +27,8 @@ del(_HANDLER)
 LOG.setLevel(logging.DEBUG)  # Default to DEBUG level.
 
 from .scheme import *
+from .shock_capturing import *
+from .averaging import *
 from .weno import *
 from .teno import *
+from .hybrid import *
