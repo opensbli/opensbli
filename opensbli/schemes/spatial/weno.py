@@ -241,14 +241,22 @@ class WenoReconstructionVariable(object):
         self.reconstructed_expression = original.reconstructed_expression.subs(subs_dict)
         return
 
-    def evaluate_quantities(self, component_index):
+    def evaluate_quantities(self, **settings):
         all_symbols = self.smoothness_symbols + self.alpha_symbols + self.inv_alpha_sum_symbols + self.omega_symbols
         all_evaluations = self.smoothness_indicators + self.alpha_evaluated + self.inv_alpha_sum_evaluated + self.omega_evaluated
         final_equations = []
         for no, value in enumerate(all_symbols):
             final_equations += [OpenSBLIEq(value, all_evaluations[no])]
         self.final_equations = final_equations
-        self.final_equations += [OpenSBLIEq(GridVariable('Recon_%d' % component_index), GridVariable('Recon_%d' % component_index) + self.reconstructed_expression)]
+        rv = self.reconstructed_symbol
+        if settings.has_key("combine_reconstructions"):
+            if settings["combine_reconstructions"]:
+                combine = True
+                rv = settings["combine_variable"]
+        if combine:
+            self.final_equations += [OpenSBLIEq(rv, rv + self.reconstructed_expression)]
+        else:
+            self.final_equations += [OpenSBLIEq(rv, self.reconstructed_expression)]
         return
 
 
