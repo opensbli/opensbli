@@ -1,6 +1,6 @@
 import logging
 
-from sympy import pprint, flatten, Function, Derivative, Equality, Symbol, Rational, postorder_traversal, Subs, preorder_traversal, srepr
+from sympy import pprint, flatten, Function, Derivative, Equality, Symbol, Rational, postorder_traversal, Subs, preorder_traversal, srepr, preorder_traversal
 from sympy.core.function import AppliedUndef
 from opensbli.core.opensbliobjects import ConstantObject, MetricObject, CoordinateObject, DataSet, DataObject, EinsteinTerm
 from opensbli.core.opensblifunctions import WenoDerivative, CentralDerivative, TenoDerivative, MetricDerivative, TemporalDerivative,\
@@ -205,7 +205,7 @@ class Conservative(AppliedUndef, ParsingSchemes):
         TODO Requires more rigorous testing
         """
         localfuncs = (Conservative)
-        pot = postorder_traversal(cls)
+        pot = preorder_traversal(cls)
         expr = cls
         for p in pot:
             if isinstance(p, localfuncs):
