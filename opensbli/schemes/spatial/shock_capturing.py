@@ -275,26 +275,6 @@ class Characteristic(EigenSystem):
         post_process_equations += [OpenSBLIEq(x, y) for x, y in zip(reconstructed_work, reconstructed_flux)]
         return post_process_equations
 
-    def generate_left_reconstruction_variables(self, flux, derivatives):
-        if isinstance(flux, Matrix):
-            stencil = flux.stencil_points
-            for i in range(flux.shape[0]):
-                rv = type(self.reconstruction_classes[1])('L_X%d_%d' % (self.direction, i))
-                for p in sorted(set(self.reconstruction_classes[1].func_points)):
-                    rv.function_stencil_dictionary[p] = flux[i, stencil.index(p)]
-                derivatives[i].add_reconstruction_classes([rv])
-        return
-
-    def generate_right_reconstruction_variables(self, flux, derivatives):
-        if isinstance(flux, Matrix):
-            stencil = flux.stencil_points
-            for i in range(flux.shape[0]):
-                rv = type(self.reconstruction_classes[0])('R_X%d_%d' % (self.direction, i))
-                for p in sorted(set(self.reconstruction_classes[0].func_points)):
-                    rv.function_stencil_dictionary[p] = flux[i, stencil.index(p)]
-                derivatives[i].add_reconstruction_classes([rv])
-        return
-
     def solution_vector_to_characteristic(self, solution_vector, direction, name):
         stencil_points = sorted(list(set(self.reconstruction_classes[0].func_points + self.reconstruction_classes[1].func_points)))
         solution_vector_stencil = zeros(len(solution_vector), len(stencil_points))
@@ -309,12 +289,16 @@ class Characteristic(EigenSystem):
         CS_matrix.stencil_points = stencil_points
         return characteristic_solution_stencil, CS_matrix
 
-    def flux_vector_to_characteristic(self, derivatives, direction, name):
-        fv = []
+    def direction_flux_vector(self, derivatives, direction):
+        flux_vector = []
         for d in derivatives:
             if d.get_direction[0] != direction:
                 raise ValueError("Derivatives provided for flux vector are not homogeneous in direction.")
-            fv += [d.args[0]]
+            flux_vector += [d.args[0]]
+        return flux_vector
+
+    def flux_vector_to_characteristic(self, derivatives, direction, name):
+        fv = self.direction_flux_vector(derivatives, direction)
         stencil_points = sorted(list(set(self.reconstruction_classes[0].func_points + self.reconstruction_classes[1].func_points)))
         flux_stencil = zeros(len(fv), len(stencil_points))
         CF_matrix = zeros(len(fv), len(stencil_points))
