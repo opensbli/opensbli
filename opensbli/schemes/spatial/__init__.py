@@ -31,4 +31,3 @@ from .shock_capturing import *
 from .averaging import *
 from .weno import *
 from .teno import *
-from .hybrid import *
