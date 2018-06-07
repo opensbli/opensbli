@@ -5,7 +5,7 @@ from opensbli.core.grid import GridVariable
 from opensbli.schemes.spatial.scheme import Scheme
 from opensbli.schemes.spatial.weno import LLFCharacteristic, ShockCapturing, RFCharacteristic
 from opensbli.core.kernel import ConstantsToDeclare as CTD
-from opensbli.equation_types.opensbliequations import OpenSBLIEq
+from opensbli.equation_types.opensbliequations import OpenSBLIEq, SimulationEquations
 
 
 class TenoHalos(object):
@@ -96,7 +96,7 @@ class ConfigureTeno(object):
         if side == 1:
             fn_points = [[-1, 0, 1], [0, 1, 2], [-2, -1, 0], [0, 1, 2, 3], [-3, -2, -1, 0], [0, 1, 2, 3, 4]]
         elif side == -1:
-            fn_points = [[0, 1, 2], [-1, 0, 1], [1, 2, 3], [-2, -1, 0, 1], [0, 1, 2, 3], [-3, -2, -1, 0, 1]]
+            fn_points = [[0, 1, 2], [-1, 0, 1], [1, 2, 3], [-2, -1, 0, 1], [1, 2, 3, 4], [-3, -2, -1, 0, 1]]
         return [fn_points[i] for i in range(order-2)]
 
     def generate_eno_coefficients(self):
@@ -118,7 +118,7 @@ class ConfigureTeno(object):
             if self.order in [6, 8]:
                 coeffs += [[Rational(1, 12), Rational(-5, 12), Rational(13, 12), Rational(3, 12)]]
             if self.order == 8:
-                coeffs += [[Rational(3, 12), Rational(13, 12), Rational(-5, 12), Rational(1, 12)],
+                coeffs += [[Rational(25, 12), Rational(-23, 12), Rational(13, 12), Rational(-1, 4)],
                            [Rational(-1, 20), Rational(17, 60), Rational(-43, 60), Rational(77, 60), Rational(12, 60)]]
         return coeffs
 
@@ -195,9 +195,11 @@ class ConfigureTeno(object):
                 # smoothness_indicators += [Rational(1,36)*(-2*fns[0]-3*fns[1]+6*fns[2]-fns[3])**2 + Rational(13,12)*(fns[0]-2*fns[1]+fns[2])**2 +\
                 #                          + Rational(1043,960)*(-fns[0]+3*fns[1]-3*fns[2]+fns[3])**2 + Rational(1,432)*(-2*fns[0]-3*fns[1]+6*fns[2]-fns[3])*\
                 #                          (-fns[0]+3*fns[1]-3*fns[2]+fns[3])]
-                smoothness_indicators += [horner(Rational(547, 240)*fns[0]**2 - Rational(1261, 120)*fns[0]*fns[1]+Rational(961, 120)*fns[0]*fns[2] - Rational(247, 120)*fns[0]*fns[3]
-                                                 + Rational(3443, 240)*fns[1]**2 - Rational(2983, 120)*fns[1]*fns[2] + Rational(267, 40)*fns[1]*fns[3]+Rational(2843, 240)*fns[2]**2
-                                                 - Rational(821, 120)*fns[2]*fns[3] + Rational(89, 80)*fns[3]**2)]
+                # smoothness_indicators += [horner(Rational(547, 240)*fns[0]**2 - Rational(1261, 120)*fns[0]*fns[1]+Rational(961, 120)*fns[0]*fns[2] - Rational(247, 120)*fns[0]*fns[3]
+                #                                  + Rational(3443, 240)*fns[1]**2 - Rational(2983, 120)*fns[1]*fns[2] + Rational(267, 40)*fns[1]*fns[3]+Rational(2843, 240)*fns[2]**2
+                #                                  - Rational(821, 120)*fns[2]*fns[3] + Rational(89, 80)*fns[3]**2)]
+                smoothness_indicators += [(7043*fns[3]/240 - 647*fns[4]/40)*fns[3] + (11003*fns[2]/240 - 8623*fns[3]/120 + 2321*fns[4]/120)*fns[2] +
+                                          (2107*fns[1]/240 - 1567*fns[2]/40 + 3521*fns[3]/120 - 309*fns[4]/40)*fns[1] + 547*fns[4]**2/240]
                 # Factored , [-3, -2, -1, 0, 1]
                 smoothness_indicators += [horner(Rational(11329, 2520)*fns[-3]**2-Rational(208501, 5040)*fns[-3]*fns[-2]+Rational(121621, 1680)*fns[-3]*fns[-1]
                                                  - Rational(288007, 5040)*fns[-3]*fns[0]+Rational(86329, 5040)*fns[-3]*fns[1]+Rational(482963, 5040)*fns[-2]**2
@@ -241,34 +243,6 @@ class Teno5(object):
             RV.alpha_evaluated.append((C + (tau_5/(self.eps + RV.smoothness_symbols[r])))**q)
         return
 
-    def generate_omegas(self, RV, TC):
-        """ Create the omega terms for the non-linear TENO weights.
-
-        :arg object RV: The reconstruction variable object.
-        :arg object TC: Configuration settings for a reconstruction of either left or right."""
-        inv_omega_sum_symbols = [Symbol('inv_omega_sum')]
-        inv_omega_sum_evaluated = [S.One/sum([TC.opt_coeffs[i]*RV.kronecker_symbols[i] for i in range(RV.n_stencils)])]
-        RV.omega_symbols = [Symbol('omega_%d' % r) for r in range(RV.n_stencils)]
-        RV.omega_evaluated = [TC.opt_coeffs[r]*RV.kronecker_symbols[r]*inv_omega_sum_symbols[0] for r in range(RV.n_stencils)]
-        RV.inv_omega_sum_symbols = inv_omega_sum_symbols
-        RV.inv_omega_sum_evaluated = inv_omega_sum_evaluated
-        return
-
-    def generate_reconstruction(self, RV, TC):
-        """ Create the final TENO stencil by summing the stencil points, ENO coefficients and TENO weights.
-
-        :arg object RV: The reconstruction variable object.
-        :arg object TenoConfig: Configuration settings for a reconstruction of either left or right."""
-        reconstruction = 0
-        fns = []
-        for stencil in TC.stencils:
-            RV.smoothness_indicators.append(stencil.smoothness_indicator)
-            fns = [RV.function_stencil_dictionary[i] for i in stencil.fn_points]
-            eno_interpolation = sum([point*coefficient for (point, coefficient) in zip(fns, stencil.eno_coeffs)])
-            reconstruction += RV.omega_symbols[stencil.stencil_number]*eno_interpolation
-        RV.reconstructed_expression = reconstruction
-        return
-
 
 class Teno6(object):
     """ Base class for 6th order TENO scheme."""
@@ -290,36 +264,6 @@ class Teno6(object):
             RV.alpha_evaluated.append((C + (tau_6/(self.eps + RV.smoothness_symbols[r])))**q)
         return
 
-    def generate_omegas(self, RV, TC):
-        """ Create the omega terms for the non-linear TENO weights.
-
-        :arg object RV: The reconstruction variable object.
-        :arg object TC: Configuration settings for a reconstruction of either left or right."""
-        # Create inverse to avoid multiple divides
-        inv_omega_sum_symbols = [Symbol('inv_omega_sum')]
-        inv_omega_sum_evaluated = [S.One/sum([TC.opt_coeffs[i]*RV.kronecker_symbols[i] for i in range(RV.n_stencils)])]
-
-        RV.omega_symbols = [Symbol('omega_%d' % r) for r in range(RV.n_stencils)]
-        RV.omega_evaluated = [TC.opt_coeffs[r]*RV.kronecker_symbols[r]*inv_omega_sum_symbols[0] for r in range(RV.n_stencils)]
-        RV.inv_omega_sum_symbols = inv_omega_sum_symbols
-        RV.inv_omega_sum_evaluated = inv_omega_sum_evaluated
-        return
-
-    def generate_reconstruction(self, RV, TC):
-        """ Create the final TENO stencil by summing the stencil points, ENO coefficients and TENO weights.
-
-        :arg object RV: The reconstruction variable object.
-        :arg object TC: Configuration settings for a reconstruction of either left or right."""
-        reconstruction = 0
-        fns = []
-        for stencil in TC.stencils:
-            RV.smoothness_indicators.append(stencil.smoothness_indicator)
-            fns = [RV.function_stencil_dictionary[i] for i in stencil.fn_points]
-            eno_interpolation = sum([point*coefficient for (point, coefficient) in zip(fns, stencil.eno_coeffs)])
-            reconstruction += RV.omega_symbols[stencil.stencil_number]*eno_interpolation
-        RV.reconstructed_expression = reconstruction
-        return
-
 
 class Teno8(object):
     """ Base class for the 8th order TENO scheme, still work in progress."""
@@ -336,18 +280,26 @@ class Teno8(object):
         for p in points:
             symbolic_functions.append(f[p])
             fns[p] = symbolic_functions[-1]
-        tau_8 = fns[4]*(75349098471*fns[4]-1078504915264*fns[3]+3263178215782*fns[2]
-                        - 5401061230160*fns[1]+5274436892970*fns[0]-3038037798592*fns[-1]+956371298594*fns[-2]-127080660272*fns[-3])+fns[3]*(3944861897609*fns[3]-24347015748304*fns[2]
-                                                                                                                                             + 41008808432890*fns[1]-40666174667520*fns[0]+23740865961334*fns[-1]-7563868580208*fns[-2]
-                                                                                                                                             + 1016165721854*fns[-3])+fns[2]*(38329064547231*fns[2]-131672853704480*fns[1]+132979856899250*fns[0]-78915800051952*fns[-1]+25505661974314*fns[-2] - 3471156679072*fns[-3])\
-            + fns[1]*(115451981835025*fns[1]-238079153652400*fns[0]+144094750348910*fns[-1]
-                      - 47407534412640*fns[-2]+6553080547830*fns[-3])+fns[0]*(125494539510175*fns[0]
-                                                                              - 155373333547520*fns[-1]+52241614797670*fns[-2]-7366325742800*fns[-3]) \
-            + fns[-1]*(49287325751121*fns[-1]-33999931981264*fns[-2]+4916835566842*fns[-3]) \
-            + fns[-2]*(6033767706599*fns[-2]-1799848509664*fns[-3])+139164877641*fns[-3]*fns[-3]
-        tau_8 = Rational(1, 62270208000)*(tau_8)
-        RV.tau_8_symbol = [Symbol('tau_8')]
-        RV.tau_8_evaluated = [tau_8]
+        # tau_8 = fns[4]*(75349098471*fns[4]-1078504915264*fns[3]+3263178215782*fns[2]
+        #                 - 5401061230160*fns[1]+5274436892970*fns[0]-3038037798592*fns[-1]+956371298594*fns[-2]-127080660272*fns[-3])+fns[3]*(3944861897609*fns[3]-24347015748304*fns[2]
+        #                                                                                                                                      + 41008808432890*fns[1]-40666174667520*fns[0]+23740865961334*fns[-1]-7563868580208*fns[-2]
+        #                                                                                                                                      + 1016165721854*fns[-3])+fns[2]*(38329064547231*fns[2]-131672853704480*fns[1]+132979856899250*fns[0]-78915800051952*fns[-1]+25505661974314*fns[-2] - 3471156679072*fns[-3])\
+        #     + fns[1]*(115451981835025*fns[1]-238079153652400*fns[0]+144094750348910*fns[-1]
+        #               - 47407534412640*fns[-2]+6553080547830*fns[-3])+fns[0]*(125494539510175*fns[0]
+        #                                                                       - 155373333547520*fns[-1]+52241614797670*fns[-2]-7366325742800*fns[-3]) \
+        #     + fns[-1]*(49287325751121*fns[-1]-33999931981264*fns[-2]+4916835566842*fns[-3]) \
+        #     + fns[-2]*(6033767706599*fns[-2]-1799848509664*fns[-3])+139164877641*fns[-3]*fns[-3]
+        # tau_8 = Rational(1, 62270208000)*(tau_8)
+        tau_8 = [(3944861897609*fns[3]/62270208000 - 2407377043*fns[4]/138996000)*fns[3] + (12780967457077*fns[2]/20756736000 - 1521688484269*fns[3]/3891888000 +
+                                                                                            1631589107891*fns[4]/31135104000)*fns[2] + (420341161931*fns[1]/226437120 - 74851467823*fns[2]/35380800 + 4100880843289*fns[3]/6227020800 - 67513265377*fns[4]/778377600)*fns[1] +
+                 (457249528517*fns[0]/226437120 - 595915721251*fns[1]/155675520 + 532071643661*fns[2]/249080832 - 10590149653*fns[3]/16216200 + 25116366157*fns[4]/296524800)*fns[0] +
+                 (46388292547*fns[-3]/20756736000 - 18415814357*fns[0]/155675520 + 72812006087*fns[1]/691891200 - 108473646221*fns[2]/1945944000 + 508082860927*fns[3]/31135104000 -
+                  7942541267*fns[4]/3891888000)*fns[-3] + (6047605530599*fns[-2]/62270208000 - 56245265927*fns[-3]/1945944000 + 5227966881367*fns[0]/6227020800 - 98765696693*fns[1]/129729600 +
+                                                           12752830987157*fns[2]/31135104000 - 157580595421*fns[3]/1297296000 + 478185649297*fns[4]/31135104000)*fns[-2] + (16476387815707*fns[-1]/20756736000 - 2129103852829*fns[-2]/3891888000 +
+                                                                                                                                                                            2458417783421*fns[-3]/31135104000 - 5527715497*fns[0]/2211300 + 14416393946891*fns[1]/6227020800 - 1644079167749*fns[2]/1297296000 + 11870432980667*fns[3]/31135104000 -
+                                                                                                                                                                            47469340603*fns[4]/972972000)*fns[-1] + 25116366157*fns[4]**2/20756736000]
+        RV.tau_8_symbol = [Symbol('tau')]
+        RV.tau_8_evaluated = tau_8
         return
 
     def generate_alphas(self, RV, TC):
@@ -358,37 +310,10 @@ class Teno8(object):
         # Scale separation parameters
         C, q = S.One, 6
         RV.tau_8_symbol = [Symbol('tau')]
+        tau_8 = RV.tau_8_symbol[0] - Rational(1, 6)*(RV.smoothness_symbols[1] + RV.smoothness_symbols[2] + 4*RV.smoothness_symbols[0])
         for r in range(TC.n_stencils):
             RV.alpha_symbols += [Symbol('alpha_%d' % r)]
-            RV.alpha_evaluated.append((C + (Abs(RV.tau_8_symbol[0])/(self.eps + RV.smoothness_symbols[r])))**q)
-        return
-
-    def generate_omegas(self, RV, TC):
-        """ Create the omega terms for the non-linear TENO weights.
-
-        :arg object RV: The reconstruction variable object.
-        :arg object TC: Configuration settings for a reconstruction of either left or right."""
-        inv_omega_sum_symbols = [Symbol('inv_omega_sum')]
-        inv_omega_sum_evaluated = [S.One/sum([TC.opt_coeffs[i]*RV.kronecker_symbols[i] for i in range(RV.n_stencils)])]
-        RV.omega_symbols = [Symbol('omega_%d' % r) for r in range(RV.n_stencils)]
-        RV.omega_evaluated = [TC.opt_coeffs[r]*RV.kronecker_symbols[r]*inv_omega_sum_symbols[0] for r in range(RV.n_stencils)]
-        RV.inv_omega_sum_symbols = inv_omega_sum_symbols
-        RV.inv_omega_sum_evaluated = inv_omega_sum_evaluated
-        return
-
-    def generate_reconstruction(self, RV, TC):
-        """ Create the final TENO stencil by summing the stencil points, ENO coefficients and TENO weights.
-
-        :arg object RV: The reconstruction variable object.
-        :arg object TC: Configuration settings for a reconstruction of either left or right."""
-        reconstruction = 0
-        fns = []
-        for stencil in TC.stencils:
-            RV.smoothness_indicators.append(stencil.smoothness_indicator)
-            fns = [RV.function_stencil_dictionary[i] for i in stencil.fn_points]
-            eno_interpolation = sum([point*coefficient for (point, coefficient) in zip(fns, stencil.eno_coeffs)])
-            reconstruction += RV.omega_symbols[stencil.stencil_number]*eno_interpolation
-        RV.reconstructed_expression = reconstruction
+            RV.alpha_evaluated.append((C + (Abs(tau_8)/(self.eps + RV.smoothness_symbols[r])))**q)
         return
 
 
@@ -396,6 +321,7 @@ class TenoReconstructionVariable(object):
     """ Reconstruction variable object to hold the quantities required for TENO.
 
     :arg str name: Name of the reconstruction, either left or right."""
+
     def __init__(self, name):
         self.name = name
         self.smoothness_indicators = []
@@ -429,14 +355,14 @@ class TenoReconstructionVariable(object):
         self.kronecker_symbols += [GridVariable('%s' % (s)) for s in original.kronecker_symbols]
 
         if original.order == 8:
-            new_name = self.name.split('_')[-1]
-            self.tau_8_symbol = [GridVariable('%s_%s' % (original.tau_8_symbol[0], new_name))]
+            self.tau_8_symbol = [GridVariable('%s' % (original.tau_8_symbol[0]))]
             originals = original.tau_8_symbol
             new = self.tau_8_symbol[:]
         else:
             originals = []
             new = []
-        originals += original.smoothness_symbols + original.alpha_symbols + original.inv_alpha_sum_symbols  + original.kronecker_symbols + original.inv_omega_sum_symbols + original.omega_symbols
+
+        originals += original.smoothness_symbols + original.alpha_symbols + original.inv_alpha_sum_symbols + original.kronecker_symbols + original.inv_omega_sum_symbols + original.omega_symbols
         new += self.smoothness_symbols + self.alpha_symbols + self.inv_alpha_sum_symbols + self.kronecker_symbols + self.inv_omega_sum_symbols + self.omega_symbols
         subs_dict = dict(zip(originals, new))
 
@@ -450,17 +376,13 @@ class TenoReconstructionVariable(object):
                 self.tau_8_evaluated = self.tau_8_symbol
             else:
                 self.tau_8_evaluated = [s.subs(subs_dict) for s in original.tau_8_evaluated]
+
         self.alpha_evaluated = [s.subs(subs_dict) for s in original.alpha_evaluated]
         self.inv_alpha_sum_evaluated = [s.subs(subs_dict) for s in original.inv_alpha_sum_evaluated]
         self.inv_omega_sum_evaluated = [s.subs(subs_dict) for s in original.inv_omega_sum_evaluated]
         self.omega_evaluated = [s.subs(subs_dict) for s in original.omega_evaluated]
         self.kronecker_evaluated = [s.subs(subs_dict) for s in original.kronecker_evaluated]
         self.reconstructed_expression = original.reconstructed_expression.subs(subs_dict)
-        return
-    
-    def add_evaluations_to_kernel(self, kernel):
-        for eqn in self.final_equations:
-            kernel.add_equation(eqn)
         return
 
     def evaluate_quantities(self, component_index):
@@ -472,7 +394,7 @@ class TenoReconstructionVariable(object):
 
         final_equations = []
         for no, value in enumerate(all_symbols):
-            final_equations += [OpenSBLIEq(value, all_evaluations[no])]
+            final_equations += [OpenSBLIEq(value, all_evaluations[no], evaluate=False)]
         self.final_equations = final_equations
         self.final_equations += [OpenSBLIEq(GridVariable('Recon_%d' % component_index), GridVariable('Recon_%d' % component_index) + self.reconstructed_expression)]
         return
@@ -482,6 +404,7 @@ class LeftTenoReconstructionVariable(TenoReconstructionVariable):
     """ Reconstruction object for the left TENO reconstruction.
 
         :arg str name: 'left' """
+
     def __init__(self, name):
         TenoReconstructionVariable.__init__(self, name)
         return
@@ -491,6 +414,7 @@ class RightTenoReconstructionVariable(TenoReconstructionVariable):
     """ Reconstruction object for the right TENO reconstruction.
 
         :arg str name: 'right' """
+
     def __init__(self, name):
         TenoReconstructionVariable.__init__(self, name)
         return
@@ -500,6 +424,7 @@ class Teno(Scheme, ShockCapturing):
     """ The main TENO class, part of the ShockCapturing family.
 
         :arg int order: Numerical order of the TENO scheme (3,5,...)."""
+
     def __init__(self, order, **kwargs):
         Scheme.__init__(self, "TenoDerivative", order)
         self.schemetype = "Spatial"
@@ -511,7 +436,7 @@ class Teno(Scheme, ShockCapturing):
         elif order == 8:
             WT = Teno8()
         else:
-            raise NotImplementedError("Only 5th, 6th and 8th order TENO implemented currently.")
+            raise NotImplementedError("Only 5th, 6th and 8th order TENO are currently implemented.")
         # Epsilon to avoid division by zero in non-linear weights
         WT.eps = ConstantObject('eps')
         # Parameter to control the spectral properties of the TENO scheme
@@ -534,11 +459,60 @@ class Teno(Scheme, ShockCapturing):
             RV.smoothness_symbols, RV.smoothness_evaluated = TC.smoothness_symbols, TC.smoothness_indicators
             if (self.order == 8):
                 WT.global_smoothness_indicator(RV)
+            # Only the generation of alphas changes for different orders of TENO
             WT.generate_alphas(RV, TC)
             self.create_cutoff_equations(RV, TC)
-            WT.generate_omegas(RV, TC)
-            WT.generate_reconstruction(RV, TC)
+            self.generate_omegas(RV, TC)
+            self.generate_reconstruction(RV, TC)
             self.reconstruction_classes[no] = RV
+        return
+
+    def reconstruction_halotype(self, order, reconstruction=True):
+        return TenoHalos(order, reconstruction)
+
+    def group_by_direction(self, eqs):
+        """ Groups the input equations by the direction (x0, x1, ...) they depend upon.
+
+        :arg list eqs: List of equations to group by direction.
+        :returns: grouped: Dictionary of {direction: equations} key, value pairs for equations grouped by direction."""
+        all_WDS = []
+        for eq in eqs:
+            all_WDS += list(eq.atoms(TenoDerivative))
+        grouped = {}
+        for cd in all_WDS:
+            direction = cd.get_direction[0]
+            if direction in grouped.keys():
+                grouped[direction] += [cd]
+            else:
+                grouped[direction] = [cd]
+        return grouped
+
+    def generate_reconstruction(self, RV, TC):
+        """ Create the final TENO stencil by summing the stencil points, ENO coefficients and TENO weights.
+
+        :arg object RV: The reconstruction variable object.
+        :arg object TC: Configuration settings for a reconstruction of either left or right."""
+        reconstruction = 0
+        fns = []
+        for stencil in TC.stencils:
+            RV.smoothness_indicators.append(stencil.smoothness_indicator)
+            fns = [RV.function_stencil_dictionary[i] for i in stencil.fn_points]
+            eno_interpolation = sum([point*coefficient for (point, coefficient) in zip(fns, stencil.eno_coeffs)])
+            reconstruction += RV.omega_symbols[stencil.stencil_number]*eno_interpolation
+        RV.reconstructed_expression = reconstruction
+        return
+
+    def generate_omegas(self, RV, TC):
+        """ Create the omega terms for the non-linear TENO weights.
+
+        :arg object RV: The reconstruction variable object.
+        :arg object TC: Configuration settings for a reconstruction of either left or right."""
+        inv_omega_sum_symbols = [Symbol('inv_omega_sum')]
+        inv_omega_sum_evaluated = [S.One/sum([TC.opt_coeffs[i]*RV.kronecker_symbols[i] for i in range(RV.n_stencils)])]
+        RV.omega_symbols = [Symbol('omega_%d' % r) for r in range(RV.n_stencils)]
+        RV.omega_evaluated = [TC.opt_coeffs[r]*RV.kronecker_symbols[r]*inv_omega_sum_symbols[0] for r in range(RV.n_stencils)]
+        RV.inv_omega_sum_symbols = inv_omega_sum_symbols
+        RV.inv_omega_sum_evaluated = inv_omega_sum_evaluated
         return
 
     def create_cutoff_equations(self, RV, TC):
@@ -564,69 +538,100 @@ class Teno(Scheme, ShockCapturing):
 class LLFTeno(LLFCharacteristic, Teno):
     """ Local Lax-Friedrichs flux splitting applied to characteristic variables using a TENO scheme.
 
-    :arg dict eigenvalue: Dictionary of diagonal matrices containing the eigenvalues in each direction.
-    :arg dict left_ev: Dictionary of matrices containing the left eigenvectors in each direction.
-    :arg dict right_ev: Dictionary of matrices containing the right eigenvectors in each direction.
     :arg int order: Order of the WENO/TENO scheme.
-    :arg int ndim: Number of dimensions of the problem.
     :arg object averaging: The averaging procedure to be applied for characteristics, defaults to Simple averaging."""
+
     def __init__(self, order, physics=None, averaging=None):
         LLFCharacteristic.__init__(self, physics, averaging)
         print "A TENO scheme of order %s is being used for shock capturing" % str(order)
         Teno.__init__(self, order)
         return
 
-    def reconstruction_halotype(self, order, reconstruction=True):
-        return TenoHalos(order, reconstruction)
+    def discretise(self, type_of_eq, block):
+        """ This is the place where the logic of vector form of equations are implemented.
+        Find physical fluxes by grouping derivatives by direction --> in central, copy over
+        Then the physical fluxes are transformed to characteristic space ---> a function in Characteristic
+        For each f+ and f-, find f_hat of i+1/2, i-1/2, (L+R) are evaluated  ----> Function in WENO scheme, called from in here
+        flux at i+1/2 evaluated -- > Function in WENO scheme
+        Then WENO derivative class is instantiated with the flux at i+1/2 array --> Function in WENO scheme, called from in here
+        Final derivatives are evaluated from Weno derivative class --> Using WD.discretise."""
+        if isinstance(type_of_eq, SimulationEquations):
+            eqs = flatten(type_of_eq.equations)
+            grouped = self.group_by_direction(eqs)
+            all_derivatives_evaluated_locally = []
+            reconstruction_halos = self.reconstruction_halotype(self.order, reconstruction=True)
+            solution_vector = flatten(type_of_eq.time_advance_arrays)
 
-    def group_by_direction(self, eqs):
-        """ Groups the input equations by the direction (x0, x1, ...) they depend upon.
+            # Instantiate eigensystems with block, but don't add metrics yet
+            self.instantiate_eigensystem(block)
 
-        :arg list eqs: List of equations to group by direction.
-        :returns: grouped: Dictionary of {direction: equations} key, value pairs for equations grouped by direction."""
-        all_WDS = []
-        for eq in eqs:
-            all_WDS += list(eq.atoms(TenoDerivative))
-        grouped = {}
-        for cd in all_WDS:
-            direction = cd.get_direction[0]
-            if direction in grouped.keys():
-                grouped[direction] += [cd]
-            else:
-                grouped[direction] = [cd]
-        return grouped
+            for direction, derivatives in grouped.iteritems():
+                # Create a work array for each component of the system
+                all_derivatives_evaluated_locally += derivatives
+                for no, deriv in enumerate(derivatives):
+                    deriv.create_reconstruction_work_array(block)
+                # Kernel for the reconstruction in this direction
+                kernel = self.create_reconstruction_kernel(direction, reconstruction_halos, block)
+                # Get the equations for a characteristic reconstruction
+                characteristic_eqns = self.get_characteristic_equations(direction, derivatives, solution_vector, block)
+                pre_process, interpolated, post_process = characteristic_eqns[0], characteristic_eqns[1], characteristic_eqns[2]
+                # Add the equations to the kernel and add the kernel to SimulationEquations
+                kernel.add_equation(pre_process + interpolated + post_process)
+                type_of_eq.Kernels += [kernel]
+            # Generate kernels for the constituent relations
+            if grouped:
+                constituent_relations = self.generate_constituent_relations_kernels(block)
+                type_of_eq.Kernels += [self.evaluate_residuals(block, eqs, all_derivatives_evaluated_locally)]
+                constituent_relations = self.check_constituent_relations(block, eqs, constituent_relations)
+            return constituent_relations
+
 
 class RFTeno(RFCharacteristic, Teno):
-    """ Local Lax-Friedrichs flux splitting applied to characteristic variables using a TENO scheme.
+    """ Roe flux splitting applied to characteristic variables using a TENO scheme.
 
-    :arg dict eigenvalue: Dictionary of diagonal matrices containing the eigenvalues in each direction.
-    :arg dict left_ev: Dictionary of matrices containing the left eigenvectors in each direction.
-    :arg dict right_ev: Dictionary of matrices containing the right eigenvectors in each direction.
     :arg int order: Order of the WENO/TENO scheme.
-    :arg int ndim: Number of dimensions of the problem.
     :arg object averaging: The averaging procedure to be applied for characteristics, defaults to Simple averaging."""
+
     def __init__(self, order, physics=None, averaging=None):
         RFCharacteristic.__init__(self, physics, averaging)
         print "A TENO scheme of order %s is being used for shock capturing with Roe-flux differencing" % str(order)
         Teno.__init__(self, order)
         return
 
-    def reconstruction_halotype(self, order, reconstruction=True):
-        return TenoHalos(order, reconstruction)
+    def discretise(self, type_of_eq, block):
+        """ This is the place where the logic of vector form of equations are implemented.
+        Find physical fluxes by grouping derivatives by direction --> in central, copy over
+        Then the physical fluxes are transformed to characteristic space ---> a function in Characteristic
+        For each f+ and f-, find f_hat of i+1/2, i-1/2, (L+R) are evaluated  ----> Function in WENO scheme, called from in here
+        flux at i+1/2 evaluated -- > Function in WENO scheme
+        Then WENO derivative class is instantiated with the flux at i+1/2 array --> Function in WENO scheme, called from in here
+        Final derivatives are evaluated from Weno derivative class --> Using WD.discretise."""
+        if isinstance(type_of_eq, SimulationEquations):
+            eqs = flatten(type_of_eq.equations)
+            grouped = self.group_by_direction(eqs)
+            all_derivatives_evaluated_locally = []
+            reconstruction_halos = self.reconstruction_halotype(self.order, reconstruction=True)
+            solution_vector = flatten(type_of_eq.time_advance_arrays)
 
-    def group_by_direction(self, eqs):
-        """ Groups the input equations by the direction (x0, x1, ...) they depend upon.
+            # Instantiate eigensystems with block, but don't add metrics yet
+            self.instantiate_eigensystem(block)
 
-        :arg list eqs: List of equations to group by direction.
-        :returns: grouped: Dictionary of {direction: equations} key, value pairs for equations grouped by direction."""
-        all_WDS = []
-        for eq in eqs:
-            all_WDS += list(eq.atoms(TenoDerivative))
-        grouped = {}
-        for cd in all_WDS:
-            direction = cd.get_direction[0]
-            if direction in grouped.keys():
-                grouped[direction] += [cd]
-            else:
-                grouped[direction] = [cd]
-        return grouped
+            for direction, derivatives in grouped.iteritems():
+                # Create a work array for each component of the system
+                all_derivatives_evaluated_locally += derivatives
+                for no, deriv in enumerate(derivatives):
+                    deriv.create_reconstruction_work_array(block)
+                # Kernel for the reconstruction in this direction
+                kernel = self.create_reconstruction_kernel(direction, reconstruction_halos, block)
+                # Get the equations for a characteristic reconstruction
+                characteristic_eqns = self.get_characteristic_equations(direction, derivatives, solution_vector, block)
+                pre_process, interpolated, post_process = characteristic_eqns[0], characteristic_eqns[1], characteristic_eqns[2]
+                # Add the equations to the kernel and add the kernel to SimulationEquations
+                kernel.add_equation(pre_process + interpolated + post_process)
+                type_of_eq.Kernels += [kernel]
+            # Generate kernels for the constituent relations
+            if grouped:
+                constituent_relations = self.generate_constituent_relations_kernels(block)
+                type_of_eq.Kernels += [self.evaluate_residuals(block, eqs, all_derivatives_evaluated_locally)]
+                constituent_relations = self.check_constituent_relations(block, eqs, constituent_relations)
+            return constituent_relations
