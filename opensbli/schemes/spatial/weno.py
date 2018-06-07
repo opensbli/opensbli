@@ -474,9 +474,8 @@ class LLFWeno(LLFCharacteristic, Weno):
                     deriv.create_reconstruction_work_array(block)
                 # Kernel for the reconstruction in this direction
                 kernel = self.create_reconstruction_kernel(direction, reconstruction_halos, block)
-                # Get the equations for a characteristic reconstruction
-                characteristic_eqns = self.get_characteristic_equations(direction, derivatives, solution_vector, block)
-                pre_process, interpolated, post_process = characteristic_eqns[0], characteristic_eqns[1], characteristic_eqns[2]
+                # Get the pre, interpolations and post equations for characteristic reconstruction
+                pre_process, interpolated, post_process = self.get_characteristic_equations(direction, derivatives, solution_vector, block)
                 # Add the equations to the kernel and add the kernel to SimulationEquations
                 kernel.add_equation(pre_process + interpolated + post_process)
                 type_of_eq.Kernels += [kernel]
@@ -526,9 +525,8 @@ class RFWeno(RFCharacteristic, Weno):
                     deriv.create_reconstruction_work_array(block)
                 # Kernel for the reconstruction in this direction
                 kernel = self.create_reconstruction_kernel(direction, reconstruction_halos, block)
-                # Get the equations for a characteristic reconstruction
-                characteristic_eqns = self.get_characteristic_equations(direction, derivatives, solution_vector, block)
-                pre_process, interpolated, post_process = characteristic_eqns[0], characteristic_eqns[1], characteristic_eqns[2]
+                # Get the pre, interpolations and post equations for characteristic reconstruction
+                pre_process, interpolated, post_process = self.get_characteristic_equations(direction, derivatives, solution_vector, block)
                 # Add the equations to the kernel and add the kernel to SimulationEquations
                 kernel.add_equation(pre_process + interpolated + post_process)
                 type_of_eq.Kernels += [kernel]
