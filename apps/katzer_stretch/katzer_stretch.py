@@ -39,12 +39,12 @@ block = SimulationBlock(ndim, block_number=0)
 
 weno_order = 5
 Avg = RoeAverage([0, 1])
-LLF = LLFWeno(weno_order, formulation='Z', averaging=Avg)
+RF = RFWeno(weno_order, formulation='Z', averaging=Avg)
 schemes = {}
-schemes[LLF.name] = LLF
+schemes[RF.name] = RF
 cent = Central(4)
 schemes[cent.name] = cent
-rk = RungeKutta(3)
+rk = RungeKuttaLS(3, formulation='SSP')
 schemes[rk.name] = rk
 block.set_discretisation_schemes(schemes)
 
@@ -120,9 +120,9 @@ coordinate_evaluation = [gridx0, gridx1]
 initial = Initialise_Katzer(polynomial_directions, n_poly_coefficients,  Re, xMach, Tinf, coordinate_evaluation)
 
 kwargs = {'iotype': "Write"}
-h5 = iohdf5(save_every=50000, **kwargs)
+h5 = iohdf5(**kwargs)
 h5.add_arrays(simulation_eq.time_advance_arrays)
-h5.add_arrays([DataObject('x0'), DataObject('x1')])
+h5.add_arrays([DataObject('x0'), DataObject('x1'), DataObject('D11')])
 block.setio(copy.deepcopy(h5))
 
 sim_eq = copy.deepcopy(simulation_eq)
@@ -137,7 +137,8 @@ SimulationDataType.set_datatype(Double)
 OPSC(alg)
 # Substitute simulation parameter values
 constants = ['gama', 'Minf', 'Pr', 'Re', 'Twall', 'dt', 'niter', 'block0np0', 'block0np1',
-                 'Delta0block0', 'Delta1block0', 'SuthT', 'RefT', 'eps', 'TENO_CT', 'Lx1', 'by']
-values = ['1.4', '2.0', '0.72', '950.0', '1.67619431', '0.01', '250', '400', '250',
-              '400.0/(block0np0-1)', '115.0/(block0np1-1)', '110.4', '288.0', '1e-15', '1e-5', '115.0', '5.0']
+                 'Delta0block0', 'Delta1block0', 'SuthT', 'RefT', 'eps', 'TENO_CT', 'Lx1', 'by', 'harten']
+values = ['1.4', '2.0', '0.72', '950.0', '1.67619431', '0.04', '200', '400', '250',
+              '400.0/(block0np0-1)', '115.0/(block0np1-1)', '110.4', '288.0', '1e-15', '1e-5', '115.0', '5.0', '0.25']
 substitute_simulation_parameters(constants, values)
+print_iteration_ops()
