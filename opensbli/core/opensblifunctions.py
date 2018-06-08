@@ -682,12 +682,13 @@ class WenoDerivative(Function, BasicDiscretisation, DerPrint):
 
 class TenoDerivative(Function, BasicDiscretisation, DerPrint):
 
-    def __new__(cls, expr, *args):
+    def __new__(cls, expr, *args, **settings):
         args = flatten([expr] + list(args))
         ret = super(TenoDerivative, cls).__new__(cls, *args, evaluate=False)
         ret.store = True  # By default all the derivatives are stored
         ret.reconstructions = []
         ret.local_evaluation = True
+        ret.settings = settings
         return ret
 
     @property
