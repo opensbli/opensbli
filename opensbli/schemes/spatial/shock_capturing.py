@@ -60,9 +60,13 @@ class ShockCapturing(object):
         :arg object kernel: The current computational kernel."""
         output_eqns = []
         for no, d in enumerate(derivatives):
+            combined_left_right_variable = GridVariable('Recon_%d' % no)
+            settings = {"combine_reconstructions":True}
+            # Add the settings to the derivative
+            d.update_settings(**settings)
             for rv in d.reconstructions:
-                combined_left_right_variable = GridVariable('Recon_%d' % no)
-                settings = {"combine_reconstructions":True, "combine_variable":combined_left_right_variable}
+                # Update the symbol for reconstruction as we want to combine both left and right to one
+                rv.reconstructed_symbol = combined_left_right_variable
                 if isinstance(rv, type(self.reconstruction_classes[1])):
                     original_rv = self.reconstruction_classes[1]
                 elif isinstance(rv, type(self.reconstruction_classes[0])):
@@ -73,8 +77,6 @@ class ShockCapturing(object):
                 rv.evaluate_quantities(**settings)
                 # Add all of the current equations
                 output_eqns += [rv.final_equations]
-            # Reconstruction variable for this component (derivative)
-            d.reconstructed_rhs = combined_left_right_variable
         return output_eqns
 
     def update_constituent_relation_symbols(self, sym, direction):
@@ -270,7 +272,7 @@ class Characteristic(EigenSystem):
             for old, new in zip(to_be_replaced, inverses):
                 term = term.replace(old, new)
             avg_REV_values[i] = term
-        reconstructed_characteristics = Matrix([d.reconstructed_rhs for d in derivatives])
+        reconstructed_characteristics = Matrix([d.evaluate_reconstruction for d in derivatives])
         reconstructed_flux = avg_REV_values*reconstructed_characteristics
         reconstructed_work = [d.reconstruction_work for d in derivatives]
         post_process_equations += [OpenSBLIEq(inverses[0], to_be_replaced[0])]

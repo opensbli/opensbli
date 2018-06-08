@@ -396,13 +396,8 @@ class TenoReconstructionVariable(object):
         for no, value in enumerate(all_symbols):
             final_equations += [OpenSBLIEq(value, all_evaluations[no], evaluate=False)]
         self.final_equations = final_equations
-        
         rv = self.reconstructed_symbol
-        if settings.has_key("combine_reconstructions"):
-            if settings["combine_reconstructions"]:
-                combine = True
-                rv = settings["combine_variable"]
-        if combine:
+        if settings.has_key("combine_reconstructions") and settings["combine_reconstructions"]:
             self.final_equations += [OpenSBLIEq(rv, rv + self.reconstructed_expression)]
         else:
             self.final_equations += [OpenSBLIEq(rv, self.reconstructed_expression)]

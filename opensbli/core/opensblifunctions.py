@@ -102,13 +102,7 @@ class LC(Function):
         return indexed
 
     def value(self):
-        args = []
-        for a in self.args:
-            if isinstance(a, EinsteinTerm):
-                if not a.get_base():
-                    args += Symbol(str(a))
-            else:
-                args += [a]
+        args = [int(str(a)) for a in self.args]
         return eval_levicivita(*args)
 
 
@@ -415,8 +409,49 @@ g. Update the original equations
 """
 from opensbli.utilities.helperfunctions import get_inverse_deltas
 
+class DerPrint(object):
+    def _pretty(self, printer, *args):
+        from sympy.printing.pretty.stringpict import prettyForm, stringPict
+        from sympy.printing.pretty.pretty_symbology import U
+        from sympy.utilities import group
+        from sympy.printing.str import sstr
 
-class CentralDerivative(Function, BasicDiscretisation):
+        if printer._use_unicode:
+            deriv_symbol = U('PARTIAL DIFFERENTIAL')
+        else:
+            deriv_symbol = r'd'
+        syms = list(reversed(self.args[1:]))
+        x = None
+
+        for sym, num in group(syms, multiple=False):
+            s = printer._print(sym)
+            ds = prettyForm(*s.left(deriv_symbol))
+
+            if num > 1:
+                ds = ds**prettyForm(str(num))
+
+            if x is None:
+                x = ds
+            else:
+                x = prettyForm(*x.right(' '))
+                x = prettyForm(*x.right(ds))
+
+        f = prettyForm(
+            binding=prettyForm.FUNC, *printer._print(self.args[0]).parens())
+
+        pform = prettyForm(deriv_symbol)
+
+        if len(syms) > 1:
+            pform = pform**prettyForm(str(len(syms)))
+
+        pform = prettyForm(*pform.below(stringPict.LINE, x))
+        pform.baseline = pform.baseline + 1
+        pform = prettyForm(*stringPict.next(pform, f))
+        pform.binding = prettyForm.MUL
+
+        return pform
+
+class CentralDerivative(Function, BasicDiscretisation, DerPrint):
     """
     wrapper class to represent derivatives
     Sympy already have a "Derivative" class, thus double D
@@ -436,6 +471,27 @@ class CentralDerivative(Function, BasicDiscretisation):
             return S.One
         else:
             return cls
+
+    def expand(self, **hints):
+        from sympy import pprint
+        from sympy.core.function import _coeff_isneg
+        ders = self.args[1:]
+        rets = 0
+        arg = self.args[0]
+        if arg.is_Add:
+            aargs = list(arg.expand(deep=True).args)
+            for i, ai in enumerate(aargs):
+                if ai.is_Mul and _coeff_isneg(ai):
+                    ai = ai*-S.One
+                    rets -= self.func(ai, *ders)
+                else:
+                    rets += self.func(ai, *ders)
+            return rets
+        else:
+            return self
+
+    def _eval_expand_func(self, **hints):
+        return self.expand()
 
     def _discretise_derivative(cls, scheme, block, boundary=True):
         """This would return the descritised derivative of the
@@ -537,19 +593,28 @@ class CentralDerivative(Function, BasicDiscretisation):
         return transformed_der
 
 
-class WenoDerivative(Function, BasicDiscretisation):
+class WenoDerivative(Function, BasicDiscretisation, DerPrint):
 
-    def __new__(cls, expr, *args):
+    def __new__(cls, expr, *args, **settings):
         args = flatten([expr] + list(args))
         ret = super(WenoDerivative, cls).__new__(cls, *args, evaluate=False)
         ret.store = True  # By default all the derivatives are stored
         ret.reconstructions = []
         ret.local_evaluation = True
+        ret.settings = settings
         return ret
 
     @property
     def simple_name(cls):
         return "%s" % ("WD")
+
+    def update_settings(self, **settings):
+        existing_keys = self.settings.keys()
+        for key in settings.keys():
+            if key in self.settings.keys():
+                raise ValueError("Key exists")
+        self.settings.update(settings)
+        return
 
     def _discretise_derivative(cls, block, scheme=None):
         """This would return the descritised derivative of the
@@ -598,8 +663,24 @@ class WenoDerivative(Function, BasicDiscretisation):
             metric_der = metric_der.subs(at, local_at)
         return metric_der
 
+    @property
+    def evaluate_reconstruction(self):
+        # Check if the reconstruction placeholders are combined, other options should be added here
+        if self.settings.has_key("combine_reconstructions") and self.settings["combine_reconstructions"]:
+            variables = set([r.reconstructed_symbol for r in self.reconstructions])
+            if len(variables) == 1:
+                return list(variables)[0]
+            else:
+                raise ValueError("")
+        else:
+            # Sum the reconstruction placeholders
+            total = 0
+            for r in self.reconstructions:
+                total += r.reconstructed_symbol
+            return total
 
-class TenoDerivative(Function, BasicDiscretisation):
+
+class TenoDerivative(Function, BasicDiscretisation, DerPrint):
 
     def __new__(cls, expr, *args):
         args = flatten([expr] + list(args))
@@ -647,11 +728,19 @@ class TenoDerivative(Function, BasicDiscretisation):
 
     @property
     def evaluate_reconstruction(self):
-
-        total = 0
-        for r in self.reconstructions:
-            total += r.reconstructed_symbol
-        return total
+        # Check if the reconstruction placeholders are combined, other options should be added here
+        if self.settings.has_key("combine_reconstructions") and self.settings["combine_reconstructions"]:
+            variables = set([r.reconstructed_symbol for r in self.reconstructions])
+            if len(variables) == 1:
+                return list(variables)[0]
+            else:
+                raise ValueError("")
+        else:
+            # Sum the reconstruction placeholders
+            total = 0
+            for r in self.reconstructions:
+                total += r.reconstructed_symbol
+            return total
 
     def _sympystr(self, p):
         args = list(map(p.doprint, self.args))
@@ -669,7 +758,7 @@ class TenoDerivative(Function, BasicDiscretisation):
         return metric_der
 
 
-class TemporalDerivative(Function, BasicDiscretisation):
+class TemporalDerivative(Function, BasicDiscretisation, DerPrint):
 
     def __new__(cls, expr, *args):
         args = flatten([expr] + list(args))

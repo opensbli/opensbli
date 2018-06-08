@@ -249,11 +249,7 @@ class WenoReconstructionVariable(object):
             final_equations += [OpenSBLIEq(value, all_evaluations[no])]
         self.final_equations = final_equations
         rv = self.reconstructed_symbol
-        if settings.has_key("combine_reconstructions"):
-            if settings["combine_reconstructions"]:
-                combine = True
-                rv = settings["combine_variable"]
-        if combine:
+        if settings.has_key("combine_reconstructions") and settings["combine_reconstructions"]:
             self.final_equations += [OpenSBLIEq(rv, rv + self.reconstructed_expression)]
         else:
             self.final_equations += [OpenSBLIEq(rv, self.reconstructed_expression)]
