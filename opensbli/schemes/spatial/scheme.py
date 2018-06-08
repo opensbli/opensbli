@@ -122,7 +122,9 @@ class Central(Scheme):
             self.sbli_rhs_discretisation(type_of_eq, block)
             return self.required_constituent_relations
         else:
+            block.store_work_index # Store work
             local_kernels, discretised_eq = self.genral_discretisation(type_of_eq.equations, block, name=type_of_eq.__class__.__name__)
+            block.reset_work_to_stored # Reset
             if discretised_eq:
                 for ker in local_kernels:
                     eval_ker = local_kernels[ker]
