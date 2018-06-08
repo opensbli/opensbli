@@ -218,7 +218,7 @@ class WenoReconstructionVariable(object):
         self.omega_symbols = []
         self.function_stencil_dictionary = {}
         self.reconstructed_expression = None
-        self.reconstructed_symbol = GridVariable('%s_%s' % ('reconstruct', name))
+        self.reconstructed_symbol = GridVariable('%s' % (name))
         return
 
     def update_quantities(self, original):
@@ -241,7 +241,7 @@ class WenoReconstructionVariable(object):
         self.reconstructed_expression = original.reconstructed_expression.subs(subs_dict)
         return
 
-    def evaluate_quantities(self, **settings):
+    def evaluate_quantities(self):
         all_symbols = self.smoothness_symbols + self.alpha_symbols + self.inv_alpha_sum_symbols + self.omega_symbols
         all_evaluations = self.smoothness_indicators + self.alpha_evaluated + self.inv_alpha_sum_evaluated + self.omega_evaluated
         final_equations = []
@@ -249,7 +249,7 @@ class WenoReconstructionVariable(object):
             final_equations += [OpenSBLIEq(value, all_evaluations[no])]
         self.final_equations = final_equations
         rv = self.reconstructed_symbol
-        if settings.has_key("combine_reconstructions") and settings["combine_reconstructions"]:
+        if self.settings.has_key("combine_reconstructions") and self.settings["combine_reconstructions"]:
             self.final_equations += [OpenSBLIEq(rv, rv + self.reconstructed_expression)]
         else:
             self.final_equations += [OpenSBLIEq(rv, self.reconstructed_expression)]

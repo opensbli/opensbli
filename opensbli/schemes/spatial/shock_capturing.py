@@ -33,10 +33,16 @@ class ShockCapturing(object):
         if isinstance(expression_matrix, Matrix):
             stencil = expression_matrix.stencil_points
             for i in range(expression_matrix.shape[0]):
-                rv = type(self.reconstruction_classes[1])('L_X%d_%d' % (self.direction, i))
+                settings = derivatives[i].settings
+                if settings.has_key("combine_reconstructions") and settings["combine_reconstructions"]:
+                    name = "Recon_%d_%d" % (self.direction, i)
+                else:
+                    name = 'L_X%d_%d' % (self.direction, i)
+                lv = type(self.reconstruction_classes[1])(name)
+                lv.settings = settings
                 for p in sorted(set(self.reconstruction_classes[1].func_points)):
-                    rv.function_stencil_dictionary[p] = expression_matrix[i, stencil.index(p)]
-                derivatives[i].add_reconstruction_classes([rv])
+                    lv.function_stencil_dictionary[p] = expression_matrix[i, stencil.index(p)]
+                derivatives[i].add_reconstruction_classes([lv])
         else:
             raise TypeError("Input should be a matrix.")
         return
@@ -45,9 +51,15 @@ class ShockCapturing(object):
         if isinstance(expression_matrix, Matrix):
             stencil = expression_matrix.stencil_points
             for i in range(expression_matrix.shape[0]):
-                rv = type(self.reconstruction_classes[0])('R_X%d_%d' % (self.direction, i))
+                settings = derivatives[i].settings
+                if settings.has_key("combine_reconstructions") and settings["combine_reconstructions"]:
+                    name = "Recon_%d_%d" % (self.direction, i)
+                else:
+                    name = 'R_X%d_%d' % (self.direction, i)
+                rv = type(self.reconstruction_classes[0])(name)
                 for p in sorted(set(self.reconstruction_classes[0].func_points)):
                     rv.function_stencil_dictionary[p] = expression_matrix[i, stencil.index(p)]
+                rv.settings = settings
                 derivatives[i].add_reconstruction_classes([rv])
         else:
             raise TypeError("Input should be a matrix.")
@@ -60,13 +72,7 @@ class ShockCapturing(object):
         :arg object kernel: The current computational kernel."""
         output_eqns = []
         for no, d in enumerate(derivatives):
-            combined_left_right_variable = GridVariable('Recon_%d' % no)
-            settings = {"combine_reconstructions":True}
-            # Add the settings to the derivative
-            d.update_settings(**settings)
             for rv in d.reconstructions:
-                # Update the symbol for reconstruction as we want to combine both left and right to one
-                rv.reconstructed_symbol = combined_left_right_variable
                 if isinstance(rv, type(self.reconstruction_classes[1])):
                     original_rv = self.reconstruction_classes[1]
                 elif isinstance(rv, type(self.reconstruction_classes[0])):
@@ -74,7 +80,7 @@ class ShockCapturing(object):
                 else:
                     raise ValueError("Reconstruction must be left or right")
                 rv.update_quantities(original_rv)
-                rv.evaluate_quantities(**settings)
+                rv.evaluate_quantities()
                 # Add all of the current equations
                 output_eqns += [rv.final_equations]
         return output_eqns
@@ -240,6 +246,9 @@ class Characteristic(EigenSystem):
 
     def get_characteristic_equations(self, direction, derivatives, solution_vector, block):
         """ Performs the three stages required for a characteristic based reconstruction."""
+        settings = {"combine_reconstructions":True}
+        for i in range(len(derivatives)):
+            derivatives[i].update_settings(**settings)
         pre_process_eqns = self.pre_process(direction, derivatives, solution_vector, block)
         interpolated_eqns = self.interpolate_reconstruction_variables(derivatives)
         post_process_eqns = self.post_process(direction, derivatives)

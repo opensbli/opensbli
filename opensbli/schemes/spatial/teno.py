@@ -340,7 +340,7 @@ class TenoReconstructionVariable(object):
         self.kronecker_symbols = []
         self.function_stencil_dictionary = {}
         self.reconstructed_expression = None
-        self.reconstructed_symbol = GridVariable('%s_%s' % ('reconstruct', name))
+        self.reconstructed_symbol = GridVariable('%s' % (name))
         return
 
     def update_quantities(self, original):
@@ -385,7 +385,7 @@ class TenoReconstructionVariable(object):
         self.reconstructed_expression = original.reconstructed_expression.subs(subs_dict)
         return
 
-    def evaluate_quantities(self, **settings):
+    def evaluate_quantities(self):
         """ Adds the evaluations of the TENO quantities to the computational kernel.
 
         :arg object kernel: OpenSBLI Kernel for the TENO computation."""
@@ -397,7 +397,7 @@ class TenoReconstructionVariable(object):
             final_equations += [OpenSBLIEq(value, all_evaluations[no], evaluate=False)]
         self.final_equations = final_equations
         rv = self.reconstructed_symbol
-        if settings.has_key("combine_reconstructions") and settings["combine_reconstructions"]:
+        if self.settings.has_key("combine_reconstructions") and self.settings["combine_reconstructions"]:
             self.final_equations += [OpenSBLIEq(rv, rv + self.reconstructed_expression)]
         else:
             self.final_equations += [OpenSBLIEq(rv, self.reconstructed_expression)]
