@@ -694,6 +694,14 @@ class TenoDerivative(Function, BasicDiscretisation, DerPrint):
     def simple_name(cls):
         return "%s" % ("TD")
 
+    def update_settings(self, **settings):
+        existing_keys = self.settings.keys()
+        for key in settings.keys():
+            if key in self.settings.keys():
+                raise ValueError("Key exists")
+        self.settings.update(settings)
+        return
+
     def _discretise_derivative(cls, block, scheme=None):
         """This would return the descritised derivative of the
         local object depending on the order of accuracy specified
