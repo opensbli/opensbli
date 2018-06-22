@@ -97,10 +97,12 @@ SimulationDataType.set_datatype(Double)
 OPSC(alg)
 # Random number generation for the initial condition
 # Change grid size here if desired
-halos = [-5, 5]
 npoints = [512, 512]
+halos = [(-5, 5), (-5, 5)]
+size_including_halo = [npoints[i] + sum(np.absolute(halos[i])) for i in range(ndim)]
+
 # Generate the initial white noise seeding
-random_numbers = np.random.rand(npoints[0]+2*halos[1], npoints[1]+2*halos[1])
+random_numbers = np.random.rand(*size_including_halo)
 output_hdf5(random_numbers, name, halos, npoints, block)
 
 constants = ['gama', 'Minf', 'dt', 'niter', 'block0np0', 'block0np1', 'Delta0block0', 'Delta1block0', 'TENO_CT', 'eps']
