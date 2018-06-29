@@ -13,7 +13,7 @@ def check(fname):
         # Loop over all the datasets on block
         for key in group_block.keys():
             # Check if the dataset is NaN
-            if numpy.isnan(group[key].value).any():
+            if numpy.isnan(group_block[key].value).any():
                 print("Dataset %s on block %s has  NaN" % (block, key))
             else:
                 print("Dataset %s on block %s is OK")
