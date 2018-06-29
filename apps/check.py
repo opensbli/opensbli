@@ -1,5 +1,4 @@
-"""Check the OpenSBLI output file if the simulation has become unstable
-@bried"""
+"""Check the OpenSBLI output file has not become unstable."""
 
 import numpy
 import h5py
@@ -14,9 +13,9 @@ def check(fname):
         for key in group_block.keys():
             # Check if the dataset is NaN
             if numpy.isnan(group_block[key].value).any():
-                print("Dataset %s on block %s has  NaN" % (block, key))
+                print("Dataset %s on block %s has  NaN" % (key, block))
             else:
-                print("Dataset %s on block %s is OK")
+                print("Dataset %s on block %s is OK" % (key, block))
 
 if(__name__ == "__main__"):
     # Parse the command line arguments provided by the user
