@@ -1,78 +1,76 @@
 import numpy
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 import matplotlib.pyplot as plt
 import h5py
-import glob
-import sys
 import os.path
-
+import matplotlib.cm as cm
+import os
 
 plt.style.use('classic')
 
-# Matplotlib settings for publication-ready figures
-try:
-    f = open(os.path.expanduser('./rcparams.py'), 'r')
-    exec(f.read())
-except:
-    pass
+class plotFunctions(object):
+    def __init__(self):
+        return
+
+    def read_file(self, fname):
+        f = h5py.File(fname, 'r')
+        group = f["opensbliblock00"]
+        return f, group
+
+    def read_dataset(self, group, dataset):
+        d_m = group["%s" % (dataset)].attrs['d_m']
+        size = group["%s" % (dataset)].shape
+        read_start = [abs(d) for d in d_m]
+        read_end = [s-abs(d) for d, s in zip(d_m, size)]
+        if len(read_end) == 1:
+            read_data = group["%s" % (dataset)].value[read_start[0]:read_end[0]]
+        elif len(read_end) == 2:
+            read_data = group["%s" % (dataset)].value[read_start[0]:read_end[0], read_start[1]:read_end[1]]
+        elif len(read_end) == 3:
+            read_data = group["%s" % (dataset)].value[read_start[0]:read_end[0], read_start[1]:read_end[1], read_start[2]:read_end[2]]
+        else:
+            raise NotImplementedError("")
+        return read_data
 
 
-def read_file(fname):
-    # Read in the simulation output
-    dump = glob.glob("./" + fname)
-    if not dump or len(dump) > 1:
-        print "Error: No dump file found, or more than one dump file found."
-        sys.exit(1)
-    f = h5py.File(dump[-1], 'r')
-    group = f["opensbliblock00"]
-    return f, group
+class Plot(plotFunctions):
+    def __init__(self):
+        return
 
+    def line_graphs(self, x, variable, name):
+        plt.plot(x, variable)
+        plt.xlabel(r'$x_0$', fontsize=20)
+        plt.ylabel(r'$%s$' % name, fontsize=20)
+        plt.savefig(directory + "output_%s.pdf" % name, bbox_inches='tight')
+        plt.clf()
+        return
 
-def extract_data(group, lhalo, rhalo, k):
+    def extract_flow_variables(self, group):
+        rho = self.read_dataset(group, "rho_B0")
+        rhou = self.read_dataset(group, "rhou0_B0")
+        rhoE = self.read_dataset(group, "rhoE_B0")
+        u = rhou/rho
+        p = (0.4)*(rhoE - 0.5*(u**2)*rho)
+        return rho, u, rhoE, p
 
-    # linear dimensions of the dataset
-    np = group["rho_B0"].shape
-    rho = group["rho_B0"].value
-    rhou = group["rhou0_B0"].value
-    rhoE = group["rhoE_B0"].value
+    def main_plot(self, fname, n_levels):
+        f, group1 = self.read_file(fname)
+        rho, u, rhoE, p = self.extract_flow_variables(group1)
+        variables = [rho, u, p]
+        names = ["rho", "u", "P"]
+        x = numpy.linspace(0, 10, rho.size)
 
-    rho = rho[lhalo:np[0]-rhalo]
-    # grid_points = [np[0] - 2*k]
-    rhou = rhou[lhalo:np[0]-rhalo]
-    rhoE = rhoE[lhalo:np[0]-rhalo]
-
-    u = rhou/rho
-    p = (0.4)*(rhoE - 0.5*(u**2)*rho)
-    a = numpy.sqrt(1.4*p/rho)
-    M = u/a
-    T = 1.4*4*p/rho
-    return rho, u, rhoE, p, M, T
-
-
-def line_graphs(x, variable, name):
-    plt.plot(x, variable)
-    plt.xlabel(r'$x_0$', fontsize=20)
-    plt.ylabel(r'$%s$' % name, fontsize=20)
-    plt.savefig("%s.pdf" % name, bbox_inches='tight')
-    plt.clf()
-    return
-
-
-def plot(fname, n_levels):
-    f, group1 = read_file(fname)
-    rho, u, rhoE, P, M, T = extract_data(group1, 5, 5, 3)
-    x = numpy.linspace(0, 10, 1600)
-    # coordinates = [x]
-    variables = [rho, u, rhoE, P, M, T]
-    names = ["\\rho", "u", "\\rho E", "P", "M", "T"]
-
-    # Line plots1
-    variables = [rho[:], u[:], P[:]/P[0]]
-    names = ["\\rho", "u", "P"]
-    for var, name in zip(variables, names):
-        line_graphs(x, var, name)
-    plt.clf()
-    f.close()
+        for var, name in zip(variables, names):
+            self.line_graphs(x, var, name)
+            f.close()
 
 
 fname = "opensbli_output.h5"
-plot(fname, 25)
+n_contour_levels = 25
+directory = './simulation_plots/'
+
+if not os.path.exists(directory):
+    os.makedirs(directory)
+
+KP = Plot()
+KP.main_plot(fname, n_contour_levels)

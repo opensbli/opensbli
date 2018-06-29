@@ -9,14 +9,6 @@ import glob
 import sys
 import os.path
 
-# Matplotlib settings for publication-ready figures
-try:
-    f = open(os.path.expanduser('~/opensbli-paper/images/rcparams.py'), 'r')
-    exec(f.read())
-except:
-    pass
-
-
 def plot(path):
     # Number of grid points
     nx = 200
@@ -63,7 +55,7 @@ def plot(path):
     plt.xlabel(r"$x$ (m)")
     plt.ylabel(r"Error")
     plt.legend()
-    plt.savefig("phi_error.pdf", bbox_inches='tight')
+    plt.savefig(directory + "phi_error.pdf", bbox_inches='tight')
 
     plt.clf()
     plt.plot(x, phi_initial, "--k", label=r"$\phi(x,\ t=0)$")
@@ -71,9 +63,13 @@ def plot(path):
     plt.xlabel(r"$x$ (m)")
     plt.ylabel(r"Wave amplitude $\phi$")
     plt.legend()
-    plt.savefig("phi.pdf", bbox_inches='tight')
+    plt.savefig(directory + "phi.pdf", bbox_inches='tight')
 
     plt.clf()
 
+directory = './simulation_plots/'
+
+if not os.path.exists(directory):
+    os.makedirs(directory)
 
 plot('.')

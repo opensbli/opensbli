@@ -4,17 +4,9 @@ import matplotlib.pyplot as plt
 import h5py
 import os.path
 import matplotlib.cm as cm
-
+import os
 
 plt.style.use('classic')
-
-# Matplotlib settings for publication-ready figures
-try:
-    f = open(os.path.expanduser('./rcparams.py'), 'r')
-    exec(f.read())
-except:
-    pass
-
 
 class plotFunctions(object):
     def __init__(self):
@@ -69,7 +61,6 @@ class KatzerPlot(plotFunctions):
         return x, cf, p
 
     def extract_coordinates(self):
-        fname = 'opensbli_output.h5'
         f, group1 = self.read_file(fname)
         x = self.read_dataset(group1, "x0_B0")
         y = self.read_dataset(group1, "x1_B0")
@@ -125,14 +116,12 @@ class KatzerPlot(plotFunctions):
     def SBLI_comparison(self, Cf, P):
         # Skin friction plot
         x, ref_cf, ref_p = self.load_reference_data()
+        # Rex0 = 0.5*(self.Re/self.scale)**2
+        # x0 = 0.5*self.Re/self.scale**2
+        # delta = 0.1
+        # # Calculate local Reynolds number for all x
+        # Rex = Rex0 + self.Re*self.x[1, :]
 
-        Rex0 = 0.5*(self.Re/self.scale)**2
-        x0 = 0.5*self.Re/self.scale**2
-        delta = 0.1
-        # Calculate local Reynolds number for all x
-        Rex = Rex0 + self.Re*self.x[1, :]
-
-        # plt.plot(markus_x, exact_cf, label='Flat plate exact')
         fig = plt.figure()
         ax = fig.add_subplot(111)
         ax.plot(x, ref_cf, color='r', linestyle='--', marker='o', markevery=15, markersize=5, label='Reference')
@@ -145,7 +134,7 @@ class KatzerPlot(plotFunctions):
         # ax.set_title('Skin friction')
         plt.legend(loc="best")
         ax.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
-        fig.savefig('skin_friction.pdf', bbox_inches='tight')
+        fig.savefig(directory + 'skin_friction.pdf', bbox_inches='tight')
         fig.clf()
 
         plt.plot(x, ref_p, color='r', linestyle='--', marker='o', markevery=15, markersize=5, label='Reference')
@@ -155,7 +144,7 @@ class KatzerPlot(plotFunctions):
         plt.ylabel(r'$\frac{P_w}{P_1}$', fontsize=22)
         plt.title('Normalized wall pressure')
         plt.legend(loc="best")
-        plt.savefig("wall_pressure.pdf", bbox_inches='tight')
+        plt.savefig(directory + "wall_pressure.pdf", bbox_inches='tight')
         plt.clf()
         return
 
@@ -176,7 +165,7 @@ class KatzerPlot(plotFunctions):
             print(levels)
             fig = plt.figure()
             self.contour_local(fig, levels, "%s" % name, var)
-            plt.savefig("katzer_%s.pdf" % name, bbox_inches='tight')
+            plt.savefig(directory + "katzer_%s.pdf" % name, bbox_inches='tight')
             plt.clf()
         # Compare to SBLI
         Cf = self.compute_skin_friction(u, mu)
@@ -186,7 +175,10 @@ class KatzerPlot(plotFunctions):
 
 fname = "opensbli_output.h5"
 n_contour_levels = 25
+directory = './simulation_plots/'
 
+if not os.path.exists(directory):
+    os.makedirs(directory)
 
 KP = KatzerPlot()
 KP.main_plot(fname, n_contour_levels)
