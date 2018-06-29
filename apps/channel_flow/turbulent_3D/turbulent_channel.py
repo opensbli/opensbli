@@ -10,17 +10,24 @@ from opensbli.utilities.helperfunctions import substitute_simulation_parameters
 ndim = 3
 
 # Define the compresible Navier-Stokes equations in Einstein notation
+# Feiereisen quadratic skew-symmetric formulation, no change in continuity
+mass = "Eq(Der(rho, t), - Der(rhou_j, x_j))"
 
-mass = "Eq(Der(rho,t), - Skew(rho*u_j,x_j))"
-momentum = "Eq(Der(rhou_i,t) , - Skew(rhou_i*u_j, x_j) - Der(p,x_i)  + Der(tau_i_j,x_j) - KD(_i,_j)*c_j)"
-energy = "Eq(Der(rhoE,t), - Skew(rhoE*u_j,x_j) - Conservative(p*u_j,x_j) - Dot(c_j, u_j) + Der(q_j,x_j) + Der(u_i*tau_i_j ,x_j))"
+# Feiereisen quadratic skew-symmetric momentum
+# TODO add the refernece paper
+# we expand convective and viscous parts separately and add them later
+# this demonstrates how OpenSBLI equations can be used to build equations
 
-# Substitutions used in the equations
+QSSFm = "(1/2) * (Conservative(rhou_i*u_j, x_j) + rhou_j* Der(u_i,x_j) + u_i * Der(rhou_j,x_j))" 
+momentum = "Eq(Der(rhou_i, t), - Der(p, x_i) + Der(tau_i_j, x_j) - KD(_i,_j)*c_j )"
+
+QSSFe = "(1/2) * (Conservative(rhoE*u_j, x_j) + rhou_j*Conservative(rhoE/rho, x_j) + (rhoE/rho) * Der(rhou_j, x_j))"
+energy = "Eq(Der(rhoE, t), - %s - Conservative(p*u_j, x_j) - Dot(c_j, u_j) + Der(q_j, x_j) + Der(u_i*tau_i_j, x_j) )"%(QSSFe)
+
 stress_tensor = "Eq(tau_i_j, (1.0/Re)*(Der(u_i,x_j)+ Der(u_j,x_i)- (2/3)* KD(_i,_j)* Der(u_k,x_k)))"
 heat_flux = "Eq(q_j, (1.0/((gama-1)*Minf*Minf*Pr*Re))*Der(T,x_j))"
 
 substitutions = [stress_tensor, heat_flux]
-
 # Constants that are used
 constants = ["Re", "Pr", "gama", "Minf", "c_j"]
 
@@ -43,7 +50,11 @@ eqns = einstein_eq.expand(mass, ndim, coordinate_symbol, substitutions, constant
 simulation_eq.add_equations(eqns)
 
 # Expand momentum add the expanded equations to the simulation equations
+expanded_Feiereisen = einstein_eq.expand(QSSFm, ndim, coordinate_symbol, substitutions, constants)
 eqns = einstein_eq.expand(momentum, ndim, coordinate_symbol, substitutions, constants)
+# Substract the inviscid part ot the RHS
+for no, value in enumerate(eqns):
+    eqns[no] = Eq(eqns[no].lhs,  eqns[no].rhs - expanded_Feiereisen[no])
 simulation_eq.add_equations(eqns)
 
 # Expand energy equation add the expanded equations to the simulation equations
