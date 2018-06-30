@@ -280,7 +280,7 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes):
                 if key.order >= 0 and key.order < 100:  # Checks if the equation classes are part of the time loop
                     all_kernels += key.all_spatial_kernels
                 else:
-                    print 'NOPE'  # Just checking
+                    print('NOPE')
         return all_kernels
 
     def setio(self, list_of_ios):
@@ -337,10 +337,11 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes):
     def fd_metrics(self):
         """Returns the DatSets where the metrics are evaluated to
         """
+        def _convert(x):
+            return self.dataobjects_to_datasets_on_block([x])[0]
         metric = self.get_metric_class
         if metric:
-            fn = lambda x: self.dataobjects_to_datasets_on_block([x])[0]
-            return metric.FD_metrics.applyfunc(fn)
+            return metric.FD_metrics.applyfunc(_convert)
         else:
             return eye(self.ndim)
 
@@ -360,9 +361,9 @@ def sort_constants(constants_dictionary):
         for const in unknown_constants:
             requires = const.value.atoms(ConstantObject)
             if requires.issubset(set_of_known):
-                print "const: ", const, " has formula: ", const.value, " requires: ", requires
+                print("const: ", const, " has formula: ", const.value, " requires: ", requires)
                 known_constants.append(const)
                 unknown_constants = [x for x in unknown_constants if not const]
             else:
-                print const, "is missing", " it requires", requires
+                print(const, "is missing", " it requires", requires)
     return known_constants
