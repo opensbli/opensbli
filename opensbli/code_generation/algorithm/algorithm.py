@@ -1,6 +1,6 @@
 """@brief Algorithm generation
    @author Satya Pramod Jammy
-   @details Impelments the tree-based structure with the attribute (components) controls the
+   @details Implements the tree-based structure with the attribute (components) controls the
    depth of a node.
 """
 
@@ -332,7 +332,7 @@ class BlockDescription(object):
 
 
 class TraditionalAlgorithmRK(object):
-    """ It is where the algorithm is generated, This is a seperate layer
+    """ It is where the algorithm is generated, This is a separate layer
     which gives user control to do any modifications for extra functionality that
     is to be performed like, doing some post processing for every time loop or
     sub rk loop
@@ -431,7 +431,7 @@ class TraditionalAlgorithmRK(object):
                         after_time += key.Kernels
                     else:
                         if place.frequency:
-                            raise NotImplementedError("In Nonsimulation equations")
+                            raise NotImplementedError("In Non-simulation equations")
                         else:
                             in_time += key.Kernels
 
@@ -459,7 +459,7 @@ class TraditionalAlgorithmRK(object):
                         cond.add_components(io_copy)
                         in_time += [cond]
                     else:
-                        raise NotImplementedError("In Nonsimulation equations")
+                        raise NotImplementedError("In Non-simulation equations")
             tloop = DoLoop(temporal_iteration)
             tloop.add_components(temporal_start)
             tloop.add_components(innerloop)
