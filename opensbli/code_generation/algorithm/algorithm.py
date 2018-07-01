@@ -1,3 +1,10 @@
+"""@brief Algorithm generation
+   @author Satya Pramod Jammy
+   @details Impelments the tree-based structure with the attribute (components) controls the
+   depth of a node.
+"""
+
+
 from sympy import flatten, Equality
 from opensbli.code_generation.latex import LatexWriter
 from opensbli.core.opensbliobjects import Constant, DataSetBase

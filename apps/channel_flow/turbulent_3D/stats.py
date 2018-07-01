@@ -1,5 +1,8 @@
 #!/usr/bin/env python
-
+"""@brief Favre averaged statistics for turbulent channel flow
+   @author Satya Pramod Jammy
+   @details Current work around for the statistics
+"""
 from opensbli import *
 from opensbli.utilities.user_defined_kernels import *
 from opensbli.code_generation.algorithm.common import InTheSimulation, AfterSimulationEnds, BeforeSimulationStarts
