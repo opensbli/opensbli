@@ -543,7 +543,7 @@ class OPSC(object):
         def _generate(components, type_list):
             for component1 in components:
                 if hasattr(component1, 'components'):
-                    return _generate(component1.components, type_list)
+                    _generate(component1.components, type_list)
                 elif isinstance(component1, type_of_component):
                     if component1 in type_list:
                         pass
