@@ -4,7 +4,6 @@
    depth of a node.
 """
 
-
 from sympy import flatten, Equality
 from opensbli.code_generation.latex import LatexWriter
 from opensbli.core.opensbliobjects import Constant, DataSetBase
@@ -359,10 +358,11 @@ class TraditionalAlgorithmRK(object):
         self.add_block_names(blocks)
         defdecs = self.get_definitions_declarations(blocks)
         self.defnitionsdeclarations = defdecs
-        self.spatial_solution(blocks)
+        self.generate_solution(blocks)
         return
 
     def add_block_names(self, blocks):
+        """Adds the block descriptions"""
         for b in blocks:
             self.block_descriptions += [BlockDescription(b)]
         return
@@ -383,11 +383,11 @@ class TraditionalAlgorithmRK(object):
     def comapre_no_sims(self, s1, s2):
         return cmp(s1.order, s2.order)
 
-    def spatial_solution(self, blocks):
-        """ Add the spatial kernels to the temporal solution i.e temporalscheme.solution
+    def generate_solution(self, blocks):
+        """ Generates the solution for the block
         """
         from opensbli.equation_types.opensbliequations import SimulationEquations, NonSimulationEquations, ConstituentRelations
-        print "Writing algorithm"
+        print("Generating algorithm and writing latex of it")
         fname = 'algorithm.tex'
         latex = LatexWriter()
         latex.open(fname, "Algorithm for the equations")
@@ -421,7 +421,7 @@ class TraditionalAlgorithmRK(object):
                         non_simulation_eqs += [key]
                     else:
                         if not isinstance(key, ConstituentRelations):
-                            print "NOT classified", type(key)
+                            print("NOT classified", type(key))
                             raise ValueError("Equations class can not be classified: %s" % key)
             for key in sorted(non_simulation_eqs, cmp=self.comapre_no_sims):
                 for place in key.algorithm_place:
@@ -474,6 +474,7 @@ class TraditionalAlgorithmRK(object):
         return
 
     def add_timers(self, components):
+        """Adds times to the given components"""
         timer = Timers(self.ntimers)
         self.ntimers += 1
         timer.add_components(components)
