@@ -1,12 +1,12 @@
 from opensbli.core.parsing import EinsteinEquation
 from sympy import Eq, zeros, flatten, Matrix, pprint, Function, S, Equality, Wild, WildFunction, srepr
-from opensbli.initialisation.common import AfterSimulationEnds
-from opensbli.core.opensbliequations import NonSimulationEquations, Discretisation, Solution, OpenSBLIEquation, DataSet
+from opensbli.code_generation.algorithm.common import AfterSimulationEnds
+from opensbli.equation_types.opensbliequations import NonSimulationEquations, Discretisation, Solution, OpenSBLIEquation, DataSet
 from opensbli.core.opensblifunctions import CentralDerivative, WenoDerivative
 from sympy.tensor.array import MutableDenseNDimArray
 from opensbli.core.opensbliobjects import CoordinateObject, DataObject
 from opensbli.core.kernel import Kernel
-from opensbli.core.latex import LatexWriter
+from opensbli.code_generation.latex import LatexWriter
 from opensbli.core.bcs import BoundaryConditionBase, ModifyCentralDerivative, Carpenter
 
 
