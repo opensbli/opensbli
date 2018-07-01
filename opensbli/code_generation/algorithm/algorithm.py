@@ -345,15 +345,14 @@ class TraditionalAlgorithmRK(object):
         if dtype:
             self.dtype = dtype
         else:
+            # TODO V2 import Double datatype
             self.dtype = "double"
         self.check_temporal_scheme(blocks)
         self.prg = MainPrg()
         self.add_block_names(blocks)
         defdecs = self.get_definitions_declarations(blocks)
         self.defnitionsdeclarations = defdecs
-        # self.add_def_decs(defdecs)
         self.spatial_solution(blocks)
-        # Now try the algorithm generation
         return
 
     def add_block_names(self, blocks):

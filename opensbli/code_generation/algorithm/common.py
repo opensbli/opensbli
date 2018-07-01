@@ -23,6 +23,6 @@ class InTheSimulation(object):
     example, Output to HDF5, any diagnostics
     """
 
-    def __init__(self, frequency):
+    def __init__(self, frequency=False):
         self.frequency = frequency
         return
