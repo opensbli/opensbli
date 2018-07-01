@@ -8,6 +8,7 @@ from opensbli.utilities.helperfunctions import substitute_simulation_parameters
 # STEP 0 Create the equations required for the numerical solution
 # Problem dimension
 ndim = 3
+stats = False
 
 # Define the compresible Navier-Stokes equations in Einstein notation
 # Feiereisen quadratic skew-symmetric formulation, no change in continuity
@@ -78,17 +79,21 @@ constituent.add_equations(eqns)
 
 # Write the expanded equations to a Latex file with a given name and titile
 latex = LatexWriter()
-latex.open('equations.tex', "Einstein Expansion of the simulation equations")
-latex.write_string("Simulation equations\n")
-for index, eq in enumerate(flatten(simulation_eq.equations)):
-    latex.write_expression(eq)
-
-latex.write_string("Constituent relations\n")
-for index, eq in enumerate(flatten(constituent.equations)):
-    latex.write_expression(eq)
-
+latex.open('equations.tex', "Einstein Expansion of the equations")
+simulation_eq.write_latex(latex)
+constituent.write_latex(latex)
 latex.close()
 
+if stats:
+    # Create the statistics equations, this shows another way of writing the equations
+    from stats import *
+    q_vector = flatten(simulation_eq.time_advance_arrays)
+
+    # Create equation classes for statistics, see stats.py in the current folder.
+    # Later an automatic way of creating statistics equations will be provided
+    stat_equation_classes = favre_averaged_stats(ndim, q_vector)
+else:
+    stat_equation_classes = []
 # Create a simulation block
 block = SimulationBlock(ndim, block_number=0)
 
@@ -184,7 +189,7 @@ initial.add_equations(grid_equations + initial_equations)
 
 # STEP 2
 # Set the equation classes for the block (list)
-block.set_equations([constituent, simulation_eq, initial])
+block.set_equations([constituent, simulation_eq, initial] + stat_equation_classes)
 
 # STEP 3
 # Create the dictionary of schemes
