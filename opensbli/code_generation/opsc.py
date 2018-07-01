@@ -1,3 +1,10 @@
+"""@brief Algorithm generation
+   @author Satya Pramod Jammy
+   @contributors Satya Pramod Jammy and David J Lusher
+   @details Impelments the tree-based structure with the attribute (components) controls the
+   depth of a node.
+"""
+
 from sympy.core.compatibility import is_sequence
 from sympy.printing.ccode import C99CodePrinter
 from sympy.core.relational import Equality
@@ -60,6 +67,10 @@ class OPSCCodePrinter(C99CodePrinter):
         return '*%s' % str(expr)
 
     def _print_Rational(self, expr):
+        """Settings if rational is True then rational numbers are printed as they are.
+        Else optimisations will be done for rational constants that are evaluated
+        at the start of the program, to reduce divisions
+        """
         if self.settings_opsc.get('rational', True):
             p, q = int(expr.p), int(expr.q)
             return '%d.0/%d.0' % (p, q)
@@ -70,6 +81,7 @@ class OPSCCodePrinter(C99CodePrinter):
                 return self._print(rc.get_next_rational_constant(expr))
 
     def _print_Mod(self, expr):
+        """All Mods are expressed as fmod currently and no iterger values"""
         args = map(ccode, expr.args)
         args = [x for x in args]
         result = ','.join(args)
@@ -77,9 +89,13 @@ class OPSCCodePrinter(C99CodePrinter):
         return result
 
     def _print_GridVariable(self, expr):
+        """Prints the grid variable"""
         return str(expr)
 
     def _print_Max(self, expr):
+        """MAXIMUM of the arguments, can handle any number of arguments:
+        Max(a,b,c,d) is written as max(a, max(max(b,c),d))"""
+
         nargs = len(expr.args)
         args_code = [self._print(a) for a in expr.args]
         for i in range(nargs-1):
@@ -91,11 +107,11 @@ class OPSCCodePrinter(C99CodePrinter):
         return str(args_code[0])
 
     def _print_DataObject(self, expr):
+        """Raise error if a DataObject is found in the equation"""
         raise TypeError("Data object found in code generation, convert it to a dataset first, %s" % expr)
     
     def _print_Globalvariable(self, expr):
-        # This should be handled in a different way if writing a kernel, if it is uses in the main cpp file it should
-        # be handled differently
+        # This should be handled in a different way if writing a kernel, if it is uses in the main cpp file it should be handled differently, only Global variables are supported and not arrays
         is_kernel = self.settings_opsc.get('kernel', False)
         if is_kernel:
             return ' *%s' %(str(expr))
@@ -106,12 +122,12 @@ class OPSCCodePrinter(C99CodePrinter):
         return str(expr)
 
     def _print_Equality(self, expr):
-        # print "In equality"
-        # pprint(expr.lhs)
-        # pprint(self._print(expr.lhs))
         return "%s == %s" % (self._print(expr.lhs), self._print(expr.rhs))
 
     def _print_DataSet(self, expr):
+        """Prints the OpenSBLI dataset in the OPS format with the access numbers provided.
+        Access numbers are updated for each kernel, see writing kernel in the OPSC class
+        """
         base = expr.base
         if self.dataset_accs_dictionary[base]:
             indices = expr.get_grid_indices
@@ -127,8 +143,6 @@ class OPSCCodePrinter(C99CodePrinter):
         :returns: The indexed expression, as OPSC code.
         :rtype: str
         """
-
-        # Replace the symbols in the indices that are not time with `zero'
         indices = [ind for ind in expr.indices]
         for number, index in enumerate(indices):
             for sym in index.atoms(Symbol):
@@ -147,6 +161,10 @@ class OPSCCodePrinter(C99CodePrinter):
 
 
 def pow_to_constant(expr):
+    """Finds the negative powers of constant objects and evaluates them to a new constant object
+    to reduce divisions
+    """
+
     from sympy.core.function import _coeff_isneg
     # Only negative powers i.e they correspond to division and they are stored into constant arrays
     inverse_terms = {}
@@ -659,21 +677,3 @@ class OPSC(object):
 
         out += [WriteString("}")]
         return out
-
-    def add_block_name_to_kernel_sb(self, kernel):
-        kernel.block_name = "block"
-        return
-
-    def generate_OPSC_dependants_sb(self, algorithm):
-        def _generate(components):
-            for component1 in components:
-                if isinstance(component1, Loop):
-                    return _generate(component1.components)
-                elif isinstance(component1, Kernel):
-                    self.Rational_constants = self.Rational_constants.union(component1.Rational_constants)
-                    self.constants = self.constants.union(component1.constants).union(component1.IndexedConstants)
-
-        # code = algorithm.prg.opsc_code
-        # print '\n'.join(code)
-        _generate(algorithm.prg.components)
-        return
