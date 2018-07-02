@@ -76,8 +76,8 @@ class Central(Scheme):
         return
 
     def _generate_weights(self, direction, order, block):
-        """ Descritises only the homogeneous derivatives of any order or
-        first derivatives"""
+        """ Discretizes only the homogeneous derivatives of any order for
+        first derivatives."""
         self.diffpoints = [i for i in self.points]
         weights = finite_diff_weights(order, self.diffpoints, 0)
         return weights[order][-1]
@@ -91,6 +91,7 @@ class Central(Scheme):
         return set(self.required_database)
 
     def update_works(self, to_descritse, block):
+        # V2: Delete this?
 
         return
 
@@ -109,7 +110,7 @@ class Central(Scheme):
         c. Create Equations for the evaluation ro create Kernels of each function depending on the grid/block
         control parameters
         d. Set the range of evaluation of the DataSetBases
-        e. Update the Descritised equations in type_of_eq by substituting the equations with respective
+        e. Update the discretized equations in type_of_eq by substituting the equations with respective
         work array or discretised formula
         """
         # Check if it is similar to compressible Navier stokes equations
@@ -247,12 +248,12 @@ class Central(Scheme):
                 kernels += value + function_expressions_group[key]
             # Create convective residual
 
-            convective_descritised = convective[:]
-            self.check_constituent_relations(block, convective_descritised)
+            convective_discretized = convective[:]
+            self.check_constituent_relations(block, convective_discretized)
 
-            for no, c in enumerate(convective_descritised):
-                convective_descritised[no] = convective_descritised[no].subs(subs_conv)
-            conv_residual_kernel = self.create_residual_kernel(residual_arrays, convective_descritised, block)
+            for no, c in enumerate(convective_discretized):
+                convective_discretized[no] = convective_discretized[no].subs(subs_conv)
+            conv_residual_kernel = self.create_residual_kernel(residual_arrays, convective_discretized, block)
             conv_residual_kernel.set_computation_name("Convective residual ")
             kernels += [conv_residual_kernel]
         # reset the work index of blocks
@@ -296,7 +297,7 @@ class Central(Scheme):
         This discretises the central derivatives, without any special treatment to
         group the derivatives or any thing
         """
-        descritised_equations = flatten(equations)[:]
+        discretized_equations = flatten(equations)[:]
         cds = self.get_local_function(flatten(equations))
         if cds:
             local_kernels = {}
@@ -316,9 +317,9 @@ class Central(Scheme):
                 work_arry_subs[expr] = der.work
                 local_kernels[der].add_equation(expr_discretised)
                 local_kernels[der].set_grid_range(block)
-            for no, c in enumerate(descritised_equations):
-                descritised_equations[no] = descritised_equations[no].subs(work_arry_subs)
-            return local_kernels, descritised_equations
+            for no, c in enumerate(discretized_equations):
+                discretized_equations[no] = discretized_equations[no].subs(work_arry_subs)
+            return local_kernels, discretized_equations
         else:
             return None, None
 

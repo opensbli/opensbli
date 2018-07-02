@@ -482,13 +482,13 @@ class CentralDerivative(Function, BasicDiscretisation, DerPrint):
     def _discretise_derivative(cls, scheme, block, boundary=True):
         """
         TODO V2 documentation
-        This would return the descritised derivative of the
+        This would return the discritized derivative of the
         local object depending on the order of accuracy specified
         Returns the formula for the derivative function, only first derivatives or homogeneous
         derivatives of higher order are supported. The mixed derivatives will be handled impl-
         citly while creating the kernels
-        :arg derivative: the derivative on which descritisation should be performed
-        :returns: the descritised derivative, in case of wall boundaries this is a Piecewise-
+        :arg derivative: the derivative on which discretization should be performed
+        :returns: the discritized derivative, in case of wall boundaries this is a Piecewise-
         function
         """
         order = cls.order
@@ -602,13 +602,13 @@ class WenoDerivative(Function, BasicDiscretisation, DerPrint):
         return
 
     def _discretise_derivative(cls, block, scheme=None):
-        """This would return the descritised derivative of the
+        """This would return the discritized derivative of the
         local object depending on the order of accuracy specified
         Returns the formula for the derivative function, only first derivatives or homogeneous
         derivatives of higher order are supported. The mixed derivatives will be handled impl-
         citly while creating the kernels
-        :arg derivative: the derivative on which descritisation should be performed
-        :returns: the descritised derivative, in case of wall boundaries this is a Piecewise-
+        :arg derivative: the derivative on which discretization should be performed
+        :returns: the discritized derivative, in case of wall boundaries this is a Piecewise-
         function
         """
         order = cls.order
@@ -685,13 +685,13 @@ class TenoDerivative(Function, BasicDiscretisation, DerPrint):
         return
 
     def _discretise_derivative(cls, block, scheme=None):
-        """This would return the descritised derivative of the
+        """This would return the discritized derivative of the
         local object depending on the order of accuracy specified
         Returns the formula for the derivative function, only first derivatives or homogeneous
         derivatives of higher order are supported. The mixed derivatives will be handled impl-
         citly while creating the kernels
-        :arg derivative: the derivative on which descritisation should be performed
-        :returns: the descritised derivative, in case of wall boundaries this is a Piecewise-
+        :arg derivative: the derivative on which discretization should be performed
+        :returns: the discritized derivative, in case of wall boundaries this is a Piecewise-
         function
         """
         order = cls.order
