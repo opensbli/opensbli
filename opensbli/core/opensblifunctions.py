@@ -26,7 +26,7 @@ class KD(Function):
         # Get the arguments to the function that has an index
         indices = flatten([p.get_indices() for p in self.args if p.get_indices])
         indexed = indexed[indices]
-        indexed.expression = self # This is for reverse substitution, after einstein expansion
+        indexed.expression = self  # This is for reverse substitution, after einstein expansion
         indexed.is_commutative = False
         return indexed
 
@@ -66,14 +66,16 @@ class LC(Function):
         args = [int(str(a)) for a in self.args]
         return eval_levicivita(*args)
 
+
 def convert_to_summation(final_expr, sumindices):
-    """Convert a given expression into summation notation 
+    """Convert a given expression into summation notation.
     :param final_expr: the expression to be converted to a SUM.
     :param sumindices: indices over which the expression to be summed
     :returns: Symbolic expression in Summation notation"""
     for k in sumindices:
         final_expr = Sum(final_expr, (k, 0, Symbol('ndim', integer=True)))
     return final_expr
+
 
 def expand_expr(expr, ndim):
     """Expands a given expression in summation notation to the number of dimensions,
@@ -100,29 +102,30 @@ def expand_expr(expr, ndim):
         expanded_expr = _expand(expanded_expr, k, ndim)
     return expanded_expr
 
+
 def expand_free_indices(expr, indices, ndim):
     """Expands the free indices, i.e they are not Summed in Einstein expansion.
     For example: In a vector $u_i$, the free index is $i$ this would be expanded to
     $\left[u0, u1, u2\right]$ for ndim 3.
-    
+
     :param expr: the expression to which free indices are to be applied.
     :param indices: the indices that are to be applied
     :param ndim: number of dimensions it should be expanded.
     :returns: a list of expanded expressions"""
 
     # iterator for all combinations of the numerical value of indices
-    mdindex = mutidimindex(tuple([ndim for i in indices])) # use numpy's function
+    mdindex = mutidimindex(tuple([ndim for i in indices]))  # use numpy's function
 
     # Create a list to store the output
-    # TODO V2 the output can be returned as a list (vector), Matrix for Rank 2 tensor, or sympy 
+    # TODO V2 the output can be returned as a list (vector), Matrix for Rank 2 tensor, or sympy
     # multi-dim array for higher order tensors
 
     expanded_expressions = []
     indices = list(indices)
-    for index in mdindex: # numerical indices combinations 
-        local_expr = expr.copy() # copy the given expression
+    for index in mdindex:  # numerical indices combinations
+        local_expr = expr.copy()  # copy the given expression
         # create a map of index and value
-        local_map = [(indices[no], index[no]) for no,i in enumerate(indices)]
+        local_map = [(indices[no], index[no]) for no, i in enumerate(indices)]
         for at in local_expr.atoms(EinsteinTerm):
             # Apply the mapping to get the component term
             evaluated = at.apply_multiple_indices(indices, local_map)
@@ -204,6 +207,7 @@ class EinsteinStructure(object):
         outer = []
         replacements = {}
         # Traverse the contraction structure
+
         def _contraction_traverse(d1, outer, replacements):
             for key in d1:
                 if isinstance(key, Expr):
@@ -272,6 +276,7 @@ class EinsteinStructure(object):
             else:
                 continue
         return expression
+
 
 class BasicDiscretisation(EinsteinStructure):
     # TODO V2 comments
@@ -396,7 +401,6 @@ class DerPrint(object):
         from sympy.printing.pretty.stringpict import prettyForm, stringPict
         from sympy.printing.pretty.pretty_symbology import U
         from sympy.utilities import group
-        from sympy.printing.str import sstr
 
         if printer._use_unicode:
             deriv_symbol = U('PARTIAL DIFFERENTIAL')

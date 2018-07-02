@@ -2,15 +2,13 @@
    @author Satya Pramod Jammy
    @contributors Satya Pramod Jammy and David J Lusher
    @details Impelments the tree-based structure with the attribute (components) controls the
-   depth of a node.
-"""
+   depth of a node."""
 
 from sympy.core.compatibility import is_sequence
 from sympy.printing.ccode import C99CodePrinter
 from sympy.core.relational import Equality
-from opensbli.core.opensbliobjects import ConstantObject, ConstantIndexed, Constant, DataSetBase, DataObject, GroupedPiecewise
-from opensbli.code_generation.algorithm.algorithm import Loop
-from sympy import Symbol, flatten, pprint
+from opensbli.core.opensbliobjects import ConstantObject, ConstantIndexed, Constant, DataSetBase, GroupedPiecewise
+from sympy import Symbol, flatten
 from opensbli.core.grid import GridVariable
 from opensbli.core.datatypes import SimulationDataType
 from sympy import Pow, Idx
@@ -52,7 +50,7 @@ class OPSCCodePrinter(C99CodePrinter):
 
     """ Prints OPSC code. """
     dataset_accs_dictionary = {}
-    settings_opsc = {'rational': False, 'kernel':False}
+    settings_opsc = {'rational': False, 'kernel': False}
 
     def __init__(self, settings={}):
         """ Initialise the code printer. """
@@ -109,12 +107,12 @@ class OPSCCodePrinter(C99CodePrinter):
     def _print_DataObject(self, expr):
         """Raise error if a DataObject is found in the equation"""
         raise TypeError("Data object found in code generation, convert it to a dataset first, %s" % expr)
-    
+
     def _print_Globalvariable(self, expr):
         # This should be handled in a different way if writing a kernel, if it is uses in the main cpp file it should be handled differently, only Global variables are supported and not arrays
         is_kernel = self.settings_opsc.get('kernel', False)
         if is_kernel:
-            return ' *%s' %(str(expr))
+            return ' *%s' % (str(expr))
         else:
             return "%s" % (str(expr))
 
@@ -153,7 +151,7 @@ class OPSCCodePrinter(C99CodePrinter):
     def _print_Grididx(self, expr):
         out = "%s[%s]" % (self._print(expr.base.label), ','.join([self._print(expr.number)]))
         return out
-    
+
     def _print_UserFunction(self, fn):
         """Prints the user defined funtion, we donot check if the funciton exists in the header files
         This allows for users to write their own OPS functions and use them in the code."""
@@ -334,7 +332,7 @@ class OPSC(object):
         if global_ins.intersection(global_outs):
             raise NotImplementedError("Input output of global variables is not implemented")
         all_dataset_inps += list(global_ins) + list(global_outs)
-        all_dataset_types += ['input' for i in global_ins] + ['output' for o in global_outs] 
+        all_dataset_types += ['input' for i in global_ins] + ['output' for o in global_outs]
         # Use list of tuples as dictionary messes the order
         header_dictionary = zip(all_dataset_inps, all_dataset_types)
         if kernel.IndexedConstants:
@@ -350,7 +348,7 @@ class OPSC(object):
         code = ["void %s(" % kernel.kernelname + self.kernel_header(header_dictionary) + other_inputs + ')' + '\n{']
         ops_accs = [OPSAccess(no) for no in range(len(all_dataset_inps))]
         OPSCCodePrinter.dataset_accs_dictionary = dict(zip(all_dataset_inps, ops_accs))
-        # Find all the grid variables and declare them at the top 
+        # Find all the grid variables and declare them at the top
         gridvariables = set()
         out = []
         for eq in kernel.equations:
@@ -367,7 +365,7 @@ class OPSC(object):
                         else:
                             out += [ccode(expr, settings={'kernel': True}) + ';\n']
                         out += ['}\n']
-                    elif condition != True:
+                    elif condition is not True:
                         out += ['else if (%s)' % ccode(condition, settings={'kernel': True}) + '{\n']
                         if is_sequence(expr):
                             for eqn in expr:
@@ -386,8 +384,8 @@ class OPSC(object):
             else:
                 raise TypeError("Unclassified type of equation.")
         for gv in gridvariables:
-            code += ["%s %s = 0.0;" %(SimulationDataType.opsc(), str(gv))]
-        code += out + ['}'] # close Kernel
+            code += ["%s %s = 0.0;" % (SimulationDataType.opsc(), str(gv))]
+        code += out + ['}']  # close Kernel
         OPSCCodePrinter.dataset_accs_dictionary = {}
         return code
 

@@ -1,7 +1,7 @@
-from sympy import Symbol, sin, Eq, tan, sqrt, atan, cot, cos, pi, pprint, rad, asin
+from sympy import Symbol, sin, Eq, tan, sqrt, atan, cot, cos, pi, rad, asin
 
 
-class ObliqueShock(object):
+class ObliqueShock(object): # V2: May want to remove this file before release
     """ Class to compute the oblique shock relations.
 
     :arg float wave_angle: Oblique shock angle beta in degrees.
@@ -29,7 +29,7 @@ class ObliqueShock(object):
         return
 
     def theta_beta_M_eqn(self):
-        """ Function to calculate the wedge angle for this Mach number and wave angle. 
+        """ Function to calculate the wedge angle for this Mach number and wave angle.
         Evaluates the equation tan(theta) = 2*cot(beta)*(M1**2 * sin^2(beta) - 1)/(M1**2*(gama + cos(2beta)) + 2). """
         beta, M1, gamma = self.beta, self.M1, self.gamma
         tbm_eqn = Eq(Symbol('theta'), atan(2*cot(beta)*(M1**2 * sin(beta)**2 - 1)/(M1**2 * (gamma+cos(2*beta))+2)))
@@ -73,8 +73,8 @@ class ShockConditions(ObliqueShock):
 
     def conservative_post_shock_conditions(self, freestream_velocity):
         wave, wedge = Symbol('wave_angle'), Symbol('wedge_angle')
-        rho2rho1, p2p1, T2T1 = Symbol('rho2rho1'), Symbol('p2p1'), Symbol('T2T1')
-        M1, M2, gamma = Symbol('M_1'), Symbol('M_2'), Symbol('gamma')
+        rho2rho1, p2p1 = Symbol('rho2rho1'), Symbol('p2p1')
+        M1, gamma = Symbol('M_1'), Symbol('gamma')
         free_stream = freestream_velocity
         u = (free_stream*cos(0.5*pi - wave)*tan(wave - wedge)/tan(wave)).subs(self.subs_dict).evalf()
         v = (free_stream*cos(0.5*pi - wave)/tan(wave)).subs(self.subs_dict).evalf()
@@ -93,12 +93,12 @@ class ShockConditions(ObliqueShock):
 
     def primitive_post_shock_conditions(self, freestream_velocity):
         wave, wedge = Symbol('wave_angle'), Symbol('wedge_angle')
-        rho2rho1, p2p1, T2T1 = Symbol('rho2rho1'), Symbol('p2p1'), Symbol('T2T1')
-        M1, M2, gamma = Symbol('M_1'), Symbol('M_2'), Symbol('gamma')
+        rho2rho1, p2p1 = Symbol('rho2rho1'), Symbol('p2p1')
+        M1, gamma = Symbol('M_1'), Symbol('gamma')
         free_stream = freestream_velocity
         u = (free_stream*cos(0.5*pi - wave)*tan(wave - wedge)/tan(wave)).subs(self.subs_dict).evalf()
         v = (free_stream*cos(0.5*pi - wave)/tan(wave)).subs(self.subs_dict).evalf()
-        u_out= (sqrt(u*u+v*v)*cos(wedge)).subs(self.subs_dict)
+        u_out = (sqrt(u*u+v*v)*cos(wedge)).subs(self.subs_dict)
         v_out = (-1.0*sqrt(u*u+v*v)*sin(wedge)).subs(self.subs_dict)
         # Calculate post-shock pressure
         # Freestream pressure for this normalisation.
