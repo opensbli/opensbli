@@ -1,4 +1,4 @@
-from sympy import IndexedBase, Symbol, Rational, Abs, flatten, Max, horner, S, ceiling, pprint
+from sympy import IndexedBase, Symbol, Rational, Abs, flatten, Max, S, ceiling
 from opensbli.core.opensblifunctions import TenoDerivative
 from opensbli.core.opensbliobjects import ConstantObject
 from opensbli.core.grid import GridVariable
@@ -224,6 +224,7 @@ class Teno6(object):
             RV.alpha_symbols += [Symbol('alpha_%d' % r)]
             RV.alpha_evaluated.append((C + (tau_6/(self.eps + RV.smoothness_symbols[r])))**q)
         return
+
 
 class TenoReconstructionVariable(object):
     """ Reconstruction variable object to hold the quantities required for TENO.

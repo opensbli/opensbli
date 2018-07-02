@@ -1,12 +1,11 @@
 from sympy.calculus import finite_diff_weights
-from sympy import postorder_traversal, Function, flatten, Rational, Idx, S
+from sympy import postorder_traversal, Function, flatten, S
 from sympy.core import Add, Mul
-from opensbli.core.opensbliobjects import ConstantObject, ConstantIndexed, Globalvariable, DataSet
+from opensbli.core.opensbliobjects import ConstantObject, DataSet
 from opensbli.core.opensblifunctions import CentralDerivative
 from opensbli.equation_types.opensbliequations import OpenSBLIEq, SimulationEquations
 from opensbli.core.kernel import Kernel
 from opensbli.utilities.helperfunctions import increasing_order
-from opensbli.core.datatypes import Int
 
 
 class Scheme(object):
@@ -68,9 +67,6 @@ class Central(Scheme):
         self.schemetype = "Spatial"
         # Points for the spatial scheme
         self.points = list(i for i in range(-order/2, order/2+1))
-        # Set max_order to 2 currently
-        max_order = 2
-        # self._generate_derivative_weights(max_order)
         self.required_constituent_relations = {}
         self.halotype = CentralHalos(order)
         return
@@ -122,9 +118,9 @@ class Central(Scheme):
             self.sbli_rhs_discretisation(type_of_eq, block)
             return self.required_constituent_relations
         else:
-            block.store_work_index # Store work
+            block.store_work_index  # Store work
             local_kernels, discretised_eq = self.general_discretisation(type_of_eq.equations, block, name=type_of_eq.__class__.__name__)
-            block.reset_work_to_stored # Reset
+            block.reset_work_to_stored  # Reset
             if discretised_eq:
                 for ker in local_kernels:
                     eval_ker = local_kernels[ker]

@@ -1,12 +1,9 @@
-from sympy import IndexedBase, Symbol, Rational, solve, interpolating_poly, integrate, zeros, Abs, Float, Matrix, flatten, Function, S
+from sympy import IndexedBase, Symbol, Rational, solve, interpolating_poly, integrate, Abs, Float, flatten, S
 from opensbli.core.opensblifunctions import WenoDerivative
-from opensbli.core.opensbliobjects import DataSetBase
 from opensbli.equation_types.opensbliequations import SimulationEquations, OpenSBLIEq
-from opensbli.core.kernel import Kernel
 from opensbli.core.grid import GridVariable
-from opensbli.utilities.helperfunctions import increment_dataset
 from .scheme import Scheme
-from sympy import factor, horner, pprint
+from sympy import horner
 from opensbli.schemes.spatial.shock_capturing import ShockCapturing, LLFCharacteristic, RFCharacteristic
 
 

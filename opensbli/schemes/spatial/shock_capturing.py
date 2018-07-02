@@ -6,7 +6,7 @@ from opensbli.core.kernel import Kernel, ConstantsToDeclare
 from opensbli.core.grid import GridVariable
 from opensbli.utilities.helperfunctions import increment_dataset
 from opensbli.physical_models.euler_eigensystem import EulerEquations
-from sympy import factor, pprint
+from sympy import factor
 from sympy.functions.elementary.piecewise import ExprCondPair, Piecewise
 from opensbli.schemes.spatial.averaging import SimpleAverage, RoeAverage
 
@@ -246,7 +246,7 @@ class Characteristic(EigenSystem):
 
     def get_characteristic_equations(self, direction, derivatives, solution_vector, block):
         """ Performs the three stages required for a characteristic based reconstruction."""
-        settings = {"combine_reconstructions":True}
+        settings = {"combine_reconstructions": True}
         for i in range(len(derivatives)):
             derivatives[i].update_settings(**settings)
         pre_process_eqns = self.pre_process(direction, derivatives, solution_vector, block)
