@@ -3,7 +3,7 @@ from opensbli import *
 import copy
 from opensbli.utilities.helperfunctions import substitute_simulation_parameters
 
-""" Viscous shock tube problem in 2D, conditions taken from Numerical simulation of the viscous shock tube problem 
+""" Viscous shock tube problem in 2D, conditions taken from Numerical simulation of the viscous shock tube problem
 by using a high resolution monotonicity-preserving scheme. Tenaud et al (2009). doi:10.1016/j.compfluid.2008.06.008. """
 ndim = 2
 sc1 = "**{\'scheme\':\'Teno\'}"
@@ -65,7 +65,7 @@ x1 = parse_expr("Eq(DataObject(x1), block.deltas[1]*block.grid_indexes[1])", loc
 gama = ConstantObject('gama')
 local_dict['gama'] = ConstantObject('gama')
 # Conditions left and right of the initial diaphram for rho, u, v, p
-conditions = [(120.0, 1.2), (0, 0), (0, 0), (120.0, 1.2)] # pressure is rho/gama, the division is in the equations below for p
+conditions = [(120.0, 1.2), (0, 0), (0, 0), (120.0, 1.2)]  # pressure is rho/gama, the division is in the equations below for p
 
 rho = parse_expr("Eq(GridVariable(rho), Piecewise((%.15f, GridVariable(x_grid)<=0.5), (%.15f, True)))" % conditions[0], local_dict=local_dict)
 u0 = parse_expr("Eq(GridVariable(u0), Piecewise((%.15f, GridVariable(x_grid)<=0.5), (%.15f, True)))" % conditions[1], local_dict=local_dict)

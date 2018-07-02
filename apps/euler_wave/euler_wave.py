@@ -51,7 +51,7 @@ eqns = eq.expand(speed_of_sound, ndim, coordinate_symbol, substitutions, constan
 constituent.add_equations(eqns)
 
 schemes = {}
-# Local LaxFredirich scheme for weno 
+# Local LaxFredirich scheme for weno
 weno_order = 5
 # Averaging procedure to be used for the eigen system evaluation
 Avg = SimpleAverage([0, 1])

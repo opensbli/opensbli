@@ -17,10 +17,10 @@ class WorkDataSet(object):
         self.stored_index = 0
         self.dtype = None  # Place holder to save dtype not used currently
         return
-    
+
     @property
     def work_name(self):
-        return "%s%%d" %(self.work_name_base)
+        return "%s%%d" % (self.work_name_base)
 
     def work_array(self, name=None, location=None):
         """ Sets up a opensbli DataSet, indexed by the relative location.

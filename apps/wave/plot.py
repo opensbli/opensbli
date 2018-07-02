@@ -9,6 +9,7 @@ import glob
 import sys
 import os.path
 
+
 def plot(path):
     # Number of grid points
     nx = 200
@@ -64,8 +65,8 @@ def plot(path):
     plt.ylabel(r"Wave amplitude $\phi$")
     plt.legend()
     plt.savefig(directory + "phi.pdf", bbox_inches='tight')
-
     plt.clf()
+
 
 directory = './simulation_plots/'
 

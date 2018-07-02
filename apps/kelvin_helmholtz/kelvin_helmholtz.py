@@ -21,7 +21,7 @@ pressure = "Eq(p, (gama-1)*(rhoE - rho*(1/2)*(KD(_i,_j)*u_i*u_j)))"
 speed_of_sound = "Eq(a, (gama*p/rho)**0.5)"
 
 # Instatiate equation classes
-eq = EinsteinEquation()
+einstein_eq = EinsteinEquation()
 base_eqns = [mass, momentum, energy]
 constituent_eqns = [velocity, pressure, speed_of_sound]
 
@@ -29,10 +29,10 @@ simulation_eq = SimulationEquations()
 constituent = ConstituentRelations()
 
 for eqn in base_eqns:
-    simulation_eq.add_equations(eq.expand(eqn, ndim, coordinate_symbol, substitutions, constants))
+    simulation_eq.add_equations(einstein_eq.expand(eqn, ndim, coordinate_symbol, substitutions, constants))
 
 for eqn in constituent_eqns:
-    constituent.add_equations(eq.expand(eqn, ndim, coordinate_symbol, substitutions, constants))
+    constituent.add_equations(einstein_eq.expand(eqn, ndim, coordinate_symbol, substitutions, constants))
 
 block = SimulationBlock(ndim, block_number=0)
 

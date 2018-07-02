@@ -8,6 +8,7 @@ import os
 
 plt.style.use('classic')
 
+
 class plotFunctions(object):
     def __init__(self):
         return
@@ -75,7 +76,7 @@ class Plot(plotFunctions):
         rho, u, v, rhoE, p = self.extract_flow_variables(group1)
         self.x, self.y = self.extract_coordinates()
         variables = [rho, rhoE]
-        names = ["\\rho","\\rho E"]
+        names = ["\\rho", "\\rho E"]
 
         # Contour plots
         for var, name in zip(variables, names):
@@ -100,11 +101,10 @@ class Plot(plotFunctions):
         rho_error = numpy.abs(exact - rho)
         L1 = numpy.sum(rho_error)/(npoints[0]*npoints[1])
         Linf = numpy.max(rho_error)
-        errors = [L1, Linf]
 
         text_file = open("errors.txt", "w")
         text_file.write("L1, Linf\n")
-        text_file.write("%e, %e"%(L1, Linf))
+        text_file.write("%e, %e" % (L1, Linf))
         text_file.close()
         print "=================================="
         print "L^1 error: %e " % L1

@@ -1,12 +1,11 @@
 import numpy
-from mpl_toolkits.axes_grid1 import make_axes_locatable
 import matplotlib.pyplot as plt
 import h5py
 import os.path
-import matplotlib.cm as cm
 import os
 
 plt.style.use('classic')
+
 
 class plotFunctions(object):
     def __init__(self):

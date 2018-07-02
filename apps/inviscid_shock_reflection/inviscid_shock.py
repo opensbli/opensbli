@@ -51,7 +51,6 @@ eqns = eq.expand(speed_of_sound, ndim, coordinate_symbol, substitutions, constan
 constituent.add_equations(eqns)
 
 schemes = {}
-# Local LaxFredirich scheme for weno 
 weno_order = 5
 # Averaging procedure to be used for the eigen system evaluation
 Avg = SimpleAverage([0, 1])
@@ -108,7 +107,7 @@ boundaries[direction][side] = SymmetryBC(direction, side)
 # Top dirichlet shock condition
 direction = 1
 side = 1
-pre_shock_pressure = 1.0/(1.4*4.0)
+pre_shock_pressure = 1.0 / (1.4 * 4.0)
 post_shock_pressure = pre_shock_pressure * 1.18646663
 shock_loc = parse_expr("Eq(GridVariable(shock_loc), 40.0)", local_dict=local_dict)
 

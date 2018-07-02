@@ -8,6 +8,7 @@ import os
 
 plt.style.use('classic')
 
+
 class plotFunctions(object):
     def __init__(self):
         return

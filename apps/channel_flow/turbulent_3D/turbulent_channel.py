@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # Import all the functions from opensbli
 from opensbli import *
-import copy
 from sympy import sin, log, cos, pi
 from opensbli.utilities.helperfunctions import substitute_simulation_parameters
 
@@ -19,11 +18,11 @@ mass = "Eq(Der(rho, t), - Der(rhou_j, x_j))"
 # we expand convective and viscous parts separately and add them later
 # this demonstrates how OpenSBLI equations can be used to build equations
 
-QSSFm = "(1/2) * (Conservative(rhou_i*u_j, x_j) + rhou_j* Der(u_i,x_j) + u_i * Der(rhou_j,x_j))" 
+QSSFm = "(1/2) * (Conservative(rhou_i*u_j, x_j) + rhou_j* Der(u_i,x_j) + u_i * Der(rhou_j,x_j))"
 momentum = "Eq(Der(rhou_i, t), - Der(p, x_i) + Der(tau_i_j, x_j) - KD(_i,_j)*c_j )"
 
 QSSFe = "(1/2) * (Conservative(rhoE*u_j, x_j) + rhou_j*Conservative(rhoE/rho, x_j) + (rhoE/rho) * Der(rhou_j, x_j))"
-energy = "Eq(Der(rhoE, t), - %s - Conservative(p*u_j, x_j) - Dot(c_j, u_j) + Der(q_j, x_j) + Der(u_i*tau_i_j, x_j) )"%(QSSFe)
+energy = "Eq(Der(rhoE, t), - %s - Conservative(p*u_j, x_j) - Dot(c_j, u_j) + Der(q_j, x_j) + Der(u_i*tau_i_j, x_j) )" % (QSSFe)
 
 stress_tensor = "Eq(tau_i_j, (1.0/Re)*(Der(u_i,x_j)+ Der(u_j,x_i)- (2/3)* KD(_i,_j)* Der(u_k,x_k)))"
 heat_flux = "Eq(q_j, (1.0/((gama-1)*Minf*Minf*Pr*Re))*Der(T,x_j))"
@@ -32,7 +31,7 @@ substitutions = [stress_tensor, heat_flux]
 # Constants that are used
 constants = ["Re", "Pr", "gama", "Minf", "c_j"]
 
-# symbol for the coordinate system in the equations 
+# symbol for the coordinate system in the equations
 coordinate_symbol = "x"
 
 # Constituent relations used in the system
@@ -63,7 +62,7 @@ eqns = einstein_eq.expand(energy, ndim, coordinate_symbol, substitutions, consta
 simulation_eq.add_equations(eqns)
 
 # Expand the constituent relations and them to the constituent relations class
-constituent = ConstituentRelations() # Instantiate constituent relations object
+constituent = ConstituentRelations()  # Instantiate constituent relations object
 
 # Expand momentum add the expanded equations to the constituent relations
 eqns = einstein_eq.expand(velocity, ndim, coordinate_symbol, substitutions, constants)
@@ -101,8 +100,8 @@ block = SimulationBlock(ndim, block_number=0)
 # dx and dy of the grid
 dx, dy, dz = block.deltas
 # Indices for the grid location
-i,j,k = block.grid_indexes
-# Some constants used 
+i, j, k = block.grid_indexes
+# Some constants used
 gama, Minf, Re = symbols('gama Minf Re', **{'cls': ConstantObject})
 """ Conservative vector is the time advancement arrays of the simulation equations.
 the order follows the order in which they are added to the simulation equations
@@ -120,8 +119,8 @@ boundaries += [PeriodicBC(direction, side=0)]
 boundaries += [PeriodicBC(direction, side=1)]
 
 # Isothermal wall in x1 direction
-# Energy on the wall is set 
-wall_energy = [Eq(q_vector[4], q_vector[0]/(gama * Minf**2.0 * (gama - S.One)))]
+# Energy on the wall is set
+wall_energy = [Eq(q_vector[4], q_vector[0] / (gama * Minf**2.0 * (gama - S.One)))]
 
 direction = 1
 # Side 0 (bottom wall) boundary
@@ -142,10 +141,10 @@ block.set_block_boundaries(boundaries)
 
 # Create the grid and intial conditions
 # Arrays to store x and y coordinates, i.e (x0 and x1)
-x,y,z = symbols('x0:%d' %ndim, **{'cls':DataObject})
+x, y, z = symbols('x0:%d' % ndim, **{'cls': DataObject})
 grid_equations = []
 # Equations for generating the grid, simple equispacing grid, later change to stretched
-grid_equations += [Eq(x, i*dx), Eq(y, -S.One + j*dy), Eq(z, k*dz)]
+grid_equations += [Eq(x, i * dx), Eq(y, -S.One + j * dy), Eq(z, k * dz)]
 
 # Initial condition
 initial_equations = []
@@ -159,29 +158,32 @@ ubar, amp, vonkar, b = symbols('ubar amp vonkar b', **{'cls': GridVariable})
 initial_equations += [Eq(b, 5.5), Eq(vonkar, 2.5)]
 
 # Equation for umean
-initial_equations += [Eq(ubar, Piecewise((y*Re, y*Re < 10.0), (vonkar*log(y*Re) + b, True)))]
+initial_equations += [Eq(ubar, Piecewise((y * Re, y * Re < 10.0),
+                         (vonkar * log(y * Re) + b, True)))]
 # Amplitude of the disturbances
-initial_equations += [Eq(amp, 0.1 * (vonkar*log(Re) + b))]
+initial_equations += [Eq(amp, 0.1 * (vonkar * log(Re) + b))]
 
 # sin disturbances in each direction
-initial_equations += [Eq(sx, sin(4.0*pi*x/lx)), Eq(sy, sin(pi*y)), Eq(sz, sin(2.0*pi*z/lz))]
+initial_equations += [Eq(sx, sin(4.0 * pi * x / lx)), Eq(sy, sin(pi * y)),
+                         Eq(sz, sin(2.0 * pi * z / lz))]
 
 # cosine disturbances in each direction
-initial_equations += [Eq(cx, cos(4.0*pi*x/lx)), Eq(cy, S.One + cos(pi*y)), Eq(cz, cos(2.0*pi*z/lz))]
+initial_equations += [Eq(cx, cos(4.0 * pi * x / lx)), Eq(cy, S.One + \
+                         cos(pi * y)), Eq(cz, cos(2.0 * pi * z / lz))]
 
 d, u, v, w, p = symbols('d u0 u1 u2 p', **{'cls': GridVariable})
-# Find the turbule u, v, w 
-initial_equations += [Eq(u, ubar + amp*(lx/2.0)*cx*sy*sz)]
-initial_equations += [Eq(v, - amp*sx*cy*sz)]
-initial_equations += [Eq(w, - amp*(lz/2.0)*sx*sy*cz)]
-initial_equations += [Eq(p, S.One/(gama*Minf**2.0))]
+# Find the turbule u, v, w
+initial_equations += [Eq(u, ubar + amp * (lx / 2.0) * cx * sy * sz)]
+initial_equations += [Eq(v, - amp * sx * cy * sz)]
+initial_equations += [Eq(w, - amp * (lz / 2.0) * sx * sy * cz)]
+initial_equations += [Eq(p, S.One / (gama * Minf**2.0))]
 initial_equations += [Eq(d, S.One)]
 
 # Now evaluate the Conservative vector
 
 initial_equations += [Eq(q_vector[0], d)]
-initial_equations += [Eq(q_vector[1], d*u), Eq(q_vector[2], d*v), Eq(q_vector[3], d*w)]
-initial_equations += [Eq(q_vector[4], p/(gama - S.One) + 0.5 *d*(u**2 + v**2 + w**2))]
+initial_equations += [Eq(q_vector[1], d * u), Eq(q_vector[2], d * v), Eq(q_vector[3], d * w)]
+initial_equations += [Eq(q_vector[4], p / (gama - S.One) + 0.5 * d * (u**2 + v**2 + w**2))]
 
 # Instantiate a grid based initialisation classes
 initial = GridBasedInitialisation()
@@ -205,19 +207,19 @@ block.set_discretisation_schemes(schemes)
 
 # STEP 4 add io for the block
 kwargs = {'iotype': "Write"}
-output_arrays = simulation_eq.time_advance_arrays + [x,y,z]
+output_arrays = simulation_eq.time_advance_arrays + [x, y, z]
 output_hdf5 = iohdf5(save_every=10000, arrays=output_arrays, **kwargs)
 block.setio([output_hdf5])
 
 # STEP 6
-# Perform the symbolic discretisation of the equations 
+# Perform the symbolic discretisation of the equations
 block.discretise()
 
 # STEP 7
 # create an algorithm from the numerical solution
 alg = TraditionalAlgorithmRK(block)
 
-# STEP 8 
+# STEP 8
 # set the simulation data type: if not set "Double" is default
 SimulationDataType.set_datatype(Double)
 
@@ -225,9 +227,11 @@ SimulationDataType.set_datatype(Double)
 # Write the OPSC compatible code for the numerical solution
 OPSC(alg)
 
-# STEP 10 
+# STEP 10
 # Populate the values of the constants like Re, Pr etc and the number of points for the
 # simulation etc. In the future reading thes from HDF5 would be provided
-constants = ['Re', 'gama', 'Minf', 'Pr', 'dt', 'niter', 'block0np0', 'block0np1', 'block0np2', 'Delta0block0', 'Delta1block0', 'Delta2block0', "c0", "c1", "c2", "lx0", "lx2"]
-values = ['180.0', '1.4', '0.01', '0.72', '0.00001', '100000', '256', '256', '256', '11.0/block0np0', '2.0/(block0np1-1)', '4.0/block0np2', '-1', '0', '0', "11.0", "4.0"]
+constants = ['Re', 'gama', 'Minf', 'Pr', 'dt', 'niter', 'block0np0', 'block0np1',
+    'block0np2', 'Delta0block0', 'Delta1block0', 'Delta2block0', "c0", "c1", "c2", "lx0", "lx2"]
+values = ['180.0', '1.4', '0.01', '0.72', '0.00001', '100000', '256', '256', '256',
+    '11.0/block0np0', '2.0/(block0np1-1)', '4.0/block0np2', '-1', '0', '0', "11.0", "4.0"]
 substitute_simulation_parameters(constants, values)
