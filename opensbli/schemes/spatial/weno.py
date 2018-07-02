@@ -279,7 +279,7 @@ class RightWenoReconstructionVariable(WenoReconstructionVariable):
 class WenoZ(object):
     def __init__(self, k):
         self.k = k
-        self.eps = 1e-40
+        self.eps = 1e-16
         return
 
     def global_smoothness_indicator(self, RV):
@@ -540,83 +540,3 @@ class RFWeno(RFCharacteristic, Weno):
                 type_of_eq.Kernels += [self.evaluate_residuals(block, eqs, all_derivatives_evaluated_locally)]
                 constituent_relations = self.check_constituent_relations(block, eqs, constituent_relations)
             return constituent_relations
-
-
-class ScalarWeno(Weno):
-    """ Scalar WENO procedure."""
-
-    def __init__(self, order, physics=None, averaging=None):
-        print("A scalar WENO scheme of order %s is being used." % str(order))
-        Weno.__init__(self, order)
-        return
-
-    def pre_process(self, direction, derivatives, solution_vector, kernel, block):
-        required_symbols = set()
-        variables_to_interpolate = []
-        for d in derivatives:
-            required_symbols = required_symbols.union(d.atoms(DataSetBase))
-            variables_to_interpolate += [d.args[0]]
-        self.update_constituent_relation_symbols(required_symbols, direction)
-        self.direction = direction
-        required_stencil_points = sorted(list(set(self.reconstruction_classes[0].func_points + self.reconstruction_classes[1].func_points)))
-        variable_matrix = zeros(len(variables_to_interpolate), len(required_stencil_points))
-        for i, expr in enumerate(variables_to_interpolate):
-            for j, stencil_index in enumerate(required_stencil_points):
-                variable_matrix[i, j] = increment_dataset(expr, direction, stencil_index)
-        variable_matrix.stencil_points = required_stencil_points
-        self.generate_right_reconstruction_variables(variable_matrix, derivatives)
-        self.generate_left_reconstruction_variables(variable_matrix, derivatives)
-        return
-
-    def discretise(self, type_of_eq, block):
-        if isinstance(type_of_eq, SimulationEquations):
-            eqs = flatten(type_of_eq.equations)
-            grouped = self.group_by_direction(eqs)
-            all_derivatives_evaluated_locally = []
-
-            reconstruction_halos = self.reconstruction_halotype(self.order, reconstruction=True)
-
-            for key, derivatives in grouped.iteritems():
-                all_derivatives_evaluated_locally += derivatives
-                for no, deriv in enumerate(derivatives):
-                    deriv.create_reconstruction_work_array(block)
-                kernel = Kernel(block, computation_name="%s_reconstruction_%d_direction" % (self.__class__.__name__, key))
-                kernel.set_grid_range(block)
-                # WENO reconstruction should be evaluated for extra point on each side
-                kernel.set_halo_range(key, 0, reconstruction_halos)
-                kernel.set_halo_range(key, 1, reconstruction_halos)
-                self.pre_process(key, derivatives, flatten(type_of_eq.time_advance_arrays), kernel, block)
-                self.interpolate_reconstruction_variables(derivatives)
-                block.set_block_boundary_halos(key, 0, self.halotype)
-                block.set_block_boundary_halos(key, 1, self.halotype)
-                self.form_average(derivatives, kernel)
-                type_of_eq.Kernels += [kernel]
-            if grouped:
-                    type_of_eq.Kernels += [self.form_equations(block, type_of_eq, all_derivatives_evaluated_locally)]
-
-            constituent_relations = self.generate_constituent_relations_kernels(block)
-            return constituent_relations
-
-    def form_equations(self, block, type_of_eq, local_ders):
-        residue_eq = []
-        eqns = type_of_eq.equations
-        for eq in flatten(eqns):
-            substitutions = {}
-            for d in eq.rhs.atoms(Function):
-                if d in local_ders:
-                    substitutions[d] = d._discretise_derivative(block)
-                else:
-                    substitutions[d] = 0
-            residue_eq += [OpenSBLIEq(eq.residual, eq.rhs.subs(substitutions))]
-        residue_kernel = Kernel(block, computation_name="%s %s Evaluation" % (self.__class__.__name__, type_of_eq.__class__.__name__))
-        residue_kernel.set_grid_range(block)
-        residue_kernel.add_equation(residue_eq)
-        return residue_kernel
-
-    def form_average(self, derivatives, kernel):
-        post_process_equations = []
-        left_plus_right = Matrix([d.evaluate_reconstruction for d in derivatives])
-        reconstructed_work = [d.reconstruction_work for d in derivatives]
-        post_process_equations += [OpenSBLIEq(x, y) for x, y in zip(reconstructed_work, Rational(1, 2)*left_plus_right)]
-        kernel.add_equation(post_process_equations)
-        return

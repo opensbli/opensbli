@@ -1,4 +1,3 @@
-
 from sympy.calculus import finite_diff_weights
 from sympy import postorder_traversal, Function, flatten, Rational, Idx, S
 from sympy.core import Add, Mul
@@ -123,7 +122,7 @@ class Central(Scheme):
             return self.required_constituent_relations
         else:
             block.store_work_index # Store work
-            local_kernels, discretised_eq = self.genral_discretisation(type_of_eq.equations, block, name=type_of_eq.__class__.__name__)
+            local_kernels, discretised_eq = self.general_discretisation(type_of_eq.equations, block, name=type_of_eq.__class__.__name__)
             block.reset_work_to_stored # Reset
             if discretised_eq:
                 for ker in local_kernels:
@@ -259,7 +258,7 @@ class Central(Scheme):
         # reset the work index of blocks
         block.reset_work_index
         # Discretise the viscous fluxes. This is straight forward as we need not modify anything
-        viscous_kernels, viscous_discretised = self.genral_discretisation(viscous, block, name="Viscous")
+        viscous_kernels, viscous_discretised = self.general_discretisation(viscous, block, name="Viscous")
         self.check_constituent_relations(block, viscous)
         if viscous_kernels:
             for ker in sorted(viscous_kernels, cmp=increasing_order):
@@ -292,7 +291,7 @@ class Central(Scheme):
         residue_kernel.set_grid_range(block)
         return residue_kernel
 
-    def genral_discretisation(self, equations, block, name=None):
+    def general_discretisation(self, equations, block, name=None):
         """
         This discretises the central derivatives, without any special treatment to
         group the derivatives or any thing
