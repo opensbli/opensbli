@@ -1,6 +1,6 @@
-from sympy import Eq, zeros, flatten, Matrix, pprint, Function, S, Equality, Wild, WildFunction
+from sympy import Eq, zeros, flatten, Matrix, Function, S, Equality, Wild, WildFunction
 from opensbli.code_generation.algorithm.common import BeforeSimulationStarts
-from opensbli.equation_types.opensbliequations import NonSimulationEquations, Discretisation, Solution, OpenSBLIEquation, DataSet
+from opensbli.equation_types.opensbliequations import NonSimulationEquations, Discretisation, Solution, OpenSBLIEquation
 from opensbli.core.opensblifunctions import CentralDerivative, WenoDerivative
 from sympy.tensor.array import MutableDenseNDimArray
 from opensbli.core.opensbliobjects import CoordinateObject, DataObject
@@ -10,11 +10,11 @@ from opensbli.core.bcs import BoundaryConditionBase
 from opensbli.core.parsing import EinsteinEquation
 
 
-def convert_dataset_base_expr_to_datasets(expression, index):
-        for a in expression.atoms(DataSet):
-            b = a.base
-            expression = expression.xreplace({a: b[index]})
-        return expression
+# def convert_dataset_base_expr_to_datasets(expression, index): # V2 Duplicate in bcs.py, is this used?
+#         for a in expression.atoms(DataSet):
+#             b = a.base
+#             expression = expression.xreplace({a: b[index]})
+#         return expression
 
 
 class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
@@ -23,7 +23,7 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
         ret.equations = []
         ret.kwargs = {'strong_differentiability': True}
         if 'scheme' in kwargs:
-            ret.discretisation_scheme = scheme
+            ret.discretisation_scheme = scheme  # V2 scheme isn't defined, should be kwargs['scheme']?
         else:
             ret.discretisation_scheme = 'Central'
         ret.algorithm_place = [BeforeSimulationStarts()]
@@ -72,12 +72,12 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
         latex = self.latex_file
         latex.close()
         return
-    
-    @property
-    def evaluated_datasets(cls):
-        #evaluated = set(list(cls.FD_metrics)).union(set(list(cls.SD_metrics)))
-        evaluated = set()
-        return evaluated
+
+    # @property
+    # def evaluated_datasets(cls):  # V2: is this used?
+    #     #evaluated = set(list(cls.FD_metrics)).union(set(list(cls.SD_metrics)))
+    #     evaluated = set()
+    #     return evaluated
 
     def transform_first_derivative(cls, coordinate_symbol):
         M2 = Matrix(cls.ndim, cls.ndim, lambda i, j: 0)
@@ -130,7 +130,7 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
         cls.transformation_eq[0] = fd_transformed
         cls.FD_metrics = fd_jacobians
         cls.generate_fd_metrics_equations(Cartesian_curvilinear_derivatives)
-        
+
         cls.metric_subs = dict(zip(Matrix(cls.ndim, cls.ndim, lambda i, j: DataObject('D%d%d' % (i, j))), fd_jacobians))
 
         cls.classical_strong_differentiabilty_transformation = []
@@ -196,8 +196,6 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
         latex = cls.latex_file
         for i in range(M2.shape[0]):
             for j in range(M2.shape[0]):
-                # if M2[i,j] == 0:
-                    # pass
                 if M2[i, j] in cls.curvilinear_coordinates:
                     pass
                 else:
@@ -217,7 +215,7 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
                     if sd == S.Zero:
                         sd_subs[CentralDerivative(*args_orig)] = 0
                     elif not isinstance(v, CentralDerivative):
-                        sd_subs[CentralDerivative(*args_orig)] = 0 
+                        sd_subs[CentralDerivative(*args_orig)] = 0
                     else:
                         sd_subs[CentralDerivative(*args_orig)] = DataObject("SD%d%d%d" % (i, j, k))
                         SD_jacobians[i, j, k] = DataObject("SD%d%d%d" % (i, j, k))
@@ -239,16 +237,10 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
         cls.SD_metrics = SD_jacobians
         cls.SD_evaluations = SD_evaluations
         cls.generate_sd_metrics_equations()
-        # fn_ders = CentralDerivative(DataObject('f'), cls.cartesian_coordinates[i], cls.cartesian_coordinates[j]) for i,j in zip(()
         for i in range(cls.ndim):
             for j in range(cls.ndim):
                 fn = CentralDerivative(cls.general_function, cls.cartesian_coordinates[i], cls.cartesian_coordinates[j])
                 latex.write_expression(Eq(fn, cls.classical_strong_differentiabilty_transformation_sd[i, j]))
-
-        # eqns = [Eq(x,y,evaluate=False) for x,y in zip(cls.SD_metrics, cls.SD_evaluations)]
-        # for eq in eqns:
-            # latex.write_expression(eq)
-        # pprint(srepr(cls.SD_transformation_equations[0]))
         return
 
     def generate_sd_metrics_equations(cls):
@@ -296,8 +288,6 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
 
     def spatial_discretisation(cls, block):
         (Solution, cls).__init__(cls)
-        #if any(cls.curvilinear_metric):
-            #raise NotImplementedError("Handling curvilinear coordinates for the evaluation of metrics is not applied")
         spatialschemes = []
         # Get the schemes on the block
         schemes = block.discretisation_schemes
@@ -309,12 +299,8 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
         cls.requires = {}
         block.store_work_index  # store the work array index
         for no, sc in enumerate(spatialschemes):
-            # discretise the First derivatives and then apply BC's then discretise Second derivatives
+            # Discretise the First derivatives and then apply BC's then discretise Second derivatives
             cls.equations = block.dataobjects_to_datasets_on_block(cls.fdequations)  # First derivatives
-            #cls.convert_to_weno
-            #pprint(cls.equations)
-            #exit()
-
             cls.create_residual_arrays()
             schemes[sc].discretise(cls, block)
             schemes[sc].required_constituent_relations = {}
@@ -329,34 +315,6 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
         cls.process_kernels(block)
         block.reset_work_to_stored  # reset the work array index on the block
         return
-
-    # def apply_periodic_bc(self, block):
-    #     arrays = self.FD_metrics[:] + [self.detJ]
-    #     arrays = [a for a in arrays if isinstance(a, DataObject)]
-    #     arrays = block.dataobjects_to_datasets_on_block(arrays)
-    #     from opensbli.core.bcs import PeriodicBC as pbc
-    #     modify = {}
-    #     for no, val in enumerate(block.boundary_types):
-    #         left = val[0]
-    #         right = val[1]
-    #         if isinstance(left, pbc):
-    #             if no in modify:
-    #                 modify[no][0] = left
-    #             else:
-    #                 modify[no] = [left, None]
-    #         if isinstance(right, pbc):
-    #             if no in modify:
-    #                 modify[no][1] = right
-    #             else:
-    #                 modify[no] = [None, right]
-
-    #     if modify:
-    #         for dire in modify:
-    #             boundary_mods = [k for k in modify[dire] if k]
-    #             for b in boundary_mods:
-    #                 self.Kernels += [b.apply(arrays, block)]
-    #     return
-
 
     def process_kernels(cls, block):
         for key, kernel in cls.constituent_relations_kernels.iteritems():
@@ -379,7 +337,7 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
         from opensbli.core.bcs import PeriodicBC
         bc_types = (PeriodicBC)
         for direction in range(block.ndim):
-            for side in [0,1]:
+            for side in [0, 1]:
                 # Apply Metric BC only if that direction and side is not periodic
                 if isinstance(block.boundary_types[direction][side], bc_types):
                     bc = block.boundary_types[direction][side]
@@ -397,7 +355,6 @@ class MetricBoundaryCondition(BoundaryConditionBase):
         return
 
     def apply(self, arrays, block):
-        direction, side = self.direction, self.side
         halos, kernel = self.generate_boundary_kernel(block, self.bc_name)
         from_side_factor, to_side_factor = self.set_side_factor()
         transfer_indices = [tuple([from_side_factor*t, to_side_factor*t]) for t in range(1, abs(halos[self.direction][self.side]) + 1)]
