@@ -100,7 +100,7 @@ Avg = RoeAverage([0, 1])
 LLF = LLFWeno(weno_order, formulation='Z', averaging=Avg)
 # Add to schemes
 schemes[LLF.name] = LLF
-rk = RungeKuttaSSP(3)
+rk = RungeKuttaLS(3)
 schemes[rk.name] = rk
 
 block.set_block_boundaries(boundaries)

@@ -148,5 +148,5 @@ SimulationDataType.set_datatype(Double)
 OPSC(alg)
 
 constants = ['Re', 'gama', 'Minf', 'Pr', 'dt', 'niter', 'block0np0', 'block0np1', 'block0np2', 'Delta0block0', 'Delta1block0', 'Delta2block0']
-values = ['1600.0', '1.4', '0.1', '0.71', '0.003385', '500', '64', '64', '64', '2*M_PI/block0np0', '2*M_PI/block0np1', '2*M_PI/block0np2']
+values = ['1600.0', '1.4', '0.1', '0.71', '0.003385', '5909', '64', '64', '64', '2*M_PI/block0np0', '2*M_PI/block0np1', '2*M_PI/block0np2']
 substitute_simulation_parameters(constants, values)

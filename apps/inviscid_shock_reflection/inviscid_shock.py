@@ -53,14 +53,13 @@ constituent.add_equations(eqns)
 schemes = {}
 # Local LaxFredirich scheme for weno 
 weno_order = 5
-# Generate the Eigen system for the Euler equations
 # Averaging procedure to be used for the eigen system evaluation
 Avg = SimpleAverage([0, 1])
 # LLF scheme
 LLF = LLFWeno(weno_order, formulation='Z', averaging=Avg)
 # Add to schemes
 schemes[LLF.name] = LLF
-rk = RungeKutta(3)
+rk = RungeKuttaLS(3)
 schemes[rk.name] = rk
 
 block = SimulationBlock(ndim, block_number=0)
@@ -99,7 +98,7 @@ boundaries[direction][side] = DirichletBC(direction, side, inlet_eq)
 # Right extrapolation at outlet
 direction = 0
 side = 1
-boundaries[direction][side] = OutletTransferBC(direction, side)
+boundaries[direction][side] = ExtrapolationBC(direction, side, order=0)
 
 # Bottom inviscid wall
 direction = 1
@@ -131,7 +130,7 @@ boundaries[direction][side] = DirichletBC(direction, side, upper_eqns)
 block.set_block_boundaries(boundaries)
 
 kwargs = {'iotype': "Write"}
-h5 = iohdf5(save_every=10000, **kwargs)
+h5 = iohdf5(**kwargs)
 h5.add_arrays(simulation_eq.time_advance_arrays)
 h5.add_arrays([DataObject('x0'), DataObject('x1')])
 block.setio(copy.deepcopy(h5))
@@ -145,5 +144,5 @@ alg = TraditionalAlgorithmRK(block)
 SimulationDataType.set_datatype(Double)
 OPSC(alg)
 constants = ['gama', 'Minf', 'dt', 'niter', 'block0np0', 'block0np1', 'Delta0block0', 'Delta1block0']
-values = ['1.4', '2.0', '0.1', '500', '457', '255', '350.0/(block0np0-1)', '115.0/(block0np1-1)']
+values = ['1.4', '2.0', '0.1', '10000', '457', '255', '350.0/(block0np0-1)', '115.0/(block0np1-1)']
 substitute_simulation_parameters(constants, values)

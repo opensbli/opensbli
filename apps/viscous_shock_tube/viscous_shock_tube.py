@@ -1,10 +1,7 @@
 #!/usr/bin/env python
 from opensbli import *
 import copy
-from opensbli.core.teno import *
-from opensbli.core.weno_opensbli import SimpleAverage, LLFWeno
 from opensbli.utilities.helperfunctions import substitute_simulation_parameters
-
 
 """ Viscous shock tube problem in 2D, conditions taken from Numerical simulation of the viscous shock tube problem 
 by using a high resolution monotonicity-preserving scheme. Tenaud et al (2009). doi:10.1016/j.compfluid.2008.06.008. """
@@ -40,14 +37,14 @@ for i, CR in enumerate(constituent_eqns):
 
 block = SimulationBlock(ndim, block_number=0)
 
-teno_order = 6
+teno_order = 5
 Avg = SimpleAverage([0, 1])
 LLF = LLFTeno(teno_order, averaging=Avg)
 schemes = {}
 schemes[LLF.name] = LLF
 cent = Central(4)
 schemes[cent.name] = cent
-rk = RungeKutta(3)
+rk = RungeKuttaLS(3)
 schemes[rk.name] = rk
 
 local_dict = {"block": block, "GridVariable": GridVariable, "DataObject": DataObject}

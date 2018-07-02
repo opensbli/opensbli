@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # Import all the functions from opensbli
 from opensbli import *
-from opensbli.core.weno_opensbli import *
 import copy
 from opensbli.utilities.helperfunctions import substitute_simulation_parameters
 
@@ -54,7 +53,6 @@ constituent.add_equations(eqns)
 schemes = {}
 # Local LaxFredirich scheme for weno 
 weno_order = 5
-# Generate the Eigen system for the Euler equations
 # Averaging procedure to be used for the eigen system evaluation
 Avg = SimpleAverage([0, 1])
 # LLF scheme
