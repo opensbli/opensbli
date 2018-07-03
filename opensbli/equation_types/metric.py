@@ -1,7 +1,7 @@
-from sympy import Eq, zeros, flatten, Matrix, Function, S, Equality, Wild, WildFunction
+from sympy import Eq, zeros, flatten, Matrix, Function, S, Equality
 from opensbli.code_generation.algorithm.common import BeforeSimulationStarts
 from opensbli.equation_types.opensbliequations import NonSimulationEquations, Discretisation, Solution, OpenSBLIEquation
-from opensbli.core.opensblifunctions import CentralDerivative, WenoDerivative
+from opensbli.core.opensblifunctions import CentralDerivative
 from sympy.tensor.array import MutableDenseNDimArray
 from opensbli.core.opensbliobjects import CoordinateObject, DataObject
 from opensbli.core.kernel import Kernel
@@ -10,22 +10,11 @@ from opensbli.core.bcs import BoundaryConditionBase
 from opensbli.core.parsing import EinsteinEquation
 
 
-# def convert_dataset_base_expr_to_datasets(expression, index): # V2 Duplicate in bcs.py, is this used?
-#         for a in expression.atoms(DataSet):
-#             b = a.base
-#             expression = expression.xreplace({a: b[index]})
-#         return expression
-
-
 class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
     def __new__(cls, **kwargs):
         ret = super(MetricsEquation, cls).__new__(cls, **kwargs)
         ret.equations = []
         ret.kwargs = {'strong_differentiability': True}
-        if 'scheme' in kwargs:
-            ret.discretisation_scheme = scheme  # V2 scheme isn't defined, should be kwargs['scheme']?
-        else:
-            ret.discretisation_scheme = 'Central'
         ret.algorithm_place = [BeforeSimulationStarts()]
         ret.order = 1
         return ret
@@ -72,12 +61,6 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
         latex = self.latex_file
         latex.close()
         return
-
-    # @property
-    # def evaluated_datasets(cls):  # V2: is this used?
-    #     #evaluated = set(list(cls.FD_metrics)).union(set(list(cls.SD_metrics)))
-    #     evaluated = set()
-    #     return evaluated
 
     def transform_first_derivative(cls, coordinate_symbol):
         M2 = Matrix(cls.ndim, cls.ndim, lambda i, j: 0)
@@ -134,50 +117,21 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
         cls.metric_subs = dict(zip(Matrix(cls.ndim, cls.ndim, lambda i, j: DataObject('D%d%d' % (i, j))), fd_jacobians))
 
         cls.classical_strong_differentiabilty_transformation = []
+
         for d in fd_transformed:
-            # Donot convert the convective derivatives
-            # cls.classical_strong_differentiabilty_transformation += [cls.convert_der(d)]
             cls.classical_strong_differentiabilty_transformation += [d]
         # Write latex file for easy debugging
         latex = cls.latex_file
         for i in range(cls.ndim):
             cd = CentralDerivative(cls.general_function, cls.cartesian_coordinates[i])
             latex.write_expression(Eq(cd, cls.classical_strong_differentiabilty_transformation[i]))
-        # latex.write_expression(cls.FD_metrics)
-        # latex.write_expression(Cartesian_curvilinear_derivatives.adjugate())
-        # latex.write_expression(M2)
         return fd_subs, M2
-
-    def convert_der(self, expr):
-        """ Converts any function v*D(f,x) to D(v*f,x) - f*D(v,x)
-        Below substitution, returns equation F-31 of http://cfl3d.larc.nasa.gov/Cfl3dv6/V5Manual/GenCoor.pdf
-        >>> expr,matches = expr.replace(v*Derivative(f,x), Derivative(v*f,x) -f*Derivative(v,x),map=True,simultaneous=False, exact=True)
-        As we know that -f*D(v,x) gets cancelled out where v is (xi_ij/J), We return only
-        D(v*f,x)
-        """
-        v1 = Wild('x')
-        f = WildFunction('F', nargs=2)
-        # Get all the functions with arguments 2, i.e first derivatives
-        l = list(expr.find(f))
-        # find all the atoms in the expression i.e a DataObject and S.One as some of the terms have no metric
-        l1 = [a for a in list(expr.find(v1)) if isinstance(a, DataObject)] + [S.One]
-        terms = [a*b for a in l for b in l1]
-        # This is D(v*f,x) - f*D(v,x)
-        # term_subs = [(type(self)(a.args[0]*b, a.args[1:]) -a.args[0]*type(self)(b, a.args[1:]))  for a in l for b in l1]
-        # As f*D(v,x) get cancelled out in the summation return only v*D(f,x)
-        # term_subs = [CentralDerivative(a.args[0]*b/self.detJ , a.args[1:])  for a in l for b in l1]
-        # expr = self.detJ*expr.subs(dict(zip(terms, term_subs))) # substitute
-        term_subs = [CentralDerivative(a.args[0]*b*self.detJ, a.args[1:]) for a in l for b in l1]
-        expr = expr.subs(dict(zip(terms, term_subs)))/self.detJ  # substitute
-        # WARNING check this expression
-        return expr
 
     def generate_fd_metrics_equations(cls, Cartesian_curvilinear_derivatives):
         adjointJ = Cartesian_curvilinear_derivatives.adjugate()
         detJ = Cartesian_curvilinear_derivatives.det()
         evaluation = adjointJ/detJ
         eqns = []
-        # TODO add if condition on the arguments if this is required
         eqns = [Eq(cls.detJ, detJ)]
         eqns += [Eq(x, y) for (x, y) in zip(cls.FD_metrics, evaluation)]
         eqns = [e for e in eqns if isinstance(e, Equality)]
@@ -275,15 +229,6 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
     def create_residual_arrays(cls):
         for eq in flatten(cls.equations):
             eq.residual = eq.lhs
-        return
-
-    @property
-    def convert_to_weno(cls):
-        cds = set()
-        for eq in flatten(cls.equations):
-            cds = cds.union(eq.atoms(CentralDerivative))
-        subs_dictionary = dict(zip(cds, [WenoDerivative(c.args) for c in cds]))
-        cls.equations = [eq.subs(subs_dictionary) for eq in flatten(cls.equations)]
         return
 
     def spatial_discretisation(cls, block):
