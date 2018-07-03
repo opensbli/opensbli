@@ -1,6 +1,6 @@
 from opensbli.core.opensbliobjects import DataSet, ConstantObject, DataSetBase, DataObject
 from opensbli.core.opensblifunctions import TemporalDerivative
-from sympy import flatten, preorder_traversal, Expr
+from sympy import flatten, preorder_traversal
 from sympy import Equality, Function, pprint, srepr
 
 
@@ -137,6 +137,7 @@ class Discretisation(object):
 
     @property
     def evaluated_datasets(cls):
+        """This should be over written in different classes, provided here to give a default option"""
         return set()
 
 
@@ -201,18 +202,6 @@ class Solution(object):
         return
 
 
-class OpenSBLIExpression(Expr):
-    """A temporary wrapper class over SymPy expression class. Not used currently.
-    """
-    def __new__(cls, expr):
-        ret = Expr.__new__(cls, expr)
-        return ret
-
-    @property
-    def as_expr(cls):
-        return cls.args[0]
-
-
 class SimulationEquations(Discretisation, Solution):
     """Class for the simulation equations. This performs the discretisation of the equations.
 
@@ -269,7 +258,7 @@ class SimulationEquations(Discretisation, Solution):
         return arrays
 
     def spatial_discretisation(cls, block):
-        """Apllies the spatial discretisation of the equations by calling the discretisation of each spatial 
+        """Apllies the spatial discretisation of the equations by calling the discretisation of each spatial
         scheme provided on the block
 
         :param SimulationBlock block: the block on which the equations are solved
@@ -493,40 +482,3 @@ class NonSimulationEquations(Discretisation):
     """ Dummy place holder for all the equations that are not simulated but needs to be evaluated
     e.g, metrics or diagnostics or Statistics, """
     pass
-
-
-class DiagnosticEq(Equality):
-    """For diagnositcs we use a separate equation so that we can determine the type of the LHS depening on
-    the RHS"""
-
-    def __new__(cls, *args, **kwargs):
-        if (len(args) != 2):
-            raise ValueError("")
-        lhs = args[1].get_lhs_variable(args[0])
-        rhs = args[1]
-        ret = super(DiagnosticEq, cls).__new__(cls, lhs, rhs)
-        return ret
-
-
-class DiagnosticsEquations(NonSimulationEquations, Solution):
-
-    def __new__(cls):
-        ret = super(DiagnosticsEquations, cls).__new__(cls)
-        ret.equations = []
-        return ret
-
-    def add_equations(self, equation):
-        """Adds the equations to the class. here the equations are processed
-        based on the type of RHS.
-
-        :param equation: a list of equations or a single equation to be added to the class"""
-        if isinstance(equation, list):
-            local = []
-            for no, eq in enumerate(equation):
-                eq = DiagnosticEq(eq.lhs, eq.rhs)
-                local += [eq]
-            self.equations += [local]
-        else:
-            equation = DiagnosticEq(equation.lhs, equation.rhs)
-            self.equations += [equation]
-        return
