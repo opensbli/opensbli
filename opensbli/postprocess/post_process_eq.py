@@ -1,3 +1,9 @@
+"""@brief
+   @author Satya Pramod Jammy
+   @contributors
+   @details
+"""
+
 from sympy import flatten, pprint, srepr
 from opensbli.code_generation.algorithm.common import AfterSimulationEnds
 from opensbli.equation_types.opensbliequations import NonSimulationEquations, Discretisation, Solution, DataSet

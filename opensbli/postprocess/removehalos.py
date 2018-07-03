@@ -1,6 +1,14 @@
+"""@brief
+   @author Satya Pramod Jammy
+   @contributors
+   @details
+"""
+
 from __future__ import division
 import h5py
 import argparse
+
+# TODO V2: Documentation on this.
 
 
 def read_dataset(openname, dataset):
@@ -17,12 +25,13 @@ def read_dataset(openname, dataset):
     return read_data
 
 
-def strip_halos(fname, output_name):
+def strip_halos(fname_to_read, fname_to_write):
 
-    opensbli_file = h5py.File(fname, 'r')
+    opensbli_file = h5py.File(fname_to_read, 'r')
     block_name1 = opensbli_file.keys()[0]
     group_block = opensbli_file[block_name1]
-    output_opensbli = h5py.File(output_name, 'w')
+    output_opensbli = h5py.File(fname_to_write, 'w')
+    # TODO create the same structure of the input file
     for key in group_block.keys():
         data_without_halos = read_dataset(group_block, key)
         output_opensbli.create_dataset("%s" % (key), data=data_without_halos)
@@ -40,6 +49,6 @@ if(__name__ == "__main__"):
     if '.h5' not in a[-1]:
         raise ValueError("Provide the HDF5 file with .h5 extension")
     h5name_output = a[-1].split('.')[0]
-    output_name = '/'.join(a[:-1]+['%s_pp.h5' % h5name_output])
-    print "Output for post processing will be %s" % output_name
-    strip_halos(args.input_path, output_name)
+    fname_to_write = '/'.join(a[:-1]+['%s_pp.h5' % h5name_output])
+    print "Output for post processing will be %s" % fname_to_write
+    strip_halos(args.input_path, fname_to_write)
