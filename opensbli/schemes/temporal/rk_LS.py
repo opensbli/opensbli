@@ -1,3 +1,9 @@
+"""@brief
+   @authors David J Lusher
+   @contributors
+   @details
+"""
+
 from sympy import flatten, Idx, sqrt, Rational
 from opensbli.core.opensbliobjects import ConstantObject, ConstantIndexed, Globalvariable
 from opensbli.equation_types.opensbliequations import OpenSBLIEq

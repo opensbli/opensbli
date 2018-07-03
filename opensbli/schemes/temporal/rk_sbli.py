@@ -1,3 +1,9 @@
+"""@brief
+   @authors Satya Pramod Jammy
+   @contributors
+   @details
+"""
+
 from sympy import flatten, Idx, Rational
 from opensbli.core.opensbliobjects import ConstantObject, ConstantIndexed, Globalvariable
 from opensbli.equation_types.opensbliequations import OpenSBLIEq

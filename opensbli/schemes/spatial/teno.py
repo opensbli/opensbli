@@ -1,3 +1,9 @@
+"""@brief
+   @authors David J Lusher
+   @contributors
+   @details
+"""
+
 from sympy import IndexedBase, Symbol, Rational, Abs, flatten, Max, S, ceiling
 from opensbli.core.opensblifunctions import TenoDerivative
 from opensbli.core.opensbliobjects import ConstantObject

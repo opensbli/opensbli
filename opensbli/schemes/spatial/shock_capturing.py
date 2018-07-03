@@ -1,3 +1,9 @@
+"""@brief
+   @author Satya Pramod Jammy, David J Lusher
+   @contributors
+   @details
+"""
+
 from sympy import Symbol, Rational, zeros, Abs, Matrix, flatten, Max, diag, Function
 from sympy.core.numbers import Zero
 from opensbli.core.opensbliobjects import EinsteinTerm, DataSetBase, ConstantObject, DataSet

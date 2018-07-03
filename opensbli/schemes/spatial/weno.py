@@ -1,3 +1,9 @@
+"""@brief
+   @authors Satya Pramod Jammy, David J Lusher
+   @contributors
+   @details
+"""
+
 from sympy import IndexedBase, Symbol, Rational, solve, interpolating_poly, integrate, Abs, Float, flatten, S
 from opensbli.core.opensblifunctions import WenoDerivative
 from opensbli.equation_types.opensbliequations import SimulationEquations, OpenSBLIEq
