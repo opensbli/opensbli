@@ -1,3 +1,9 @@
+"""@brief
+   @author Satya Pramod Jammy
+   @contributors David Lusher
+   @details
+"""
+
 from opensbli.equation_types.opensbliequations import NonSimulationEquations, OpenSBLIEq
 from opensbli.core.kernel import Kernel
 from opensbli.core.opensbliobjects import GroupedPiecewise
@@ -8,7 +14,7 @@ from opensbli.code_generation.algorithm.common import BeforeSimulationStarts
 class GridBasedInitialisation(NonSimulationEquations):
     def __new__(cls, order=None, **kwargs):
         ret = super(GridBasedInitialisation, cls).__new__(cls)
-        if order:  # Local order if multiple instances of the class are declared on the block
+        if order:  # Local order if multiple instances of the class are declared on the block more for future work
             ret.order = order
         else:
             ret.order = 0
@@ -26,27 +32,6 @@ class GridBasedInitialisation(NonSimulationEquations):
 
     def _hashable_content(self):
         return "GridBasedInitialisation"
-
-    def add_equations(cls, equation):  # TODO: Check if this is required, nonsimulation equations are derived from discretisation class
-        # equation = cls._sanitise_equations(equation)
-        if isinstance(equation, list):
-            for no, eq in enumerate(equation):
-                if isinstance(eq, Equality):
-                    eq = OpenSBLIEq(eq.lhs, eq.rhs)
-                    cls.equations += [eq]
-                elif isinstance(eq, GroupedPiecewise):
-                    cls.equations += [eq]
-        else:
-            if isinstance(equation, Equality):
-                eq = OpenSBLIEq(equation.lhs, equation.rhs)
-                cls.equations += [eq]
-            elif isinstance(equation, GroupedPiecewise):
-                cls.equations += [equation]
-            else:
-                raise TypeError("Provide the equations in a list")
-            # equation = OpenSBLIEquation(equation.lhs, equation.rhs)
-            # cls.equations += [equation]
-        return
 
     @property
     def evaluated_datasets(cls):
@@ -73,6 +58,6 @@ class GridBasedInitialisation(NonSimulationEquations):
         return
 
     def apply_boundary_conditions(cls, block):
-        """No boundary conditions in the Initialisation
+        """No boundary conditions in the Initialisation currently, any logic needed should be implemented here
         """
         return

@@ -1,3 +1,9 @@
+"""@brief metric transformations for derivatives
+   @author Satya Pramod Jammy
+   @contributors David Lusher
+   @details Implements the metric transformations of first and second derivatives
+"""
+
 from sympy import Eq, zeros, flatten, Matrix, Function, S, Equality
 from opensbli.code_generation.algorithm.common import BeforeSimulationStarts
 from opensbli.equation_types.opensbliequations import NonSimulationEquations, Discretisation, Solution, OpenSBLIEquation

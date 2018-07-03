@@ -1,3 +1,9 @@
+"""@brief Bsae of discretisaion of equations
+   @author Satya Pramod Jammy
+   @contributors David Lusher
+   @details base classes for different type of equations used in opensbli
+"""
+
 from opensbli.core.opensbliobjects import DataSet, ConstantObject, DataSetBase, DataObject
 from opensbli.core.opensblifunctions import TemporalDerivative
 from sympy import flatten, preorder_traversal

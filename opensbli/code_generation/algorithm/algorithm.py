@@ -2,6 +2,8 @@
    @author Satya Pramod Jammy
    @details Implements the tree-based structure with the attribute (components) controls the
    depth of a node.
+   TODO split this into different parts one which creates the algorithm and printing the code
+   should be a codeprinter class
 """
 
 from sympy import flatten, Equality
