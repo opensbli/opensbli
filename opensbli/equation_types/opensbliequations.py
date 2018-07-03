@@ -443,7 +443,6 @@ class ConstituentRelations(Discretisation, Solution):
         # Create the residual array for the equations
         cls.create_residual_arrays()
 
-        # cls.descritsed_equations = copy.copy(cls.equations)
         spatialschemes = []
         # Get the schemes on the block
         schemes = block.discretisation_schemes
@@ -480,5 +479,5 @@ class ConstituentRelations(Discretisation, Solution):
 
 class NonSimulationEquations(Discretisation):
     """ Dummy place holder for all the equations that are not simulated but needs to be evaluated
-    e.g, metrics or diagnostics or Statistics, """
+    e.g, metrics or post process equations or user defined kernels"""
     pass
