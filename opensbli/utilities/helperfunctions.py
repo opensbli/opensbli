@@ -1,3 +1,9 @@
+"""@brief
+   @authors Satya Pramod Jammy, David J lusher
+   @contributors
+   @details
+"""
+
 from opensbli.core.opensbliobjects import DataSet, CoordinateObject, ConstantIndexed
 import h5py
 from opensbli.code_generation.opsc import rc
@@ -40,6 +46,7 @@ def increment_dataset(expression, direction, value):
 
 
 def dot(v1, v2):
+    """Performs the dot product of two variables, they can be lists or single values"""
     out = 0
     if isinstance(v1, list):
         if len(v1) == len(v2):
@@ -62,7 +69,7 @@ def increasing_order(s1, s2):
 
 def sort_funcitons(fns, increasing_order=True):
     """Sorts the functions based on the number of arguments in
-    increasing order
+    increasing order or decreasing order
     """
     if increasing_order:
         return (sorted(fns, cmp=increasing_order))
@@ -71,9 +78,13 @@ def sort_funcitons(fns, increasing_order=True):
 
 
 def get_inverse_deltas(delta):
+    """To reduce divisions we create inverse delta, i.e $inv_0 = 1.0/\left(\delta x0 \right)$ and so on..
+    """
+    # Check if the delta exists in the rationals defined already
     if delta in rc.existing:
         return rc.existing[delta]
     else:
+        # Create a new inverse variable
         name = rc.name
         b, exp = delta.as_base_exp()
         rc.name = "inv_%d"
@@ -83,16 +94,16 @@ def get_inverse_deltas(delta):
 
 
 def set_hdf5_metadata(dset, halos, npoints, block):
-    """ Function to set hdf5 metadata required by OPS to a dataset. """
-    if len(halos) != block.ndim:
-        raise ValueError("halos provided for hdf5 output should be of size %d" % block.ndim)
+    """ Function to set hdf5 metadata required by OPS to a dataset."""
+    if len(halos) != 2:
+        raise ValueError("Two halos should be provided for each dimenstion")
     for h in halos:
-        if len(h) != 2:
-            raise ValueError("Two halos should be provided for each dimenstion")
+        if len(h) != 3:
+            raise ValueError("halos provided for hdf5 output should be of size %d" % block.ndim)
     # The size of negative halos as a list for all dimensions
-    d_m = [halos[i][0] for i in range(block.ndim)]
+    d_m = [halos[i][0] for i in range(2)]
     # The size of positive halos as a list for all dimensions
-    d_p = [halos[i][1] for i in range(block.ndim)]
+    d_p = [halos[i][1] for i in range(2)]
 
     dset.attrs.create("d_p", d_p, dtype="int32")
     dset.attrs.create("d_m", d_m, dtype="int32")

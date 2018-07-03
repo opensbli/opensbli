@@ -491,7 +491,7 @@ class CentralDerivative(Function, BasicDiscretisation, DerPrint):
         Returns the formula for the derivative function, only first derivatives or homogeneous
         derivatives of higher order are supported. The mixed derivatives will be handled impl-
         citly while creating the kernels
-        :arg derivative: the derivative on which discretization should be performed
+        :arg derivative: the derivative on which discretisation should be performed
         :returns: the discritized derivative, in case of wall boundaries this is a Piecewise-
         function
         """
@@ -611,7 +611,7 @@ class WenoDerivative(Function, BasicDiscretisation, DerPrint):
         Returns the formula for the derivative function, only first derivatives or homogeneous
         derivatives of higher order are supported. The mixed derivatives will be handled impl-
         citly while creating the kernels
-        :arg derivative: the derivative on which discretization should be performed
+        :arg derivative: the derivative on which discretisation should be performed
         :returns: the discritized derivative, in case of wall boundaries this is a Piecewise-
         function
         """
@@ -694,7 +694,7 @@ class TenoDerivative(Function, BasicDiscretisation, DerPrint):
         Returns the formula for the derivative function, only first derivatives or homogeneous
         derivatives of higher order are supported. The mixed derivatives will be handled impl-
         citly while creating the kernels
-        :arg derivative: the derivative on which discretization should be performed
+        :arg derivative: the derivative on which discretisation should be performed
         :returns: the discritized derivative, in case of wall boundaries this is a Piecewise-
         function
         """

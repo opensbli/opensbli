@@ -1,3 +1,9 @@
+"""@brief
+   @author David J lusher
+   @contributors
+   @details
+"""
+
 from sympy import Symbol, sin, Eq, tan, sqrt, atan, cot, cos, pi, rad, asin
 
 

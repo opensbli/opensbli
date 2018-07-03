@@ -1,3 +1,9 @@
+"""@brief
+   @author Satya Pramod Jammy
+   @contributors
+   @details
+"""
+
 from sympy.calculus import finite_diff_weights
 from sympy import postorder_traversal, Function, flatten, S
 from sympy.core import Add, Mul
@@ -10,7 +16,7 @@ from opensbli.utilities.helperfunctions import increasing_order
 
 class Scheme(object):
 
-    """ A numerical discretisation scheme. """
+    """A numerical scheme"""
 
     def __init__(self, name, order):
         """ Initialise the scheme.
@@ -25,10 +31,10 @@ class Scheme(object):
 
 
 class CentralHalos(object):
+    """Number of halo points required for the central scheme. Assumes they are the same in all dimensions.
+    TODO change this to per direction and get the halos for direction and side, this would depend on boundaries
+    and also how the one-sided boundary scheme is implemented"""
     def __init__(self, order):
-        # Check for the boundary types in the blocks and set the halo points
-        # self.halos = [[-scheme.order, scheme.order] for dim in range(block.ndim)]
-        # self.halos = [-5, 5]
         self.halos = [-order/2, order/2]
         return
 
@@ -40,6 +46,8 @@ class CentralHalos(object):
 
 
 class CentralHalos_defdec(object):
+    """This is a work around for definitions and declarations as, the Carpenter scheme uses -5 to +5 stencil in the direction
+    this over writes the halo points for declaring a dataset, so as not to go out of bounds."""
     def __init__(self):
         # Check for the boundary types in the blocks and set the halo points
         # self.halos = [[-scheme.order, scheme.order] for dim in range(block.ndim)]
@@ -72,18 +80,19 @@ class Central(Scheme):
         return
 
     def _generate_weights(self, direction, order, block):
-        """ Discretizes only the homogeneous derivatives of any order for
-        first derivatives."""
+        """Finite difference weights for homogeneous derivatives of given order."""
         self.diffpoints = [i for i in self.points]
         weights = finite_diff_weights(order, self.diffpoints, 0)
         return weights[order][-1]
 
     def add_required_database(self, dbases):
+        # TODO V2: is it used??
         self.required_database += flatten(list(dbases))
         return
 
     @property
     def scheme_required_databases(self):
+        # TODO V2: is it used??
         return set(self.required_database)
 
     def update_works(self, to_descritse, block):
@@ -92,29 +101,20 @@ class Central(Scheme):
         return
 
     def set_halos(self, block):
+        """Sets the halos of the scheme to the block, Max of the halos of the block are used for setting the range of
+        initialisation"""
         for direction in range(block.ndim):
             block.set_block_boundary_halos(direction, 0, self.halotype)
             block.set_block_boundary_halos(direction, 1, self.halotype)
         return
 
     def discretise(self, type_of_eq, block):
+        """Discretisation application
         """
-        This is main calling function from opensbli equations.spatial_discretisation, which is called from block.discretise
-        Do here the following
-        a. Find all the Function of type(self.name)
-        b. Add all the DataSetBases required to the type_of_eq
-        c. Create Equations for the evaluation ro create Kernels of each function depending on the grid/block
-        control parameters
-        d. Set the range of evaluation of the DataSetBases
-        e. Update the discretized equations in type_of_eq by substituting the equations with respective
-        work array or discretised formula
-        """
-        # Check if it is similar to compressible Navier stokes equations
-        # if type_of_eq.
         self.set_halos(block)
         if isinstance(type_of_eq, SimulationEquations):
-            """ Simulation equations are always solved as sbli_rhs_discretisation as of now"""
-            # if block.sbli_rhs_discretisation:
+            """ Simulation equations are always solved as sbli_rhs_discretisation as of now
+            # TODO V2 change the name"""
             self.sbli_rhs_discretisation(type_of_eq, block)
             return self.required_constituent_relations
         else:
@@ -138,19 +138,19 @@ class Central(Scheme):
             return self.required_constituent_relations
 
     def get_local_function(self, list_of_components):
-        CD_fns = []
+        centralderivatives_in_class = []
         for c in list_of_components:
-            CD_fns += list(c.atoms(CentralDerivative))
-        CD_fns = list(set(CD_fns))
-        return CD_fns
+            centralderivatives_in_class += list(c.atoms(CentralDerivative))
+        centralderivatives_in_class = list(set(centralderivatives_in_class))
+        return centralderivatives_in_class
 
     def group_by_direction(self, eqs):
-        all_CDS = []
+        all_central_derivatives = []
         for eq in eqs:
-            all_CDS += list(eq.atoms(CentralDerivative))
-        all_CDS = list(set(all_CDS))
+            all_central_derivatives += list(eq.atoms(CentralDerivative))
+        all_central_derivatives = list(set(all_central_derivatives))
         grouped = {}
-        for cd in all_CDS:
+        for cd in all_central_derivatives:
             direction = cd.get_direction[0]
             if direction in grouped.keys():
                 grouped[direction] += [cd]
@@ -158,11 +158,11 @@ class Central(Scheme):
                 grouped[direction] = [cd]
         return grouped
 
-    def update_range_of_constituent_relations(self, CD, block):
-        direction = CD.get_direction[0]
+    def update_range_of_constituent_relations(self, central_derivative, block):
+        direction = central_derivative.get_direction[0]
 
-        if CD.required_datasets:
-            for v in CD.required_datasets:
+        if central_derivative.required_datasets:
+            for v in central_derivative.required_datasets:
                 if v in self.required_constituent_relations.keys():
                     self.required_constituent_relations[v].set_halo_range(direction, 0, self.halotype)
                     self.required_constituent_relations[v].set_halo_range(direction, 1, self.halotype)
@@ -188,9 +188,8 @@ class Central(Scheme):
 
     def sbli_rhs_discretisation(self, type_of_eq, block):
         """
-        This is the discretisation similar to the Southampton SBLI RHS, without
-        entropy splitting. It is upto the user to give the equations in Conservative
-        formulation
+        This is the discretisation for the compressible Navier-Stokes equations by classifying them based on Reynolds number
+        # TODO get the parameters dynamically from the problem script
         """
         equations = flatten(type_of_eq.equations)
         residual_arrays = [eq.residual for eq in equations]
@@ -271,6 +270,9 @@ class Central(Scheme):
         return
 
     def set_halo_range_kernel(self, kernel, direction, sides=None):
+        """Sets the halo range for a kernel if the kernel needs to be evaluated into the halo points.
+        For example, to evaluate ($\partial u/ \partial x0 \partial x1$) the inner derivative ($\partial u/ \partial x0$)
+        should be evaluated into the halo points"""
         if not sides:
             kernel.set_halo_range(direction, 0, self.halotype)
             kernel.set_halo_range(direction, 1, self.halotype)
@@ -279,6 +281,7 @@ class Central(Scheme):
             raise NotImplementedError("")
 
     def create_residual_kernel(self, residual_arrays, discretised_eq, block):
+        """Creates a kernel for evaluating the residual of the discretised equations"""
         if len(residual_arrays) != len(discretised_eq):
             raise ValueError("")
         residue_kernel = Kernel(block)
@@ -290,8 +293,7 @@ class Central(Scheme):
 
     def general_discretisation(self, equations, block, name=None):
         """
-        This discretises the central derivatives, without any special treatment to
-        group the derivatives or any thing
+        This discretises the central derivatives, without any special treatment of grouping them
         """
         discretized_equations = flatten(equations)[:]
         cds = self.get_local_function(flatten(equations))
@@ -320,6 +322,9 @@ class Central(Scheme):
             return None, None
 
     def classify_equations_on_parameter(self, equations, parameter):
+        """Classifies the given equations into to different groups of equations.
+        a. the terms of the equations that contains the parameter and
+        b. the terms that donot contain the given parameter."""
         containing_terms = [S.Zero for eq in equations]
         other_terms = [S.Zero for eq in equations]
         for number, eq in enumerate(equations):
@@ -347,39 +352,37 @@ class Central(Scheme):
             containing_terms[no] = containing_terms[no].subs(substitutions)
         return containing_terms, other_terms
 
-    def traverse(self, CD, kernel_dictionary, block):
-        expr = CD.copy()
+    def traverse(self, cetnral_derivative, kernel_dictionary, block):
+        expr = cetnral_derivative.copy()
         inner_cds = []
-        # if CD.args[0].atoms(CentralDerivative):
-        pot = postorder_traversal(CD)
+        pot = postorder_traversal(cetnral_derivative)
         inner_cds = []
         for p in pot:
             if isinstance(p, CentralDerivative):
                 inner_cds += [p]
             else:
                 continue
-        # Contains inner derivatives
+        # Check if derivatives exists with inner derivatives, i.e mixed higher order derivatives
         if len(inner_cds) > 1:
             for np, cd in enumerate(inner_cds[:-1]):
                 if cd.is_store and cd.work:
                     cd.is_used(True)
                     expr = expr.subs(cd, cd.work)
-                    # update the kernel ranges for inner cds
+                    # update the kernel ranges for inner central derivatives
                     dires = inner_cds[np+1].get_direction
                     for direction in dires:
                         kernel_dictionary[cd].set_halo_range(direction, 0, self.halotype)
                         kernel_dictionary[cd].set_halo_range(direction, 1, self.halotype)
                 elif cd.is_store:
                     raise ValueError("NOT IMPLEMENTED THIS")
-                elif not cd.is_store:  # Donot store derivatives
+                elif not cd.is_store:
                     raise ValueError("This dependency sgould be validated for Carpenter BC")
-                    expr = expr.subs(cd, cd._discretise_derivative(self, block))
                 else:
                     raise ValueError("Could not classify this")
         return expr, kernel_dictionary
 
 
-class TemporalSolution(object):
+class TemporalSolution(object):  # TODO V2 Move this to where the solution is??
     def __init__(self):
         self.start_kernels = []
         self.end_kernels = []

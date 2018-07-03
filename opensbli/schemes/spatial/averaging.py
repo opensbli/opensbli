@@ -1,3 +1,9 @@
+"""@brief 
+   @author David J lusher
+   @contributors Satya Pramod Jammy
+   @details
+"""
+
 from opensbli.physical_models.ns_physics import NSphysics
 from sympy import sqrt, factor, Rational
 from opensbli.core.opensbliobjects import DataSet, DataSetBase, EinsteinTerm

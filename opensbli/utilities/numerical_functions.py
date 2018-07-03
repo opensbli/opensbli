@@ -1,3 +1,8 @@
+"""@brief
+   @author David J lusher
+   @contributors
+   @details
+"""
 import numpy as np
 
 

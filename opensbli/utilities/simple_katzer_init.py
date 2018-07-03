@@ -1,3 +1,8 @@
+"""@brief
+   @author David J lusher
+   @contributors
+   @details
+"""
 from sympy import Piecewise
 import numpy as np
 from opensbli.initialisation import GridBasedInitialisation
