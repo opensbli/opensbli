@@ -1,3 +1,8 @@
+"""@brief
+   @authors David J Lusher, Satya Pramod Jammy
+   @contributors
+   @details
+"""
 from sympy import flatten, zeros, Matrix, S, sqrt, Equality, nsimplify, Float, Rational, Idx, pprint
 from opensbli.core.kernel import Kernel, ConstantsToDeclare
 from opensbli.core.opensbliobjects import DataSet, ConstantIndexed, ConstantObject
@@ -470,20 +475,6 @@ class Carpenter(object):
             loc = start + mul_factor*no
             ecs += [ExprCondPair(d, Equality(idx, loc))]
         return ecs
-
-    # def expr_cond_pair_kernel(self, fn, direction, side, order, block):
-    #     """ This was written for creating different carpenter kernels but keeping it as it cna be used
-    #     later. """
-    #     ker = Kernel(block)
-    #     expr = fn
-    #     ker.add_equation(expr)
-    #     ker.set_computation_name("Carpenter scheme %s " % (fn))
-    #     ker.set_grid_range(block)
-    #     # modify the range to the number of points
-    #     raise NotImplementedError("This is for testing, not implemented")
-    #     ecs, ranges = self.expr_cond_pairs(fn, direction, side, order, block)
-    #     ker.ranges[direction] = [ranges[0], ranges[-1]]
-    #     return ker, ecs
 
     def second_der_coefficients(self):
         """ Computes the finite-difference coefficients for the 2nd order one sided Carpenter wall boundary derivative.

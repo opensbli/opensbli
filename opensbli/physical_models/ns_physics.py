@@ -1,4 +1,7 @@
-"""This contains the Physics Object for Navier-Stokes equations
+"""@brief This contains the Physics Object for Navier-Stokes equations.
+   @authors Satya Pramod Jammy, David J Lusher
+   @contributors
+   @details
 """
 from opensbli.core.grid import GridVariable
 from opensbli.core.opensbliobjects import DataObject, ConstantObject, DataSetBase
