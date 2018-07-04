@@ -96,9 +96,9 @@ def get_inverse_deltas(delta):
 def set_hdf5_metadata(dset, halos, npoints, block):
     """ Function to set hdf5 metadata required by OPS to a dataset."""
     if len(halos) != 2:
-        raise ValueError("Two halos should be provided for each dimenstion")
+        raise ValueError("Two halos should be provided for each dimension.")
     for h in halos:
-        if len(h) != 3:
+        if len(h) != block.ndim:
             raise ValueError("halos provided for hdf5 output should be of size %d" % block.ndim)
     # The size of negative halos as a list for all dimensions
     d_m = [halos[i][0] for i in range(2)]
