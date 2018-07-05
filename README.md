@@ -21,6 +21,11 @@ The following dependencies are required for generating a code and running a simu
 * python-flake8 (for linting the code base)
 * Sphinx (to build the documentation)
 
+#### Note on previous version
+
+* The version 1.0 of OpenSBLI can be downloaded from [release][https://github.com/opensbli/opensbli/releases]
+* No enhancements of version 1.0 are planned
+
 #### Postprocessing:
 
 * Matplotlib for plot scripts
