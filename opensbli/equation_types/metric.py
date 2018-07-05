@@ -33,7 +33,7 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
     def _hashable_content(self):
         return "MetricsEquation"
 
-    def genreate_transformations(cls, ndim, coordinate_symbol, parameters, max_order):
+    def generate_transformations(cls, ndim, coordinate_symbol, parameters, max_order):
         cls.ndim = ndim
         if len(flatten(parameters)) != ndim*2:
             raise ValueError("The parameters for stretching provided should match the number of dimensions")

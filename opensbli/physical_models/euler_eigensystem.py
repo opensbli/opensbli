@@ -1,3 +1,8 @@
+"""@brief
+   @author David J Lusher
+   @contributors Satya Pramod Jammy
+   @details
+"""
 from sympy import diag, eye, Rational, pprint
 from opensbli.core.opensbliobjects import ConstantObject, EinsteinTerm, DataSet
 from sympy.parsing.sympy_parser import parse_expr
