@@ -1,6 +1,6 @@
 """@brief
    @author Satya Pramod Jammy
-   @contributors
+   @contributors David J Lusher
    @details
 """
 
@@ -16,7 +16,9 @@ def read_dataset(openname, dataset):
     size = openname["%s" % (dataset)].shape
     read_start = [abs(d) for d in d_m]
     read_end = [s-abs(d) for d, s in zip(d_m, size)]
-    if len(read_end) == 2:
+    if len(read_end) == 1:
+        read_data = group["%s" % (dataset)].value[read_start[0]:read_end[0]]
+    elif len(read_end) == 2:
         read_data = openname["%s" % (dataset)].value[read_start[0]:read_end[0], read_start[1]:read_end[1]]
     elif len(read_end) == 3:
         read_data = openname["%s" % (dataset)].value[read_start[0]:read_end[0], read_start[1]:read_end[1], read_start[2]:read_end[2]]
@@ -26,7 +28,6 @@ def read_dataset(openname, dataset):
 
 
 def strip_halos(fname_to_read, fname_to_write):
-
     opensbli_file = h5py.File(fname_to_read, 'r')
     block_name1 = opensbli_file.keys()[0]
     group_block = opensbli_file[block_name1]

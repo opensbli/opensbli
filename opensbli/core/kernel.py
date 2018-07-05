@@ -1,6 +1,11 @@
+"""@brief
+   @authors Satya Pramod Jammy, David J Lusher
+   @contributors
+   @details
+"""
+
 from sympy import flatten, Equality, Indexed
 from sympy import Rational, Pow, Integer
-from sympy.printing import pprint
 from opensbli.core.opensbliobjects import DataSet, ConstantIndexed, ConstantObject,\
     GlobalValue, GroupedPiecewise, Constant
 from opensbli.equation_types.opensbliequations import OpenSBLIEq
@@ -19,23 +24,7 @@ class ConstantsToDeclare(object):
 
     @staticmethod
     def add_constant(constant, value=None, dtype=None):
-        # if value and const not in ConstantsToDeclare.constants:
-        #     c = constant_attributes(const)
-        #     c.is_input = False
-        #     if dtype:
-        #         c.dtype = dtype
-        #     else:
-        #         c.dtype = SimulationDataType()
-        #     c.value = value
-        #     ConstantsToDeclare.constants += [c]
-        # elif const not in ConstantsToDeclare.constants:
-        #     c = constant_attributes(const)
-        #     # c.is_input = False
-        #     if dtype:
-        #         c.dtype = dtype
-        #     else:
-        #         c.dtype = SimulationDataType()
-        #     ConstantsToDeclare.constants += [c]
+        """ Adds a constant or list of constants to be declared in the final program."""
         if isinstance(constant, Constant):
             if constant not in ConstantsToDeclare.constants:
                 ConstantsToDeclare.constants += [constant]
@@ -45,26 +34,11 @@ class ConstantsToDeclare(object):
                     ConstantsToDeclare.constants += [c]
         else:
             raise ValueError("Unknown type of constant")
-        # print c.__dict__
         return
-
-    @staticmethod
-    def update_constant_value(const_index, value):
-        ConstantsToDeclare.constants[const_index]._value = value
-        return
-
-    @staticmethod
-    def get_constant(name):
-        pprint([type(c.name) for c in ConstantsToDeclare.constants])
-        pprint(type(name))
-        index = [c.name for c in ConstantsToDeclare.constants].index(name)
-        return ConstantsToDeclare.constants[index]
 
 
 def copy_block_attributes(block, otherclass):
-    """
-    Move this to block
-    """
+    """ Move this to block."""
     otherclass.block_number = block.blocknumber
     otherclass.ndim = block.ndim
     otherclass.block_name = block.blockname
@@ -80,7 +54,7 @@ class StencilObject(object):
         return
 
     def sort_stencil_indices(self):
-        """ Helper function for relative_stencil. Sorts the relative stencil. """
+        """ Helper function for relative_stencil, used in OPSC. Sorts the relative stencil locations."""
         index_set = self.stencil
         dim = len(list(index_set)[0])
         sorted_index_set = sorted(index_set, key=lambda tup: tuple(tup[i] for i in range(dim)))
@@ -88,8 +62,7 @@ class StencilObject(object):
 
 
 class Kernel(object):
-
-    """ A computational kernel which will be executed over all the grid points and in parallel. """
+    """ A computational kernel, which will be executed over all the grid points in parallel."""
     mulfactor = {0: 1, 1: 1}
     opsc_access = {'ins': "OPS_READ", "outs": "OPS_WRITE", "inouts": "OPS_RW"}
 
@@ -102,19 +75,11 @@ class Kernel(object):
         block.increase_kernel_counter
         self.equations = []
         self.halo_ranges = [[set(), set()] for d in range(block.ndim)]
-        # self.stencil_names = {}
         return
 
     def set_computation_name(self, name):
+        """ Sets the name of the computation for this kernel."""
         self.computation_name = name
-        return
-
-    def _sanitise_kernel(self, type_of_code):
-        """Sanitises the kernel equations by updating the datasetbase ranges in the
-        DataSetsToDeclare class, finds the Rational constants, updates the constants
-        and update the equations
-        # TODO
-        """
         return
 
     def __hash__(self):
@@ -126,6 +91,7 @@ class Kernel(object):
         return str(self.kernelname)
 
     def add_equation(self, equation):
+        """ Add an equation or list of equations to be evaluated inside this computational kernel."""
         if isinstance(equation, list):
             self.equations += flatten([equation])
         elif isinstance(equation, Equality):
@@ -135,26 +101,16 @@ class Kernel(object):
         elif equation:
             pass
         else:
-            raise ValueError("Error in kernel add equation.")
+            raise ValueError("Error when adding equations to the kernel.")
         return
 
     def set_grid_range(self, block):
+        """ Sets the kernel range equal to the block ranges."""
         self.ranges = copy.deepcopy(block.ranges)
         return
 
-    def set_grid_range_to_zero(self, block):
-        self.ranges = []
-        for d in range(block.ndim):
-            local_range = []
-            local_range += [0, 0]
-            self.ranges += [local_range]
-        return
-
     def set_halo_range(self, direction, side, types):
-        # Rename, halos for a certain kernel
-        # if not self.halo_ranges[direction][side]:
-            # self.halo_ranges[direction][side] = set([types])
-        # else:
+        """ Sets the halo ranges for the kernel which extend beyond the grid range."""
         if isinstance(types, set):
             for s in types:
                 self.halo_ranges[direction][side].add(s)
@@ -163,28 +119,12 @@ class Kernel(object):
         return
 
     def merge_halo_range(self, halo_range):
-        # Required in future for merging 2 kernels
-        # Merge the halo ranges for 2 kernels, doesn't check any eqautions
+        """ Merges the halo range for 2 kernels."""
         for direction in range(len(self.halo_ranges)):
             self.halo_ranges[direction][0] = self.halo_ranges[direction][0] | halo_range[direction][0]
             self.halo_ranges[direction][1] = self.halo_ranges[direction][1] | halo_range[direction][1]
 
         return
-
-    def check_and_merge_kernels(self, kernel):
-        """
-        We donot check the equations only halo range is checked and updated
-        """
-        return
-
-    @property
-    def required_datasetbases(self):
-        """ # TODO This is not used any more check for all apps and delete"""
-        requires = []
-        for eq in self.equations:
-            if isinstance(eq, _known_equation_types):
-                requires += list(eq.rhs_datasetbases)
-        return requires
 
     @property
     def lhs_datasetbases(self):
@@ -264,21 +204,8 @@ class Kernel(object):
                     return True
         return False
 
-    @property
-    def grid_index_name(self):
-        # TODO check if this is used
-        grid_id = set()
-        for eq in self.equations:
-            if isinstance(eq, _known_equation_types):
-                grid_id = grid_id.union(eq.atoms(Grididx))
-            if len(grid_id) > 1:
-                print grid_id
-                raise ValueError("Grid indices should be consistent.")
-        return list(grid_id)[0]
-
     def get_stencils(self):
-        """ Returns the stencils for the datasets used in the kernel
-        """
+        """ Returns the stencils for the datasets used in the kernel."""
         stencil_dictionary = {}
         datasets = set()
         for eq in self.equations:
@@ -307,7 +234,7 @@ class Kernel(object):
             if isinstance(eq, Equality):
                 latex.write_expression(eq)
             elif isinstance(eq, GroupedPiecewise):
-                print "should be doing latex"  # TODO
+                print "Should be doing latex for grouped piecewise"  # TODO
         return
 
     def total_range(self):
@@ -330,6 +257,7 @@ class Kernel(object):
 
     @property
     def opsc_code(self):
+        """ Creates the OPSC code for a kernel."""
         block_name = self.block_name
         name = self.kernelname
         ins = self.rhs_datasetbases
@@ -357,7 +285,7 @@ class Kernel(object):
             for c in self.IndexedConstants:
                 code += ["ops_arg_gbl(&%s, %d, \"%s\", %s)" % (c, 1, sim_dtype, self.opsc_access['ins'])]
         if self.global_variables:
-            # we need to write the size of an array for global indexed
+            # We need to write the size of an array for global indexed
             global_ins, global_outs = self.global_variables
             if global_ins.intersection(global_outs):
                 raise NotImplementedError("Input output of global variables is not implemented")
@@ -376,8 +304,7 @@ class Kernel(object):
         return template % (array, 1, stencil, self.dtype, access_type)
 
     def update_block_datasets(self, block):
-        """
-        Check the following
+        """ Check the following
         a. existing.block_number is same as kernel
         b. set the range to block shape
         c. Update the halo ranges (similar to how we update the halo ranges of a kernel)
@@ -386,8 +313,7 @@ class Kernel(object):
         dataset_attributes(d)
         1. d.block_numner to kernel block number
         2. d.size = block shape
-        3. d.halo_ranges to kernel halo ranges
-        """
+        3. d.halo_ranges to kernel halo ranges."""
         self.stencil_names = {}
         dsets = self.lhs_datasetbases.union(self.rhs_datasetbases)
         # New logic for the dataset delcarations across blocks
@@ -411,22 +337,7 @@ class Kernel(object):
                 d.block_name = block.blockname
                 # Add dataset to block datasets
                 block.block_datasets[str(d)] = d
-        # Update rational constant attributes
-        # rational_constants = self.Rational_constants.union(self.Inverse_constants)
-        stens = self.get_stencils()
-        for dset, stencil in stens.iteritems():
-            if stencil not in block.block_stencils.keys():
-                name = 'stencil_%d_%02d' % (block.blocknumber, len(block.block_stencils.keys()))
 
-                block.block_stencils[stencil] = StencilObject(name, stencil, block.ndim)
-            if dset not in self.stencil_names:
-                self.stencil_names[dset] = block.block_stencils[stencil].name
-            else:
-                self.stencil_names[dset].add(block.block_stencils[stencil].name)
-        return
-
-    def update_stencils(self, block):
-        self.stencil_names = {}
         stens = self.get_stencils()
         for dset, stencil in stens.iteritems():
             if stencil not in block.block_stencils.keys():

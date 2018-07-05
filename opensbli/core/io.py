@@ -1,3 +1,8 @@
+"""@brief
+   @authors Satya Pramod Jammy
+   @contributors
+   @details
+"""
 from opensbli.code_generation.algorithm.common import InTheSimulation, AfterSimulationEnds, BeforeSimulationStarts
 from sympy import flatten
 
