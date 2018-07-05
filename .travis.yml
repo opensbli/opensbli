@@ -12,7 +12,7 @@ virtualenv:
 before_install:
   - sudo apt-get update -qq
   - sudo apt-get install -yq python-h5py
-  - sudo pip install sympy>=1.0 pytest flake8 Sphinx
+  - sudo pip install sympy==1.0 pytest flake8 Sphinx
   - sudo pip install -e git+https://github.com/gihanmudalige/OPS.git@178ec4f7c1ccb1917a85b4248820cfecb912ac6f#egg=OPS
 
 install:

@@ -392,8 +392,8 @@ class OPSC(object):
                             calls += self.get_reduction_results(computation.reductions)
                             calls += self.print_reduction_results(computation.reductions)
                     if diagnostic.compute_every:
-                        l = ccode(Mod('iteration', diagnostic.compute_every))
-                        calls = ['if(%s == 0)' % l] + [self.left_brace] + calls
+                        condition = ccode(Mod('iteration', diagnostic.compute_every))
+                        calls = ['if(%s == 0)' % condition] + [self.left_brace] + calls
                         calls += [self.right_brace]
                         code_dictionary['io_time'] += '\n'.join(calls)
                     else:
@@ -570,8 +570,8 @@ class OPSC(object):
                 name = '\"' + name + '\"'
                 io_calls[block] += self.hdf5_io(self.IO[block], name)
                 # Time IO save at
-                l = ccode(Mod('iteration+1', save_at[0]))
-                calls = ['if(%s == 0)' % l] + [self.left_brace]
+                condition = ccode(Mod('iteration+1', save_at[0]))
+                calls = ['if(%s == 0)' % condition] + [self.left_brace]
                 # Character buffer array and name of the output
                 calls += ['char buf[100];'] + ['sprintf(buf,\"%s_%%d.h5\",iteration);' % self.simulation_parameters["name"]]
                 name = 'buf'
