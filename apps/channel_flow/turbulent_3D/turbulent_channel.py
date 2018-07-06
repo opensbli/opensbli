@@ -120,7 +120,7 @@ boundaries += [PeriodicBC(direction, side=1)]
 
 # Isothermal wall in x1 direction
 # Energy on the wall is set
-wall_energy = [Eq(q_vector[4], q_vector[0] / (gama * Minf**2.0 * (gama - S.One)))]
+wall_energy = [Eq(q_vector[-1], q_vector[0] / (gama * Minf**2.0 * (gama - S.One)))]
 
 direction = 1
 # Side 0 (bottom wall) boundary
@@ -152,14 +152,15 @@ initial_equations = []
 lx, ly, lz = symbols('lx0:%s' % ndim, **{'cls': ConstantObject})
 sx, sy, sz = symbols('sx0:%s' % ndim, **{'cls': GridVariable})
 cx, cy, cz = symbols('cx0:%s' % ndim, **{'cls': GridVariable})
-ubar, amp, vonkar, b = symbols('ubar amp vonkar b', **{'cls': GridVariable})
+ubar, amp, vonkar, b, ywallRe = symbols('ubar amp vonkar b ywallRe', **{'cls': GridVariable})
 
 # Set the constants for initialisation
 initial_equations += [Eq(b, 5.5), Eq(vonkar, 2.5)]
-
+# Evaluate distance from the wall time Re
+initial_equations += [Eq(ywallRe,  Re *Abs(1.0 - Abs(y - 1.0)))]
 # Equation for umean
-initial_equations += [Eq(ubar, Piecewise((y * Re, y * Re < 10.0),
-                         (vonkar * log(y * Re) + b, True)))]
+initial_equations += [Eq(ubar, Piecewise((ywallRe, ywallRe < 10.0),
+                         (vonkar * log(ywallRe) + b, True)))]
 # Amplitude of the disturbances
 initial_equations += [Eq(amp, 0.1 * (vonkar * log(Re) + b))]
 
@@ -232,6 +233,6 @@ OPSC(alg)
 # simulation etc. In the future reading thes from HDF5 would be provided
 constants = ['Re', 'gama', 'Minf', 'Pr', 'dt', 'niter', 'block0np0', 'block0np1',
     'block0np2', 'Delta0block0', 'Delta1block0', 'Delta2block0', "c0", "c1", "c2", "lx0", "lx2"]
-values = ['180.0', '1.4', '0.01', '0.72', '0.00001', '100000', '256', '256', '256',
+values = ['180.0', '1.4', '0.01', '0.72', '0.00001', '100000', '180', '140', '120',
     '11.0/block0np0', '2.0/(block0np1-1)', '4.0/block0np2', '-1', '0', '0', "11.0", "4.0"]
 substitute_simulation_parameters(constants, values)
