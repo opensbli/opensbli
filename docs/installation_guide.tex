@@ -1,5 +1,5 @@
 \title{OpenSBLI setup guide}
-% \author{David J. Lusher: d.lusher@soton.ac.uk}
+\author{OpenSBLI developers team}
 \documentclass[11pt]{article}
 
 \usepackage{nth}
@@ -8,13 +8,13 @@
 \begin{document}
 \maketitle
 
-OpenSBLI requires a Python 2.7 install for code generation, and the Oxford Parallel Structured software (OPS) library to build executables. The guide is for Linux platforms only, and hasn't been tested on OSX/Windows. Python packages are installed with pip, if pip is not already present on your system it can be installed with e.g. \verb|sudo apt-get install python-pip|, on Ubuntu/Debian based systems. 
+OpenSBLI requires a Python 2.7 install for code generation, and the Oxford Parallel Structured software (OPS) library to build executables. The guide is for Linux platforms only, and hasn't been tested on OSX/Windows. Python packages are installed with pip, if pip is not already present on your system it can be installed with e.g. \verb|sudo apt-get install python-pip|, on Ubuntu/Debian based systems. For HPC systems ask your administrator. 
 
-The guide is for installation on a local machine with the GNU C compiler (gcc) with openMPI, on HPC clusters you will have to modify the steps/load the necessary modules to the available compilers, MPI distribution and HDF5 libraries. It is important that the HDF5 installation was built with the same compiler/MPI distrubution that you are using to build the code. For generating CUDA, OpenCL, or OpenACC code, these libraries should be installed and their location exported in step 4. OPS and OpenSBLI are installed to your home directory, if you wish to have them elsewhere then modify the locations accordingly.
+The guide is for installation on a \textbf{local machine} with the GNU C compiler (gcc) with openMPI, on \textbf{HPC clusters} you will have to modify the steps/load the necessary modules to the available compilers, MPI distribution and HDF5 libraries. It is important that the HDF5 installation was built with the same compiler/MPI distrubution that you are using to build the code. For generating CUDA, OpenCL, or OpenACC code, these libraries should be installed and their location exported in step 4. OPS and OpenSBLI are installed to your home directory, if you wish to have them elsewhere then modify the locations accordingly.
 
 
 \begin{enumerate}
-\item{Install OpenMPI and HDF5 libraries, git and pip/tk (skip this step if using a machine with pre-configured software modules):
+\item{Install OpenMPI and HDF5 libraries, git and pip/tk (skip this step if using a machine with pre-configured software modules on HPC machine):
 \begin{verbatim}
 sudo apt-get install python-pip python-tk
 sudo apt-get install libhdf5-openmpi-dev
@@ -48,21 +48,21 @@ make cuda
 make mpi_cuda
 \end{verbatim}
 
-\item{Clone the latest OpenSBLI with your username and change branch:}
+\item{Clone the latest OpenSBLI from github and change to versio2.0:}
 \begin{verbatim}
-git clone https://<your-username>@bitbucket.org/spjammy/opensbliweno.git
-cd opensbliweno
-git fetch && git checkout feature/curvilinear
+git clone https://github.com/opensbli/opensbli
+cd opensbli
+git fetch && git checkout version2.0
 \end{verbatim}
 
 \item{Export OpenSBLI to your PYTHONPATH in \verb|~/.bashrc|:}
 \begin{verbatim}
-export PYTHONPATH=$PYTHONPATH:/home/<username>/opensbliweno/
+export PYTHONPATH=$PYTHONPATH:/home/<username>/opensbli/
 \end{verbatim}
 
 \item{Generate a code in OpenSBLI:}
 \begin{verbatim}
-cd ~/opensbliweno/apps/restructured/TGV/
+cd ~/opensbli/apps/TGV/
 python taylor_green_vortex.py
 \end{verbatim}
 You should now have four new files:\\ \verb|opensbli.cpp, opensbliblock00_kernels.h, defdec_data_set.h, bc_exchanges.h| and some LaTeX files.
