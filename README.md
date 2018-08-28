@@ -1,5 +1,5 @@
 # OpenSBLI
-
+Internal development branch
 OpenSBLI-V2.0 is an automatic code generator which expands a set of equations written in Einstein notation, and writes out the finite difference code in the OPSC language.
 
 ## Getting started
