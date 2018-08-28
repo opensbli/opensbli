@@ -20,9 +20,9 @@ sudo apt-get install python-pip python-tk
 sudo apt-get install libhdf5-openmpi-dev
 sudo apt-get install git
 \end{verbatim}}
-\item{Install the required Python packages for this user:}
+\item{Install the required Python packages for this user, version 2.0 is tested only with Sympy version 1.1.1:}
 \begin{verbatim}
-pip install --user sympy scipy numpy h5py matplotlib flake8
+pip install --user sympy==1.1.1 scipy numpy h5py matplotlib flake8
 \end{verbatim}
 \item{Clone the OPS library:\\ \verb|git clone https://github.com/OP-DSL/OPS.git|}
 \item{Export OPS environment variables:\\ Edit your \verb|~/.bashrc| to include the lines:}
