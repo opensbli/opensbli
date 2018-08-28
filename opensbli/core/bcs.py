@@ -639,6 +639,7 @@ class ExtrapolationBC(ModifyCentralDerivative, BoundaryConditionBase):
         return
 
     def apply(self, arrays, block):
+        direction, side = self.direction, self.side
         halos, kernel = self.generate_boundary_kernel(block, self.bc_name)
         cons_vars = flatten(arrays)
         n_halos = abs(halos[self.direction][self.side])
@@ -649,8 +650,22 @@ class ExtrapolationBC(ModifyCentralDerivative, BoundaryConditionBase):
             for i in halo_points:
                 equations = self.create_boundary_equations(cons_vars, cons_vars, [(i, to_side_factor)])
                 kernel.add_equation(equations)
+        elif self.order == 1:  # Linear extrapolation
+            halo_points = [from_side_factor*i for i in range(1, n_halos+1)]
+            equations = []
+            if side == 0:
+                for i in halo_points:
+                    for term in cons_vars:
+                        current, one, two = increment_dataset(term, direction, i), increment_dataset(term, direction, (i+1)*to_side_factor), increment_dataset(term, direction, (i+2)*to_side_factor)
+                        equations += [OpenSBLIEq(current, 2.0*one - two)]
+            elif side == 1:
+                for i in halo_points:
+                    for term in cons_vars:
+                        current, one, two = increment_dataset(term, direction, i), increment_dataset(term, direction, (i-1)*from_side_factor), increment_dataset(term, direction, (i-2)*from_side_factor)
+                        equations += [OpenSBLIEq(current, 2.0*one - two)]
+            kernel.add_equation(equations)
         else:
-            raise ValueError("Only zeroth order currently implemented.")
+            raise ValueError("Only zeroth order and linear extrapolation currently implemented.")
         kernel.update_block_datasets(block)
         return kernel
 
