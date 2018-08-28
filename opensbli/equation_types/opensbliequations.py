@@ -264,7 +264,7 @@ class SimulationEquations(Discretisation, Solution):
         return arrays
 
     def spatial_discretisation(cls, block):
-        """Apllies the spatial discretisation of the equations by calling the discretisation of each spatial
+        """Applies the spatial discretisation of the equations by calling the discretisation of each spatial 
         scheme provided on the block
 
         :param SimulationBlock block: the block on which the equations are solved
@@ -286,6 +286,7 @@ class SimulationEquations(Discretisation, Solution):
         # Perform spatial Discretisation
         cls.constituent_evaluations = {}
         crs = block.get_constituent_equation_class
+        missing_CR_datasets = []
         cr_dictionary = {}
         for cr in crs:
             cr_dictionary.update(cr.get_relations_dictionary)
@@ -295,14 +296,19 @@ class SimulationEquations(Discretisation, Solution):
             for key, value in cls.constituent_evaluations[sc].iteritems():
                 if key in cr_dictionary.keys():
                     if key in cls.constituent_relations_kernels:
+                        if cr_dictionary[key].kernels:
+                            raise NotImplementedError('')
                         cls.constituent_relations_kernels[key].merge_halo_range(value.halo_ranges)
                     else:
                         cls.constituent_relations_kernels[key] = value
-                        cls.constituent_relations_kernels[key].add_equation(cr_dictionary[key])
+                        if cr_dictionary[key].kernels:
+                            missing_CR_datasets += [key]
+                        else:
+                            cls.constituent_relations_kernels[key].add_equation(cr_dictionary[key])
                 else:
                     # raise ValueError("Constituent relation is not found for %s"%key)
                     cls.requires[key] = value
-        missing_CR_datasets = cls.get_required_constituents.difference(cls.constituent_relations_kernels.keys())
+        missing_CR_datasets += list(cls.get_required_constituents.difference(cls.constituent_relations_kernels.keys()))
         for dset in missing_CR_datasets:
             # Evaluation of missing dataset is required
             if dset in cr_dictionary.keys():
@@ -439,7 +445,7 @@ class ConstituentRelations(Discretisation, Solution):
         return
 
     def spatial_discretisation(cls, block):
-        """Apllies the spatial discretisation of the equations by calling the discretisation of each spatial
+        """Applies the spatial discretisation of the equations by calling the discretisation of each spatial
         scheme provided on the block
 
         :param SimulationBlock block: the block on which the equations are solved
@@ -467,8 +473,6 @@ class ConstituentRelations(Discretisation, Solution):
 
             cls.Kernels = []
         cls.equations = equations
-        for sc in spatialschemes:
-            cls.constituent_evaluations[sc] = schemes[sc].discretise(cls, block)
         return
 
     @property
