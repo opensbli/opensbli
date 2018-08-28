@@ -536,20 +536,18 @@ class IsothermalWallBC(ModifyCentralDerivative, BoundaryConditionBase):
         # Using Navier Stokes physics object, create conservative variables
         NS = NSphysics(block)
         from_side_factor, to_side_factor = self.set_side_factor()
-        # Pressure is assumed to be constant between first grid point and the wall
         wall_eqns = []
-        pw, gamma, Minf, Twall = GridVariable('Pwall'), NS.specific_heat_ratio(), NS.mach_number(), ConstantObject('Twall')
-        wall_eqns += [OpenSBLIEq(pw, increment_dataset(NS.pressure(relation=True, conservative=True), self.direction, 0))]
-        # Wall density set using the same rho = pw*gamma*Minf*Minf/Twall
-        # wall_eqns += [OpenSBLIEq(NS.density(), pw*gamma*Minf*Minf/Twall)]
         # Set wall conditions, momentum zero
         wall_eqns += [OpenSBLIEq(x, Float(S.Zero)) for x in NS.momentum()]
-        # Wall energy set by the pressure above the wall
-        # wall_eqns += [OpenSBLIEq(NS.total_energy(), pw/(gamma-1))]
+        # Set wall energy, density is left to be evaluated
         wall_eqns += self.equations[:]
         kernel.add_equation(wall_eqns)
         # Update halos if a shock capturing scheme is being used.
         if any(isinstance(sc, ShockCapturing) for sc in block.discretisation_schemes.values()):
+            pw, gamma, Minf, Twall = GridVariable('Pwall'), NS.specific_heat_ratio(), NS.mach_number(), ConstantObject('Twall')
+            # Wall pressure
+            wall_eqns = [OpenSBLIEq(pw, increment_dataset(NS.pressure(relation=True, conservative=True), self.direction, 0))]
+            kernel.add_equation(wall_eqns)
             # Direct copy indices over the wall
             transfer_indices = [tuple([from_side_factor*t, to_side_factor*t]) for t in range(1, n_halos + 1)]
             # Evaluate velocities in the halos
