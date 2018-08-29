@@ -3,7 +3,7 @@
    @contributors
    @details
 """
-from sympy import flatten, zeros, Matrix, S, sqrt, Equality, nsimplify, Float, Rational, Idx, pprint
+from sympy import flatten, zeros, Matrix, S, sqrt, Equality, nsimplify, Float, Rational, Idx, pprint, Abs, GreaterThan, Piecewise
 from opensbli.core.kernel import Kernel, ConstantsToDeclare
 from opensbli.core.opensbliobjects import DataSet, ConstantIndexed, ConstantObject
 from opensbli.equation_types.opensbliequations import OpenSBLIEq
