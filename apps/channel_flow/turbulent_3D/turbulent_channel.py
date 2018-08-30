@@ -2,7 +2,7 @@
 # Import all the functions from opensbli
 from opensbli import *
 from sympy import sin, log, cos, pi
-from opensbli.utilities.helperfunctions import substitute_simulation_parameters
+from opensbli.utilities.helperfunctions import substitute_simulation_parameters, print_iteration_ops
 
 # STEP 0 Create the equations required for the numerical solution
 # Problem dimension
@@ -236,3 +236,4 @@ constants = ['Re', 'gama', 'Minf', 'Pr', 'dt', 'niter', 'block0np0', 'block0np1'
 values = ['180.0', '1.4', '0.01', '0.72', '0.00001', '100000', '180', '140', '120',
     '11.0/block0np0', '2.0/(block0np1-1)', '4.0/block0np2', '-1', '0', '0', "11.0", "4.0"]
 substitute_simulation_parameters(constants, values)
+print_iteration_ops()

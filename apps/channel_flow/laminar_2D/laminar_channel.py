@@ -2,7 +2,7 @@
 
 # Import all the functions from opensbli
 from opensbli import *
-from opensbli.utilities.helperfunctions import substitute_simulation_parameters
+from opensbli.utilities.helperfunctions import substitute_simulation_parameters, print_iteration_ops
 
 # Problem dimension
 ndim = 2
@@ -189,4 +189,4 @@ OPSC(alg)
 constants = ['Re', 'gama', 'Minf', 'Pr', 'dt', 'niter', 'block0np0', 'block0np1', 'Delta0block0', 'Delta1block0', "c0", "c1"]
 values = ['90.0', '1.4', '0.01', '0.72', '0.0001', '3000000', '16', '64', '2.0*M_PI/block0np0', '2.0/(block0np1-1)', '-1', '0']
 substitute_simulation_parameters(constants, values)
-exit()
+print_iteration_ops()
