@@ -2,7 +2,7 @@
 # Import all the functions from opensbli
 from opensbli import *
 import copy
-from opensbli.utilities.helperfunctions import substitute_simulation_parameters
+from opensbli.utilities.helperfunctions import substitute_simulation_parameters, print_iteration_ops
 
 ndim = 2
 
@@ -112,3 +112,4 @@ OPSC(alg)
 constants = ['gama', 'dt', 'niter', 'block0np0', 'block0np1', 'Delta0block0', 'Delta1block0']
 values = ['1.4', '0.001', '2500', '400', '400', '2.0/(block0np0)', '2.0/(block0np1)']
 substitute_simulation_parameters(constants, values)
+print_iteration_ops()
