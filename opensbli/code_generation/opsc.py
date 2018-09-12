@@ -365,7 +365,7 @@ class OPSC(object):
                         else:
                             out += [ccode(expr, settings={'kernel': True}) + ';\n']
                         out += ['}\n']
-                    elif condition is not True:
+                    elif condition != True:
                         out += ['else if (%s)' % ccode(condition, settings={'kernel': True}) + '{\n']
                         if is_sequence(expr):
                             for eqn in expr:
