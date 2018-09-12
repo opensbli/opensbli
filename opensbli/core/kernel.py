@@ -194,7 +194,7 @@ class Kernel(object):
         for eq in self.equations:
             if isinstance(eq, _known_equation_types):
                 globals_vars_lhs = globals_vars_lhs.union(eq.atoms(GlobalValue))
-        return globals_vars_rhs, globals_vars_lhs
+        return globals_vars_lhs, globals_vars_rhs
 
     @property
     def grid_indices_used(self):
