@@ -539,6 +539,7 @@ class IsothermalWallBC(ModifyCentralDerivative, BoundaryConditionBase):
         wall_eqns = []
         # Set wall conditions, momentum zero
         wall_eqns += [OpenSBLIEq(x, Float(S.Zero)) for x in NS.momentum()]
+        # kernel.add_equation(OpenSBLIEq(GridVariable('x0'), block.location_dataset('x0'))) ## Used for sidewall case to set the ramp
         # Set wall energy, density is left to be evaluated
         wall_eqns += self.equations[:]
         kernel.add_equation(wall_eqns)
@@ -711,6 +712,26 @@ class AdiabaticWallBC(ModifyCentralDerivative, BoundaryConditionBase):
             transfer_indices = [tuple([from_side_factor*t, to_side_factor*t]) for t in range(1, abs(halos[self.direction][self.side]) + 1)]
             final_equations = self.create_boundary_equations(lhs_eqns, rhs_eqns, transfer_indices)
         kernel.add_equation(final_equations)
+        kernel.update_block_datasets(block)
+        return kernel
+
+class ZeroGradientOutletBC(BoundaryConditionBase):
+    def __init__(self, boundary_direction, side, scheme=None, plane=True):
+        BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
+        self.bc_name = 'ZeroGradientOutlet'
+        return
+
+    def apply(self, arrays, block):
+        halos, kernel = self.generate_boundary_kernel(block, self.bc_name)
+        n_halos = abs(halos[self.direction][self.side])
+        from_side, to_side = self.set_side_factor()
+        transfer_indices = [(from_side*i,to_side*i) for i in range(1,n_halos+1)]
+        cons_vector = flatten(arrays)
+        # Copy from -1 to boundary point at zero
+        zero_eqn = self.create_boundary_equations(cons_vector, cons_vector, [(0, to_side)])
+        kernel.add_equation(zero_eqn)
+        output_eqns = self.create_boundary_equations(cons_vector, cons_vector, transfer_indices)
+        kernel.add_equation(output_eqns)
         kernel.update_block_datasets(block)
         return kernel
 
