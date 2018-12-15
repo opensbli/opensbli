@@ -12,6 +12,7 @@ from opensbli.schemes.spatial.scheme import Scheme
 from opensbli.schemes.spatial.weno import LLFCharacteristic, ShockCapturing, RFCharacteristic
 from opensbli.core.kernel import ConstantsToDeclare as CTD
 from opensbli.equation_types.opensbliequations import OpenSBLIEq, SimulationEquations
+from opensbli.utilities.helperfunctions import increment_dataset
 
 
 class TenoHalos(object):
@@ -266,7 +267,6 @@ class TenoReconstructionVariable(object):
         self.alpha_symbols += [GridVariable('%s' % (s)) for s in original.alpha_symbols]
         self.inv_alpha_sum_symbols += [GridVariable('%s' % (s)) for s in original.inv_alpha_sum_symbols]
         self.inv_omega_sum_symbols += [GridVariable('%s' % (s)) for s in original.inv_omega_sum_symbols]
-        self.omega_symbols += [GridVariable('%s' % (s)) for s in original.omega_symbols]
         self.kronecker_symbols += [GridVariable('%s' % (s)) for s in original.kronecker_symbols]
 
         if original.order == 8:
@@ -277,8 +277,8 @@ class TenoReconstructionVariable(object):
             originals = []
             new = []
 
-        originals += original.smoothness_symbols + original.alpha_symbols + original.inv_alpha_sum_symbols + original.kronecker_symbols + original.inv_omega_sum_symbols + original.omega_symbols
-        new += self.smoothness_symbols + self.alpha_symbols + self.inv_alpha_sum_symbols + self.kronecker_symbols + self.inv_omega_sum_symbols + self.omega_symbols
+        originals += original.smoothness_symbols + original.alpha_symbols + original.inv_alpha_sum_symbols + original.kronecker_symbols + original.inv_omega_sum_symbols
+        new += self.smoothness_symbols + self.alpha_symbols + self.inv_alpha_sum_symbols + self.kronecker_symbols + self.inv_omega_sum_symbols
         subs_dict = dict(zip(originals, new))
 
         for key, value in original.function_stencil_dictionary.iteritems():
@@ -295,7 +295,6 @@ class TenoReconstructionVariable(object):
         self.alpha_evaluated = [s.subs(subs_dict) for s in original.alpha_evaluated]
         self.inv_alpha_sum_evaluated = [s.subs(subs_dict) for s in original.inv_alpha_sum_evaluated]
         self.inv_omega_sum_evaluated = [s.subs(subs_dict) for s in original.inv_omega_sum_evaluated]
-        self.omega_evaluated = [s.subs(subs_dict) for s in original.omega_evaluated]
         self.kronecker_evaluated = [s.subs(subs_dict) for s in original.kronecker_evaluated]
         self.reconstructed_expression = original.reconstructed_expression.subs(subs_dict)
         return
@@ -304,8 +303,8 @@ class TenoReconstructionVariable(object):
         """ Adds the evaluations of the TENO quantities to the computational kernel.
 
         :arg object kernel: OpenSBLI Kernel for the TENO computation."""
-        all_symbols = self.smoothness_symbols + self.tau_8_symbol + self.alpha_symbols + self.inv_alpha_sum_symbols + self.kronecker_symbols + self.inv_omega_sum_symbols + self.omega_symbols
-        all_evaluations = self.smoothness_indicators + self.tau_8_evaluated + self.alpha_evaluated + self.inv_alpha_sum_evaluated + self.kronecker_evaluated + self.inv_omega_sum_evaluated + self.omega_evaluated
+        all_symbols = self.smoothness_symbols + self.tau_8_symbol + self.alpha_symbols + self.inv_alpha_sum_symbols + self.kronecker_symbols + self.inv_omega_sum_symbols
+        all_evaluations = self.smoothness_indicators + self.tau_8_evaluated + self.alpha_evaluated + self.inv_alpha_sum_evaluated + self.kronecker_evaluated + self.inv_omega_sum_evaluated
 
         final_equations = []
         for no, value in enumerate(all_symbols):
@@ -344,7 +343,7 @@ class Teno(Scheme, ShockCapturing):
 
         :arg int order: Numerical order of the TENO scheme (3,5,...)."""
 
-    def __init__(self, order, **kwargs):
+    def __init__(self, order, formulation=None, **kwargs):
         Scheme.__init__(self, "TenoDerivative", order)
         self.schemetype = "Spatial"
         self.order = order
@@ -356,10 +355,13 @@ class Teno(Scheme, ShockCapturing):
             raise NotImplementedError("Only 5th, 6th and 8th order TENO are currently implemented.")
         # Epsilon to avoid division by zero in non-linear weights
         WT.eps = ConstantObject('eps')
-        # Parameter to control the spectral properties of the TENO scheme
-        self.CT = ConstantObject('TENO_CT')
-        CTD.add_constant(self.CT)
         CTD.add_constant(WT.eps)
+        # Parameter to control the spectral properties of the TENO scheme
+        if formulation == 'dynamic':
+            self.CT = GridVariable('TENO_CT')
+        else:
+            self.CT = ConstantObject('TENO_CT')
+            CTD.add_constant(self.CT)
         # Use optimized schemes?
         optimized = True
         self.halotype = TenoHalos(self.order)
@@ -379,7 +381,6 @@ class Teno(Scheme, ShockCapturing):
             # Only the generation of alphas changes for different orders of TENO
             WT.generate_alphas(RV, TC)
             self.create_cutoff_equations(RV, TC)
-            self.generate_omegas(RV, TC)
             self.generate_reconstruction(RV, TC)
             self.reconstruction_classes[no] = RV
         return
@@ -409,28 +410,60 @@ class Teno(Scheme, ShockCapturing):
 
         :arg object RV: The reconstruction variable object.
         :arg object TC: Configuration settings for a reconstruction of either left or right."""
+        # Create the non-linear weights
+        inv_omega_sum_symbols = [Symbol('inv_omega_sum')]
+        inv_omega_sum_evaluated = [S.One/sum([TC.opt_coeffs[i]*RV.kronecker_symbols[i] for i in range(RV.n_stencils)])]
+        RV.inv_omega_sum_symbols = inv_omega_sum_symbols
+        RV.inv_omega_sum_evaluated = inv_omega_sum_evaluated
+        # Non-linear weight evaluation directly
+        omega_evaluated = [TC.opt_coeffs[r]*RV.kronecker_symbols[r]*inv_omega_sum_symbols[0] for r in range(RV.n_stencils)]
+        # Create the reconstruction
         reconstruction = 0
         fns = []
         for stencil in TC.stencils:
             RV.smoothness_indicators.append(stencil.smoothness_indicator)
             fns = [RV.function_stencil_dictionary[i] for i in stencil.fn_points]
             eno_interpolation = sum([point*coefficient for (point, coefficient) in zip(fns, stencil.eno_coeffs)])
-            reconstruction += RV.omega_symbols[stencil.stencil_number]*eno_interpolation
+            reconstruction += omega_evaluated[stencil.stencil_number]*eno_interpolation
         RV.reconstructed_expression = reconstruction
         return
 
-    def generate_omegas(self, RV, TC):
-        """ Create the omega terms for the non-linear TENO weights.
+    def create_dynamic_CT(self, direction, block):
+        """ Evaluates the dynamic version of the CT cut-off parameter that controls dissipation."""
+        from sympy import Min, floor, pprint, horner, count_ops, simplify
+        TENO_A = ConstantObject('TENO_A')
+        CTD.add_constant(TENO_A)
+        cr = 0.30
+        eps = 0.9*cr*(1.0e-8)/(1.0-0.9*cr)
+        output_eqns = []
+        indices = [-1, 0, 1, 2]
+        eta_eqns = []
 
-        :arg object RV: The reconstruction variable object.
-        :arg object TC: Configuration settings for a reconstruction of either left or right."""
-        inv_omega_sum_symbols = [Symbol('inv_omega_sum')]
-        inv_omega_sum_evaluated = [S.One/sum([TC.opt_coeffs[i]*RV.kronecker_symbols[i] for i in range(RV.n_stencils)])]
-        RV.omega_symbols = [Symbol('omega_%d' % r) for r in range(RV.n_stencils)]
-        RV.omega_evaluated = [TC.opt_coeffs[r]*RV.kronecker_symbols[r]*inv_omega_sum_symbols[0] for r in range(RV.n_stencils)]
-        RV.inv_omega_sum_symbols = inv_omega_sum_symbols
-        RV.inv_omega_sum_evaluated = inv_omega_sum_evaluated
-        return
+        # for i, index in enumerate(indices):
+        #     pp = OpenSBLIEq(GridVariable('pp'), increment_dataset(block.location_dataset('rho'), direction, index+1) - increment_dataset(block.location_dataset('rho'), direction, index))
+        #     pm = OpenSBLIEq(GridVariable('pm'), increment_dataset(block.location_dataset('rho'), direction, index) - increment_dataset(block.location_dataset('rho'), direction, index-1))
+        #     eta_eqns += [OpenSBLIEq(GridVariable('eta%d' % i), Abs(2*pp*pm)/(pp**2 + pm**2 + eps))]
+        for i, index in enumerate(indices):
+            idx = index + 2
+            # Flux differences
+            pm = GridVariable('CF_0%d' % (idx)) - GridVariable('CF_0%d' % (idx - 1 ))
+            pp = GridVariable('CF_0%d' % (idx + 1)) - GridVariable('CF_0%d' % (idx))
+            eta_eqns += [OpenSBLIEq(GridVariable('eta%d' % i), (Abs(pp*pm) + eps) /(TENO_A*(pp**2 + pm**2 + eps)))]
+        output_eqns += eta_eqns
+        eqn = eta_eqns[0].lhs
+        for eta_eqn in eta_eqns[1:]:
+            eqn = Min(eqn, eta_eqn.lhs)
+        m = GridVariable('m')
+        output_eqns += [OpenSBLIEq(m, 1-Min(1, eqn/cr))]
+        teno_a1, teno_a2 = ConstantObject('teno_a1'), ConstantObject('teno_a2')
+        CTD.add_constant([teno_a1, teno_a2])
+        beta = teno_a1-teno_a2*(1 - (1-m)**4 * (1+4*m))
+        output_eqns += [OpenSBLIEq(GridVariable('TENO_CT'), 1/(10.0**(floor(beta))))]
+        # if direction == 0:
+            # output_eqns += [OpenSBLIEq(block.location_dataset('TENO'), GridVariable('TENO_CT'))]
+        pprint(output_eqns)
+        # exit()
+        return output_eqns
 
     def create_cutoff_equations(self, RV, TC):
         """ Generates the discrete cut-off functions that determine whether a certain TENO stencil is to
@@ -458,10 +491,11 @@ class LLFTeno(LLFCharacteristic, Teno):
     :arg int order: Order of the WENO/TENO scheme.
     :arg object averaging: The averaging procedure to be applied for characteristics, defaults to Simple averaging."""
 
-    def __init__(self, order, physics=None, averaging=None):
+    def __init__(self, order, formulation=None, physics=None, averaging=None):
         LLFCharacteristic.__init__(self, physics, averaging)
         print "A TENO scheme of order %s is being used for shock capturing" % str(order)
-        Teno.__init__(self, order)
+        Teno.__init__(self, order, formulation)
+        self.formulation = formulation
         return
 
     def discretise(self, type_of_eq, block):
@@ -481,7 +515,6 @@ class LLFTeno(LLFCharacteristic, Teno):
 
             # Instantiate eigensystems with block, but don't add metrics yet
             self.instantiate_eigensystem(block)
-
             for direction, derivatives in grouped.iteritems():
                 # Create a work array for each component of the system
                 all_derivatives_evaluated_locally += derivatives
@@ -492,6 +525,10 @@ class LLFTeno(LLFCharacteristic, Teno):
                 # Get the equations for a characteristic reconstruction
                 characteristic_eqns = self.get_characteristic_equations(direction, derivatives, solution_vector, block)
                 pre_process, interpolated, post_process = characteristic_eqns[0], characteristic_eqns[1], characteristic_eqns[2]
+                if self.formulation == 'dynamic':
+                    # Calculate dynamic TENO_CT parameter and add to pre_process equations
+                    dynamic_CT = self.create_dynamic_CT(direction, block)
+                    pre_process += dynamic_CT
                 # Add the equations to the kernel and add the kernel to SimulationEquations
                 kernel.add_equation(pre_process + interpolated + post_process)
                 type_of_eq.Kernels += [kernel]
@@ -509,10 +546,11 @@ class RFTeno(RFCharacteristic, Teno):
     :arg int order: Order of the WENO/TENO scheme.
     :arg object averaging: The averaging procedure to be applied for characteristics, defaults to Simple averaging."""
 
-    def __init__(self, order, physics=None, averaging=None):
+    def __init__(self, order, formulation=None, physics=None, averaging=None):
         RFCharacteristic.__init__(self, physics, averaging)
         print "A TENO scheme of order %s is being used for shock capturing with Roe-flux differencing" % str(order)
-        Teno.__init__(self, order)
+        Teno.__init__(self, order, formulation)
+        self.formulation = formulation
         return
 
     def discretise(self, type_of_eq, block):
@@ -543,6 +581,10 @@ class RFTeno(RFCharacteristic, Teno):
                 # Get the equations for a characteristic reconstruction
                 characteristic_eqns = self.get_characteristic_equations(direction, derivatives, solution_vector, block)
                 pre_process, interpolated, post_process = characteristic_eqns[0], characteristic_eqns[1], characteristic_eqns[2]
+                if self.formulation == 'dynamic':
+                    # Calculate dynamic TENO_CT parameter and add to pre_process equations
+                    dynamic_CT = self.create_dynamic_CT(direction, block)
+                    pre_process += dynamic_CT
                 # Add the equations to the kernel and add the kernel to SimulationEquations
                 kernel.add_equation(pre_process + interpolated + post_process)
                 type_of_eq.Kernels += [kernel]
