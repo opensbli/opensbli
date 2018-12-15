@@ -126,10 +126,6 @@ class RungeKuttaLS(Scheme):
             # Create a Kernel for the update ()
             temp_data_sets = cls.create_temp_data_sets(td_fns, block)
             new_data_sets = [eq.time_advance_array for eq in td_fns]
-            # create a kernel for the save equations
-            kernel = cls.create_start_computations(temp_data_sets, block)
-            # Add Kernel to the Solution
-            cls.solution[type_of_eq].start_kernels += [kernel]
             # Create the stage and solution updates
             residuals = [eq.residual for eq in flatten(type_of_eq.equations)]
             zipped = zip(temp_data_sets, new_data_sets, residuals)
@@ -171,20 +167,6 @@ class RungeKuttaLS(Scheme):
             solution_update += [OpenSBLIEq(z[0], cls.stage_coeffs*temp_grid + dt*z[2], evaluate=False)]
             solution_update += [OpenSBLIEq(z[1], z[1] + cls.solution_coeffs*z[0], evaluate=False)]
         return solution_update
-
-    def create_start_computations(cls, temp_data_sets, block):
-        """ Creates a kernel to zero the arrays for the intermediate update step
-
-        :arg list temp_data_sets: Intermediate data sets, one for each equation being advanced in time.
-        :arg object block: OpenSBLI SimulationBlock.
-        :returns: kernel: OpenSBLI Kernel to zero the intermediate arrays before usage."""
-        kernel = Kernel(block)
-        kernel.computation_name = "Zero intermediate datasets"
-        kernel.set_grid_range(block)
-        for component in temp_data_sets:
-            kernel.add_equation(OpenSBLIEq(component, 0.0))
-        kernel.update_block_datasets(block)
-        return kernel
 
     def create_temp_data_sets(cls, equations, block):
         """Creates the arrays to store the intermediate update.
