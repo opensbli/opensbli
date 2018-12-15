@@ -597,10 +597,10 @@ class ReducedOrder(object):
 
     def first_derivative(self, expression, direction, side):
         loc = list(list(expression.atoms(DataSet))[0].indices)
-        # weights = [[-Rational(3,2), 2, -Rational(1,2)], [-Rational(1,3), -Rational(1,2), 1, -Rational(1,6)]]
-        # points = [[0, 1, 2], [-1, 0, 1, 2]]
-        weights = [[Rational(-11,6), 3, Rational(-3,2), Rational(1,3)], [-Rational(1,3), -Rational(1,2), 1, -Rational(1,6)]]
-        points = [[0, 1, 2, 3], [-1, 0, 1, 2]]
+        weights = [[-Rational(3,2), 2, -Rational(1,2)], [-Rational(1,3), -Rational(1,2), 1, -Rational(1,6)]]
+        points = [[0, 1, 2], [-1, 0, 1, 2]]
+        # weights = [[Rational(-11,6), 3, Rational(-3,2), Rational(1,3)], [-Rational(1,3), -Rational(1,2), 1, -Rational(1,6)]]
+        # points = [[0, 1, 2, 3], [-1, 0, 1, 2]]
         if side == 0:
             fact = 1
         elif side == 1:
