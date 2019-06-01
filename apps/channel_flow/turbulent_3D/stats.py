@@ -55,7 +55,7 @@ def second_order_moments(ndim, conserve_vector):
                 mean_var = DataObject("rhou%du%dmean" % (i, j))
                 comp1 = conserve_vector[i+1]
                 comp2 = conserve_vector[j+1]*rho_inv
-                accumulation += [Eq(mean_var, comp1 * comp2)]
+                accumulation += [Eq(mean_var, mean_var + comp1 * comp2)]
                 normalisation += [Eq(mean_var, mean_var/niter)]
     return accumulation, normalisation
 

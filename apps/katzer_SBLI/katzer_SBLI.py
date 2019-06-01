@@ -5,7 +5,7 @@ from opensbli.utilities.katzer_init import Initialise_Katzer
 from opensbli.utilities.helperfunctions import substitute_simulation_parameters
 
 ndim = 2
-sc1 = "**{\'scheme\':\'Weno\'}"
+sc1 = "**{\'scheme\':\'Teno\'}"
 # Define the compresible Navier-Stokes equations in Einstein notation.
 mass = "Eq(Der(rho,t), - Conservative(rhou_j,x_j,%s))" % sc1
 momentum = "Eq(Der(rhou_i,t) , -Conservative(rhou_i*u_j + KD(_i,_j)*p,x_j , %s) + Der(tau_i_j,x_j) )" % sc1
@@ -37,11 +37,34 @@ for i, CR in enumerate(constituent_eqns):
 
 block = SimulationBlock(ndim, block_number=0)
 
-weno_order = 5
+# Create metrics before the scheme selection
+metriceq = MetricsEquation()
+metriceq.generate_transformations(ndim, coordinate_symbol, [(False, False), (True, False)], 2)
+
+# Create SimulationEquations and Constituent relations, add the expanded equations
+simulation_eq = SimulationEquations()
+constituent = ConstituentRelations()
+
+for eqn in base_eqns:
+    simulation_eq.add_equations(eqn)
+
+for eqn in constituent_eqns:
+    constituent.add_equations(eqn)
+
+# Grid is stretched normal to the wall
+simulation_eq.apply_metrics(metriceq)
+
+# Adaptive TENO with modified Ducros sensor
+SS = ShockSensor()
+shock_sensor, sensor_array = SS.ducros_equations(block, coordinate_symbol, metriceq)
+# Add shock Ducros sensor to constituent relations
+constituent.add_equations(shock_sensor)
+store_sensor = True
+teno_order = 5
 Avg = RoeAverage([0, 1])
-RF = RFWeno(weno_order, formulation='Z', averaging=Avg)
+LLF = LLFTeno(teno_order, formulation='adaptive', averaging=Avg, sensor=sensor_array, store_sensor=True)
 schemes = {}
-schemes[RF.name] = RF
+schemes[LLF.name] = LLF
 cent = Central(4)
 schemes[cent.name] = cent
 rk = RungeKuttaLS(3, formulation='SSP')
@@ -62,7 +85,7 @@ boundaries = [[0, 0] for t in range(ndim)]
 # Left pressure extrapolation at x= 0, inlet conditions
 direction = 0
 side = 0
-boundaries[direction][side] = InletTransferBC(direction, side)
+boundaries[direction][side] = InletPressureExtrapolateBC(direction, side)
 # Right extrapolation at outlet
 direction = 0
 side = 1
@@ -90,21 +113,6 @@ boundaries[direction][side] = DirichletBC(direction, side, upper_eqns)
 
 block.set_block_boundaries(boundaries)
 
-# Create SimulationEquations and Constituent relations, add the expanded equations
-simulation_eq = SimulationEquations()
-constituent = ConstituentRelations()
-
-for eqn in base_eqns:
-    simulation_eq.add_equations(eqn)
-
-for eqn in constituent_eqns:
-    constituent.add_equations(eqn)
-
-# Grid is stretched normal to the wall
-metriceq = MetricsEquation()
-metriceq.generate_transformations(ndim, coordinate_symbol, [(False, False), (True, False)], 2)
-simulation_eq.apply_metrics(metriceq)
-
 # Perform initial condition
 # Reynolds number, Mach number and free-stream temperature for the initial profile
 Re, xMach, Tinf = 950.0, 2.0, 288.0
@@ -122,7 +130,7 @@ initial = Initialise_Katzer(polynomial_directions, n_poly_coefficients,  Re, xMa
 kwargs = {'iotype': "Write"}
 h5 = iohdf5(**kwargs)
 h5.add_arrays(simulation_eq.time_advance_arrays)
-h5.add_arrays([DataObject('x0'), DataObject('x1'), DataObject('D11')])
+h5.add_arrays([DataObject('x0'), DataObject('x1'), DataObject('D11'), DataObject('TENO')])
 block.setio(copy.deepcopy(h5))
 
 sim_eq = copy.deepcopy(simulation_eq)
@@ -137,8 +145,8 @@ SimulationDataType.set_datatype(Double)
 OPSC(alg)
 # Substitute simulation parameter values
 constants = ['gama', 'Minf', 'Pr', 'Re', 'Twall', 'dt', 'niter', 'block0np0', 'block0np1',
-                 'Delta0block0', 'Delta1block0', 'SuthT', 'RefT', 'eps', 'TENO_CT', 'Lx1', 'by', 'harten']
-values = ['1.4', '2.0', '0.72', '950.0', '1.67619431', '0.04', '325000', '500', '250',
-              '400.0/(block0np0-1)', '115.0/(block0np1-1)', '110.4', '288.0', '1e-15', '1e-5', '115.0', '5.0', '0.25']
+                 'Delta0block0', 'Delta1block0', 'SuthT', 'RefT', 'eps', 'TENO_CT', 'Lx1', 'by', 'teno_a1', 'teno_a2', 'epsilon']
+values = ['1.4', '2.0', '0.72', '950.0', '1.67619431', '0.04', '25000', '500', '250',
+              '400.0/(block0np0-1)', '115.0/(block0np1-1)', '110.4', '288.0', '1e-15', '1e-5', '115.0', '5.0','10.5', '4.5', '1.0e-30']
 substitute_simulation_parameters(constants, values)
 print_iteration_ops()
