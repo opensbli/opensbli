@@ -185,9 +185,9 @@ def constant_attributes(const):
     return const
 
 
-def print_iteration_ops(simulation_name='opensbli', every=100):
-    """
-    """
+def print_iteration_ops(simulation_name='opensbli', every=250, NaN_check=None):
+    """ Prints the iteration number to standard output. If an array name is passed to NaNcheck
+    then the OPS NaN_check is also called. Requires OPS versions since 01/03/2019."""
     file_path = "./%s.cpp" % simulation_name
     with open(file_path) as f:
         lines = f.readlines()
@@ -195,8 +195,12 @@ def print_iteration_ops(simulation_name='opensbli', every=100):
         check_string = "int iter=0;"
         if check_string in line:
             lines[no+1] = lines[no+1] + """if(fmod(iter+1, %d) == 0){
-        ops_printf("Iteration is %%d\\n", iter+1);
-    }\n""" % (every)
+        ops_printf("Iteration is %%d\\n", iter+1); """ % every
+            if NaN_check is not None:
+                lines[no+1] = lines[no+1] + """
+        ops_NaNcheck(%s);\n}\n""" % NaN_check
+            else:
+                lines[no+1] = lines[no+1] + """\n}\n"""           
     with open(file_path, 'w') as f:
         f.write(''.join(lines))
     return
