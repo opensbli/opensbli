@@ -148,30 +148,6 @@ class Kernel(object):
         return datasets
 
     @property
-    def Rational_constants(self):
-        rcs = set()
-        for eq in self.equations:
-            if isinstance(eq, _known_equation_types):
-                rcs = rcs.union(eq.atoms(Rational))
-        out = set()
-        # Integers are also being returned as Rational numbers, remove any integers
-        for rc in rcs:
-            if not isinstance(rc, Integer):
-                out.add(rc)
-        return out
-
-    @property
-    def Inverse_constants(self):
-        # Only negative powers i.e. they correspond to division and they are stored into constant arrays
-        inverse_terms = set()
-        for eq in self.equations:
-            if isinstance(eq, _known_equation_types):
-                for at in eq.atoms(Pow):
-                    if _coeff_isneg(at.exp) and not (at.base.atoms(Indexed) or isinstance(at, GridVariable)):
-                        inverse_terms.add(at)
-        return inverse_terms
-
-    @property
     def constants(self):
         consts = set()
         for eq in self.equations:
