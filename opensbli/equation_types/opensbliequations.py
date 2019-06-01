@@ -313,7 +313,7 @@ class SimulationEquations(Discretisation, Solution):
             # Evaluation of missing dataset is required
             if dset in cr_dictionary.keys():
                 for kernel in cr_dictionary[dset].kernels:
-                    cls.constituent_relations_kernels[kernel.equations[0].lhs] = kernel
+                    cls.constituent_relations_kernels[kernel.equations[-1].lhs] = kernel
         cls.process_kernels(block)
         return
 
