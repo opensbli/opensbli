@@ -12,7 +12,7 @@ from opensbli.core.kernel import Kernel, ConstantsToDeclare
 from opensbli.core.grid import GridVariable
 from opensbli.utilities.helperfunctions import increment_dataset
 from opensbli.physical_models.euler_eigensystem import EulerEquations
-from sympy import factor
+from sympy import factor, pprint
 from sympy.functions.elementary.piecewise import ExprCondPair, Piecewise
 from opensbli.schemes.spatial.averaging import SimpleAverage, RoeAverage
 
@@ -21,7 +21,7 @@ class ShockCapturing(object):
     """ Class that contains functions common to all shock capturing schemes."""
 
     def evaluate_residuals(self, block, eqns, local_ders):
-        residue_eq = []
+        residual_eqn = []
         for eq in eqns:
             substitutions = {}
             for d in eq.rhs.atoms(Function):
@@ -29,11 +29,11 @@ class ShockCapturing(object):
                     substitutions[d] = d._discretise_derivative(block)
                 else:
                     substitutions[d] = 0
-            residue_eq += [OpenSBLIEq(eq.residual, eq.residual + eq.rhs.subs(substitutions))]
-        residue_kernel = Kernel(block, computation_name="%s Residual" % self.__class__.__name__)
-        residue_kernel.set_grid_range(block)
-        residue_kernel.add_equation(residue_eq)
-        return residue_kernel
+            residual_eqn += [OpenSBLIEq(eq.residual, eq.rhs.subs(substitutions))]
+        residual_kernel = Kernel(block, computation_name="%s Residual" % self.__class__.__name__)
+        residual_kernel.set_grid_range(block)
+        residual_kernel.add_equation(residual_eqn)
+        return residual_kernel
 
     def generate_left_reconstruction_variables(self, expression_matrix, derivatives):
         if isinstance(expression_matrix, Matrix):
@@ -266,48 +266,6 @@ class Characteristic(EigenSystem):
                 equations.remove(eqn)
         return equations
 
-    def post_process(self, direction, derivatives):
-        """ Transforms the characteristic WENO interpolated fluxes back into real space by multiplying by the right
-        eigenvector matrix.
-
-        :arg list derivatives: The derivatives to perform the characteristic decomposition and WENO on.
-        :arg object kernel: The current computational kernel."""
-        post_process_equations = []
-        averaged_suffix_name = self.averaged_suffix_name
-        avg_REV_values = self.convert_matrix_to_grid_variable(self.right_eigen_vector[self.direction], averaged_suffix_name)
-        from sympy import Mul, Pow, Add, Integer
-        # Manually remove the divides
-        inverses = [GridVariable('inv_gamma_m1'), GridVariable('inv_AVG_a'), GridVariable('inv_AVG_rho')]
-        to_be_replaced = [Mul(Pow(Add(ConstantObject('gama'), Integer(-1)), Integer(-1))), 1/GridVariable('AVG_%d_a' % direction), 1/GridVariable('AVG_%d_rho' % direction)]
-        if len(self.inv_metric.atoms(GridVariable)) > 0:  # Don't substitute if there are no metrics
-            inverses += [GridVariable('inv_AVG_met_fact')]
-            to_be_replaced += [1/self.inv_metric]
-
-        for i, term in enumerate(avg_REV_values):
-            for old, new in zip(to_be_replaced, inverses):
-                term = term.replace(old, new)
-            avg_REV_values[i] = term
-        reconstructed_characteristics = Matrix([d.evaluate_reconstruction for d in derivatives])
-        reconstructed_flux = avg_REV_values*reconstructed_characteristics
-        reconstructed_work = [d.reconstruction_work for d in derivatives]
-        post_process_equations += [OpenSBLIEq(inverses[0], to_be_replaced[0])]
-        post_process_equations += [OpenSBLIEq(x, y) for x, y in zip(reconstructed_work, reconstructed_flux)]
-        return post_process_equations
-
-    def solution_vector_to_characteristic(self, solution_vector, direction, name):
-        stencil_points = sorted(list(set(self.reconstruction_classes[0].func_points + self.reconstruction_classes[1].func_points)))
-        solution_vector_stencil = zeros(len(solution_vector), len(stencil_points))
-        CS_matrix = zeros(len(solution_vector), len(stencil_points))
-        for j, val in enumerate(stencil_points):  # j in fv stencil matrix
-            for i, flux in enumerate(solution_vector):
-                solution_vector_stencil[i, j] = increment_dataset(flux, direction, val)
-                CS_matrix[i, j] = GridVariable('CS_%d%d' % (i, j))
-        grid_LEV = self.generate_grid_variable_LEV(direction, name)
-        characteristic_solution_stencil = grid_LEV*solution_vector_stencil
-        characteristic_solution_stencil.stencil_points = stencil_points
-        CS_matrix.stencil_points = stencil_points
-        return characteristic_solution_stencil, CS_matrix
-
     def direction_flux_vector(self, derivatives, direction):
         flux_vector = []
         for d in derivatives:
@@ -315,21 +273,6 @@ class Characteristic(EigenSystem):
                 raise ValueError("Derivatives provided for flux vector are not homogeneous in direction.")
             flux_vector += [d.args[0]]
         return flux_vector
-
-    def flux_vector_to_characteristic(self, derivatives, direction, name):
-        fv = self.direction_flux_vector(derivatives, direction)
-        stencil_points = sorted(list(set(self.reconstruction_classes[0].func_points + self.reconstruction_classes[1].func_points)))
-        flux_stencil = zeros(len(fv), len(stencil_points))
-        CF_matrix = zeros(len(fv), len(stencil_points))
-        for j, val in enumerate(stencil_points):  # j in fv stencil matrix
-            for i, flux in enumerate(fv):
-                flux_stencil[i, j] = increment_dataset(flux, direction, val)
-                CF_matrix[i, j] = GridVariable('CF_%d%d' % (i, j))
-        grid_LEV = self.generate_grid_variable_LEV(direction, name)
-        characteristic_flux_stencil = grid_LEV*flux_stencil
-        characteristic_flux_stencil.stencil_points = stencil_points
-        CF_matrix.stencil_points = stencil_points
-        return characteristic_flux_stencil, CF_matrix
 
     def convert_symbolic_to_dataset(self, symbolics, location, direction, block):
         """ Converts symbolic terms to DataSets.
@@ -383,28 +326,13 @@ class Characteristic(EigenSystem):
             avg_LEV_values[i] = term
         return inverse_evals, avg_LEV_values
 
-    def create_characteristic_matrices(self, direction, derivatives, solution_vector, name):
-        characteristic_flux_vector, CF_matrix = self.flux_vector_to_characteristic(derivatives, direction, name)
-        characteristic_solution_vector, CS_matrix = self.solution_vector_to_characteristic(solution_vector, direction, name)
-        # Can use horner here on characteristic flux
-        evaluations = flatten(self.generate_equations_from_matrices(CF_matrix, characteristic_flux_vector))
-        evaluations += flatten(self.generate_equations_from_matrices(CS_matrix, characteristic_solution_vector))
-        return evaluations, CS_matrix, CF_matrix
-
-    def characteristic_flux_splitting(self, ev_matrix, CS_matrix, CF_matrix, derivatives):
-        positive = Rational(1, 2)*(CF_matrix + ev_matrix*CS_matrix)
-        positive_flux = zeros(*positive.shape)
-        negative = factor(Rational(1, 2)*(CF_matrix - ev_matrix*CS_matrix))
-        negative_flux = zeros(*negative.shape)
-        for i in range(positive_flux.shape[0]):
-            for j in range(positive_flux.shape[1]):
-                positive_flux[i, j] = factor(positive[i, j])
-                negative_flux[i, j] = factor(negative[i, j])
-        positive_flux.stencil_points = CF_matrix.stencil_points
-        negative_flux.stencil_points = CF_matrix.stencil_points
-        self.generate_right_reconstruction_variables(positive_flux, derivatives)
-        self.generate_left_reconstruction_variables(negative_flux, derivatives)
-        return
+    def replace_gamma_factor(self, eqns):
+        gamma_minus_one = ConstantObject('gamma_m1')
+        gamma_minus_one.value = (ConstantObject('gama') - 1)
+        ConstantsToDeclare.add_constant(gamma_minus_one)
+        for i, eqn in enumerate(eqns):
+            eqns[i] = eqn.subs({gamma_minus_one.value: gamma_minus_one})
+        return eqns
 
 
 class LLFCharacteristic(Characteristic):
@@ -460,9 +388,101 @@ class LLFCharacteristic(Characteristic):
             self.characteristic_flux_splitting(grid_EV, CS_matrix, CF_matrix, derivatives)
         else:
             raise NotImplementedError("Only flux splitting is implemented in characteristic.")
-        # Remove '0' entries from pre_process_equations
+        # Remove '0' entries and gamma - 1 factors from pre_process_equations
         pre_process_equations = self.remove_zero_equations(pre_process_equations)
+        pre_process_equations = self.replace_gamma_factor(pre_process_equations)
         return pre_process_equations
+
+    def post_process(self, direction, derivatives):
+        """ Transforms the characteristic WENO interpolated fluxes back into real space by multiplying by the right
+        eigenvector matrix.
+
+        :arg list derivatives: The derivatives to perform the characteristic decomposition and WENO on.
+        :arg object kernel: The current computational kernel."""
+        post_process_equations = []
+        averaged_suffix_name = self.averaged_suffix_name
+        avg_REV_values = self.convert_matrix_to_grid_variable(self.right_eigen_vector[self.direction], averaged_suffix_name)
+        from sympy import Mul, Pow, Add, Integer
+        # Manually remove the divides
+        inverses = [GridVariable('inv_AVG_a'), GridVariable('inv_AVG_rho')]
+        to_be_replaced = [1/GridVariable('AVG_%d_a' % direction), 1/GridVariable('AVG_%d_rho' % direction)]
+        if len(self.inv_metric.atoms(GridVariable)) > 0:  # Don't substitute if there are no metrics
+            inverses += [GridVariable('inv_AVG_met_fact')]
+            to_be_replaced += [1/self.inv_metric]
+
+        for i, term in enumerate(avg_REV_values):
+            for old, new in zip(to_be_replaced, inverses):
+                term = term.replace(old, new)
+            avg_REV_values[i] = term
+        reconstructed_characteristics = Matrix([d.evaluate_reconstruction for d in derivatives])
+        reconstructed_flux = avg_REV_values*reconstructed_characteristics
+        reconstructed_work = [d.reconstruction_work for d in derivatives]
+        post_process_equations += [OpenSBLIEq(x, y) for x, y in zip(reconstructed_work, reconstructed_flux)]
+        post_process_equations = self.replace_gamma_factor(post_process_equations)
+        return post_process_equations
+
+    def solution_vector_to_characteristic(self, solution_vector, direction, name):
+        stencil_points = sorted(list(set(self.reconstruction_classes[0].func_points + self.reconstruction_classes[1].func_points)))
+        solution_vector_stencil = zeros(len(solution_vector), len(stencil_points))
+        CS_matrix = zeros(len(solution_vector), len(stencil_points))
+        for j, val in enumerate(stencil_points):  # j in fv stencil matrix
+            for i, flux in enumerate(solution_vector):
+                solution_vector_stencil[i, j] = increment_dataset(flux, direction, val)
+                CS_matrix[i, j] = GridVariable('CS_%d%d' % (i, j))
+        grid_LEV = self.generate_grid_variable_LEV(direction, name)
+        characteristic_solution_stencil = grid_LEV*solution_vector_stencil
+        characteristic_solution_stencil.stencil_points = stencil_points
+        CS_matrix.stencil_points = stencil_points
+        return characteristic_solution_stencil, CS_matrix
+
+    def create_characteristic_matrices(self, direction, derivatives, solution_vector, name):
+        characteristic_flux_vector, CF_matrix = self.flux_vector_to_characteristic(derivatives, direction, name)
+        characteristic_solution_vector, CS_matrix = self.solution_vector_to_characteristic(solution_vector, direction, name)
+        CF_evaluations = flatten(self.generate_equations_from_matrices(CF_matrix, characteristic_flux_vector))
+        CS_evaluations = flatten(self.generate_equations_from_matrices(CS_matrix, characteristic_solution_vector))
+        # Optimise by grouping evaluations by stencil location
+        reordered_CS, reordered_CF = [], []
+        n_rows, n_cols = CS_matrix.shape[0], CS_matrix.shape[1]
+        for j in range(n_cols):
+            for i in range(n_rows):
+                # reordered_CS.append(CS_evaluations[j+i*n_cols])
+                reordered_CF.append(CF_evaluations[j+i*n_cols])
+        reordered =  reordered_CF + CS_evaluations 
+        return reordered, CS_matrix, CF_matrix
+
+    def characteristic_flux_splitting(self, ev_matrix, CS_matrix, CF_matrix, derivatives):
+        positive = Rational(1, 2)*(CF_matrix + ev_matrix*CS_matrix)
+        positive_flux = zeros(*positive.shape)
+        negative = factor(Rational(1, 2)*(CF_matrix - ev_matrix*CS_matrix))
+        negative_flux = zeros(*negative.shape)
+        for i in range(positive_flux.shape[0]):
+            for j in range(positive_flux.shape[1]):
+                positive_flux[i, j] = factor(positive[i, j])
+                negative_flux[i, j] = factor(negative[i, j])
+        positive_flux.stencil_points = CF_matrix.stencil_points
+        negative_flux.stencil_points = CF_matrix.stencil_points
+        # pprint(positive_flux)
+        # pprint(positive_flux.stencil_points)
+        # exit()
+        self.generate_right_reconstruction_variables(positive_flux, derivatives)
+        self.generate_left_reconstruction_variables(negative_flux, derivatives)
+        return
+
+    def flux_vector_to_characteristic(self, derivatives, direction, name):
+        fv = self.direction_flux_vector(derivatives, direction)
+        stencil_points = sorted(list(set(self.reconstruction_classes[0].func_points + self.reconstruction_classes[1].func_points)))
+        flux_stencil = zeros(len(fv), len(stencil_points))
+        CF_matrix = zeros(len(fv), len(stencil_points))
+        for j, val in enumerate(stencil_points):  # j in fv stencil matrix
+            for i, flux in enumerate(fv):
+                flux_stencil[i, j] = increment_dataset(flux, direction, val)
+                CF_matrix[i, j] = GridVariable('CF_%d%d' % (i, j))
+        grid_LEV = self.generate_grid_variable_LEV(direction, name)
+        characteristic_flux_stencil = grid_LEV*flux_stencil
+        characteristic_flux_stencil.stencil_points = stencil_points
+        CF_matrix.stencil_points = stencil_points
+        return characteristic_flux_stencil, CF_matrix
+
 
     def create_max_characteristic_wave_speed(self, pre_process_equations, direction, block):
         """ Creates the equations for local Lax-Friedrich wave speeds, maximum eigenvalues over the local
@@ -482,8 +502,8 @@ class LLFCharacteristic(Characteristic):
         # If there are repeated eigenvalues we don't compute them multiple times
         for no, eqn in enumerate(ev_rhs):
             if no > 0:
-                if eqn == ev_rhs[no-1]:
-                    ev_rhs[no] = ev_lhs[no-1]
+                if eqn == ev_rhs[0]:
+                    ev_rhs[no] = ev_lhs[0] # u, u, u, u+a, u-a ordering
         ev_equations = [OpenSBLIEq(left, right) for (left, right) in zip(ev_lhs, ev_rhs)]
         pre_process_equations += ev_equations
         max_wave_speed = diag(*([max_wave_speed[i, i] for i in range(ev.shape[0])]))
