@@ -430,12 +430,15 @@ class OPSC(object):
         return out
 
     def opsc_def_decs(self, algorithm):
+        """ Declares the datasets and stencils required by the program."""
+        from opensbli.core.kernel import StencilObject, ConstantsToDeclare
+        from opensbli.core.bcs import Exchange
+
         defs = []
         decls = []
         # Add OPS_init to the declarations as it should be called before all ops
         decls += self.ops_init()
         # First process all the constants in the definitions
-        from opensbli.core.kernel import ConstantsToDeclare
         for d in ConstantsToDeclare.constants:
             if isinstance(d, Constant):
                 defs += self.define_constants(d)
@@ -446,26 +449,33 @@ class OPSC(object):
         decls = []
         # Define and declare blocks
         for b in algorithm.block_descriptions:
-            # output += self.define_block(b)
             output += self.declare_block(b)
-        # output += defs + decls
         # Define and declare datasets on each block
         f = open('defdec_data_set.h', 'w')
         datasets_dec = []
         output += [WriteString("#include \"defdec_data_set.h\"")]
+        # Sort the declarations alphabetically before writing out 
+        store_stencils, store_dsets = [], []
         for d in algorithm.defnitionsdeclarations.components:
             if isinstance(d, DataSetBase):
-                datasets_dec += self.declare_dataset(d)
+                store_dsets.append(d)
+            elif isinstance(d, StencilObject):
+                store_stencils.append(d)
+            else:
+                print(d)
+                raise TypeError("Not a stencil or dataset declaration.")
+        dsets_to_declare = dict([(str(x),x) for x in store_dsets])
+
+        for name in sorted(dsets_to_declare.iterkeys(), key=str.lower):
+            d = dsets_to_declare[name]
+            datasets_dec += self.declare_dataset(d)
         f.write('\n'.join(flatten([d.opsc_code for d in datasets_dec])))
         f.close()
+        # Declare stencils
         output += [WriteString("// Define and declare stencils")]
-        from opensbli.core.kernel import StencilObject
-        for d in algorithm.defnitionsdeclarations.components:
-            if isinstance(d, StencilObject):
-                # pprint(d.__dict__)
-                output += self.ops_stencils_declare(d)
+        for d in store_stencils:
+            output += self.ops_stencils_declare(d)
         # Loop through algorithm components to include any halo exchanges
-        from opensbli.core.bcs import Exchange
         exchange_list = self.loop_alg(algorithm, Exchange)
         if exchange_list:
             f = open('bc_exchanges.h', 'w')  # write BC_exchange code to a separate file
@@ -477,7 +487,6 @@ class OPSC(object):
             f.close()
             output += [WriteString("#include \"bc_exchanges.h\"")]  # Include statement in the code
         output += self.ops_partition()
-
         return output
 
     def ops_stencils_declare(self, s):
