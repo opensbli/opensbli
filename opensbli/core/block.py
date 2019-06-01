@@ -305,3 +305,8 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes):
             return metric.FD_metrics.applyfunc(_convert)
         else:
             return eye(self.ndim)
+
+    @property
+    def detJ_metrics(self):
+        metric = self.get_metric_class
+        return self.dataobjects_to_datasets_on_block([metric.detJ])
