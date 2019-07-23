@@ -238,13 +238,10 @@ if stats:
 		DataObject('rhou0u0mean'), DataObject('rhomean'), DataObject('mu_mean'), DataObject('u2u1mean'), DataObject('TT_mean'), 
 		DataObject('rhou1u1mean'), DataObject('u0mean'), DataObject('u1mean'), DataObject('D11')] 
 
-        kwargs = {'iotype': "Write"}
+        kwargs = {'iotype': "Write", 'name': "stats_central_4.h5"}
 	stat_arrays = statistics
 	stats_hdf5 = iohdf5(arrays=stat_arrays, **kwargs)
 	block.setio([stats_hdf5])
-
-
-
 
 # STEP 6
 # Perform the symbolic discretisation of the equations
