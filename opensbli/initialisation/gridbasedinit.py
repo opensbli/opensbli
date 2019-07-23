@@ -7,7 +7,7 @@
 from opensbli.equation_types.opensbliequations import NonSimulationEquations, OpenSBLIEq
 from opensbli.core.kernel import Kernel
 from opensbli.core.opensbliobjects import GroupedPiecewise
-from sympy import Equality
+from sympy import Equality, flatten
 from opensbli.code_generation.algorithm.common import BeforeSimulationStarts
 
 
@@ -36,7 +36,7 @@ class GridBasedInitialisation(NonSimulationEquations):
     @property
     def evaluated_datasets(cls):
         evaluated = set()
-        for eq in cls.equations:
+        for eq in flatten(cls.equations):
             if isinstance(eq, Equality):
                 evaluated = evaluated.union(eq.lhs_datasetbases)
             elif isinstance(eq, GroupedPiecewise):
