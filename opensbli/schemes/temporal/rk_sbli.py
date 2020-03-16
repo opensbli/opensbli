@@ -19,6 +19,8 @@ class RungeKutta(Scheme):
         :arg int order: The order of accuracy of the scheme."""
     def __init__(cls, order, constant_dt=None):
         Scheme.__init__(cls, "RungeKutta", order)
+        if order is not 3:
+            raise NotImplementedError("This Runge-Kutta scheme is only defined for 3rd order. For 4th order please use the RungeKuttaLS class instead.")
         cls.schemetype = "Temporal"
         cls.nloops = 2
         cls.stage = Idx('stage', order)
