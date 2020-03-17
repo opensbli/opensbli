@@ -42,4 +42,4 @@ export PYTHONPATH=$PYTHONPATH:/path/to/OpenSBLI/base/directory
 ```
 
 ## Contact
-If you wish to report a bug with the software, please contact [Satya P. Jammy](mailto:S.P.Jammy@soton.ac.uk) or [David J. Lusher](mailto:D.Lusher@soton.ac.uk)
+If you wish to report a bug with the software, please contact [Satya P. Jammy](mailto:satyapramod.j@srmap.edu.in) or [David J. Lusher](mailto:D.Lusher@soton.ac.uk)
