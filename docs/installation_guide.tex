@@ -1,31 +1,63 @@
-\title{OpenSBLI setup guide}
-\author{OpenSBLI developers team}
 \documentclass[11pt]{article}
 
 \usepackage{nth}
 \usepackage{hyperref}
-
 \begin{document}
+
+
+\title{OpenSBLI setup guide}
+\author{David J. Lusher, Satya P. Jammy, Neil D. Sandham}
+
+
 \maketitle
+\section{Installation guide}\label{sec:installation_guide}
+OpenSBLI requires a Python 2.7 install for code generation and the Oxford Parallel Structured software (OPS) library to build executables. The guide is for Linux platforms only, it hasn't been tested on OSX/Windows. Section \ref{sec:libraries} outlines the libraries that must be installed to use OpenSBLI + OPS, section \ref{sec:OPS} explains the build process of OPS, section \ref{sec:opensbli} covers how to generate a code within OpenSBLI and section \ref{sec:compiling_code} gives the steps to compile and run the code. Section \ref{sec:HPC} has some additional information that may be applicable if running on an HPC cluster.
 
-OpenSBLI requires a Python 2.7 install for code generation, and the Oxford Parallel Structured software (OPS) library to build executables. The guide is for Linux platforms only, and hasn't been tested on OSX/Windows. Python packages are installed with pip, if pip is not already present on your system it can be installed with e.g. \verb|sudo apt-get install python-pip|, on Ubuntu/Debian based systems. For HPC systems ask your administrator. 
+The installation of libraries will depend on whether you are using a local machine or an HPC cluster. If you are intending to use OpenSBLI on an HPC cluster you will need to load suitable system modules and point OPS to them via the environment variables outlined in section \ref{sec:OPS}. MPI and HDF5 libraries must have been compiled with the same compiler or you will face errors during compilation of OPS executables. If you are not sure where the  modules are located, please contact your system administrator. \textbf{Important note: SymPy version 1.1 is required, newer versions are currently not supported.} The requirements are:
+\subsection*{OpenSBLI requirements (Python 2)}
+\begin{verbatim}
+SymPy version 1.1 : Symbolic Python libary used by OpenSBLI
+Matplotlib : Python plotting library
+h5py : Python library to read in HDF5 output files for plotting
+NumPy : Numerical Python library used in some plot scripts
+SciPy: Scientific Python library used in some OpenSBLI classes
+\end{verbatim}
+\subsection*{OPS requirements}
+\begin{verbatim}
+git : Version control software used to clone the repository
+A C compiler : (gcc, icc, Cray, ..)
+An MPI distribution : (OpenMPI, MPICH, Intel MPI, ..)
+HDF5 libraries : Used for I/O within OPS
+CUDA/OpenCL libraries : Required only if you intend to run on GPUs
+\end{verbatim}
+\textbf{Important note:} Codes can be generated with OpenSBLI on a local machine (laptop) and copied onto another machine to be translated, compiled and run with OPS. While you can install both OpenSBLI and OPS on an HPC cluster, it is not necessary to have both on the same machine. OPS however must be installed (and built) on the machine you wish to run simulations on.
 
-The guide is for installation on a \textbf{local machine} with the GNU C compiler (gcc) with openMPI, on \textbf{HPC clusters} you will have to modify the steps/load the necessary modules to the available compilers, MPI distribution and HDF5 libraries. It is important that the HDF5 installation was built with the same compiler/MPI distrubution that you are using to build the code. For generating CUDA, OpenCL, or OpenACC code, these libraries should be installed and their location exported in step 4. OPS and OpenSBLI are installed to your home directory, if you wish to have them elsewhere then modify the locations accordingly.
-
+\subsection{Installation of libraries on an Ubuntu local machine}\label{sec:libraries}
+\textbf{**Ignore this section if installing OpenSBLI on an HPC cluster**}\\
+This section was tested on a clean Ubuntu 18.04 LTS installation, similar packages can be found for other Linux distributions. Python packages are installed with pip, if pip is not already present on your system it can be installed with e.g. \verb|sudo apt-get install python-pip|, on Ubuntu/Debian based systems. Alternatively, software distributions like Anaconda can be used to install the Python libraries. The guide is for installation on a local machine with the GNU C compiler (gcc) and OpenMPI.
 
 \begin{enumerate}
-\item{Install OpenMPI and HDF5 libraries, git and pip/tk (skip this step if using a machine with pre-configured software modules on HPC machine):
+\item{Install OpenMPI and HDF5 libraries, git and pip/tk
 \begin{verbatim}
 sudo apt-get install python-pip python-tk
 sudo apt-get install libhdf5-openmpi-dev
 sudo apt-get install git
 \end{verbatim}}
-\item{Install the required Python packages for this user, version 2.0 is tested only with Sympy version 1.1.1:}
+\item{Install the required Python packages for this user. Note that SymPy 1.1 is required, more recent versions will cause issues:}
 \begin{verbatim}
-pip install --user sympy==1.1.1 scipy numpy h5py matplotlib flake8
+pip install --user scipy numpy h5py matplotlib
+pip install --user sympy==1.1
 \end{verbatim}
+
+\end{enumerate}
+
+
+\subsection{OPS installation}\label{sec:OPS}
+In this section the installation of the OPS library is explained. \textbf{The paths that you put in step 2 will change depending on whether you are on a local machine or an HPC cluster.}
+\begin{enumerate}
 \item{Clone the OPS library:\\ \verb|git clone https://github.com/OP-DSL/OPS.git|}
 \item{Export OPS environment variables:\\ Edit your \verb|~/.bashrc| to include the lines:}
+\subsection*{Local Ubuntu machine:}
 \begin{verbatim}
 export OPS_INSTALL_PATH=/home/<username>/OPS/ops/
 export OPS_COMPILER=gnu
@@ -33,44 +65,62 @@ export OPS_TRANSLATOR=/home/<username>/OPS/ops_translator/c/
 export MPI_INSTALL_PATH=/usr/
 export HDF5_INSTALL_PATH=/usr/lib/x86_64-linux-gnu/hdf5/openmpi/
 export CUDA_INSTALL_PATH=/path/to/cuda-install/
+export USE_HDF5=1
+\end{verbatim}
+
+\subsection*{HPC cluster: (fill these in)}
+\begin{verbatim}
+export OPS_INSTALL_PATH=/home/<username>/OPS/ops/
+export OPS_COMPILER=gnu/cray/intel (pick one)
+export OPS_TRANSLATOR=/home/<username>/OPS/ops_translator/c/
+export MPI_INSTALL_PATH=/path/to/mpi-install/
+export HDF5_INSTALL_PATH=/path/to/hdf5-install/
+export CUDA_INSTALL_PATH=/path/to/cuda-install/
+export USE_HDF5=1
 \end{verbatim}
 To make these changes active in the current shell type: \verb|source ~/.bashrc|
-\item{Build the OPS libaries:}
+\item{Build the OPS libraries:}
 \begin{verbatim}
 Change directory to ~/OPS/ops/c/
-make core
-make seq
-make mpi
+make core seq mpi hdf5_seq hdf5_mpi
 \end{verbatim}
-If you are using CUDA you will also have to build:
+If you are using CUDA/OpenCL for GPUs you will also have to build:
 \begin{verbatim}
-make cuda
-make mpi_cuda
+make cuda mpi_cuda opencl mpi_opencl
+\end{verbatim}
+You may see some warnings that can be ignored, the ./lib/ folder should now contain some OPS libraries. If you encounter errors at this point it will be due to improper configuration of the modules/environment variables.
+\end{enumerate}
+
+\subsection{OpenSBLI installation and code generation}\label{sec:opensbli}
+\begin{enumerate}
+\item{Clone the latest OpenSBLI with your username and switch branch:}
+\begin{verbatim}
+git clone https://github.com/opensbli/opensbli.git
 \end{verbatim}
 
-\item{Clone the latest OpenSBLI from github and change to versio2.0:}
-\begin{verbatim}
-git clone https://github.com/opensbli/opensbli
-cd opensbli
-git fetch && git checkout version2.0
-\end{verbatim}
-
-\item{Export OpenSBLI to your PYTHONPATH in \verb|~/.bashrc|:}
+\item{Export the OpenSBLI folder to your PYTHONPATH in \verb|~/.bashrc|:}
 \begin{verbatim}
 export PYTHONPATH=$PYTHONPATH:/home/<username>/opensbli/
+source ~/.bashrc
 \end{verbatim}
 
-\item{Generate a code in OpenSBLI:}
+\item{Generate a code in OpenSBLI (e.g. Taylor-Green vortex):}
 \begin{verbatim}
-cd ~/opensbli/apps/TGV/
+cd ~/opensbli/apps/taylor_green_vortex/
 python taylor_green_vortex.py
 \end{verbatim}
 You should now have four new files:\\ \verb|opensbli.cpp, opensbliblock00_kernels.h, defdec_data_set.h, bc_exchanges.h| and some LaTeX files.
+\end{enumerate}
+At this point the files may be copied onto another machine (if desired) where you have OPS installed. The OPS translation and compilation steps are described in the next section.
+
+
+\subsection{Compiling and running the code}\label{sec:compiling_code}
+\begin{enumerate}
 \item{Translate the code using OPS to generate parallel versions:}
 \begin{verbatim}
 python $OPS_TRANSLATOR/ops.py opensbli.cpp
 \end{verbatim}
-You should now have folders for CUDA, MPI and so on, plus an \verb|opensbli_ops.cpp| file. You need to apply the translation step each time you make changes to the opensbli.cpp code generated by OpenSBLI. 
+You should now have folders for CUDA, MPI and so on, plus an \verb|opensbli_ops.cpp| file. You need to apply the translation step each time you make changes to the opensbli.cpp code generated by OpenSBLI. Ignore the clang-format warning, this is just an optional code indentation formatter and has no effect on the simulation.
 
 \item{Copy a Makefile into the directory and build the executable for the desired architecture (MPI, CUDA, OpenMP etc):}
 \begin{verbatim}
@@ -82,19 +132,17 @@ make opensbli_mpi
 \begin{verbatim}
 mpirun -np 4 ./opensbli_mpi
 \end{verbatim}
-The simulation will now run, when finished the output data is written to an \verb|opensbli_output.h5| HDF5 file for post-processing. If you wish to run the simulation again remove the HDF5 file from the directory before repeating the above steps.
+The simulation will now run, when finished the output data is written to an \verb|opensbli_output.h5| HDF5 file for post-processing. If you wish to run the simulation again remove the HDF5 file from the directory before repeating the above steps as existing files won't be overwritten.
 
 \end{enumerate}
 
-\textbf{Things to note for HPC clusters:}\\
+\subsection{Things to note for HPC clusters:}\label{sec:HPC}
 \begin{enumerate}
-\item{The main difference when using HPC clusters is the locations specified in step 4 will be different. Depending on your machine you will have to load modules for a compiler, MPI distribution, CUDA and HDF5. You will need to find out where on the machine these libaries are located and export them as required.}
+\item{For different compilers the \verb|OPS_COMPILER| variable set in section \ref{sec:OPS} must be changed and you may need to modify some of the Makefiles. The easiest way is usually to export cc and CC to where your compiler is located, but you may need to explicitly edit the Makefiles to use icc/icpc for example. In the current OPS (02/2019) the Makefiles are all located in /OPS/makefiles/}
 
-\item{For different compilers the \verb|OPS_COMPILER| variable must be changed, and you may need to modify some of the Makefiles. The easiest way is usually to export cc and CC to where your compiler is located, but you may need to explicitly edit the Makefiles to use icc/icpc for example.}
-
-\item{If there is no HDF5 you will have to build it yourself:}
+\item{If there is no suitable HDF5 available on the system you will have to build it yourself:}
 \begin{verbatim}
-Obtain the source at https://support.hdfgroup.org/HDF5/release/obtainsrc.html
+Obtain the source: https://support.hdfgroup.org/HDF5/release/obtainsrc.html
 Extract the file, change to the directory and configure the build.
 For building parallel HDF5:
 ./configure --enable-parallel cc=/path/to/mpicc CC=/path/to/mpicc
@@ -102,10 +150,14 @@ make
 make install
 \end{verbatim} 
 
-\item{Depending on the machine you may need to add your HDF5/CUDA library locations to your \verb|LD_LIBRARY_PATH|.}
+\item{Depending on the machine you may need to add your HDF5/CUDA library locations to your \verb|LD_LIBRARY_PATH| environment variable.}
 
-\item{Job submission scripts will often need module load commands in them, and \verb|LD_LIBRARY_PATH| needs to be exported with the HDF5/CUDA library locations.}
+\item{Job submission scripts will often need module load commands in them as the compute nodes are separate to login nodes. In addition \verb|LD_LIBRARY_PATH| may need to be exported in the submission script with the HDF5/CUDA library locations.}
+
+\item{If using gcc you may need to add:}
+\begin{verbatim}
+-fpermissive to CCFLAGS/CXXFLAGS in OPS/makefiles/Makefile.gnu
+\end{verbatim}
 
 \end{enumerate}
-
 \end{document}
