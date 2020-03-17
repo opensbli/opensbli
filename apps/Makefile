@@ -4,7 +4,6 @@
 # OPS_INSTALL_PATH
 # OPS_COMPILER (gnu,intel,etc)
 #
-
 #
 # set paths for header files and libraries
 #
