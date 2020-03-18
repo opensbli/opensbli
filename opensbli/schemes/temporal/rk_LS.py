@@ -162,9 +162,7 @@ class RungeKuttaLS(Scheme):
         dt = cls.time_step
         solution_update = []
         for z in zipped:
-            temp_grid = GridVariable('old_temp')
-            solution_update += [OpenSBLIEq(temp_grid, z[0])]
-            solution_update += [OpenSBLIEq(z[0], cls.stage_coeffs*temp_grid + dt*z[2], evaluate=False)]
+            solution_update += [OpenSBLIEq(z[0], cls.stage_coeffs*z[0] + dt*z[2], evaluate=False)]
             solution_update += [OpenSBLIEq(z[1], z[1] + cls.solution_coeffs*z[0], evaluate=False)]
         return solution_update
 
