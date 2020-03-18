@@ -1,7 +1,7 @@
 """@brief Algorithm generation
    @author Satya Pramod Jammy
    @contributors Satya Pramod Jammy and David J Lusher
-   @details Impelments the tree-based structure with the attribute (components) controls the
+   @details Implements the tree-based structure with the attribute (components) controls the
    depth of a node."""
 
 from sympy.core.compatibility import is_sequence
@@ -11,8 +11,7 @@ from opensbli.core.opensbliobjects import ConstantObject, ConstantIndexed, Const
 from sympy import Symbol, flatten
 from opensbli.core.grid import GridVariable
 from opensbli.core.datatypes import SimulationDataType
-from sympy import Pow, Idx
-
+from sympy import Pow, Idx, pprint, count_ops
 import os
 import logging
 LOG = logging.getLogger(__name__)
@@ -65,10 +64,9 @@ class OPSCCodePrinter(C99CodePrinter):
         return '*%s' % str(expr)
 
     def _print_Rational(self, expr):
-        """Settings if rational is True then rational numbers are printed as they are.
-        Else optimisations will be done for rational constants that are evaluated
-        at the start of the program, to reduce divisions
-        """
+        """ Settings: if rational is True then rational numbers are printed as they are.
+        Otherwise optimisations will be performed for rational constants that are evaluated
+        at the start of the program to reduce divisions."""
         if self.settings_opsc.get('rational', True):
             p, q = int(expr.p), int(expr.q)
             return '%d.0/%d.0' % (p, q)
@@ -79,7 +77,7 @@ class OPSCCodePrinter(C99CodePrinter):
                 return self._print(rc.get_next_rational_constant(expr))
 
     def _print_Mod(self, expr):
-        """All Mods are expressed as fmod currently and no iterger values"""
+        """ All modulus functions are expressed as fmod currently and no integer values."""
         args = map(ccode, expr.args)
         args = [x for x in args]
         result = ','.join(args)
@@ -123,9 +121,8 @@ class OPSCCodePrinter(C99CodePrinter):
         return "%s == %s" % (self._print(expr.lhs), self._print(expr.rhs))
 
     def _print_DataSet(self, expr):
-        """Prints the OpenSBLI dataset in the OPS format with the access numbers provided.
-        Access numbers are updated for each kernel, see writing kernel in the OPSC class
-        """
+        """ Prints the OpenSBLI dataset in the OPS format with the access numbers provided.
+        Access numbers are updated for each kernel, see writing kernel in the OPSC class. """
         base = expr.base
         if self.dataset_accs_dictionary[base]:
             indices = expr.get_grid_indices
@@ -153,24 +150,27 @@ class OPSCCodePrinter(C99CodePrinter):
         return out
 
     def _print_UserFunction(self, fn):
-        """Prints the user defined funtion, we donot check if the funciton exists in the header files
+        """ Prints the user defined funtion, we do not check if the funciton exists in the header files.
         This allows for users to write their own OPS functions and use them in the code."""
         return self._print(fn.args[0]) + '(%s)' % (', '.join([self._print(arg) for arg in fn.args[1:]]))
 
 
 def pow_to_constant(expr):
-    """Finds the negative powers of constant objects and evaluates them to a new constant object
-    to reduce divisions
-    """
-
+    """Finds the negative powers of constant objects and evaluates them to a new constant object to reduce divisions."""
     from sympy.core.function import _coeff_isneg
     # Only negative powers i.e they correspond to division and they are stored into constant arrays
     inverse_terms = {}
-    # change the name of Rational counter to rcinv
+    # Change the name of Rational counter to rcinv
     orig_name = rc.name
     rc.name = 'rcinv%d'
 
     for at in expr.atoms(Pow):
+        # Remove common 1 / (gama - 1) factors
+        if at is (1 / (ConstantObject('gama') - 1)):
+            if at in rc.existing:
+                inverse_terms[at] = rc.existing[at]
+            else:
+                inverse_terms[at] = rc.get_next_rational_constant(at)
         if _coeff_isneg(at.exp) and isinstance(at.base, ConstantObject):
             if at in rc.existing:
                 inverse_terms[at] = rc.existing[at]
@@ -188,8 +188,7 @@ def ccode(expr, settings={}):
     :arg Indexed_accs: Indexed OPS_ACC accesses.
     :arg constants: Constants that should be defined at the top of the OPSC code.
     :returns: The expression in OPSC code.
-    :rtype: str
-    """
+    :rtype: str."""
     if isinstance(expr, Equality):
         if 'rational' in settings.keys():
             pass
@@ -237,20 +236,25 @@ def indent_code(code_lines):
 
     :arg code_lines: The string or list of strings of lines of code to indent.
     :returns: A list of the indented line(s) of code.
-    :rtype: list
-    """
+    :rtype: list """
 
     p = C99CodePrinter()
     return p.indent_code(code_lines)
 
 
 class OPSC(object):
-
     ops_headers = {'input': "const %s *%s", 'output': '%s *%s', 'inout': '%s *%s'}
 
-    def __init__(self, algorithm):
-        """ Generating an OPSC code from the algorithm"""
+    def __init__(self, algorithm, operation_count=False, OPS_diagnostics=1):
+        """ Generating an OPSC code from the algorithm class.
+        :arg object algorithm: An OpenSBLI algorithm class.
+        :arg bool operation_count: If True, prints the number of arithmetic operations per kernel.
+        :arg int OPS_diagnostics: OPS performance diagnostics. The default of 1 provides no kernel-based timing output
+        A value of 5 gives a kernel breakdown of computational kernel and MPI exchange time."""
+
         if not algorithm.MultiBlock:
+            self.operation_count = operation_count
+            self.OPS_diagnostics = OPS_diagnostics
             self.MultiBlock = False
             self.dtype = algorithm.dtype
             # First write the kernels, with this we will have the Rational constants to declare
@@ -260,12 +264,10 @@ class OPSC(object):
             algorithm.prg.components = def_decs + algorithm.prg.components + end
             code = algorithm.prg.opsc_code
             code = self.before_main(algorithm) + code
-            self.name = 'taylor_green_vortex'
             f = open('opensbli.cpp', 'w')
-            # code = indent_code(code)
             f.write('\n'.join(code))
             f.close()
-            print "Successfully generated OPS C code"
+            print("Successfully generated the OPS C code.")
         return
 
     def wrap_long_lines(self, code_lines):
@@ -319,6 +321,7 @@ class OPSC(object):
         return code
 
     def kernel_computation_opsc(self, kernel):
+        """ Function to write the out the contents of each computational kernel."""
         ins = kernel.rhs_datasetbases
         outs = kernel.lhs_datasetbases
         inouts = ins.intersection(outs)
@@ -382,6 +385,7 @@ class OPSC(object):
                             out += [ccode(expr, settings={'kernel': True}) + ';\n']
                         out += ['}\n']
             else:
+                pprint(eq)
                 raise TypeError("Unclassified type of equation.")
         for gv in gridvariables:
             code += ["%s %s = 0.0;" % (SimulationDataType.opsc(), str(gv))]
@@ -390,8 +394,18 @@ class OPSC(object):
         return code
 
     def write_kernels(self, algorithm):
+        """ A function to write out the kernels header file definining all of the computations to be performed."""
         from opensbli.core.kernel import Kernel
         kernels = self.loop_alg(algorithm, Kernel)
+        # Count the number of operations per kernel
+        if self.operation_count:
+            total = 0
+            for k in kernels:
+                n_operations = count_ops(k.equations)
+                total += n_operations
+                print([k.kernel_no, k.computation_name, 'operations: %d' % n_operations])
+            print("Total operation count is: %d" % total)
+
         files = [open('%s_kernels.h' % b.block_name, 'w') for b in algorithm.block_descriptions]
         for f in files:
             name = ('%s_kernel_H' % b.block_name).upper()
@@ -408,9 +422,14 @@ class OPSC(object):
         return
 
     def ops_exit(self):
-        return [WriteString("ops_exit();")]
+        """ Exits the OPS program with optional kernel-based timing output."""
+        if self.OPS_diagnostics > 1:
+            return [WriteString("ops_timing_output(stdout);")] + [WriteString("ops_exit();")]
+        else:
+            return [WriteString("ops_exit();")]
 
     def before_main(self, algorithm):
+        """ Adds the required preamble to the main opensbli.cpp file and declares the simulation constants."""
         out = ['#include <stdlib.h> \n#include <string.h> \n#include <math.h>']
         from opensbli.core.kernel import ConstantsToDeclare
         for d in ConstantsToDeclare.constants:
@@ -462,7 +481,6 @@ class OPSC(object):
             elif isinstance(d, StencilObject):
                 store_stencils.append(d)
             else:
-                print(d)
                 raise TypeError("Not a stencil or dataset declaration.")
         dsets_to_declare = dict([(str(x),x) for x in store_dsets])
 
@@ -502,32 +520,19 @@ class OPSC(object):
         """ Initialise an OPS partition for the purpose of multi-block and/or MPI partitioning.
 
         :returns: The partitioning code in OPSC format. Each line is a separate list element.
-        :rtype: list
-        """
-
+        :rtype: list"""
         return [WriteString('// Init OPS partition'), WriteString('ops_partition(\"\");\n')]
 
-    def ops_init(self, diagnostics_level=None):
+    def ops_init(self):
         """ The default diagnostics level is 1, which offers no diagnostic information and should be used for production runs.
         Refer to OPS user manual for more information.
-
-        :arg int diagnostics_level: The diagnostics level. If None, the diagnostic level defaults to 1.
         :returns: The call to ops_init.
-        :rtype: list
-        """
+        :rtype: list """
         out = [WriteString('// Initializing OPS ')]
-        if diagnostics_level:
-            self.ops_diagnostics = True
-            return out + [WriteString('ops_init(argc,argv,%d);' % (diagnostics_level))]
-        else:
-            self.ops_diagnostics = False
-            return out + [WriteString('ops_init(argc,argv,%d);' % (1))]
-
-    def Exchange_code(self, e):
-        # out =
-        return
+        return out + [WriteString('ops_init(argc,argv,%d);' % (self.OPS_diagnostics))]
 
     def bc_exchange_call_code(self, instance):
+        """ Generates the code for OPS exchanges. Used for example in the periodic boundary condition."""
         off = 0
         halo = 'halo'
         # instance.transfer_size = instance.transfer_from
@@ -593,6 +598,7 @@ class OPSC(object):
             raise NotImplementedError("")
 
     def define_constants(self, c):
+        """ Declares all of the constants required by the simulation at the start of the program."""
         # Fix spacing on constant declarations %s=%s
         if isinstance(c, ConstantObject):
             if not isinstance(c.value, str):
@@ -623,6 +629,7 @@ class OPSC(object):
             raise ValueError("")
 
     def declare_ops_constants(self, c):
+        """ Calls the OPS declare constant function for all of the defined constants."""
         if isinstance(c, ConstantObject):
             return [WriteString("ops_decl_const(\"%s\" , 1, \"%s\", &%s);" % (str(c), c.datatype.opsc(), str(c)))]
         elif isinstance(c, ConstantIndexed):
