@@ -106,11 +106,17 @@ wall_energy = [Eq(q_vector[3], q_vector[0] / (gama * Minf**2.0 * (gama - S.One))
 direction = 1
 # Side 0 (bottom wall) boundary
 lower_wall_eq = wall_energy[:]
-boundaries += [IsothermalWallBC(direction, 0, lower_wall_eq)]
+boundaries += [IsothermalWallBC(direction, 0, lower_wall_eq, scheme=ReducedAccess())]
 
 # Side 1 (top) boundary
-upper_wall_eq = wall_energy[:]
-boundaries += [IsothermalWallBC(direction, 1, upper_wall_eq)]
+# Select one adiabatic wall one isothermal wall. Otherwise two isothermal walls
+mixed_wall_condition = False
+
+if mixed_wall_condition:
+	boundaries += [AdiabaticWallBC(direction, 1, scheme=ReducedAccess())]
+else:
+	upper_wall_eq = wall_energy[:]
+	boundaries += [IsothermalWallBC(direction, 1, lower_wall_eq, scheme=ReducedAccess())]
 
 # set the boundaries for the block
 block.set_block_boundaries(boundaries)
@@ -123,7 +129,7 @@ block.set_block_boundaries(boundaries)
 x, y = symbols('x0:%d' % ndim, **{'cls': DataObject})
 grid_equations = []
 # Equations for generating the grid, simple equispacing grid
-grid_equations += [Eq(x, i * dx), Eq(y, j * dy)]
+grid_equations += [Eq(x, i * dx), Eq(y, -1.0 + j * dy)]
 
 # Initialisation equations
 initial_equations = []
@@ -155,7 +161,7 @@ schemes = {}
 cent = Central(4)
 schemes[cent.name] = cent
 # RungeKutta scheme for temporal discretisation and add to the schemes dictionary
-rk = RungeKutta(3)
+rk = RungeKuttaLS(3)
 schemes[rk.name] = rk
 # Set the discretisation schemes to be used (a python dictionary)
 block.set_discretisation_schemes(schemes)
@@ -187,6 +193,6 @@ OPSC(alg)
 # simulation etc. In the future reading thes from HDF5 would be provided
 
 constants = ['Re', 'gama', 'Minf', 'Pr', 'dt', 'niter', 'block0np0', 'block0np1', 'Delta0block0', 'Delta1block0', "c0", "c1"]
-values = ['90.0', '1.4', '0.01', '0.72', '0.0001', '3000000', '16', '64', '2.0*M_PI/block0np0', '2.0/(block0np1-1)', '-1', '0']
+values = ['90.0', '1.4', '0.01', '0.72', '0.0002', '5000000', '32', '64', '2.0*M_PI/block0np0', '2.0/(block0np1-1)', '-1', '0']
 substitute_simulation_parameters(constants, values)
-exit()
+print_iteration_ops(NaN_check='rho_B0')
