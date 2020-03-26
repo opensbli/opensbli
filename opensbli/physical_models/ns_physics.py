@@ -221,7 +221,8 @@ class NSPhysics_Stats(NSphysics, StatsVariable):
         self.ndim = ndim
         # Create the components required for stats
         self.create_stat_components(**settings)
-        self.niter = ConstantObject('niter')
+        self.niter = ConstantObject('niter', integer=True)
+        self.niter.datatype = Int()
         # Equations to initialise stat arrays to zeros
         self.init = self.init_stats()
         # During time loop stat collection equations
