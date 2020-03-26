@@ -242,18 +242,18 @@ class SimulationEquations(Discretisation, Solution):
                 eq.residual = block.location_dataset('Residual%d' % no)
         return
 
-    def zero_residuals_kernel(cls, block):
-        """A symbolic kernel to equate all the residual arrays of the equations to zero
+    # def zero_residuals_kernel(cls, block):
+    #     """A symbolic kernel to equate all the residual arrays of the equations to zero
 
-        :param SimulationBlock block: the block on which the equations are solved
-        :return: None """
-        from opensbli.core.kernel import Kernel
-        kernel = Kernel(block, computation_name="Zeroing residuals")
-        eqs = [OpenSBLIEq(eq.residual, 0) for eq in flatten(cls.equations)]
-        kernel.add_equation(eqs)
-        kernel.set_grid_range(block)
-        cls.Kernels += [kernel]
-        return
+    #     :param SimulationBlock block: the block on which the equations are solved
+    #     :return: None """
+    #     from opensbli.core.kernel import Kernel
+    #     kernel = Kernel(block, computation_name="Zeroing residuals")
+    #     eqs = [OpenSBLIEq(eq.residual, 0) for eq in flatten(cls.equations)]
+    #     kernel.add_equation(eqs)
+    #     kernel.set_grid_range(block)
+    #     cls.Kernels += [kernel]
+    #     return
 
     @property
     def get_required_constituents(self):
@@ -275,7 +275,7 @@ class SimulationEquations(Discretisation, Solution):
         # Create the residual array for the equations
         cls.create_residual_arrays(block)
         # Kernel to make the residuals zero
-        cls.zero_residuals_kernel(block)
+        # cls.zero_residuals_kernel(block)
 
         spatialschemes = []
         # Get the schemes on the block

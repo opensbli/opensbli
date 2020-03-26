@@ -1,11 +1,11 @@
 """@brief
    @author Satya Pramod Jammy
-   @contributors
+   @contributors David J. Lusher
    @details
 """
 
 from sympy.calculus import finite_diff_weights
-from sympy import postorder_traversal, Function, flatten, S
+from sympy import postorder_traversal, Function, flatten, S, factor
 from sympy.core import Add, Mul
 from opensbli.core.opensbliobjects import ConstantObject, DataSet
 from opensbli.core.opensblifunctions import CentralDerivative
@@ -85,20 +85,20 @@ class Central(Scheme):
         weights = finite_diff_weights(order, self.diffpoints, 0)
         return weights[order][-1]
 
-    def add_required_database(self, dbases):
-        # TODO V2: is it used??
-        self.required_database += flatten(list(dbases))
-        return
+    # def add_required_database(self, dbases):
+    #     # TODO V2: is it used??
+    #     self.required_database += flatten(list(dbases))
+    #     return
 
-    @property
-    def scheme_required_databases(self):
-        # TODO V2: is it used??
-        return set(self.required_database)
+    # @property
+    # def scheme_required_databases(self):
+    #     # TODO V2: is it used??
+    #     return set(self.required_database)
 
-    def update_works(self, to_descritse, block):
-        # V2: Delete this?
+    # def update_works(self, to_descritse, block):
+    #     # V2: Delete this?
 
-        return
+    #     return
 
     def set_halos(self, block):
         """Sets the halos of the scheme to the block, Max of the halos of the block are used for setting the range of
@@ -109,8 +109,7 @@ class Central(Scheme):
         return
 
     def discretise(self, type_of_eq, block):
-        """Discretisation application
-        """
+        """Discretisation application."""
         self.set_halos(block)
         if isinstance(type_of_eq, SimulationEquations):
             """ Simulation equations are always solved as sbli_rhs_discretisation as of now
@@ -248,7 +247,8 @@ class Central(Scheme):
 
             for no, c in enumerate(convective_discretized):
                 convective_discretized[no] = convective_discretized[no].subs(subs_conv)
-            conv_residual_kernel = self.create_residual_kernel(residual_arrays, convective_discretized, block)
+            residual_type = 'Convective'
+            conv_residual_kernel = self.create_residual_kernel(residual_arrays, convective_discretized, block, residual_type)
             conv_residual_kernel.set_computation_name("Convective residual ")
             kernels += [conv_residual_kernel]
         # reset the work index of blocks
@@ -261,7 +261,8 @@ class Central(Scheme):
                 eval_ker = viscous_kernels[ker]
                 kernels += [eval_ker]
         if viscous_discretised:
-            visc_residual_kernel = self.create_residual_kernel(residual_arrays, viscous_discretised, block)
+            residual_type = 'Viscous'
+            visc_residual_kernel = self.create_residual_kernel(residual_arrays, viscous_discretised, block, residual_type)
             visc_residual_kernel.set_computation_name("Viscous residual")
             kernels += [visc_residual_kernel]
         # Add the kernels to the solutions
@@ -280,13 +281,17 @@ class Central(Scheme):
         else:
             raise NotImplementedError("")
 
-    def create_residual_kernel(self, residual_arrays, discretised_eq, block):
+    def create_residual_kernel(self, residual_arrays, discretised_eq, block, residual_type):
         """Creates a kernel for evaluating the residual of the discretised equations"""
         if len(residual_arrays) != len(discretised_eq):
             raise ValueError("")
         residue_kernel = Kernel(block)
         for no, array in enumerate(residual_arrays):
-            expr = OpenSBLIEq(array, array+discretised_eq[no])
+            # First time writing to the residual arrays
+            if residual_type is 'Convective':
+                expr = OpenSBLIEq(array, discretised_eq[no])
+            else:
+                expr = OpenSBLIEq(array, array+discretised_eq[no])
             residue_kernel.add_equation(expr)
         residue_kernel.set_grid_range(block)
         return residue_kernel
@@ -311,7 +316,7 @@ class Central(Scheme):
             for der in cds:
                 self.update_range_of_constituent_relations(der, block)
                 expr, local_kernels = self.traverse(der, local_kernels, block)
-                expr_discretised = OpenSBLIEq(der.work, expr._discretise_derivative(self, block))
+                expr_discretised = OpenSBLIEq(der.work, factor(expr._discretise_derivative(self, block)))
                 work_arry_subs[expr] = der.work
                 local_kernels[der].add_equation(expr_discretised)
                 local_kernels[der].set_grid_range(block)
@@ -352,10 +357,10 @@ class Central(Scheme):
             containing_terms[no] = containing_terms[no].subs(substitutions)
         return containing_terms, other_terms
 
-    def traverse(self, cetnral_derivative, kernel_dictionary, block):
-        expr = cetnral_derivative.copy()
+    def traverse(self, central_deriv, kernel_dictionary, block):
+        expr = central_deriv.copy()
         inner_cds = []
-        pot = postorder_traversal(cetnral_derivative)
+        pot = postorder_traversal(central_deriv)
         inner_cds = []
         for p in pot:
             if isinstance(p, CentralDerivative):
@@ -376,7 +381,7 @@ class Central(Scheme):
                 elif cd.is_store:
                     raise ValueError("NOT IMPLEMENTED THIS")
                 elif not cd.is_store:
-                    raise ValueError("This dependency sgould be validated for Carpenter BC")
+                    raise ValueError("This dependency should be validated for Carpenter BC")
                 else:
                     raise ValueError("Could not classify this")
         return expr, kernel_dictionary
