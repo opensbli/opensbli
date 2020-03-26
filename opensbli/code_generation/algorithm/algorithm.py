@@ -6,10 +6,11 @@
    should be a codeprinter class
 """
 
-from sympy import flatten, Equality
+from sympy import flatten, Equality, Or
 from opensbli.code_generation.latex import LatexWriter
 from opensbli.core.opensbliobjects import Constant, DataSetBase
 from opensbli.code_generation.algorithm.common import BeforeSimulationStarts, AfterSimulationEnds, InTheSimulation
+from opensbli.core.diagnostics.simulation_monitors import SimulationMonitor, Monitor
 import copy
 
 
@@ -334,16 +335,15 @@ class BlockDescription(object):
 
 
 class TraditionalAlgorithmRK(object):
-    """ It is where the algorithm is generated, This is a separate layer
-    which gives user control to do any modifications for extra functionality that
-    is to be performed like, doing some post processing for every time loop or
-    sub rk loop
-    """
+    """ Class to generate a Runge-Kutta explicit algorith. This is a separate layer
+    which gives the user control to perform modifications for extra functionality such as
+    adding post processing."""
 
-    def __init__(self, blocks, dtype=None):
+    def __init__(self, blocks, simulation_monitor=None, dtype=None):
         from opensbli.core.block import SimulationBlock as SB
         self.block_descriptions = []
         self.ntimers = 0
+        self.simulation_monitor = simulation_monitor
         if isinstance(blocks, SB):
             self.MultiBlock = False
             blocks = [blocks]
@@ -438,10 +438,19 @@ class TraditionalAlgorithmRK(object):
                             in_time += key.Kernels
 
             sc = b.get_temporal_schemes[0]
+            # Add optional simulation point monitoring
+            temporal_iteration = sc.temporal_iteration
+            if self.simulation_monitor is not None:
+                t = (Or(Equality((temporal_iteration + 1) % self.simulation_monitor.frequency, 0), Equality(temporal_iteration, 0)))
+                # t = Equality((temporal_iteration + 1) % self.simulation_monitor.frequency, 0)
+                cond = Condition(t)
+                cond.add_components(self.simulation_monitor)
+                in_time += [cond]
+
             innerloop = sc.generate_inner_loop(spatial_kernels + inner_temporal_advance_kernels + bc_kernels)
             # Add BC kernels to temporal start
             temporal_start = bc_kernels + temporal_start
-            temporal_iteration = sc.temporal_iteration
+            # Input output of intermediate data writing
             for io in b.InputOutput:
                 for place in io.algorithm_place:
                     if isinstance(place, BeforeSimulationStarts):

@@ -7,3 +7,4 @@ from .bcs import *
 from .parsing import *
 from .io import *
 from .kernel import *
+from .diagnostics import *

@@ -257,6 +257,12 @@ class OPSC(object):
             self.OPS_diagnostics = OPS_diagnostics
             self.MultiBlock = False
             self.dtype = algorithm.dtype
+            # Check if the simulation monitoring should be written to an output log file
+            if algorithm.simulation_monitor:
+                if algorithm.simulation_monitor.output_file:
+                    self.monitoring_output_file = True
+            else:
+                self.monitoring_output_file = False
             # First write the kernels, with this we will have the Rational constants to declare
             self.write_kernels(algorithm)
             def_decs = self.opsc_def_decs(algorithm)
@@ -423,10 +429,13 @@ class OPSC(object):
 
     def ops_exit(self):
         """ Exits the OPS program with optional kernel-based timing output."""
+        output = []
         if self.OPS_diagnostics > 1:
-            return [WriteString("ops_timing_output(stdout);")] + [WriteString("ops_exit();")]
-        else:
-            return [WriteString("ops_exit();")]
+            output += [WriteString("ops_timing_output(stdout);")]
+        if self.monitoring_output_file:
+            output += [WriteString("fclose(f);")]        
+        output += [WriteString("ops_exit();")]    
+        return output
 
     def before_main(self, algorithm):
         """ Adds the required preamble to the main opensbli.cpp file and declares the simulation constants."""
@@ -446,6 +455,11 @@ class OPSC(object):
         out += ['#include \"ops_seq.h\"']
         for b in algorithm.block_descriptions:
             out += ['#include \"%s_kernels.h\"' % b.block_name]
+        # Include optional simulation monitoring reductions file
+        if algorithm.simulation_monitor:
+            out += ['#include \"%s\"' % algorithm.simulation_monitor.filename]
+            if algorithm.simulation_monitor.output_file:
+                out += ['FILE *f = fopen(\"%s\", \"w\");' % str(algorithm.simulation_monitor.output_file)]
         return out
 
     def opsc_def_decs(self, algorithm):
