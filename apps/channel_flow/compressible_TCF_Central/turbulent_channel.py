@@ -217,7 +217,7 @@ schemes = {}
 cent = Central(4)
 schemes[cent.name] = cent
 # RungeKutta scheme for temporal discretisation and add to the schemes dictionary
-rk = RungeKutta(3)
+rk = RungeKuttaLS(3)
 schemes[rk.name] = rk
 # Set the discretisation schemes to be used (a python dictionary)
 block.set_discretisation_schemes(schemes)

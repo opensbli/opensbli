@@ -25,6 +25,7 @@ def first_order_moments(ndim, conserve_vector):
     normalise_equations = []
     # Dependent on temporal scheme changes FIX
     niter = symbols("niter", **{'cls':ConstantObject})
+    niter.datatype = Int()
 
     normalise_equations += [Eq(r_m, r_m/niter)]
     # accumulate_momentum
@@ -43,6 +44,8 @@ def primitive(ndim, conserve_vector):
     # create variables means required
     u_m = symbols('u0:%dmean' % ndim, **{'cls': DataObject})
     niter = symbols("niter", **{'cls':ConstantObject})
+    niter.datatype = Int()
+
     accumulation_equations, normalisation_equations = [], []
 
     grid_vars = [GridVariable('u%d' % i) for i in range(ndim)]
@@ -139,6 +142,8 @@ def second_order_moments(ndim, conserve_vector):
     normalisation = []
     # Dependent on temporal scheme changes FIX
     niter = symbols("niter", **{'cls':ConstantObject})
+    niter.datatype = Int()
+    
     # creeate a  GridVariable for 1/rho
     rho_inv = GridVariable("rhoinv")
     accumulation += [Eq(rho_inv, 1.0/conserve_vector[0])]

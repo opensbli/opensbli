@@ -7,7 +7,7 @@ from opensbli.utilities.helperfunctions import substitute_simulation_parameters
 # STEP 0 Create the equations required for the numerical solution
 # Problem dimension
 ndim = 3
-stats = False
+stats = True
 
 # Define the compresible Navier-Stokes equations in Einstein notation
 # Feiereisen quadratic skew-symmetric formulation, no change in continuity
@@ -200,7 +200,7 @@ schemes = {}
 cent = Central(4)
 schemes[cent.name] = cent
 # RungeKutta scheme for temporal discretisation and add to the schemes dictionary
-rk = RungeKutta(3)
+rk = RungeKuttaLS(3)
 schemes[rk.name] = rk
 # Set the discretisation schemes to be used (a python dictionary)
 block.set_discretisation_schemes(schemes)
