@@ -535,35 +535,35 @@ class CentralDerivative(Function, BasicDiscretisation, DerPrint):
             form = Piecewise(*expression_condition_pairs, **{'evaluate': False})
         return form
 
-    def apply_boundary_derivative_modification(cls, block, scheme, work):
-        """Apply the boundary modifications this returns a list of kernels if modification
-        is required else returns an empty list
-        WARNING This is not working but keeping it while reverting back
-        TODO V2 JAMMY IMPLEMENTATION of different kernels for carpenter
-        """
-        from opensbli.core.kernel import Kernel
-        dire = cls.get_direction[0]
-        order = cls.order
-        modifications = block.check_modify_central()
-        kernels = []
-        if dire in modifications:
-            # print "YES", dire, cls
-            boundary_mods = [k for k in modifications[dire] if k]
-            pprint(cls.args[0])
-            expr = cls.args[0]
-            for b in boundary_mods:
-                ker = Kernel(block)
-                ker.add_equation(expr)
-                ker.set_computation_name("Carpenter scheme %s " % (str(cls)))
-                ker.set_grid_range(block)
-                # modify the range to the number of points
-                expression_condition_pairs, ranges = b.modification_scheme.expr_cond_pairs(cls.args[0], b.direction, b.side, order, block)
-                ker.ranges[dire] = [ranges[0], ranges[-1]+1]
-                expression_condition_pairs += [ExprCondPair(0, True)]
-                form = Piecewise(*expression_condition_pairs, **{'evaluate': False})
-                ker.add_equation(Eq(work, form))
-                kernels += [ker]
-        return kernels
+    # def apply_boundary_derivative_modification(cls, block, scheme, work):
+    #     """Apply the boundary modifications this returns a list of kernels if modification
+    #     is required else returns an empty list
+    #     WARNING This is not working but keeping it while reverting back
+    #     TODO V2 JAMMY IMPLEMENTATION of different kernels for carpenter
+    #     """
+    #     from opensbli.core.kernel import Kernel
+    #     dire = cls.get_direction[0]
+    #     order = cls.order
+    #     modifications = block.check_modify_central()
+    #     kernels = []
+    #     if dire in modifications:
+    #         # print "YES", dire, cls
+    #         boundary_mods = [k for k in modifications[dire] if k]
+    #         pprint(cls.args[0])
+    #         expr = cls.args[0]
+    #         for b in boundary_mods:
+    #             ker = Kernel(block)
+    #             ker.add_equation(expr)
+    #             ker.set_computation_name("Carpenter scheme %s " % (str(cls)))
+    #             ker.set_grid_range(block)
+    #             # modify the range to the number of points
+    #             expression_condition_pairs, ranges = b.modification_scheme.expr_cond_pairs(cls.args[0], b.direction, b.side, order, block)
+    #             ker.ranges[dire] = [ranges[0], ranges[-1]+1]
+    #             expression_condition_pairs += [ExprCondPair(0, True)]
+    #             form = Piecewise(*expression_condition_pairs, **{'evaluate': False})
+    #             ker.add_equation(Eq(work, form))
+    #             kernels += [ker]
+    #     return kernels
 
     @property
     def simple_name(cls):
@@ -769,18 +769,6 @@ class TemporalDerivative(Function, BasicDiscretisation, DerPrint):
         # No change to the class
         return cls
 
-
-class OpenSBLIexpression(Equality, EinsteinStructure):
-    # TODO V2: IS it used, I think not, SPJ
-    def __new__(cls, expr):
-        ret = super(OpenSBLIexpression, cls).__new__(cls, expr)
-        return ret
-
-    @property
-    def simple_name(cls):
-        return "%s" % ("Expr")
-
-
 class MetricDerivative(Function, BasicDiscretisation):
     """
     # TODO V2: Documentation
@@ -790,36 +778,6 @@ class MetricDerivative(Function, BasicDiscretisation):
         ret = super(MetricDerivative, cls).__new__(cls, *args, evaluate=False)
         ret.store = True  # By default all the derivatives are stored
         return ret
-
-    def _discretise_derivative(cls, scheme):
-        """ TODO V2 : Check if it is used, I think not
-        """
-        order = cls.order
-        form = 0
-        # Put the coefficients of first and second derivatives in a dictionary and use them
-
-        if cls.is_homogeneous:
-            dire = cls.get_direction[0]
-            weights = scheme._generate_weights(dire, order)
-            for no, p in enumerate(scheme.points):
-                expr = cls.args[0]
-                for req in (cls.required_datasets):
-                    loc = req.location[:]
-                    loc[dire] = loc[dire] + p
-                    val = req.get_location_dataset(loc)
-                    expr = expr.replace(req, val)
-                form = form + weights[no]*expr
-            if form == 0:
-                raise ValueError("Central derivative formula is zero for %s" % cls)
-        else:
-            raise ValueError("")
-        return form
-
-    @property
-    def simple_name(cls):
-        # TODO V2 check if it is used, i think not
-        return "%s" % ("CD")
-
 
 localfuncs = (MetricDerivative, KD, CentralDerivative, WenoDerivative, TenoDerivative, TemporalDerivative, LC, Dot)
 simplifying_funcs = (KD, LC, Dot)
