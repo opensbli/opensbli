@@ -218,7 +218,13 @@ block.discretise()
 
 # STEP 7
 # create an algorithm from the numerical solution
-alg = TraditionalAlgorithmRK(block)
+# Add a diagnostics class to monitor the simulation
+arrays = ['rho', 'u0', 'p', 'T', 'u1']
+arrays = [block.location_dataset('%s' % dset) for dset in arrays]
+indices = [(0, 10, 20), (30, 40, 50), (50, 129, 50), (64, 'block0np0-1', 64), (64, 96, 64)]
+SM = SimulationMonitor(arrays, indices, block, print_frequency=250, fp_precision=12, output_file='output.log')
+alg = TraditionalAlgorithmRK(block, simulation_monitor=SM)
+
 # STEP 8
 # set the simulation data type: if not set "Double" is default
 SimulationDataType.set_datatype(Double)
