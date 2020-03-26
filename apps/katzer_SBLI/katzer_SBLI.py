@@ -65,7 +65,9 @@ Avg = RoeAverage([0, 1])
 LLF = LLFTeno(teno_order, formulation='adaptive', averaging=Avg, sensor=sensor_array, store_sensor=True)
 schemes = {}
 schemes[LLF.name] = LLF
-cent = Central(4)
+# cent = Central(4)
+fns = 'u0 u1 u2 T'
+cent = StoreSome(4, fns)
 schemes[cent.name] = cent
 rk = RungeKuttaLS(3, formulation='SSP')
 schemes[rk.name] = rk
@@ -85,11 +87,11 @@ boundaries = [[0, 0] for t in range(ndim)]
 # Left pressure extrapolation at x= 0, inlet conditions
 direction = 0
 side = 0
-boundaries[direction][side] = InletPressureExtrapolateBC(direction, side)
+boundaries[direction][side] = InletPressureExtrapolateBC(direction, side, scheme=ReducedAccess())
 # Right extrapolation at outlet
 direction = 0
 side = 1
-boundaries[direction][side] = ExtrapolationBC(direction, side, order=0)
+boundaries[direction][side] = ExtrapolationBC(direction, side, order=0, scheme=ReducedAccess())
 # Bottom no-slip isothermal wall
 direction = 1
 side = 0
@@ -99,7 +101,7 @@ for con in wall_const:
 # Isothermal wall condition
 rhoE_wall = parse_expr("Eq(DataObject(rhoE), DataObject(rho)*Twall/(gama*(gama-1.0)*Minf**2.0))", local_dict=local_dict)
 wall_eqns = [rhoE_wall]
-boundaries[direction][side] = IsothermalWallBC(direction, 0, wall_eqns)
+boundaries[direction][side] = IsothermalWallBC(direction, 0, wall_eqns, scheme=ReducedAccess())
 # Top dirichlet shock generator condition
 direction = 1
 side = 1
@@ -109,7 +111,7 @@ rhou1 = parse_expr("Eq(DataObject(rhou1), Piecewise((-0.058866065, (x0)>40.0), (
 rhoE = parse_expr("Eq(DataObject(rhoE), Piecewise((1.0590824, (x0)>40.0), (0.94644428042, True)))", local_dict=local_dict)
 
 upper_eqns = [x_loc, rho, rhou0, rhou1, rhoE]
-boundaries[direction][side] = DirichletBC(direction, side, upper_eqns)
+boundaries[direction][side] = DirichletBC(direction, side, upper_eqns, scheme=ReducedAccess())
 
 block.set_block_boundaries(boundaries)
 
@@ -146,7 +148,6 @@ OPSC(alg)
 # Substitute simulation parameter values
 constants = ['gama', 'Minf', 'Pr', 'Re', 'Twall', 'dt', 'niter', 'block0np0', 'block0np1',
                  'Delta0block0', 'Delta1block0', 'SuthT', 'RefT', 'eps', 'TENO_CT', 'Lx1', 'by', 'teno_a1', 'teno_a2', 'epsilon']
-values = ['1.4', '2.0', '0.72', '950.0', '1.67619431', '0.04', '25000', '500', '250',
+values = ['1.4', '2.0', '0.72', '950.0', '1.67619431', '0.04', '250000', '500', '250',
               '400.0/(block0np0-1)', '115.0/(block0np1-1)', '110.4', '288.0', '1e-15', '1e-5', '115.0', '5.0','10.5', '4.5', '1.0e-30']
 substitute_simulation_parameters(constants, values)
-print_iteration_ops(NaN_check='rho_B0')
