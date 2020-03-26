@@ -197,7 +197,8 @@ block.set_equations([constituent, simulation_eq, initial] + stat_equation_classe
 # Create the dictionary of schemes
 schemes = {}
 # Central scheme for spatial discretisation and add to the schemes dictionary
-cent = Central(4)
+dsets = 'u0 u1 u2 T'
+cent = StoreSome(4, dsets)
 schemes[cent.name] = cent
 # RungeKutta scheme for temporal discretisation and add to the schemes dictionary
 rk = RungeKuttaLS(3)
@@ -208,7 +209,7 @@ block.set_discretisation_schemes(schemes)
 # STEP 4 add io for the block
 kwargs = {'iotype': "Write"}
 output_arrays = simulation_eq.time_advance_arrays + [x, y, z]
-output_hdf5 = iohdf5(save_every=10000, arrays=output_arrays, **kwargs)
+output_hdf5 = iohdf5(save_every=100000, arrays=output_arrays, **kwargs)
 block.setio([output_hdf5])
 
 # STEP 6
@@ -218,7 +219,6 @@ block.discretise()
 # STEP 7
 # create an algorithm from the numerical solution
 alg = TraditionalAlgorithmRK(block)
-
 # STEP 8
 # set the simulation data type: if not set "Double" is default
 SimulationDataType.set_datatype(Double)
