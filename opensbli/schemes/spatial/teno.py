@@ -136,7 +136,7 @@ class ConfigureTeno(object):
             elif order == 6:
                 opt_coeffs = [Rational(231, 500), Rational(3, 10), Rational(27, 500), Rational(23, 125)]
         elif optimized:
-            print "Using optimized weights"
+            print("Using optimized weights")
             if order == 5:
                 opt_coeffs = [0.5065006634, 0.3699651429, 0.1235341937]
             elif order == 6:
@@ -475,7 +475,7 @@ class LLFTeno(LLFCharacteristic, Teno):
 
     def __init__(self, order, formulation=None, physics=None, averaging=None, sensor=None, store_sensor=False):
         LLFCharacteristic.__init__(self, physics, averaging)
-        print "A TENO scheme of order %s is being used for shock capturing" % str(order)
+        print("A TENO scheme of order %s is being used for shock capturing." % str(order))
         if sensor is None and formulation is not None:
             raise ValueError("Storage array for the shock sensor is required.")
         else:

@@ -133,7 +133,7 @@ class Kernel(object):
             if isinstance(eq, _known_equation_types):
                 datasets = datasets.union(eq.lhs_datasetbases)
             elif isinstance(eq, Equality):
-                print eq
+                print(eq)
                 raise TypeError("Equality should be of types %s" % _known_equation_types)
         return datasets
 
@@ -210,7 +210,7 @@ class Kernel(object):
             if isinstance(eq, Equality):
                 latex.write_expression(eq)
             elif isinstance(eq, GroupedPiecewise):
-                print "Should be doing latex for grouped piecewise"  # TODO
+                print("Should be doing latex for grouped piecewise")  # TODO
         return
 
     def total_range(self):

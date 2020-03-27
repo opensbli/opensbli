@@ -164,7 +164,7 @@ class BoundaryConditionBase(object):
         bc_name = self.bc_name
         direction, side, split_number = self.direction, self.side, self.split_number
         kernel = Kernel(block, computation_name="%s bc direction-%d side-%d split-%d" % (bc_name, direction, side, split_number))
-        print kernel.computation_name
+        print(kernel.computation_name)
         numbers = Idx('no', 2*block.ndim)
         ranges = ConstantIndexed('split_range_%d%d%d' % (direction, side, split_number), numbers)
         ranges.datatype = Int()

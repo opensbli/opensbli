@@ -151,7 +151,7 @@ def substitute_simulation_parameters(constants, values, simulation_name='opensbl
     :arg list values: Numerical values corresponding to the strings in the constants list."""
     file_path = "./%s.cpp" % simulation_name
     substitutions = dict(zip(constants, values))
-    print "Constant simulation values:"
+    print("Constant simulation values:")
     pprint(substitutions)
     with open(file_path) as f:
         s = f.read()

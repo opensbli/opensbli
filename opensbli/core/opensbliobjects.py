@@ -464,7 +464,7 @@ class GridIndexedBase(IndexedBase):
     def __new__(cls, label, ndim, **kw_args):
         sym = label
         pprint(sym)
-        print type(sym)
+        print(type(sym))
         ret = super(GridIndexedBase, cls).__new__(cls, sym, (1), **kw_args)  # Shape would be of size ndim
         pprint(ret.shape)
         return ret

@@ -253,7 +253,6 @@ class NSPhysics_Stats(NSphysics, StatsVariable):
         equations = [Eq(self._rho_mean.variable, 0.0)]
         equations += [Eq(mean.variable, 0.0) for mean in self._momentum_means]
         equations += [Eq(mean.variable, 0.0) for mean in self._reynolds_stress_means]
-        print "\n\n\n"
         for eqn in equations:
             pprint(eqn)
         return equations
@@ -262,7 +261,6 @@ class NSPhysics_Stats(NSphysics, StatsVariable):
         equations = [Eq(self._rho_mean.variable, self._rho_mean.relation)]
         equations += [Eq(mean.variable, mean.relation) for mean in self._momentum_means]
         equations += [Eq(mean.variable, mean.relation) for mean in self._reynolds_stress_means]
-        print "\n\n\n"
         for eqn in equations:
             pprint(eqn)
         return
@@ -279,7 +277,6 @@ class NSPhysics_Stats(NSphysics, StatsVariable):
         equations += [Eq(GridVariable('rmean'), self._rho_mean.variable)]
         equations += [Eq(mean.variable, mean.variable/(self.niter*GridVariable('rmean'))) for mean in self._momentum_means]
         equations += [Eq(mean.variable, mean.variable/(self.niter*GridVariable('rmean'))) for mean in self._reynolds_stress_means]
-        print "\n\n\n"
         for eqn in equations:
             pprint(eqn)
         return equations

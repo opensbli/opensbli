@@ -139,11 +139,11 @@ class Boundary_layer_profile(object):
         # print "final vaues ", v[0], v[1], err
         # Save the wall temperature value
         self.Twall = v[1]
-        print "The wall temperature is :", self.Twall
+        print("The wall temperature is :", self.Twall)
         y, u, T, scale_factor = self.integrate_boundary_layer(nstep)
         self.scale_factor = scale_factor
-        print "The scale factor is :", self.scale_factor
-        print "Wall normal derivative of velocity at the wall is :", self.dudy
+        print("The scale factor is :", self.scale_factor)
+        print("Wall normal derivative of velocity at the wall is :", self.dudy)
         return y, u, T, scale_factor
 
     def integrate_boundary_layer(self, n):
@@ -168,9 +168,9 @@ class Boundary_layer_profile(object):
                 dlta = z[i]
                 record_z = 2.0
             scale = sumd
-        # print "delta is :", dlta
-        # print "conversion factor is: ", scale
-        # print "scaled delta is: ", dlta/scale
+        # print("delta is :", dlta)
+        # print("conversion factor is: ", scale)
+        # print("scaled delta is: ", dlta/scale)
         # Rescale with displacement thickness and convert to FLOWER variable normalisation
         y, u, T = z/scale, self.soln[1, :], self.soln[3, :]
         # Calculate du/dy at the wall
@@ -193,7 +193,7 @@ class Initialise_Katzer(GridBasedInitialisation):
     :arg float xMach: Free-stream Mach number"""
     def __new__(cls, bl_directions, n_coeffs, Re, xMach, Tinf, coordinate_evaluations=None):
         ret = super(Initialise_Katzer, cls).__new__(cls)
-        print "Polynomial boundary-layer initialiastion called with Re = %f, Mach = %f, T_inf = %f." % (Re, xMach, Tinf)
+        print("Polynomial boundary-layer initialiastion called with Re = %f, Mach = %f, T_inf = %f." % (Re, xMach, Tinf))
         ret.coordinates = [x[1] for x in bl_directions]
         ret.bl_directions = bl_directions
         ret.n_coeffs = n_coeffs
@@ -240,7 +240,7 @@ class Initialise_Katzer(GridBasedInitialisation):
         self.equations += self.eqns
 
         self.equations = block.dataobjects_to_datasets_on_block(self.equations)
-        print self.order
+        print(self.order)
         kernel1 = Kernel(block, computation_name="Grid_based_initialisation%d" % self.order)
         kernel1.set_grid_range(block)
         schemes = block.discretisation_schemes
@@ -261,7 +261,7 @@ class Initialise_Katzer(GridBasedInitialisation):
         # Tolerance for finding the edge of the boundary layer.
         tolerance = 1e-10
         bl_directions = [x[0] for x in self.bl_directions]
-        print bl_directions
+        print(bl_directions)
 
         if sum(bl_directions) == 1:  # 2D Katzer and 3D spanwise periodic Katzer, boundary layer in one direction
             # Create a large array of coordinates for this direction to interpolate the profile onto

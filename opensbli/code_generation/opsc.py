@@ -639,7 +639,7 @@ class OPSC(object):
             else:
                 raise NotImplementedError("")
         else:
-            print c
+            print(c)
             raise ValueError("")
 
     def declare_ops_constants(self, c):
