@@ -3,6 +3,7 @@
    @details Can be used to generate a large number of flow samples to construct a time signal.
 """
 from sympy import flatten
+from opensbli.core.datatypes import SimulationDataType
 
 class Monitor(object):
     def __init__(self, flow_var, probe_loc, numbering):
@@ -34,6 +35,10 @@ class SimulationMonitor(object):
         self.ndim = block.ndim
         self.filename = 'reductions.h'
         self.NaNcheck = NaNcheck
+        if hasattr(SimulationDataType.dtype, 'opsc'):
+            self.dtype = SimulationDataType.opsc()
+        else:
+            self.dtype = 'double' # Default to double
         return
 
     def add_components(self, components):
@@ -64,8 +69,8 @@ class SimulationMonitor(object):
         """ Initial declarations for the OPS data access."""
         name, number = str(M.flow_var), M.probe_no
         declarations = ["// Monitoring of %s" % name]
-        declarations += ["ops_reduction reduce_%d_%s = ops_decl_reduction_handle(sizeof(double), \"double\", \"reduction_%d_%s\");" % (number, name, number, name)]
-        declarations += ["double %s_%d_output = 0.0;" % (name, number)]
+        declarations += ["ops_reduction reduce_%d_%s = ops_decl_reduction_handle(sizeof(%s), \"%s\", \"reduction_%d_%s\");" % (number, name, self.dtype, self.dtype, number, name)]
+        declarations += ["%s %s_%d_output = 0.0;" % (self.dtype, name, number)]
         return declarations
 
     def reduction_range(self, M, idx):
@@ -85,8 +90,8 @@ class SimulationMonitor(object):
         """ Defines the parallel loop templates for the reductions."""
         name, number = str(M.flow_var), M.probe_no
         output_code = ["ops_par_loop(monitor_%d_%s, \"Reduction %s_%d\", %s, %d, monitor_range_%d_%s," % (number, name, name, number, self.block.blockname, self.ndim, number, name)]
-        output_code += ["ops_arg_dat(%s, 1, zero_stencil, \"double\", OPS_READ)," % name]
-        output_code += ["ops_arg_reduce(reduce_%d_%s, 1, \"double\", OPS_INC));" % (number, name)]
+        output_code += ["ops_arg_dat(%s, 1, zero_stencil, \"%s\", OPS_READ)," % (name, self.dtype)]
+        output_code += ["ops_arg_reduce(reduce_%d_%s, 1, \"%s\", OPS_INC));" % (number, name, self.dtype)]
         return output_code
 
     def generate_result(self, M):
@@ -97,7 +102,7 @@ class SimulationMonitor(object):
     def generate_kernel_code(self, M):
         """ Generates the kernel definitions to be added to the reductions header file."""
         name, number = str(M.flow_var), M.probe_no
-        code = ["void monitor_%d_%s(const double *%s, double *reduce_%d_%s){\n" % (number, name, name, number, name)]
+        code = ["void monitor_%d_%s(const %s *%s, %s *reduce_%d_%s){\n" % (number, name, self.dtype, name, self.dtype, number, name)]
         indices = ','.join(['0' for _ in range(self.ndim)])
         code += ["*reduce_%d_%s = %s[OPS_ACC0(%s)];\n}" % (number, name, name, indices)] + ["\n\n"]
         return code
