@@ -1,115 +1,118 @@
 import numpy
 import matplotlib.pyplot as plt
 import h5py
-import glob
-import sys
 import os.path
+import os
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-# from sympy import *
-import matplotlib.cm as cm
-from matplotlib.backends.backend_pdf import PdfPages
-
-
 
 plt.style.use('classic')
 
 
-# Matplotlib settings for publication-ready figures
-try:
-    f = open(os.path.expanduser('./rcparams.py'), 'r')
-    exec(f.read())
-except:
-    pass
+class plotFunctions(object):
+    def __init__(self):
+        return
+
+    def read_file(self, fname):
+        f = h5py.File(fname, 'r')
+        group = f["opensbliblock00"]
+        return f, group
+
+    def read_dataset(self, group, dataset):
+        d_m = group["%s" % (dataset)].attrs['d_m']
+        size = group["%s" % (dataset)].shape
+        read_start = [abs(d) for d in d_m]
+        read_end = [s-abs(d) for d, s in zip(d_m, size)]
+        if len(read_end) == 1:
+            read_data = group["%s" % (dataset)].value[read_start[0]:read_end[0]]
+        elif len(read_end) == 2:
+            read_data = group["%s" % (dataset)].value[read_start[0]:read_end[0], read_start[1]:read_end[1]]
+        elif len(read_end) == 3:
+            read_data = group["%s" % (dataset)].value[read_start[0]:read_end[0], read_start[1]:read_end[1], read_start[2]:read_end[2]]
+        else:
+            raise NotImplementedError("")
+        return read_data
+
+    def contour_local(self, fig, levels0, label, x, y, variable):
+        ax1 = fig.add_subplot(1, 1, 1, aspect='equal')
+        ax1.set_xlabel(r"$x$", fontsize=20)
+        ax1.set_ylabel(r"$y$", fontsize=20)
+        CS = ax1.contour(x, y, variable, levels=levels0, colors='black')
+        divider = make_axes_locatable(ax1)
+        return
 
 
-def contour_local(fig, levels0, label, x, y, variable):
-    ax1 = fig.add_subplot(1, 1, 1, aspect='equal')
-    ax1.set_xlabel(r"$x_0$", fontsize=20)
-    ax1.set_ylabel(r"$x_1$", fontsize=20)
-    CS = ax1.contour(x, y, variable, levels=levels0, cmap=cm.jet)
-    divider = make_axes_locatable(ax1)
-    cax1 = divider.append_axes("right", size="5%", pad=0.05)
-    ticks_at = numpy.linspace(levels0[0], levels0[-1], 10)
-    cbar = plt.colorbar(CS, cax=cax1, ticks=ticks_at, format='%.3f')
-    cbar.ax.set_ylabel(r"$%s$" % label, fontsize=20)
-    return
+class Plot(plotFunctions):
+    def __init__(self):
+        self.Lx, self.Ly = 1.0, 0.5
+        return
 
+    def line_graphs(self, x, variables, names):
+        for i, name in enumerate(names):
+            if name is 'Reference':
+                plt.plot(x[i], variables[i], label=labels[i], color=colors[i], linestyle='--')
+            else:
+                plt.plot(x[i], variables[i], label=labels[i], color=colors[i])
+        plt.xlabel(r'$x$', fontsize=20)
+        plt.ylabel(r'$\%s$' % 'rho', fontsize=20)
+        plt.legend(loc='best')
+        plt.savefig('viscous_shock_tube_Re%d.pdf' % (Re), bbox_inches='tight')
+        plt.clf()
+        return
 
-def read_file(fname):
-    # Read in the simulation output
-    dump = glob.glob("./" + fname)
-    if not dump or len(dump) > 1:
-        print "Error: No dump file found, or more than one dump file found."
-        sys.exit(1)
-    f = h5py.File(dump[-1], 'r')
-    group = f["opensbliblock00"]
-    return f, group
+    def extract_flow_variables(self, group):
+        rho = self.read_dataset(group, "rho_B0")
+        rhou = self.read_dataset(group, "rhou0_B0")
+        rhov = self.read_dataset(group, "rhou1_B0")
+        rhoE = self.read_dataset(group, "rhoE_B0")
+        x = self.read_dataset(group, "x0_B0")
+        y = self.read_dataset(group, "x1_B0")
+        u = rhou/rho
+        v = rhov/rho
+        p = (0.4)*(rhoE - 0.5*(u**2 + v**2)*rho)
+        return rho, u, v, p, x, y
 
+    def line_compare(self, x, rho):
+        # Plot a line along the bottom wall starting from x = 0.3.
+        nx = x.shape[1]
+        start = 0.3
+        x_start = int(start/(self.Lx/float(nx)))
+        rho, x = rho[0, x_start:], x[0, x_start:]
+        # Data from: "G. Zhou et al. Grid-converged solution and analysis of the unsteady viscous flow in a two-dimensional shock tube. Phys. Fluids 30, 016102 (2018)."
+        # (Nx, Ny) = (1500, 750) points used for the reference solution
+        data = numpy.loadtxt('reference_Re200.txt')
+        x_ref, rho_ref = data[x_start:, 0], data[x_start:, 1]
+        x_vars, variables = [x, x_ref], [rho, rho_ref]
+        names = ['rho', 'Reference']
+        self.line_graphs(x_vars, variables, names)
+        return
 
-def extract_data(group, lhalo, rhalo, k):
-    # linear dimensions of the dataset
-    np = group["rho_B0"].shape
-    rho = group["rho_B0"].value
-    rhou = group["rhou0_B0"].value
-    rhov = group["rhou1_B0"].value
-    rhoE = group["rhoE_B0"].value
-    x = group["x0_B0"].value
-    y = group["x1_B0"].value
+    def generate_contours(self, x, y, rho, n_levels):
+        nx, ny = x.shape[1], y.shape[0]
+        start = 0.4
+        y_top = 0.25
+        x_start, y_start, y_end = int(start/(self.Lx/float(nx))), 0, int(y_top/(self.Ly/float(ny)))
+        x, y, rho = x[y_start:y_end, x_start:], y[y_start:y_end, x_start:], rho[y_start:y_end, x_start:]
+        fig = plt.figure()
+        # contour_levels = numpy.linspace(numpy.min(rho), numpy.max(rho), n_levels)
+        contour_levels = numpy.linspace(22.0, 121.0, n_levels)
+        self.contour_local(fig, contour_levels, '\rho', x, y, rho)
+        plt.savefig('viscous_shock_tube_contours_Re%d.pdf' % Re, bbox_inches='tight')
+        return
 
-    rho = rho[lhalo:np[0]-rhalo, lhalo:np[1]-rhalo]
-    grid_points = [np[0] - 2*k, np[1] - 2*k]
-    rhou = rhou[lhalo:np[0]-rhalo, lhalo:np[1]-rhalo]
-    rhov = rhov[lhalo:np[0]-rhalo, lhalo:np[1]-rhalo]
-    x = x[lhalo:np[0]-rhalo, lhalo:np[1]-rhalo]
-    y = y[lhalo:np[0]-rhalo, lhalo:np[1]-rhalo]
-    rhoE = rhoE[lhalo:np[0]-rhalo, lhalo:np[1]-rhalo]
+    def main_plot(self, fname, n_levels):
+        f, group1 = self.read_file(fname)
+        rho, u, v, p, x, y = self.extract_flow_variables(group1)
+        # Validation plot of the density
+        self.line_compare(x, rho)
+        # Contour plot of the density
+        self.generate_contours(x, y, rho, n_levels)
+        return
 
-    u = rhou/rho
-    v = rhov/rho
-    p = (0.4)*(rhoE - 0.5*(u**2+v**2)*rho)
-    a = numpy.sqrt(1.4*p/rho)
-    M = u/a
-    T = 1.4*4*p/rho
-    return x, y, rho, u, v, rhoE, p, M, T
-
-
-def line_graphs(x, variable, name, pdf):
-    if name == "u":
-        plt.axhline(y=0.0, linestyle='--', color='k')
-
-    plt.plot(x[1, :], variable)
-    plt.xlabel(r'$x_0$', fontsize=20)
-    plt.ylabel(r'$%s$' % name, fontsize=20)
-    pdf.savefig(bbox_inches='tight')
-    plt.clf()
-    return
-
-
-def plot(fname, n_levels):
-    f, group1 = read_file(fname)
-    x, y, rho, u, v, rhoE, P, M, T = extract_data(group1, 5, 5, 3)
-    npx = x.shape[1]
-    print npx
-    npx = int(npx/3.0)
-    x, y = x[:,npx:], y[:,npx:]
-    coordinates = [x, y]
-    variables = [rho, u, v, rhoE, P, M, T]
-    names = ["\\rho", "u", "v", "\\rho E", "P", "M", "T"]
-    with PdfPages('allplots.pdf') as pdf:
-
-        # Contour plots
-        for var, name in zip(variables, names):
-            var = var[:,npx:]
-            min_val = numpy.min(var)
-            max_val = numpy.max(var)
-            levels = numpy.linspace(min_val, max_val, n_levels)
-            print "%s" % name
-            print levels
-            fig = plt.figure()
-            contour_local(fig, levels, "%s" % name, x, y, var)
-            pdf.savefig(bbox_inches='tight')
-            plt.clf()
-    f.close()
-
+# default_colourmap = 
+labels = ['OpenSBLI', 'Reference']
+colors = ['k', 'r']
+Re = 200
+# directory = "./Re%d/" % Re
 fname = "opensbli_output.h5"
-plot(fname, 25)
+PC = Plot()
+PC.main_plot(directory + fname, 22)

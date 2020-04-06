@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from opensbli import *
 import copy
-from opensbli.utilities.helperfunctions import substitute_simulation_parameters
+from opensbli.utilities.helperfunctions import substitute_simulation_parameters, print_iteration_ops
 
 """ Viscous shock tube problem in 2D, conditions taken from Numerical simulation of the viscous shock tube problem
 by using a high resolution monotonicity-preserving scheme. Tenaud et al (2009). doi:10.1016/j.compfluid.2008.06.008. """
@@ -38,11 +38,12 @@ for i, CR in enumerate(constituent_eqns):
 block = SimulationBlock(ndim, block_number=0)
 
 teno_order = 5
-Avg = SimpleAverage([0, 1])
+Avg = RoeAverage([0, 1])
 LLF = LLFTeno(teno_order, averaging=Avg)
 schemes = {}
 schemes[LLF.name] = LLF
-cent = Central(4)
+fns = 'u0 u1 u2'
+cent = StoreSome(4, fns)
 schemes[cent.name] = cent
 rk = RungeKuttaLS(3)
 schemes[rk.name] = rk
@@ -84,13 +85,13 @@ initial.add_equations(initial_eqns)
 # Set 4 adiabatic walls
 boundaries = [[0, 0] for t in range(ndim)]
 direction, side = 0, 0
-boundaries[direction][side] = AdiabaticWallBC(direction, side)
+boundaries[direction][side] = AdiabaticWallBC(direction, side, scheme=ReducedAccess())
 direction, side = 0, 1
-boundaries[direction][side] = AdiabaticWallBC(direction, side)
+boundaries[direction][side] = AdiabaticWallBC(direction, side, scheme=ReducedAccess())
 direction, side = 1, 0
-boundaries[direction][side] = AdiabaticWallBC(direction, side)
+boundaries[direction][side] = AdiabaticWallBC(direction, side, scheme=ReducedAccess())
 direction, side = 1, 1
-boundaries[direction][side] = SymmetryBC(direction, side)
+boundaries[direction][side] = SymmetryBC(direction, side, scheme=ReducedAccess())
 
 kwargs = {'iotype': "Write"}
 h5 = iohdf5(save_every=100000, **kwargs)
@@ -111,6 +112,7 @@ SimulationDataType.set_datatype(Double)
 OPSC(alg)
 constants = ['mu', 'gama', 'Minf', 'Pr', 'Re', 'dt', 'niter', 'block0np0', 'block0np1',
              'Delta0block0', 'Delta1block0', 'eps', 'TENO_CT']
-values = ['1.0', '1.4', '1.0', '0.73', '200.0', '0.00005', '20000', '600', '300',
-          '1.0/(block0np0-1)', '0.5/(block0np1-1)', '1e-15', '1e-7']
+values = ['1.0', '1.4', '1.0', '0.73', '200.0', '0.000005', '200000', '500', '250',
+          '1.0/(block0np0-1)', '0.5/(block0np1-1)', '1e-15', '1e-6']
 substitute_simulation_parameters(constants, values)
+print_iteration_ops(NaN_check='rho_B0')
