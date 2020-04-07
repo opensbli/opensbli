@@ -376,14 +376,11 @@ class TraditionalAlgorithmRK(object):
     def get_definitions_declarations(self, blocks):
         defdecs = DefDecs()
         for b in blocks:
-            defdecs.add_components(b.constants.values())
-            defdecs.add_components(b.Rational_constants.values())
-            defdecs.add_components(b.block_datasets.values())
-            defdecs.add_components(b.block_stencils.values())
+            defdecs.add_components(list(b.constants.values()))
+            defdecs.add_components(list(b.Rational_constants.values()))
+            defdecs.add_components(list(b.block_datasets.values()))
+            defdecs.add_components(list(b.block_stencils.values()))
         return defdecs
-
-    def comapre_no_sims(self, s1, s2):
-        return cmp(s1.order, s2.order)
 
     def generate_solution(self, blocks):
         """ Generates the solution for the block
@@ -411,7 +408,7 @@ class TraditionalAlgorithmRK(object):
                 raise ValueError("Found more than one temporal scheme on the \
                     block")
             for scheme in b.get_temporal_schemes:
-                for key, value in scheme.solution.iteritems():
+                for key, value in scheme.solution.items():
                     if isinstance(key, SimulationEquations):
                         # Solution advancement kernels
                         temporal_start += scheme.solution[key].start_kernels
@@ -425,7 +422,7 @@ class TraditionalAlgorithmRK(object):
                         if not isinstance(key, ConstituentRelations):
                             print("NOT classified", type(key))
                             raise ValueError("Equations class can not be classified: %s" % key)
-            for key in sorted(non_simulation_eqs, cmp=self.comapre_no_sims):
+            for key in sorted(non_simulation_eqs, key=lambda x: x.order):
                 for place in key.algorithm_place:
                     if isinstance(place, BeforeSimulationStarts):
                         before_time += key.Kernels

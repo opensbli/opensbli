@@ -58,25 +58,6 @@ def dot(v1, v2):
     else:
         return v1*v2
 
-
-def decreasing_order(s1, s2):
-    return cmp(len(s2.atoms(CoordinateObject)), len(s1.atoms(CoordinateObject)))
-
-
-def increasing_order(s1, s2):
-    return cmp(len(s1.atoms(CoordinateObject)), len(s2.atoms(CoordinateObject)))
-
-
-def sort_funcitons(fns, increasing_order=True):
-    """Sorts the functions based on the number of arguments in
-    increasing order or decreasing order
-    """
-    if increasing_order:
-        return (sorted(fns, cmp=increasing_order))
-    else:
-        return (sorted(fns, cmp=decreasing_order))
-
-
 def get_inverse_deltas(delta):
     """To reduce divisions we create inverse delta, i.e $inv_0 = 1.0/\left(\delta x0 \right)$ and so on..
     """
@@ -156,7 +137,7 @@ def substitute_simulation_parameters(constants, values, simulation_name='opensbl
     with open(file_path) as f:
         s = f.read()
     with open(file_path, 'w') as f:
-        for const, value in substitutions.iteritems():
+        for const, value in substitutions.items():
             old_str = const + '=Input;'
             if old_str in s:
                 new_str = const + ' = %s' % value + ';'

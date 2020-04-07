@@ -281,7 +281,7 @@ class MetricDer(AppliedUndef, ParsingSchemes):
             expr, conversion_subs = cls.convert_metric_ders_dataobjects(expr, order=1)
             expr = expr.diff(*cls.args[1:-1])
             expr = cls.apply_Subs(expr)
-            for key, value in conversion_subs.iteritems():
+            for key, value in conversion_subs.items():
                 expr = expr.replace(key, value)
         expr = cls.remove_fn(expr)
         expr = cls.remove_fn(expr)

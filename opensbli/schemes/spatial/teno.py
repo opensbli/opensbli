@@ -16,7 +16,6 @@ from opensbli.utilities.helperfunctions import increment_dataset
 from sympy.functions.elementary.piecewise import ExprCondPair, Piecewise
 from opensbli.schemes.spatial.shock_sensors import ShockSensor
 
-
 class TenoHalos(object):
     """ Object for TENO halos.
 
@@ -284,7 +283,7 @@ class TenoReconstructionVariable(object):
         new += self.smoothness_symbols + self.alpha_symbols + self.inv_alpha_sum_symbols + self.kronecker_symbols + self.inv_omega_sum_symbols
         subs_dict = dict(zip(originals, new))
 
-        for key, value in original.function_stencil_dictionary.iteritems():
+        for key, value in original.function_stencil_dictionary.items():
             subs_dict[value] = self.function_stencil_dictionary[key]
 
         self.smoothness_indicators = [s.subs(subs_dict) for s in original.smoothness_indicators]
@@ -314,7 +313,7 @@ class TenoReconstructionVariable(object):
             final_equations += [OpenSBLIEq(value, all_evaluations[no], evaluate=False)]
         self.final_equations = final_equations
         rv = self.reconstructed_symbol
-        if self.settings.has_key("combine_reconstructions") and self.settings["combine_reconstructions"]:
+        if "combine_reconstructions" in self.settings and self.settings["combine_reconstructions"]:
             self.final_equations += [OpenSBLIEq(rv, rv + self.reconstructed_expression)]
         else:
             self.final_equations += [OpenSBLIEq(rv, self.reconstructed_expression)]
@@ -502,7 +501,7 @@ class LLFTeno(LLFCharacteristic, Teno):
 
             # Instantiate eigensystems with block, but don't add metrics yet
             self.instantiate_eigensystem(block)
-            for direction, derivatives in grouped.iteritems():
+            for direction, derivatives in sorted(grouped.items()):
                 # Create a work array for each component of the system
                 all_derivatives_evaluated_locally += derivatives
                 for no, deriv in enumerate(derivatives):

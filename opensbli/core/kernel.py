@@ -194,7 +194,7 @@ class Kernel(object):
             else:
                 stencil_dictionary[s.base] = set()
                 stencil_dictionary[s.base].add(tuple(s.indices))
-        for key, val in stencil_dictionary.iteritems():
+        for key, val in stencil_dictionary.items():
             stencil_dictionary[key] = frozenset(val)
         return stencil_dictionary
 
@@ -315,7 +315,7 @@ class Kernel(object):
                 block.block_datasets[str(d)] = d
 
         stens = self.get_stencils()
-        for dset, stencil in stens.iteritems():
+        for dset, stencil in stens.items():
             if stencil not in block.block_stencils.keys():
                 name = 'stencil_%d_%02d' % (block.blocknumber, len(block.block_stencils.keys()))
 

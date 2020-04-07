@@ -9,7 +9,6 @@ from opensbli.core.opensblifunctions import TemporalDerivative
 from sympy import flatten, preorder_traversal
 from sympy import Equality, Function, pprint, srepr
 
-
 class Discretisation(object):
     """Contains the functions used in various equation classes of OpenSBLI, to perform
     discretisation. """
@@ -293,7 +292,7 @@ class SimulationEquations(Discretisation, Solution):
         cls.requires = {}
         for no, sc in enumerate(spatialschemes):
             cls.constituent_evaluations[sc] = schemes[sc].discretise(cls, block)
-            for key, value in cls.constituent_evaluations[sc].iteritems():
+            for key, value in cls.constituent_evaluations[sc].items():
                 if key in cr_dictionary.keys():
                     if key in cls.constituent_relations_kernels:
                         if cr_dictionary[key].kernels:
@@ -322,7 +321,7 @@ class SimulationEquations(Discretisation, Solution):
 
         :param SimulationBlock block: the block on which the equations are solved
         :return: None """
-        for key, kernel in cls.constituent_relations_kernels.iteritems():
+        for key, kernel in cls.constituent_relations_kernels.items():
             kernel.update_block_datasets(block)
         for kernel in cls.Kernels:
             kernel.update_block_datasets(block)
@@ -339,7 +338,7 @@ class SimulationEquations(Discretisation, Solution):
                 input_order += [a]
 
         dictionary = {}
-        for key, value in cls.constituent_relations_kernels.iteritems():
+        for key, value in cls.constituent_relations_kernels.items():
             dictionary[key.base] = value
         order_of_evaluation = cls.sort_dictionary(input_order, dictionary, block)
         ordered_kernels = []

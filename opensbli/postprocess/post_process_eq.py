@@ -103,7 +103,7 @@ class PostProcessEquations(NonSimulationEquations, Discretisation, Solution):
         cls.requires = {}
         for no, sc in enumerate(spatialschemes):
             cls.constituent_evaluations[sc] = schemes[sc].discretise(cls, block)
-            for key, value in cls.constituent_evaluations[sc].iteritems():
+            for key, value in cls.constituent_evaluations[sc].items():
                 if key in cr_dictionary.keys():
                     if key in cls.constituent_relations_kernels:
                         cls.constituent_relations_kernels[key].merge_halo_range(value.halo_ranges)
@@ -126,7 +126,7 @@ class PostProcessEquations(NonSimulationEquations, Discretisation, Solution):
         """A function to update some dependent parameters of each kernel.
         :param SimulationBlock block: the block on which the equations are solved
         :return: None """
-        for key, kernel in cls.constituent_relations_kernels.iteritems():
+        for key, kernel in cls.constituent_relations_kernels.items():
             kernel.update_block_datasets(block)
         for kernel in cls.Kernels:
             kernel.update_block_datasets(block)
@@ -144,7 +144,7 @@ class PostProcessEquations(NonSimulationEquations, Discretisation, Solution):
 
         dictionary = {}
         order_of_evaluation = []
-        for key, value in cls.constituent_relations_kernels.iteritems():
+        for key, value in cls.constituent_relations_kernels.items():
             dictionary[key.base] = value
             order_of_evaluation += [key.base]
         ordered_kernels = []

@@ -15,7 +15,7 @@ class ObliqueShock(object): # V2: May want to remove this file before release
     :arg float gamma: Ratio of gas constants."""
 
     def __init__(self, wave_angle, input_mach_number, gamma):
-        print "Input Mach number and wave angle are %f, %f \n" % (input_mach_number, wave_angle)
+        print("Input Mach number and wave angle are %f, %f \n" % (input_mach_number, wave_angle))
         # Check that wave angle is greater than the Mach angle
         if (wave_angle < asin(1.0/input_mach_number)):
             raise ValueError("Wave angle must be greater than the Mach angle.")
@@ -93,8 +93,8 @@ class ShockConditions(ObliqueShock):
         # Calculate post-shock total energy
         rho = rho2rho1.subs(self.subs_dict)
         rhoE = ((p2/(gamma-1) + (0.5/rho2rho1)*(rhou**2 + rhov**2))).subs(self.subs_dict)
-        print "conservative values post shock: rho, rhou, rhov, rhoE"
-        print rho, rhou, rhov, rhoE
+        print("conservative values post shock: rho, rhou, rhov, rhoE")
+        print(rho, rhou, rhov, rhoE)
         return [rho, rhou, rhov, rhoE]
 
     def primitive_post_shock_conditions(self, freestream_velocity):
@@ -112,6 +112,6 @@ class ShockConditions(ObliqueShock):
         p2 = (p2p1*p1).subs(self.subs_dict)
         # Calculate post-shock total energy
         rho = rho2rho1.subs(self.subs_dict)
-        print "primitive values post shock: rho, u, v, p"
-        print rho, u_out, v_out, p2
+        print("primitive values post shock: rho, u, v, p")
+        print(rho, u_out, v_out, p2)
         return [rho, u_out, v_out, p2]

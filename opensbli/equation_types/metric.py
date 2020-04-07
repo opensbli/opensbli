@@ -268,7 +268,7 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
         return
 
     def process_kernels(cls, block):
-        for key, kernel in cls.constituent_relations_kernels.iteritems():
+        for key, kernel in cls.constituent_relations_kernels.items():
             if isinstance(kernel, Kernel):
                 kernel.update_block_datasets(block)
         for kernel in cls.Kernels:
@@ -308,7 +308,7 @@ class MetricBoundaryCondition(BoundaryConditionBase):
     def apply(self, arrays, block):
         halos, kernel = self.generate_boundary_kernel(block, self.bc_name)
         from_side_factor, to_side_factor = self.set_side_factor()
-        transfer_indices = [tuple([from_side_factor*t, to_side_factor*t]) for t in range(1, abs(halos[self.direction][self.side]) + 1)]
+        transfer_indices = [tuple([from_side_factor*t, to_side_factor*t]) for t in range(1, int(abs(halos[self.direction][self.side])) + 1)]
         final_equations = self.create_boundary_equations(arrays, arrays, transfer_indices)
         kernel.add_equation(final_equations)
         kernel.update_block_datasets(block)

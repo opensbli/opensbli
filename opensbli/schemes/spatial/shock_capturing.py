@@ -40,7 +40,7 @@ class ShockCapturing(object):
             stencil = expression_matrix.stencil_points
             for i in range(expression_matrix.shape[0]):
                 settings = derivatives[i].settings
-                if settings.has_key("combine_reconstructions") and settings["combine_reconstructions"]:
+                if "combine_reconstructions" in settings and settings["combine_reconstructions"]:
                     name = "Recon_%d_%d" % (self.direction, i)
                 else:
                     name = 'L_X%d_%d' % (self.direction, i)
@@ -58,7 +58,7 @@ class ShockCapturing(object):
             stencil = expression_matrix.stencil_points
             for i in range(expression_matrix.shape[0]):
                 settings = derivatives[i].settings
-                if settings.has_key("combine_reconstructions") and settings["combine_reconstructions"]:
+                if "combine_reconstructions" in settings and settings["combine_reconstructions"]:
                     name = "Recon_%d_%d" % (self.direction, i)
                 else:
                     name = 'R_X%d_%d' % (self.direction, i)

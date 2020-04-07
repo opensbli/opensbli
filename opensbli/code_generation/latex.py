@@ -167,7 +167,7 @@ class LatexWriter(LatexPrinter):
             output.append(self.latexify_expression(expression, mode))
 
         # Perform any user-defined LaTeX substitutions
-        for key, value in substitutions.iteritems():
+        for key, value in substitutions.items():
             for i in range(len(output)):
                 output[i] = output[i].replace(key, value)
 

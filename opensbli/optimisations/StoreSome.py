@@ -4,14 +4,13 @@ from opensbli.core.opensbliobjects import ConstantObject, ConstantIndexed, Globa
 from opensbli.core.grid import GridVariable
 from opensbli.core.opensblifunctions import CentralDerivative
 from opensbli.core.kernel import Kernel
-from opensbli.utilities.helperfunctions import increasing_order, get_inverse_deltas
+from opensbli.utilities.helperfunctions import get_inverse_deltas
 from opensbli.core.datatypes import Int
 from opensbli.schemes.spatial import Central
 from opensbli.equation_types.opensbliequations import OpenSBLIEq, SimulationEquations
 from sympy import pprint, S, simplify, symbols
 from sympy.functions.elementary.piecewise import *
 from opensbli.code_generation.latex import LatexWriter
-from opensbli.utilities.helperfunctions import increasing_order, decreasing_order
 
 class StoreSome(Central):
     """ Low-storage algorithms to reduce memory intensity and the number of global storage arrays.

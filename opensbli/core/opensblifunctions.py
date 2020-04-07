@@ -651,7 +651,7 @@ class WenoDerivative(Function, BasicDiscretisation, DerPrint):
     @property
     def evaluate_reconstruction(self):
         # Check if the reconstruction placeholders are combined, other options should be added here
-        if self.settings.has_key("combine_reconstructions") and self.settings["combine_reconstructions"]:
+        if "combine_reconstructions" in self.settings and self.settings["combine_reconstructions"]:
             variables = set([r.reconstructed_symbol for r in self.reconstructions])
             if len(variables) == 1:
                 return list(variables)[0]
@@ -723,7 +723,7 @@ class TenoDerivative(Function, BasicDiscretisation, DerPrint):
     @property
     def evaluate_reconstruction(self):
         # Check if the reconstruction placeholders are combined, other options should be added here
-        if self.settings.has_key("combine_reconstructions") and self.settings["combine_reconstructions"]:
+        if "combine_reconstructions" in self.settings and self.settings["combine_reconstructions"]:
             variables = set([r.reconstructed_symbol for r in self.reconstructions])
             if len(variables) == 1:
                 return list(variables)[0]

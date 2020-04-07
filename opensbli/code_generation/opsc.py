@@ -12,7 +12,7 @@ from sympy import Symbol, flatten
 from opensbli.core.grid import GridVariable
 from opensbli.core.datatypes import SimulationDataType
 from sympy import Pow, Idx, pprint, count_ops
-import os
+import os, re
 import logging
 LOG = logging.getLogger(__name__)
 BUILD_DIR = os.getcwd()
@@ -343,7 +343,7 @@ class OPSC(object):
         all_dataset_inps += list(global_ins) + list(global_outs)
         all_dataset_types += ['input' for i in global_ins] + ['output' for o in global_outs]
         # Use list of tuples as dictionary messes the order
-        header_dictionary = zip(all_dataset_inps, all_dataset_types)
+        header_dictionary = list(zip(all_dataset_inps, all_dataset_types))
         if kernel.IndexedConstants:
             for i in kernel.IndexedConstants:
                 header_dictionary += [tuple([(i.base), 'input'])]
@@ -413,8 +413,8 @@ class OPSC(object):
             print("Total operation count is: %d" % total)
 
         files = [open('%s_kernels.h' % b.block_name, 'w') for b in algorithm.block_descriptions]
-        for f in files:
-            name = ('%s_kernel_H' % b.block_name).upper()
+        for i, f in enumerate(files):
+            name = ('%s_kernel_H' % algorithm.block_descriptions[i].block_name).upper()
             f.write('#ifndef %s\n' % name)
             f.write('#define %s\n' % name)
         for k in kernels:
@@ -498,7 +498,7 @@ class OPSC(object):
                 raise TypeError("Not a stencil or dataset declaration.")
         dsets_to_declare = dict([(str(x),x) for x in store_dsets])
 
-        for name in sorted(dsets_to_declare.iterkeys(), key=str.lower):
+        for name in sorted(dsets_to_declare, key=str.lower):
             d = dsets_to_declare[name]
             datasets_dec += self.declare_dataset(d)
         f.write('\n'.join(flatten([d.opsc_code for d in datasets_dec])))
@@ -669,12 +669,12 @@ class OPSC(object):
         for direction in range(len(halos)):
             if halos[direction][0]:
                 hal = [d.get_halos(0) for d in halos[direction][0]]
-                halo_m += [min(hal)]
+                halo_m += [int(min(hal))]
             else:
                 halo_m += [0]
             if halos[direction][1]:
                 hal = [d.get_halos(1) for d in halos[direction][1]]
-                halo_p += [max(hal)]
+                halo_p += [int(max(hal))]
             else:
                 halo_p += [0]
         return halo_m, halo_p

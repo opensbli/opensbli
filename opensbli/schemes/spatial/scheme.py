@@ -7,12 +7,10 @@
 from sympy.calculus import finite_diff_weights
 from sympy import postorder_traversal, Function, flatten, S, factor
 from sympy.core import Add, Mul
-from opensbli.core.opensbliobjects import ConstantObject, DataSet
+from opensbli.core.opensbliobjects import ConstantObject, DataSet, CoordinateObject
 from opensbli.core.opensblifunctions import CentralDerivative
 from opensbli.equation_types.opensbliequations import OpenSBLIEq, SimulationEquations
 from opensbli.core.kernel import Kernel
-from opensbli.utilities.helperfunctions import increasing_order
-
 
 class Scheme(object):
 
@@ -35,7 +33,7 @@ class CentralHalos(object):
     TODO change this to per direction and get the halos for direction and side, this would depend on boundaries
     and also how the one-sided boundary scheme is implemented"""
     def __init__(self, order):
-        self.halos = [-order/2, order/2]
+        self.halos = [int(-order/2), int(order/2)]
         return
 
     def get_halos(self, side):
@@ -74,7 +72,7 @@ class Central(Scheme):
         print("A Central scheme of order %d is being used." % order)
         self.schemetype = "Spatial"
         # Points for the spatial scheme
-        self.points = list(i for i in range(-order/2, order/2+1))
+        self.points = list(i for i in range(int(-order/2), int(order/2+1)))
         self.required_constituent_relations = {}
         self.halotype = CentralHalos(order)
         return
@@ -200,14 +198,14 @@ class Central(Scheme):
         convective_grouped = self.group_by_direction(convective)
         if convective_grouped:
             # Create equations for evaluation of derivatives
-            for key, value in convective_grouped.iteritems():
+            for key, value in convective_grouped.items():
                 for v in value:
                     v.update_work(block)
             local_evaluations_group = {}
             function_expressions_group = {}
             # Process the convective derivatives, this requires grouping of equations
             subs_conv = {}
-            for key, value in convective_grouped.iteritems():
+            for key, value in convective_grouped.items():
                 local_evaluations_group[key] = []
                 ev_ker = Kernel(block)
                 ev_ker.set_computation_name("Convective terms group %d" % key)
@@ -238,7 +236,7 @@ class Central(Scheme):
                 function_expressions_group[key] = local
                 block.reset_work_to_stored
             # Convective evaluation
-            for key, value in local_evaluations_group.iteritems():
+            for key, value in local_evaluations_group.items():
                 kernels += value + function_expressions_group[key]
             # Create convective residual
 
@@ -257,7 +255,8 @@ class Central(Scheme):
         viscous_kernels, viscous_discretised = self.general_discretisation(viscous, block, name="Viscous")
         self.check_constituent_relations(block, viscous)
         if viscous_kernels:
-            for ker in sorted(viscous_kernels, cmp=increasing_order):
+            # Sort to have all first derivatives first, and then second derivatives after
+            for ker in sorted(viscous_kernels, key=lambda x: len(x.atoms(CoordinateObject))):
                 eval_ker = viscous_kernels[ker]
                 kernels += [eval_ker]
         if viscous_discretised:

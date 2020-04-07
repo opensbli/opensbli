@@ -230,17 +230,17 @@ block.setio([output_hdf5])
 
 if stats: 
 
-	statistics = [DataObject('u2u2mean'), DataObject('rhou2mean'), DataObject('rhou2u1mean'), DataObject('u0u0mean'), 
-		DataObject('rhou1u0mean'), DataObject('E_mean'), DataObject('u1u0mean'), DataObject('u1u1mean'), DataObject('rhou2u0mean'),
-		DataObject('rhou0mean'), DataObject('rhou1mean'), DataObject('pp_mean'), DataObject('rhou2u2mean'), DataObject('u2mean'), 
-		DataObject('M_mean'), DataObject('u2u0mean'), DataObject('p_mean'), DataObject('a_mean'), DataObject('T_mean'), 
-		DataObject('rhou0u0mean'), DataObject('rhomean'), DataObject('mu_mean'), DataObject('u2u1mean'), DataObject('TT_mean'), 
-		DataObject('rhou1u1mean'), DataObject('u0mean'), DataObject('u1mean'), DataObject('D11')] 
+    statistics = [DataObject('u2u2mean'), DataObject('rhou2mean'), DataObject('rhou2u1mean'), DataObject('u0u0mean'), 
+        DataObject('rhou1u0mean'), DataObject('E_mean'), DataObject('u1u0mean'), DataObject('u1u1mean'), DataObject('rhou2u0mean'),
+        DataObject('rhou0mean'), DataObject('rhou1mean'), DataObject('pp_mean'), DataObject('rhou2u2mean'), DataObject('u2mean'), 
+        DataObject('M_mean'), DataObject('u2u0mean'), DataObject('p_mean'), DataObject('a_mean'), DataObject('T_mean'), 
+        DataObject('rhou0u0mean'), DataObject('rhomean'), DataObject('mu_mean'), DataObject('u2u1mean'), DataObject('TT_mean'), 
+        DataObject('rhou1u1mean'), DataObject('u0mean'), DataObject('u1mean'), DataObject('D11')] 
 
-        kwargs = {'iotype': "Write", 'name': "stats_TENO.h5"}
-	stat_arrays = statistics
-	stats_hdf5 = iohdf5(arrays=stat_arrays, **kwargs)
-	block.setio([stats_hdf5])
+    kwargs = {'iotype': "Write", 'name': "stats_TENO.h5"}
+    stat_arrays = statistics
+    stats_hdf5 = iohdf5(arrays=stat_arrays, **kwargs)
+    block.setio([stats_hdf5])
 
 # STEP 6
 # Perform the symbolic discretisation of the equations

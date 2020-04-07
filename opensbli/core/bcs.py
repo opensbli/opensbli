@@ -87,7 +87,7 @@ class BoundaryConditionTypes(object):
         for t in types:
             t.convert_dataobject_to_dataset(block)
         it = iter(types)
-        self.boundary_types = zip(it, it)
+        self.boundary_types = list(zip(it, it))
         return
 
     def check_boundarysizes_ndim_match(self, types):
