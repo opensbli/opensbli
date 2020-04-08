@@ -9,6 +9,7 @@ from opensbli.core.opensblifunctions import TemporalDerivative
 from sympy import flatten, preorder_traversal
 from sympy import Equality, Function, pprint, srepr
 
+
 class Discretisation(object):
     """Contains the functions used in various equation classes of OpenSBLI, to perform
     discretisation. """
@@ -263,7 +264,7 @@ class SimulationEquations(Discretisation, Solution):
         return arrays
 
     def spatial_discretisation(cls, block):
-        """Applies the spatial discretisation of the equations by calling the discretisation of each spatial 
+        """Applies the spatial discretisation of the equations by calling the discretisation of each spatial
         scheme provided on the block
 
         :param SimulationBlock block: the block on which the equations are solved

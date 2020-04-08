@@ -1,7 +1,7 @@
-from sympy import Sum, Symbol, Function, Eq, flatten, S, pprint, Mul, Expr
+from sympy import Sum, Symbol, Function, flatten, S, pprint, Mul, Expr, Eq
 from sympy.tensor import IndexedBase, Indexed, get_contraction_structure
 from sympy.tensor.index_methods import get_indices as get_indices_sympy
-from sympy import Derivative, preorder_traversal, postorder_traversal, Equality
+from sympy import Derivative, preorder_traversal, postorder_traversal
 from sympy.tensor.index_methods import _remove_repeated
 from opensbli.core.opensbliobjects import DataObject, CoordinateObject, ConstantObject, EinsteinTerm, DataSet, DataSetBase
 from sympy.functions.elementary.piecewise import ExprCondPair, Piecewise
@@ -598,7 +598,7 @@ class WenoDerivative(Function, BasicDiscretisation, DerPrint):
         return "%s" % ("WD")
 
     def update_settings(self, **settings):
-        existing_keys = self.settings.keys()
+        # existing_keys = self.settings.keys()
         for key in settings.keys():
             if key in self.settings.keys():
                 raise ValueError("Key exists")
@@ -681,7 +681,7 @@ class TenoDerivative(Function, BasicDiscretisation, DerPrint):
         return "%s" % ("TD")
 
     def update_settings(self, **settings):
-        existing_keys = self.settings.keys()
+        # existing_keys = self.settings.keys()
         for key in settings.keys():
             if key in self.settings.keys():
                 raise ValueError("Key exists")
@@ -769,6 +769,7 @@ class TemporalDerivative(Function, BasicDiscretisation, DerPrint):
         # No change to the class
         return cls
 
+
 class MetricDerivative(Function, BasicDiscretisation):
     """
     # TODO V2: Documentation
@@ -778,6 +779,7 @@ class MetricDerivative(Function, BasicDiscretisation):
         ret = super(MetricDerivative, cls).__new__(cls, *args, evaluate=False)
         ret.store = True  # By default all the derivatives are stored
         return ret
+
 
 localfuncs = (MetricDerivative, KD, CentralDerivative, WenoDerivative, TenoDerivative, TemporalDerivative, LC, Dot)
 simplifying_funcs = (KD, LC, Dot)

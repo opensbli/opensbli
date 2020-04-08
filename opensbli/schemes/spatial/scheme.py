@@ -12,6 +12,7 @@ from opensbli.core.opensblifunctions import CentralDerivative
 from opensbli.equation_types.opensbliequations import OpenSBLIEq, SimulationEquations
 from opensbli.core.kernel import Kernel
 
+
 class Scheme(object):
 
     """A numerical scheme"""

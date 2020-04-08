@@ -4,14 +4,12 @@
    @details
 """
 
-from sympy import flatten, Equality, Indexed
-from sympy import Rational, Pow, Integer
+from sympy import flatten, Equality
 from opensbli.core.opensbliobjects import DataSet, ConstantIndexed, ConstantObject,\
     GlobalValue, GroupedPiecewise, Constant
 from opensbli.equation_types.opensbliequations import OpenSBLIEq
-from opensbli.core.grid import GridVariable, Grididx
+from opensbli.core.grid import Grididx
 from opensbli.core.datatypes import SimulationDataType
-from sympy.core.function import _coeff_isneg
 from opensbli.utilities.helperfunctions import get_min_max_halo_values, dataset_attributes
 from opensbli.core.datatypes import Int
 import copy

@@ -1,6 +1,6 @@
 import logging
 
-from sympy import pprint, flatten, Function, Derivative, Equality, Symbol, Rational, postorder_traversal, Subs, preorder_traversal, srepr, preorder_traversal
+from sympy import pprint, flatten, Function, Derivative, Equality, Symbol, Rational, postorder_traversal, Subs, preorder_traversal, srepr
 from sympy.core.function import AppliedUndef
 from opensbli.core.opensbliobjects import ConstantObject, MetricObject, CoordinateObject, DataSet, DataObject, EinsteinTerm
 from opensbli.core.opensblifunctions import WenoDerivative, CentralDerivative, TenoDerivative, MetricDerivative, TemporalDerivative,\

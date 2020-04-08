@@ -2,8 +2,8 @@
    @author David J. Lusher
    @details Can be used to generate a large number of flow samples to construct a time signal.
 """
-from sympy import flatten
 from opensbli.core.datatypes import SimulationDataType
+
 
 class Monitor(object):
     def __init__(self, flow_var, probe_loc, numbering):
@@ -12,8 +12,9 @@ class Monitor(object):
         self.probe_no = numbering
         return
 
+
 class SimulationMonitor(object):
-    def __init__(self, arrays, probe_locations, block, print_frequency = 250, fp_precision=10, NaNcheck=True, output_file=None):
+    def __init__(self, arrays, probe_locations, block, print_frequency=250, fp_precision=10, NaNcheck=True, output_file=None):
         """ Class to enable access of dataset values during the simulation.
         :arg list arrays: A list of DataSets to monitor during the simulation.
         :arg list probe_locations: A list of tuples giving the (i,j,k) grid index location of the probe.
@@ -26,7 +27,7 @@ class SimulationMonitor(object):
         # Check number of probes equals the number of input arrays
         if len(arrays) != len(probe_locations):
             raise ValueError("The number of arrays must equal the number of probe locations.")
-        self.monitors = [Monitor(var, loc, index) for index, (var,loc) in enumerate(zip(arrays, probe_locations))]
+        self.monitors = [Monitor(var, loc, index) for index, (var, loc) in enumerate(zip(arrays, probe_locations))]
         self.components = []
         self.frequency = print_frequency
         self.fp_precision = fp_precision
@@ -38,7 +39,7 @@ class SimulationMonitor(object):
         if hasattr(SimulationDataType.dtype, 'opsc'):
             self.dtype = SimulationDataType.opsc()
         else:
-            self.dtype = 'double' # Default to double
+            self.dtype = 'double'  # Default to double
         return
 
     def add_components(self, components):
@@ -114,7 +115,6 @@ class SimulationMonitor(object):
     @property
     def write_reductions_file(self):
         """ Creates a new header file to define the reduction kernels."""
-        code = []
         f = open(self.filename, 'w')
         f.write("#ifndef REDUCTIONS_H\n")
         f.write("#define REDUCTIONS_H\n")
@@ -173,13 +173,13 @@ class SimulationMonitor(object):
             return ["int zero_stencil_indices[] = {0,0};"] + ["ops_stencil zero_stencil = ops_decl_stencil(2, 1, zero_stencil_indices, \"zero_stencil\");\n"]
         elif self.ndim == 3:
             return ["int zero_stencil_indices[] = {0,0,0};"] + ["ops_stencil zero_stencil = ops_decl_stencil(3, 1, zero_stencil_indices, \"zero_stencil\");\n"]
-    
+
     @property
     def opsc_start(self):
         starting_code = ["// Data access for simulation monitoring"]
         if self.NaNcheck:
             starting_code += self.add_NaN_check
-        starting_code += self.initial_print + self.declare_stencils 
+        starting_code += self.initial_print + self.declare_stencils
         return starting_code
 
     @property
@@ -187,7 +187,7 @@ class SimulationMonitor(object):
         middle_code = []
         middle_code += self.generate_reduction_loops
         return middle_code
-    
+
     @property
     def opsc_end(self):
         end_code = self.format_output

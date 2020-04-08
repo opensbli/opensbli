@@ -15,6 +15,7 @@ from sympy.functions.elementary.piecewise import ExprCondPair
 from opensbli.schemes.spatial.weno import ShockCapturing
 side_names = {0: 'left', 1: 'right'}
 
+
 class Exchange(object):
     pass
 
@@ -506,8 +507,10 @@ class Carpenter(object):
         bc4 = al4_inv*ar4
         return bc4
 
+
 class ReducedAccess(object):
     """ Fourth order boundary scheme that uses a (-4,4) stencil."""
+
     def __init__(self):
         self.bc4_coefficients = self.first_der_coefficients()
         self.bc4_2_coefficients = self.second_der_coefficients()
@@ -535,7 +538,7 @@ class ReducedAccess(object):
 
     def first_der_coefficients(self):
         coefficient_matrix = Matrix([[-25.0, 48.0, -36.0, 16.0, -3.0], [-3.0, -10.0, 18.0, -6.0, 1.0], [25.0, -48.0, 36.0, -16.0, 3.0],
-                                    [3.0, 10.0, -18.0, 6.0, -1.0]])
+                                     [3.0, 10.0, -18.0, 6.0, -1.0]])
         for i in range(coefficient_matrix.shape[0]):
             for j in range(coefficient_matrix.shape[1]):
                 coefficient_matrix[i, j] = Rational(coefficient_matrix[i, j], 12.0)
@@ -543,14 +546,13 @@ class ReducedAccess(object):
 
     def weight_function_points(self, func_points, direction, order, block, side, char_BC=False):
         if order == 1:
-            h = S.One  # The division of delta is now applied in central derivative to reduce the divisions
             if side == 0:
                 coeffs = self.bc4_coefficients[0:2, :]
             elif side == 1:
                 coeffs = self.bc4_coefficients[2:, :]
             weighted = zeros(2, 1)
             for i in range(2):
-                    weighted[i] = coeffs[i, :]*func_points[:, i]
+                weighted[i] = coeffs[i, :]*func_points[:, i]
         elif order == 2:
             h_sq = S.One  # The division of delta**2 is now applied in central derivative to reduce the divisions
             weighted = zeros(2, 1)
@@ -595,7 +597,7 @@ class ReducedOrder(object):
 
     def first_derivative(self, expression, direction, side):
         loc = list(list(expression.atoms(DataSet))[0].indices)
-        weights = [[-Rational(3,2), 2, -Rational(1,2)], [-Rational(1,3), -Rational(1,2), 1, -Rational(1,6)]]
+        weights = [[-Rational(3, 2), 2, -Rational(1, 2)], [-Rational(1, 3), -Rational(1, 2), 1, -Rational(1, 6)]]
         points = [[0, 1, 2], [-1, 0, 1, 2]]
         # weights = [[Rational(-11,6), 3, Rational(-3,2), Rational(1,3)], [-Rational(1,3), -Rational(1,2), 1, -Rational(1,6)]]
         # points = [[0, 1, 2, 3], [-1, 0, 1, 2]]
@@ -618,7 +620,7 @@ class ReducedOrder(object):
 
     def second_derivative(self, expression, direction, side):
         loc = list(list(expression.atoms(DataSet))[0].indices)
-        weights = [[2, -5, 4, -1], [Rational(11,12), -Rational(5,3), Rational(1,2), Rational(1,3), -Rational(1,12)]]
+        weights = [[2, -5, 4, -1], [Rational(11, 12), -Rational(5, 3), Rational(1, 2), Rational(1, 3), -Rational(1, 12)]]
         points = [[0, 1, 2, 3], [-1, 0, 1, 2, 3]]
 
         if side == 0:
@@ -637,7 +639,6 @@ class ReducedOrder(object):
                 output_function += expression*fact*weights[value][i]
             f_store.append(output_function)
         return f_store
-
 
     def expr_cond_pairs(self, fn, direction, side, order, block):
         if order == 1:
@@ -690,7 +691,7 @@ class IsothermalWallBC(ModifyCentralDerivative, BoundaryConditionBase):
         wall_eqns = []
         # Set wall conditions, momentum zero
         wall_eqns += [OpenSBLIEq(x, Float(S.Zero)) for x in NS.momentum()]
-        kernel.add_equation(OpenSBLIEq(GridVariable('x0'), block.location_dataset('x0'))) ## Used for sidewall case to set the ramp
+        kernel.add_equation(OpenSBLIEq(GridVariable('x0'), block.location_dataset('x0')))  # Used for sidewall case to set the ramp
         # Set wall energy, density is left to be evaluated
         wall_eqns += self.equations[:]
         kernel.add_equation(wall_eqns)
@@ -821,6 +822,7 @@ class ExtrapolationBC(ModifyCentralDerivative, BoundaryConditionBase):
         kernel.update_block_datasets(block)
         return kernel
 
+
 class AdiabaticWallBC(ModifyCentralDerivative, BoundaryConditionBase):
     """ Adiabatic wall condition, zero gradient dT/dn = 0 over the boundary.
     # modified by Hiten Mulchandani (November 2019)
@@ -840,7 +842,7 @@ class AdiabaticWallBC(ModifyCentralDerivative, BoundaryConditionBase):
         return
 
     def apply(self, arrays, block):
-        NS = NSphysics(block) # using Navier Stokes physics object, create conservative variables
+        NS = NSphysics(block)  # using Navier Stokes physics object, create conservative variables
         gama = NS.specific_heat_ratio()
         Minf = ConstantObject('Minf')
         halos, kernel = self.generate_boundary_kernel(block, self.bc_name)
@@ -850,18 +852,18 @@ class AdiabaticWallBC(ModifyCentralDerivative, BoundaryConditionBase):
         rho_wall = NS.density()
         halo_densities, momentum_wall, halo_momentum, halo_energy = [], [], [], []
         for index, momentum_comp in enumerate(NS.momentum()):
-            velocity_wall = 0 # get u0, u1 components of velocity
-            momentum_wall += [rho_wall*velocity_wall] # get momentum at the wall
+            velocity_wall = 0  # get u0, u1 components of velocity
+            momentum_wall += [rho_wall*velocity_wall]  # get momentum at the wall
             halo_momentum += [OpenSBLIEq(increment_dataset(momentum_comp, direction, 0), momentum_wall[index])]
         T_above = increment_dataset(NS.temperature(relation=True, conservative=True), direction, to_side_factor)
         T_above2 = increment_dataset(NS.temperature(relation=True, conservative=True), direction, 2*to_side_factor)
         T_above3 = increment_dataset(NS.temperature(relation=True, conservative=True), direction, 3*to_side_factor)
-        ## first-order approximation of dT/dy = 0
+        # first-order approximation of dT/dy = 0
         # T_wall = T_above # first-order (to begin with)
-        ## second-order approximation of dT/dy = 0
+        # second-order approximation of dT/dy = 0
         # T_wall = (4*T_above - T_above2)/3
-        ## Carpenter's one-sided fourth-order approach for dT/dy = 0
-        T_wall = Rational(6,11)*(3*T_above + Rational(1,3)*T_above3 - Rational(3,2)*T_above2)
+        # Carpenter's one-sided fourth-order approach for dT/dy = 0
+        T_wall = Rational(6, 11)*(3*T_above + Rational(1, 3)*T_above3 - Rational(3, 2)*T_above2)
         pressure_wall = rho_wall*T_wall/(gama*Minf*Minf)
         energy_wall = pressure_wall/(gama-1)
         halo_energy += [OpenSBLIEq(increment_dataset(NS.total_energy(), direction, 0), energy_wall)]
@@ -883,6 +885,7 @@ class AdiabaticWallBC(ModifyCentralDerivative, BoundaryConditionBase):
         pprint(halo_momentum)
         return kernel
 
+
 class ZeroGradientOutletBC(BoundaryConditionBase):
     def __init__(self, boundary_direction, side, scheme=None, plane=True):
         BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
@@ -893,7 +896,7 @@ class ZeroGradientOutletBC(BoundaryConditionBase):
         halos, kernel = self.generate_boundary_kernel(block, self.bc_name)
         n_halos = abs(halos[self.direction][self.side])
         from_side, to_side = self.set_side_factor()
-        transfer_indices = [(from_side*i,to_side*i) for i in range(1,n_halos+1)]
+        transfer_indices = [(from_side*i, to_side*i) for i in range(1, n_halos+1)]
         cons_vector = flatten(arrays)
         # Copy from -1 to boundary point at zero
         zero_eqn = self.create_boundary_equations(cons_vector, cons_vector, [(0, to_side)])
@@ -961,6 +964,7 @@ class InletPressureExtrapolateBC(ModifyCentralDerivative, BoundaryConditionBase)
         kernel.update_block_datasets(block)
         return kernel
 
+
 class ForcingStripBC(ModifyCentralDerivative, BoundaryConditionBase):
     """ Navier-Stokes specific boundary condition. Applies a no-slip viscous wall condition,
     velocity components are zero on the wall. Temperature is fixed with a prescribed wall temperature,
@@ -989,8 +993,6 @@ class ForcingStripBC(ModifyCentralDerivative, BoundaryConditionBase):
         from_side_factor, to_side_factor = self.set_side_factor()
         # Using Navier Stokes physics object, create conservative variables
         NS = NSphysics(block)
-        cons_vars = [NS.density(), NS.momentum(), NS.total_energy()]
-        base_loc = list(cons_vars[0].indices)
         # Set wall conditions, momentum zero, rhoE specified:
         wall_momentum = [OpenSBLIEq(x, Float(S.Zero)) for x in NS.momentum()]
         del wall_momentum[self.direction]
@@ -1043,12 +1045,14 @@ class ForcingStripBC(ModifyCentralDerivative, BoundaryConditionBase):
         kernel.update_block_datasets(block)
         return kernel
 
+
 class AdiabaticWall_CarpenterBC(ModifyCentralDerivative, BoundaryConditionBase):
     """ Adiabatic wall condition, zero gradient dT/dn = 0 over the boundary. (G.N. Coleman)
     :arg int boundary_direction: Spatial direction to apply boundary condition to.
     :arg int side: Side 0 or 1 to apply the boundary condition for a given direction.
     :arg object scheme: Boundary scheme if required, defaults to Carpenter boundary treatment
     :arg bool plane: True/False: Apply boundary condition to full range/split range only."""
+
     def __init__(self, boundary_direction, side, scheme=None, plane=True):
         BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
         self.bc_name = 'AdiabaticWall_Carpenter'
@@ -1058,7 +1062,7 @@ class AdiabaticWall_CarpenterBC(ModifyCentralDerivative, BoundaryConditionBase):
             self.modification_scheme = scheme
 
         self.deriv_indices = [[i for i in range(6)], [-i for i in range(6)]]
-        self.deriv_coeffs = [[self.carp_coefficients()[0,i] for i in range(6)],[-self.carp_coefficients()[0,i] for i in range(6)]]
+        self.deriv_coeffs = [[self.carp_coefficients()[0, i] for i in range(6)], [-self.carp_coefficients()[0, i] for i in range(6)]]
         return
 
     def carp_coefficients(self):
@@ -1066,13 +1070,13 @@ class AdiabaticWall_CarpenterBC(ModifyCentralDerivative, BoundaryConditionBase):
         :returns: Matrix: bc4: Matrix of stencil coefficients."""
         R1 = -(2177.0*sqrt(295369.0)-1166427.0)/25488.0
         R2 = (66195.0*sqrt(53.0)*sqrt(5573.0)-35909375.0)/101952.0
- 
+
         al4_0 = [-(216.0*R2+2160.0*R1-2125.0)/12960.0, (81.0*R2+675.0*R1+415.0)/540.0, -(72.0*R2+720.0*R1+445.0)/1440.0, -(108.0*R2+756.0*R1+421.0)/1296.0]
         al4_1 = [(81.0*R2+675.0*R1+415.0)/540.0, -(4104.0*R2+32400.0*R1+11225.0)/4320.0, (1836.0*R2+14580.0*R1+7295.0)/2160.0, -(216.0*R2+2160.0*R1+655.0)/4320.0]
         al4_2 = [-(72.0*R2+720.0*R1+445.0)/1440.0, (1836.0*R2+14580.0*R1+7295.0)/2160.0, -(4104.0*R2+32400.0*R1+12785.0)/4320.0, (81.0*R2+675.0*R1+335.0)/540.0]
         al4_3 = [-(108.0*R2+756.0*R1+421.0)/1296.0, -(216.0*R2+2160.0*R1+655.0)/4320.0, (81.0*R2+675.0*R1+335.0)/540.0, -(216.0*R2+2160.0*R1-12085.0)/12960.0]
         al4 = Matrix([al4_0, al4_1, al4_2, al4_3])
- 
+
         ar4_0 = [(-1.0)/2.0, -(864.0*R2+6480.0*R1+305.0)/4320.0, (216.0*R2+1620.0*R1+725.0)/540.0, -(864.0*R2+6480.0*R1+3335.0)/4320.0, 0.0, 0.0]
         ar4_1 = [(864.0*R2+6480.0*R1+305.0)/4320.0, 0.0, -(864.0*R2+6480.0*R1+2315.0)/1440.0, (108.0*R2+810.0*R1+415.0)/270.0, 0.0, 0.0]
         ar4_2 = [-(216.0*R2+1620.0*R1+725.0)/540.0, (864.0*R2+6480.0*R1+2315.0)/1440.0, 0.0, -(864.0*R2+6480.0*R1+785.0)/4320.0, -1.0/12.0, 0.0]
@@ -1097,21 +1101,21 @@ class AdiabaticWall_CarpenterBC(ModifyCentralDerivative, BoundaryConditionBase):
         coeffs, grid_indices = self.deriv_coeffs[side], self.deriv_indices[side]
         # Evaluate temperature values at the wall and 5 points above/below it
         temperature_values = [GridVariable('T%d' % i) for i in range(len(grid_indices))]
-        temperature_evaluations = [OpenSBLIEq(temperature_values[i], increment_dataset(NS.temperature(relation=True, conservative=True), self.direction, i*to_side_factor))\
-                                    for i in range(1,len(temperature_values))]
-    
+        temperature_evaluations = [OpenSBLIEq(temperature_values[i], increment_dataset(NS.temperature(relation=True, conservative=True), self.direction, i*to_side_factor))
+                                   for i in range(1, len(temperature_values))]
+
         wall_eqns += temperature_evaluations
         deriv_equation = sum([c*temperature_values[i+1] for i, c in enumerate(coeffs[1:])])
         # Rearrange the equation to solve for the wall temperature
-        deriv_equation = OpenSBLIEq(temperature_values[0], -1.0*deriv_equation/(coeffs[0]))  #set wall value of dT/dy to 0...
+        deriv_equation = OpenSBLIEq(temperature_values[0], -1.0*deriv_equation/(coeffs[0]))  # set wall value of dT/dy to 0...
         wall_eqns += [deriv_equation]
- 
+
         # Set energy on the wall based on this calculated wall temperature and the density that comes from the continuity equation
         Minf, gama = ConstantObject('Minf'), ConstantObject('gama')
         wall_eqns += [OpenSBLIEq(NS.total_energy(), NS.density()*temperature_values[0] / (Minf*Minf*gama*(gama-1.0)))]
         kernel.add_equation(wall_eqns)
-        ## Print out the current equations for the adiabatic wall conditio
-        print("Printing equations for Adiabatic wall boundary condition (Carp-4):")  #<<<
+        # Print out the current equations for the adiabatic wall conditio
+        print("Printing equations for Adiabatic wall boundary condition (Carp-4):")  # <<<
         for eqn in kernel.equations:
             pprint(eqn)
         # exit()

@@ -7,7 +7,7 @@
 from sympy import Symbol, sin, Eq, tan, sqrt, atan, cot, cos, pi, rad, asin
 
 
-class ObliqueShock(object): # V2: May want to remove this file before release
+class ObliqueShock(object):
     """ Class to compute the oblique shock relations.
 
     :arg float wave_angle: Oblique shock angle beta in degrees.
@@ -72,6 +72,7 @@ class ShockConditions(ObliqueShock):
     :arg float wave_angle: Oblique shock angle beta in degrees.
     :arg float input_mach_number: Free-stream pre-shock condition Mach number.
     :arg float gamma: Ratio of gas constants."""
+
     def __init__(self, wave_angle, input_mach_number, gamma, pre_shock_conditions=None):
         ObliqueShock.__init__(self, wave_angle, input_mach_number, gamma)
         # TO DO: Finish testing pre_shock_conditions part, and solve for theta using secant method

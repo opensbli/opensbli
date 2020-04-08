@@ -1,27 +1,23 @@
-from sympy.calculus import finite_diff_weights
-from sympy import postorder_traversal, Function, flatten, Eq, Rational, Idx
-from opensbli.core.opensbliobjects import ConstantObject, ConstantIndexed, Globalvariable, CoordinateObject, DataObject, DataSet
+from sympy import flatten, simplify, symbols
+from opensbli.core.opensbliobjects import ConstantObject, CoordinateObject, DataObject
 from opensbli.core.grid import GridVariable
 from opensbli.core.opensblifunctions import CentralDerivative
 from opensbli.core.kernel import Kernel
-from opensbli.utilities.helperfunctions import get_inverse_deltas
-from opensbli.core.datatypes import Int
 from opensbli.schemes.spatial import Central
 from opensbli.equation_types.opensbliequations import OpenSBLIEq, SimulationEquations
-from sympy import pprint, S, simplify, symbols
-from sympy.functions.elementary.piecewise import *
-from opensbli.code_generation.latex import LatexWriter
+
 
 class StoreSome(Central):
     """ Low-storage algorithms to reduce memory intensity and the number of global storage arrays.
         S.P. Jammy et al. Journal of Computational Science. Vol 36, September 2019 10.015."""
-    def __init__(self, order, der_fns_to_store, level = 1):
+
+    def __init__(self, order, der_fns_to_store, level=1):
         """ Set up the scheme.
         :arg int order: The order of accuracy of the scheme."""
         Central.__init__(self, order)
         self.fns = der_fns_to_store
         return
-    
+
     def derivatives_to_store(self, coordinates, block):
         """ Creates CentralDerivative objects of the derivatives to be stored."""
         data_objects = flatten([symbols('%s' % self.fns, **{'cls': DataObject})])
@@ -31,8 +27,8 @@ class StoreSome(Central):
         for a in data_sets:
             for b in coords:
                 self.derivatives_to_store += [CentralDerivative(a, b)]
-        return 
-    
+        return
+
     def discretise(self, type_of_eq, block):
         """ This is the main calling function from opensbli equations.spatial_discretisation, which is called from block.discretise."""
         self.set_halos(block)
@@ -71,7 +67,7 @@ class StoreSome(Central):
             der.update_work(block)
             subs_dict[der] = der.work
             ker = Kernel(block)
-            ker.set_computation_name("Derivative evaluation %s "%(der))
+            ker.set_computation_name("Derivative evaluation %s " % (der))
             self.update_range_of_constituent_relations(der, block)
             v = der
             expr = OpenSBLIEq(v.work, simplify(v._discretise_derivative(self, block)))
@@ -80,7 +76,7 @@ class StoreSome(Central):
             ker.set_grid_range(block)
             self.local_kernels[v] = ker
             self.derivatives_to_store[no] = v
-        
+
         # Get all the derivatives and traverse them to update the range of
         # already evaluated derivatives
         for d in self.get_local_function(equations):
@@ -118,9 +114,9 @@ class StoreSome(Central):
             type_of_eq.Kernels += [viscous_kernel]
         block.reset_work_index
         return self.required_constituent_relations
-    
-    def SS(self, equations, block, equation_type, group = True, level = 1):
-        """ Generates the GridVariables to store the local derivatives. Also sorts the 
+
+    def SS(self, equations, block, equation_type, group=True, level=1):
+        """ Generates the GridVariables to store the local derivatives. Also sorts the
         derivatives to re-access the same arrays consecutively."""
         discrete_equations = flatten(equations)[:]
         cds = self.get_local_function(flatten(equations))

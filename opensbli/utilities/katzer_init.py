@@ -1,5 +1,5 @@
 from opensbli.utilities.numerical_functions import spline, splint
-from sympy import Eq, Piecewise, Rational
+from sympy import Piecewise
 from scipy.integrate import odeint
 import numpy as np
 import numpy.polynomial.polynomial as poly
@@ -9,8 +9,7 @@ from opensbli.core.opensbliobjects import DataObject, ConstantObject
 from opensbli.core.grid import GridVariable
 from opensbli.core.kernel import Kernel
 import warnings
-from sympy import pprint, flatten
-from scipy.optimize import curve_fit
+# from scipy.optimize import curve_fit
 from opensbli.equation_types.opensbliequations import OpenSBLIEq
 
 
@@ -165,7 +164,7 @@ class Boundary_layer_profile(object):
             sumd += d_eta*(dd+dm)
             if(self.soln[1, i] > 0.999 and record_z < 1.0):
                 # print "recording at iteration: ", i
-                dlta = z[i]
+                # dlta = z[i]
                 record_z = 2.0
             scale = sumd
         # print("delta is :", dlta)
@@ -336,7 +335,7 @@ class Initialise_Katzer(GridBasedInitialisation):
         returns: Eq: eqn: OpenSBLI equation to add to the initialisation kernel."""
         bl_edge_coordinate = poly_coordinates[edge]
         powers = [i for i in range(np.size(coefficients))][::-1]
-        eqn = sum([coeff*self.coordinates[direction]**power for (coeff, power) in zip(coefficients, powers)]) #TODO set to exactl 1.0 if required
+        eqn = sum([coeff*self.coordinates[direction]**power for (coeff, power) in zip(coefficients, powers)])  # TODO set to exactl 1.0 if required
         eqn = OpenSBLIEq(GridVariable('%s' % name), Piecewise((eqn, self.coordinates[direction] < bl_edge_coordinate), (variable[edge], True)))
         return eqn
 
@@ -376,7 +375,7 @@ class Initialise_Katzer(GridBasedInitialisation):
         eqn2 = sum([coeff*self.local_coordinate**power for (coeff, power) in zip(coefficients[1][1], powers)])  # profiles[0][max(edges)]
         T_var1, T_var2 = GridVariable('%s_1' % names[1]), GridVariable('%s_2' % names[1])
         freestream_value = np.max([profiles[0][1][edges[0]], profiles[1][1][edges[1]]])
-        freestream_value = 1.0 # CHECK THIS VALUE
+        freestream_value = 1.0  # CHECK THIS VALUE
         piecewise_eqns.append(OpenSBLIEq(T_var1, Piecewise((eqn1, coord1 < bl_coord1), (freestream_value, True))))
         piecewise_eqns.append(OpenSBLIEq(T_var2, Piecewise((eqn2, self.local_coordinate < bl_coord2), (freestream_value, True))))
         piecewise_eqns.append(OpenSBLIEq(GridVariable('%s' % names[1]), T_var1*T_var2*(freestream_value - Tw) + Tw))

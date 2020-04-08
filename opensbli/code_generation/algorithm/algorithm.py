@@ -10,7 +10,6 @@ from sympy import flatten, Equality, Or
 from opensbli.code_generation.latex import LatexWriter
 from opensbli.core.opensbliobjects import Constant, DataSetBase
 from opensbli.code_generation.algorithm.common import BeforeSimulationStarts, AfterSimulationEnds, InTheSimulation
-from opensbli.core.diagnostics.simulation_monitors import SimulationMonitor, Monitor
 import copy
 
 
@@ -224,10 +223,10 @@ class DefDecs(object):
         for c in self.components:
             if isinstance(c, Constant):
                 if c.is_input:
-                    l = "Is an input"
+                    l_text = "Is an input"
                 else:
-                    l = "Is not an input"
-                latex.write_string("DefDec constant %s, %s\\\\\n" % (str(c), l))
+                    l_text = "Is not an input"
+                latex.write_string("DefDec constant %s, %s\\\\\n" % (str(c), l_text))
             elif isinstance(c, DataSetBase):
                 latex.write_string("DefDec dataset %s\\\\\n" % (str(c)))
         return

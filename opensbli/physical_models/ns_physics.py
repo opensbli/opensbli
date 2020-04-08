@@ -222,6 +222,7 @@ class NSPhysics_Stats(NSphysics, StatsVariable):
         # Create the components required for stats
         self.create_stat_components(**settings)
         self.niter = ConstantObject('niter', integer=True)
+        from sympy import Int
         self.niter.datatype = Int()
         # Equations to initialise stat arrays to zeros
         self.init = self.init_stats()

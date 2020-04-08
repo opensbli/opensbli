@@ -9,7 +9,6 @@ from opensbli.core.opensbliobjects import ConstantObject, ConstantIndexed, Globa
 from opensbli.equation_types.opensbliequations import OpenSBLIEq
 from opensbli.core.kernel import Kernel
 from opensbli.core.datatypes import Int
-from opensbli.core.grid import GridVariable
 from opensbli.schemes.spatial.scheme import Scheme, TemporalSolution
 
 

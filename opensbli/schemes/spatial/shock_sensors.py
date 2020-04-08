@@ -1,7 +1,6 @@
-from sympy import Rational, Min
+from sympy import Rational, Min, Abs, sqrt, tanh
 from opensbli.core.opensblifunctions import CentralDerivative as CD
 from opensbli.core.parsing import EinsteinEquation as EE
-from sympy import Abs, sqrt, tanh, Min
 from opensbli.core.opensbliobjects import ConstantObject, CoordinateObject, DataObject
 from opensbli.equation_types.opensbliequations import OpenSBLIEq
 
@@ -34,7 +33,7 @@ class ShockSensor(object):
             u0, u1, u2 = DataObject('u0'), DataObject('u1'), DataObject('u2')
             vorticity_sq = (CD(u2, x1) - CD(u1, x2))**2 + (CD(u0, x2) - CD(u2, x0))**2 + (CD(u1, x0) - CD(u0, x1))**2
         else:
-            raise ValueErrror("vorticity is not defined for one-dimensional cases.")
+            raise ValueError("vorticity is not defined for one-dimensional cases.")
 
         divergence = "Eq(divergence, (KD(_i,_j)*Der(u_i, x_j)))"
         divergence = EE().expand(divergence, ndim, coordinate_symbol, substitutions, constants)
@@ -45,11 +44,10 @@ class ShockSensor(object):
             divergence = metrics.apply_transformation(divergence)
 
         if modified:
-            a = 75.0 # Higher values increase the activation
+            a = 75.0  # Higher values increase the activation
             inv_M = Minf*Abs(block.location_dataset('a') / block.location_dataset('u%d' % 0))
-            tanh_filter = Rational(1,2)*(1 - tanh(2.5*(1 + a*divergence.rhs)))
-        
-        output_eqns += [OpenSBLIEq(theta, Min(1, tanh_filter*Abs(divergence.rhs) *inv_M**4 / (Abs(divergence.rhs) + sqrt(vorticity_sq)*inv_M**6 + epsilon)))]
+            tanh_filter = Rational(1, 2)*(1 - tanh(2.5*(1 + a*divergence.rhs)))
+
+        output_eqns += [OpenSBLIEq(theta, Min(1, tanh_filter*Abs(divergence.rhs) * inv_M**4 / (Abs(divergence.rhs) + sqrt(vorticity_sq)*inv_M**6 + epsilon)))]
         sensor_array = output_eqns[0].lhs
         return output_eqns, sensor_array
- 

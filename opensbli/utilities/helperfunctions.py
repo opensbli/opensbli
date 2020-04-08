@@ -4,7 +4,7 @@
    @details
 """
 
-from opensbli.core.opensbliobjects import DataSet, CoordinateObject, ConstantIndexed
+from opensbli.core.opensbliobjects import DataSet, ConstantIndexed
 import h5py
 from opensbli.code_generation.opsc import rc
 from sympy import pprint
@@ -57,6 +57,7 @@ def dot(v1, v2):
             raise ValueError("")
     else:
         return v1*v2
+
 
 def get_inverse_deltas(delta):
     """To reduce divisions we create inverse delta, i.e $inv_0 = 1.0/\left(\delta x0 \right)$ and so on..
@@ -181,7 +182,7 @@ def print_iteration_ops(simulation_name='opensbli', every=250, NaN_check=None):
                 lines[no+1] = lines[no+1] + """
         ops_NaNcheck(%s);\n}\n""" % NaN_check
             else:
-                lines[no+1] = lines[no+1] + """\n}\n"""           
+                lines[no+1] = lines[no+1] + """\n}\n"""
     with open(file_path, 'w') as f:
         f.write(''.join(lines))
     return

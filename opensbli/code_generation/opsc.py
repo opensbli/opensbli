@@ -12,7 +12,7 @@ from sympy import Symbol, flatten
 from opensbli.core.grid import GridVariable
 from opensbli.core.datatypes import SimulationDataType
 from sympy import Pow, Idx, pprint, count_ops
-import os, re
+import os
 import logging
 LOG = logging.getLogger(__name__)
 BUILD_DIR = os.getcwd()
@@ -433,8 +433,8 @@ class OPSC(object):
         if self.OPS_diagnostics > 1:
             output += [WriteString("ops_timing_output(stdout);")]
         if self.monitoring_output_file:
-            output += [WriteString("fclose(f);")]        
-        output += [WriteString("ops_exit();")]    
+            output += [WriteString("fclose(f);")]
+        output += [WriteString("ops_exit();")]
         return output
 
     def before_main(self, algorithm):
@@ -487,7 +487,7 @@ class OPSC(object):
         f = open('defdec_data_set.h', 'w')
         datasets_dec = []
         output += [WriteString("#include \"defdec_data_set.h\"")]
-        # Sort the declarations alphabetically before writing out 
+        # Sort the declarations alphabetically before writing out
         store_stencils, store_dsets = [], []
         for d in algorithm.defnitionsdeclarations.components:
             if isinstance(d, DataSetBase):
@@ -496,12 +496,12 @@ class OPSC(object):
                 store_stencils.append(d)
             else:
                 raise TypeError("Not a stencil or dataset declaration.")
-        dsets_to_declare = dict([(str(x),x) for x in store_dsets])
+        dsets_to_declare = dict([(str(x), x) for x in store_dsets])
 
         for name in sorted(dsets_to_declare, key=str.lower):
             d = dsets_to_declare[name]
             datasets_dec += self.declare_dataset(d)
-        f.write('\n'.join(flatten([d.opsc_code for d in datasets_dec])))
+        f.write('\n'.join(flatten([dset.opsc_code for dset in datasets_dec])))
         f.close()
         # Declare stencils
         output += [WriteString("// Define and declare stencils")]
