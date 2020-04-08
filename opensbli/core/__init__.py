@@ -5,6 +5,6 @@ from .grid import *
 from .datatypes import *
 from .bcs import *
 from .parsing import *
-from .io import *
+from .io_hdf5 import *
 from .kernel import *
 from .diagnostics import *
