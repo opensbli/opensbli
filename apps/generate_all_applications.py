@@ -36,6 +36,13 @@ assert len(directories) == len(file_names)
 print("Found %d OpenSBLI applications." % len(file_names))
 # Current working directory
 owd = os.getcwd()
+# Optional diff between the generated codes
+check_diff = False
+if check_diff:
+    import difflib
+    # Set a directory containing previously generated C codes
+    old_code_dir = os.environ['two'] + 'apps/'
+
 
 with open(os.devnull, 'w') as devnull:
 
@@ -44,6 +51,12 @@ with open(os.devnull, 'w') as devnull:
         output_code = subprocess.call(["python %s" % fname], shell=True, cwd=owd+directory, stdout=devnull)
         if output_code == 0:
             print("%s generated successfully." % fname)
+            # Compare the output code to a previously generated one
+            if check_diff:
+                file1, file2 = old_code_dir + directory + 'opensbli.cpp', owd + directory + 'opensbli.cpp'
+                text1, text2 = open(file1).readlines(), open(file2).readlines()
+                for line in difflib.unified_diff(text1, text2):
+                    print(line)
         else:
             print("Generation of %s has failed." % fname)
             exit()
