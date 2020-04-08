@@ -10,7 +10,7 @@ from opensbli.equation_types.opensbliequations import SimulationEquations, OpenS
 from opensbli.core.grid import GridVariable
 from .scheme import Scheme
 from sympy import horner
-from opensbli.schemes.spatial.shock_capturing import ShockCapturing, LLFCharacteristic, RFCharacteristic
+from opensbli.schemes.spatial.shock_capturing import ShockCapturing, LLFCharacteristic
 
 
 class WenoHalos(object):
@@ -475,57 +475,6 @@ class LLFWeno(LLFCharacteristic, Weno):
             self.instantiate_eigensystem(block)
 
             for direction, derivatives in sorted(grouped.items()):
-                # Create a work array for each component of the system
-                all_derivatives_evaluated_locally += derivatives
-                for no, deriv in enumerate(derivatives):
-                    deriv.create_reconstruction_work_array(block)
-                # Kernel for the reconstruction in this direction
-                kernel = self.create_reconstruction_kernel(direction, reconstruction_halos, block)
-                # Get the pre, interpolations and post equations for characteristic reconstruction
-                pre_process, interpolated, post_process = self.get_characteristic_equations(direction, derivatives, solution_vector, block)
-                # Add the equations to the kernel and add the kernel to SimulationEquations
-                kernel.add_equation(pre_process + interpolated + post_process)
-                type_of_eq.Kernels += [kernel]
-            # Generate kernels for the constituent relations
-            if grouped:
-                constituent_relations = self.generate_constituent_relations_kernels(block)
-                type_of_eq.Kernels += [self.evaluate_residuals(block, eqs, all_derivatives_evaluated_locally)]
-                constituent_relations = self.check_constituent_relations(block, eqs, constituent_relations)
-            return constituent_relations
-
-
-class RFWeno(RFCharacteristic, Weno):
-    """ Performs the Local Lax Friedrichs flux splitting with a WENO scheme.
-
-    :arg int order: Order of the WENO/TENO scheme.
-    :arg object physics: Physics object, defaults to NSPhysics.
-    :arg object averaging: The averaging procedure to be applied for characteristics, defaults to Simple averaging. """
-
-    def __init__(self, order, physics=None, averaging=None, formulation="JS"):
-        print("Roe-flux differencing.")
-        RFCharacteristic.__init__(self, physics, averaging)
-        Weno.__init__(self, order, formulation)
-        return
-
-    def discretise(self, type_of_eq, block):
-        """ This is the place where the logic of vector form of equations are implemented.
-        Find physical fluxes by grouping derivatives by direction --> in central, copy over
-        Then the physical fluxes are transformed to characteristic space ---> a function in Characteristic
-        For each f+ and f-, find f_hat of i+1/2, i-1/2, (L+R) are evaluated  ----> Function in WENO scheme, called from in here
-        flux at i+1/2 evaluated -- > Function in WENO scheme
-        Then WENO derivative class is instantiated with the flux at i+1/2 array --> Function in WENO scheme, called from in here
-        Final derivatives are evaluated from Weno derivative class --> Using WD.discretise."""
-        if isinstance(type_of_eq, SimulationEquations):
-            eqs = flatten(type_of_eq.equations)
-            grouped = self.group_by_direction(eqs)
-            all_derivatives_evaluated_locally = []
-            reconstruction_halos = self.reconstruction_halotype(self.order, reconstruction=True)
-            solution_vector = flatten(type_of_eq.time_advance_arrays)
-
-            # Instantiate eigensystems with block, but don't add metrics yet
-            self.instantiate_eigensystem(block)
-
-            for direction, derivatives in grouped.iteritems():
                 # Create a work array for each component of the system
                 all_derivatives_evaluated_locally += derivatives
                 for no, deriv in enumerate(derivatives):

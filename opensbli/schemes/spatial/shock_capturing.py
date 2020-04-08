@@ -13,8 +13,7 @@ from opensbli.core.grid import GridVariable
 from opensbli.utilities.helperfunctions import increment_dataset
 from opensbli.physical_models.euler_eigensystem import EulerEquations
 from sympy import factor, pprint
-from sympy.functions.elementary.piecewise import ExprCondPair, Piecewise
-from opensbli.schemes.spatial.averaging import SimpleAverage, RoeAverage
+from opensbli.schemes.spatial.averaging import SimpleAverage
 
 
 class ShockCapturing(object):
@@ -402,7 +401,6 @@ class LLFCharacteristic(Characteristic):
         post_process_equations = []
         averaged_suffix_name = self.averaged_suffix_name
         avg_REV_values = self.convert_matrix_to_grid_variable(self.right_eigen_vector[self.direction], averaged_suffix_name)
-        from sympy import Mul, Pow, Add, Integer
         # Manually remove the divides
         inverses = [GridVariable('inv_AVG_a'), GridVariable('inv_AVG_rho')]
         to_be_replaced = [1/GridVariable('AVG_%d_a' % direction), 1/GridVariable('AVG_%d_rho' % direction)]
@@ -447,7 +445,7 @@ class LLFCharacteristic(Characteristic):
             for i in range(n_rows):
                 # reordered_CS.append(CS_evaluations[j+i*n_cols])
                 reordered_CF.append(CF_evaluations[j+i*n_cols])
-        reordered =  reordered_CF + CS_evaluations 
+        reordered = reordered_CF + CS_evaluations
         return reordered, CS_matrix, CF_matrix
 
     def characteristic_flux_splitting(self, ev_matrix, CS_matrix, CF_matrix, derivatives):
@@ -483,7 +481,6 @@ class LLFCharacteristic(Characteristic):
         CF_matrix.stencil_points = stencil_points
         return characteristic_flux_stencil, CF_matrix
 
-
     def create_max_characteristic_wave_speed(self, pre_process_equations, direction, block):
         """ Creates the equations for local Lax-Friedrich wave speeds, maximum eigenvalues over the local
         WENO/TENO stencils are found."""
@@ -503,96 +500,8 @@ class LLFCharacteristic(Characteristic):
         for no, eqn in enumerate(ev_rhs):
             if no > 0:
                 if eqn == ev_rhs[0]:
-                    ev_rhs[no] = ev_lhs[0] # u, u, u, u+a, u-a ordering
+                    ev_rhs[no] = ev_lhs[0]  # u, u, u, u+a, u-a ordering
         ev_equations = [OpenSBLIEq(left, right) for (left, right) in zip(ev_lhs, ev_rhs)]
         pre_process_equations += ev_equations
         max_wave_speed = diag(*([max_wave_speed[i, i] for i in range(ev.shape[0])]))
         return max_wave_speed, pre_process_equations
-
-
-class RFCharacteristic(Characteristic):
-    """ This class contains the Roe flux difference in characteristic space.
-
-    :arg object physics: Physics object, defaults to NSPhysics.
-    :arg object averaging: The averaging procedure to be applied for characteristics, defaults to Simple averaging."""
-
-    def __init__(self, physics, averaging=None):
-        Characteristic.__init__(self, physics)
-        if not isinstance(averaging, RoeAverage):
-            raise ValueError("Roe flux-differencing requires Roe averaging.")
-        else:
-            self.average = averaging.average
-        self.flux_split = True
-        return
-
-    def entropy_fix(self, direction, grid_EV, block):
-        """ Creates the piecewise equations for the Harten entropy fix to Roe averages."""
-        # Inverses for optimizations
-        avg_a = GridVariable('AVG_%d_a' % direction)
-        inv_avg_a = GridVariable('inv_AVG_a')
-        eps = ConstantObject('harten')
-        ConstantsToDeclare.add_constant(eps)
-        output_eqns = []
-        for i in range(grid_EV.shape[0]):
-            cond1 = ExprCondPair(Abs(grid_EV[i, i]), Abs(grid_EV[i, i]) >= 2*eps*avg_a)
-            cond2 = ExprCondPair(inv_avg_a*grid_EV[i, i]**2 / (4*eps) + eps*avg_a, True)
-            output_eqns.append(OpenSBLIEq(grid_EV[i, i], Piecewise(cond1, cond2)))
-        # Don't recalculate repeated eigenvalues
-        if block.ndim == 2:
-            output_eqns[1] = OpenSBLIEq(output_eqns[1].lhs, output_eqns[0].lhs)
-        elif block.ndim == 3:
-            output_eqns[1] = OpenSBLIEq(output_eqns[1].lhs, output_eqns[0].lhs)
-            output_eqns[2] = OpenSBLIEq(output_eqns[2].lhs, output_eqns[0].lhs)
-        return output_eqns
-
-    def pre_process(self, direction, derivatives, solution_vector, block):
-        """ Performs the transformation of the derivatives into characteristic space using the eigensystems provided to Characteristic. Flux splitting is then applied
-        to the characteristic variables in preparation for the WENO interpolation. Required quantities are added to pre_process_equations.
-
-        :arg int direction: Integer direction to apply the characteristic decomposition and WENO (x0, x1, ...).
-        :arg list derivatives: The derivatives to perform the characteristic decomposition and WENO on.
-        :arg list solution_vector: Solution vector from the Euler equations (rho, rhou0, rhou1, rhou2, rhoE) in vector form."""
-        self.direction = direction
-        pre_process_equations = []
-        # Update the ev, LEV and REV dicts and perform averaging
-        avg_name = 'AVG_%d' % direction
-        inv_metric, averaged_equations, required_symbols = self.characteristic_setup(direction, avg_name, derivatives, block)
-        pre_process_equations += averaged_equations
-        # Update required CRs, if RF speed of sound is not required for CRs
-        required_symbols.difference_update({EinsteinTerm('a')})
-        self.update_constituent_relation_symbols(required_symbols, direction)
-
-        # Inverse metric term
-        self.inv_metric = self.convert_matrix_to_grid_variable(inv_metric, avg_name)
-        # Eigensystem based on averaged quantities
-        avg_LEV_values = self.convert_matrix_to_grid_variable(self.left_eigen_vector[direction], avg_name)
-        # Manually replace re-used divides by inverses
-        inverse_evals, avg_LEV_values = self.create_LEV_inverses(direction, avg_LEV_values)
-        pre_process_equations += inverse_evals
-
-        # Grid variables to store averaged eigensystems
-        grid_LEV = self.generate_grid_variable_LEV(direction, avg_name)
-        pre_process_equations += flatten(self.generate_equations_from_matrices(grid_LEV, avg_LEV_values))
-
-        # Roe average eigenvalues
-        grid_EV = self.generate_grid_variable_ev(direction, avg_name)
-        # Add ev equations
-        avg_EV_values = self.convert_matrix_to_grid_variable(self.eigen_value[direction], avg_name)
-        pre_process_equations += flatten(self.generate_equations_from_matrices(grid_EV, avg_EV_values))
-
-        # Create entropy fix for Roe averaging, requires averaged speed of sound
-        entropy_eigvals = self.entropy_fix(direction, grid_EV, block)
-        pre_process_equations += entropy_eigvals
-
-        # Create characteristic matrices and add their evaluations to pre_process
-        evaluations, CS_matrix, CF_matrix = self.create_characteristic_matrices(direction, derivatives, solution_vector, avg_name)
-        pre_process_equations += evaluations
-
-        # Transform the flux vector and the solution vector to characteristic space
-        if hasattr(self, 'flux_split') and self.flux_split:
-            self.characteristic_flux_splitting(grid_EV, CS_matrix, CF_matrix, derivatives)
-        else:
-            raise NotImplementedError("Only flux splitting is implemented in characteristic.")
-        # Remove '0' entries from pre_process_equations
-        pre_process_equations = self.remove_zero_equations(pre_process_equations)
-        return pre_process_equations

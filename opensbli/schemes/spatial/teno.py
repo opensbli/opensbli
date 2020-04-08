@@ -4,17 +4,16 @@
    @details
 """
 
-from sympy import IndexedBase, Symbol, Rational, Abs, flatten, Max, S, ceiling, pprint, Min, tanh
+from sympy import IndexedBase, Symbol, Rational, Abs, flatten, S
 from opensbli.core.opensblifunctions import TenoDerivative
 from opensbli.core.opensbliobjects import ConstantObject, GroupedPiecewise
 from opensbli.core.grid import GridVariable
 from opensbli.schemes.spatial.scheme import Scheme
-from opensbli.schemes.spatial.weno import LLFCharacteristic, ShockCapturing, RFCharacteristic
+from opensbli.schemes.spatial.weno import LLFCharacteristic, ShockCapturing
 from opensbli.core.kernel import ConstantsToDeclare as CTD
 from opensbli.equation_types.opensbliequations import OpenSBLIEq, SimulationEquations
-from opensbli.utilities.helperfunctions import increment_dataset
-from sympy.functions.elementary.piecewise import ExprCondPair, Piecewise
-from opensbli.schemes.spatial.shock_sensors import ShockSensor
+from sympy.functions.elementary.piecewise import ExprCondPair
+
 
 class TenoHalos(object):
     """ Object for TENO halos.
@@ -128,7 +127,7 @@ class ConfigureTeno(object):
         :returns: opt_coeffs: List of optimal coefficients for each stencil."""
         # Optimal weights are not reversed for TENO when switching between upwind/downwind biasing
         order = self.order
-        optimized = False # These shouldn't be used currently
+        optimized = False  # These shouldn't be used currently
         if not optimized:
             if order == 5:
                 opt_coeffs = [Rational(11, 20), Rational(4, 10), Rational(1, 20)]
@@ -430,7 +429,7 @@ class Teno(Scheme, ShockCapturing):
 
     def create_adaptive_CT(self, direction, block):
         """ Evaluates the adaptive version of the CT cut-off parameter that controls dissipation."""
-        from sympy import Min, floor, pprint, horner, count_ops, simplify
+        from sympy import floor
         output_eqns = []
         m = self.sensor_array
         teno_a1, teno_a2 = ConstantObject('teno_a1'), ConstantObject('teno_a2')
