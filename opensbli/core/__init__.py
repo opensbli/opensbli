@@ -3,7 +3,7 @@ from .opensbliobjects import *
 from .block import *
 from .grid import *
 from .datatypes import *
-from .bcs import *
+from .boundary_conditions import *
 from .parsing import *
 from .io_hdf5 import *
 from .kernel import *

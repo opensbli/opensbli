@@ -7,7 +7,8 @@
 from sympy import flatten, pprint, srepr
 from opensbli.code_generation.algorithm.common import AfterSimulationEnds
 from opensbli.equation_types.opensbliequations import NonSimulationEquations, Discretisation, Solution, DataSet
-from opensbli.core.bcs import BoundaryConditionBase, ModifyCentralDerivative, Carpenter
+from opensbli.core.boundary_conditions.bc_core import BoundaryConditionBase, ModifyCentralDerivative
+from opensbli.core.boundary_conditions.Carpenter_scheme import Carpenter
 
 
 class DummyCarpenter(ModifyCentralDerivative, BoundaryConditionBase):

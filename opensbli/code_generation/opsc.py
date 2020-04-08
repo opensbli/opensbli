@@ -465,7 +465,7 @@ class OPSC(object):
     def opsc_def_decs(self, algorithm):
         """ Declares the datasets and stencils required by the program."""
         from opensbli.core.kernel import StencilObject, ConstantsToDeclare
-        from opensbli.core.bcs import Exchange
+        from opensbli.core.boundary_conditions.exchange import Exchange
 
         defs = []
         decls = []

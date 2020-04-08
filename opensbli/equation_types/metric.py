@@ -12,7 +12,7 @@ from sympy.tensor.array import MutableDenseNDimArray
 from opensbli.core.opensbliobjects import CoordinateObject, DataObject
 from opensbli.core.kernel import Kernel
 from opensbli.code_generation.latex import LatexWriter
-from opensbli.core.bcs import BoundaryConditionBase
+from opensbli.core.boundary_conditions.bc_core import BoundaryConditionBase
 from opensbli.core.parsing import EinsteinEquation
 
 
@@ -285,7 +285,7 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
         arrays = cls.FD_metrics[:] + [cls.detJ]
         arrays = [a for a in arrays if isinstance(a, DataObject)]
         arrays = block.dataobjects_to_datasets_on_block(arrays)
-        from opensbli.core.bcs import PeriodicBC
+        from opensbli.core.boundary_conditions.periodic import PeriodicBC
         bc_types = (PeriodicBC)
         for direction in range(block.ndim):
             for side in [0, 1]:
