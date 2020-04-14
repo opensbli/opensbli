@@ -5,6 +5,7 @@
 # OPS_COMPILER (gnu,intel,etc)
 #
 
+USE_HDF5=1
 include $(OPS_INSTALL_PATH)/../makefiles/Makefile.common
 include $(OPS_INSTALL_PATH)/../makefiles/Makefile.mpi
 include $(OPS_INSTALL_PATH)/../makefiles/Makefile.cuda
