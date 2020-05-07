@@ -5,8 +5,7 @@ from opensbli.core.kernel import Kernel
 class UserDefinedEquations(NonSimulationEquations, Discretisation, Solution):
     """User defined equations, this will not discretise the equations. No checking is performed.
     Just forms a kernel on the range and places the kernel in the algorithm place passed as an
-    input to the class
-    """
+    input to the class. """
 
     def __new__(cls, **kwargs):
         ret = super(UserDefinedEquations, cls).__new__(cls)
@@ -14,6 +13,7 @@ class UserDefinedEquations(NonSimulationEquations, Discretisation, Solution):
         ret.equations = []
         ret.kwargs = kwargs
         ret._place = []
+        ret.computation_name = None
         return ret
 
     @property
@@ -34,8 +34,7 @@ class UserDefinedEquations(NonSimulationEquations, Discretisation, Solution):
         # Instantiate the solution class
         cls.solution = Solution()
         user_defined_kernel = Kernel(block)
-        name = " ".join([p.__class__.__name__ for p in cls.algorithm_place])
-        user_defined_kernel.set_computation_name("user kernel %s" % name)
+        user_defined_kernel.set_computation_name("User kernel: %s" % str(cls.computation_name))
         user_defined_kernel.set_grid_range(block)
         user_defined_kernel.add_equation(cls.equations)
         user_defined_kernel.update_block_datasets(block)
