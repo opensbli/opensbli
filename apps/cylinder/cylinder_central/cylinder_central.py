@@ -99,12 +99,12 @@ q_vector = flatten(simulation_eq.time_advance_arrays)
 boundaries = []
 direction = 0
 # Force the shared coordinate line to be one-sided
-dummy_eqn = [OpenSBLIEq(DataObject('test'), 0.0)]
-boundaries += [DirichletBC(direction, 0, dummy_eqn)]
-boundaries += [DirichletBC(direction, 1, dummy_eqn)]
+# dummy_eqn = [OpenSBLIEq(DataObject('test'), 0.0)]
+# boundaries += [DirichletBC(direction, 0, dummy_eqn)]
+# boundaries += [DirichletBC(direction, 1, dummy_eqn)]
 # Apply a periodic boundary over the shared mesh line
-# boundaries += [PeriodicBC(direction, 0)]
-# boundaries += [PeriodicBC(direction, 1)]
+boundaries += [PeriodicBC(direction, 0)]
+boundaries += [PeriodicBC(direction, 1)]
 # Isothermal wall in x1 direction
 gama, Minf = symbols('gama Minf', **{'cls': ConstantObject})
 # Energy on the wall is set
@@ -156,6 +156,6 @@ arrays, array_names = [x0, x1], ['x0', 'x1']
 output_hdf5(arrays, array_names, halos, npoints, block)
 # Simulation parameters
 constants = ['Re', 'gama', 'Minf', 'Pr', 'dt', 'niter', 'block0np0', 'block0np1', 'Delta0block0', 'Delta1block0']
-values = ['100.0', '1.4', '0.1', '0.71', '0.0001', '100', '357', '179', '120.0/(block0np0-1)', '120.0/(block0np1-1)']
+values = ['100.0', '1.4', '0.1', '0.71', '0.0001', '10000', '357', '179', '120.0/(block0np0-1)', '120.0/(block0np1-1)']
 substitute_simulation_parameters(constants, values)
 print_iteration_ops(NaN_check='rho_B0')
