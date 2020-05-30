@@ -1,6 +1,6 @@
 """@brief
    @authors Satya Pramod Jammy
-   @contributors
+   @contributors David J Lusher
    @details
 """
 from opensbli.code_generation.algorithm.common import InTheSimulation, AfterSimulationEnds, BeforeSimulationStarts
@@ -87,6 +87,7 @@ class iohdf5(opensbliIO):
         return code
 
     def hdf5write_opsc_code(self):
+        var_name = 'name%s' % self.block_number
         code = []
         if "name" in self.kwargs:
             if '.h5' in self.kwargs["name"]:
@@ -100,12 +101,12 @@ class iohdf5(opensbliIO):
             filename = "\"%s\"" % name
         else:
             name = "opensbli_output"
-            code += ['char name[80];']
+            code += ['char %s[80];' % var_name]
             if self.dynamic_fname:
-                code += ['sprintf(name, \"%s_%%06d.h5\", %s);' % (name, self.control_parameter)]
+                code += ['sprintf(%s, \"%s_%%06d.h5\", %s);' % (var_name, name, self.control_parameter)]
             else:
-                code += ['sprintf(name, \"%s.h5\");' % name]
-            filename = "name"
+                code += ['sprintf(%s, \"%s.h5\");' % (var_name, name)]
+            filename = var_name
         dataset_write = []
         for ar in self.arrays:
             block_name = ar.base.blockname
