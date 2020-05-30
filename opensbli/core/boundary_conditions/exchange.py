@@ -16,11 +16,12 @@ class ExchangeSelf(Exchange):
         self.block_name = block.blockname
         self.direction = direction
         self.side = side_names[side]
+        self.flip = [False]  #MBCHANGE
         return
 
     @property
     def name(self):
-        return "%s%d" % (self.computation_name, self.number)
+        return "%s%d_block%d" % (self.computation_name, self.number, self.block_number) #MBCHANGE
 
     def set_arrays(self, arrays):
         self.transfer_arrays = flatten(arrays)
