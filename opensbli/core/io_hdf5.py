@@ -20,6 +20,7 @@ class iohdf5(opensbliIO):
     def __new__(cls, arrays=None, save_every=None, **kwargs):
         ret = super(iohdf5, cls).__new__(cls)
         ret.order = 0
+        ret.block_number = 0
         ret.group_number = cls.group_number
         cls.increase_io_group_number()
         if kwargs:
