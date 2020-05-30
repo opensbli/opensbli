@@ -424,6 +424,8 @@ class TraditionalAlgorithmRK(object):
             for key in sorted(non_simulation_eqs, key=lambda x: x.order):
                 for place in key.algorithm_place:
                     if isinstance(place, BeforeSimulationStarts):
+                        # print(key)
+                        # print(key.order)
                         before_time += key.Kernels
                     elif isinstance(place, AfterSimulationEnds):
                         after_time += key.Kernels
@@ -458,7 +460,7 @@ class TraditionalAlgorithmRK(object):
                         io_copy.dynamic_fname = False
                         after_time += [io_copy]
                     elif isinstance(place, InTheSimulation):
-                        t = (Equality((temporal_iteration + 1) % place.frequency, 0))
+                        t = (Equality((temporal_iteration + 1) % place.frequency, 0, evaluate=False))
                         cond = Condition(t)
                         io_copy = copy.deepcopy(io)
                         io_copy.dynamic_fname = True
