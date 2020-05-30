@@ -14,3 +14,7 @@ from .reduced_order_scheme import *
 from .forcing_strip_wall import *
 from .periodic import *
 from .inlet_pressure_extrapolate import *
+from .multi_block import *
+from .inviscid_wall2D import *
+from .inlet_Lawal import *
+from .pressure_outlet import *
