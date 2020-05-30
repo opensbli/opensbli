@@ -86,7 +86,8 @@ class KatzerPlot(plotFunctions):
         u = rhou/rho
         v = rhov/rho
         p = (0.4)*(rhoE - 0.5*(u**2+v**2)*rho)
-        M = numpy.sqrt(u**2 + v**2)
+        a = numpy.sqrt(1.4*p/rho)
+        M = numpy.sqrt(u**2 + v**2)/a
         T = 1.4*(self.Minf**2)*p/rho
         mu = self.compute_viscosity(T)
         return rho, u, v, rhoE, p, T, M, mu

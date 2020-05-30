@@ -133,13 +133,10 @@ kwargs = {'iotype': "Write"}
 h5 = iohdf5(**kwargs)
 h5.add_arrays(simulation_eq.time_advance_arrays)
 h5.add_arrays([DataObject('x0'), DataObject('x1'), DataObject('D11'), DataObject('TENO')])
-block.setio(copy.deepcopy(h5))
-
-sim_eq = copy.deepcopy(simulation_eq)
-CR = copy.deepcopy(constituent)
+block.setio(h5)
 
 # Set equations on the block and discretise
-block.set_equations([CR, sim_eq, initial, metriceq])
+block.set_equations([constituent, simulation_eq, initial, metriceq])
 block.discretise()
 
 alg = TraditionalAlgorithmRK(block)
