@@ -174,7 +174,7 @@ class RungeKuttaLS(Scheme):
         temp_data_sets = []
         for no, eq in enumerate(flatten(equations)):
             fn = eq.time_advance_array
-            temp_data_sets += [block.work_array('temp_%s' % fn.base.label)]
+            temp_data_sets += [block.work_array('tempRK_%s' % fn.base.label)]
         return temp_data_sets
 
     def generate_inner_loop(cls, kernels):

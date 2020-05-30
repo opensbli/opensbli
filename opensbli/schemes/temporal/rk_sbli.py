@@ -136,7 +136,7 @@ class RungeKutta(Scheme):
         old_data_sets = []
         for no, eq in enumerate(flatten(equations)):
             fn = eq.time_advance_array
-            old_data_sets += [block.work_array('%s_old' % fn.base.label)]
+            old_data_sets += [block.work_array('%s_RKold' % fn.base.label)]
         return old_data_sets
 
     def generate_inner_loop(cls, kernels):
