@@ -4,7 +4,7 @@
    @details Implements the metric transformations of first and second derivatives
 """
 
-from sympy import Eq, zeros, flatten, Matrix, Function, S, Equality
+from sympy import zeros, flatten, Matrix, Function, S, Equality
 from opensbli.code_generation.algorithm.common import BeforeSimulationStarts
 from opensbli.equation_types.opensbliequations import NonSimulationEquations, Discretisation, Solution, OpenSBLIEquation
 from opensbli.core.opensblifunctions import CentralDerivative
@@ -14,6 +14,7 @@ from opensbli.core.kernel import Kernel
 from opensbli.code_generation.latex import LatexWriter
 from opensbli.core.boundary_conditions.bc_core import BoundaryConditionBase
 from opensbli.core.parsing import EinsteinEquation
+from opensbli.equation_types.opensbliequations import OpenSBLIEq
 
 
 class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
@@ -130,7 +131,7 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
         latex = cls.latex_file
         for i in range(cls.ndim):
             cd = CentralDerivative(cls.general_function, cls.cartesian_coordinates[i])
-            latex.write_expression(Eq(cd, cls.classical_strong_differentiabilty_transformation[i]))
+            latex.write_expression(OpenSBLIEq(cd, cls.classical_strong_differentiabilty_transformation[i]))
         return fd_subs, M2
 
     def generate_fd_metrics_equations(cls, Cartesian_curvilinear_derivatives):
@@ -138,8 +139,8 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
         detJ = Cartesian_curvilinear_derivatives.det()
         evaluation = adjointJ/detJ
         eqns = []
-        eqns = [Eq(cls.detJ, detJ)]
-        eqns += [Eq(x, y) for (x, y) in zip(cls.FD_metrics, evaluation)]
+        eqns = [OpenSBLIEq(cls.detJ, detJ)]
+        eqns += [OpenSBLIEq(x, y) for (x, y) in zip(cls.FD_metrics, evaluation)]
         eqns = [e for e in eqns if isinstance(e, Equality)]
         eqns = [OpenSBLIEquation(eq.lhs, eq.rhs) for eq in eqns]
         cls.fdequations = eqns
@@ -200,11 +201,11 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
         for i in range(cls.ndim):
             for j in range(cls.ndim):
                 fn = CentralDerivative(cls.general_function, cls.cartesian_coordinates[i], cls.cartesian_coordinates[j])
-                latex.write_expression(Eq(fn, cls.classical_strong_differentiabilty_transformation_sd[i, j]))
+                latex.write_expression(OpenSBLIEq(fn, cls.classical_strong_differentiabilty_transformation_sd[i, j]))
         return
 
     def generate_sd_metrics_equations(cls):
-        eqns = [Eq(x, y) for x, y in zip(cls.SD_metrics, cls.SD_evaluations)]
+        eqns = [OpenSBLIEq(x, y) for x, y in zip(cls.SD_metrics, cls.SD_evaluations)]
         eqns = [e for e in eqns if isinstance(e, Equality)]
         eqns = [OpenSBLIEquation(eq.lhs, eq.rhs) for eq in eqns]
         cls.sdequations = eqns
@@ -257,10 +258,14 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
             schemes[sc].required_constituent_relations = {}
             # Apply metric boundary conditions
             cls.metric_boundary_condition(block)
+            cls.fd_kernels = cls.Kernels
+            cls.Kernels = []
             # cls.apply_periodic_bc(block)
             cls.equations = block.dataobjects_to_datasets_on_block(cls.sdequations)  # Second derivatives
             cls.create_residual_arrays()
             schemes[sc].discretise(cls, block)
+            cls.sd_kernels = cls.Kernels
+            cls.Kernels = cls.fd_kernels + cls.sd_kernels
             schemes[sc].required_constituent_relations = {}
             schemes[sc].required_constituent_relations = {}
         cls.process_kernels(block)
@@ -281,23 +286,82 @@ class MetricsEquation(NonSimulationEquations, Discretisation, Solution):
         Later once metrics are not part of the eqaution classes, this can be removed. """
         return
 
+#MB change
+    def apply_interface_bc(cls, block, multiblock_descriptor):
+        arrays = cls.FD_metrics[:] + [cls.detJ]
+        arrays = [a for a in arrays if isinstance(a, DataObject)]
+        arrays = block.dataobjects_to_datasets_on_block(arrays)
+        kernels = MetricInterfaceBC().apply(block, arrays, multiblock_descriptor, cls)
+        #kernels = block.apply_interface_bc(arrays, multiblock_descriptor)
+        cls.fd_kernels += kernels
+        return
+
+    def fd_interface_factors(self, direction):
+        from sympy.matrices import ones
+        factors_mat = ones(self.ndim, self.ndim)
+        factors = []
+        for i in range(self.ndim):
+            for j in range(self.ndim):
+                if i == direction:
+                    factors_mat[i,j] = -S.One * factors_mat[i,j]
+                if isinstance(self.FD_metrics[i,j], DataObject):
+                    factors += [factors_mat[i,j]]
+        # factor for the determinant is always -1 as we change the sign of one of the matrices. This is tested in
+        # the function self.interface_test
+        factors += [-S.One]
+        return factors
+#MB CHANGE
+
     def metric_boundary_condition(cls, block):
         arrays = cls.FD_metrics[:] + [cls.detJ]
         arrays = [a for a in arrays if isinstance(a, DataObject)]
         arrays = block.dataobjects_to_datasets_on_block(arrays)
         from opensbli.core.boundary_conditions.periodic import PeriodicBC
+        from opensbli.core.boundary_conditions.multi_block import InterfaceBC
         bc_types = (PeriodicBC)
+        donot_apply = (InterfaceBC) #MBCHANGE
         for direction in range(block.ndim):
             for side in [0, 1]:
                 # Apply Metric BC only if that direction and side is not periodic
                 if isinstance(block.boundary_types[direction][side], bc_types):
                     bc = block.boundary_types[direction][side]
                     cls.Kernels += [bc.apply(arrays, block)]
-                else:
+                elif not isinstance(block.boundary_types[direction][side], donot_apply):
                     bc = MetricBoundaryCondition(direction, side)
                     cls.Kernels += [bc.apply(arrays, block)]
         return
 
+#MB change
+class MetricInterfaceBC(object):
+    
+    def __init__(self):
+        return
+    
+    def apply(self, block, arrays, multiblock_descriptor, metrics):
+        kernels = block.apply_interface_bc(arrays, multiblock_descriptor)
+        interface_bcs = block.get_interface_bc
+        for bc in interface_bcs:
+            other_block = multiblock_descriptor.get_block(bc.match[0])
+            other_block_arrays = [other_block.work_array(str(a.base.label)) for a in flatten(arrays)]
+            direction, side = bc.match[1], bc.match[2]
+            other_bc = other_block.boundary_types[direction][side]
+            halos, kernel = other_bc.generate_boundary_kernel(other_block, other_bc.bc_name)
+            # Get the factors for fd metrics and jacobians
+            factor_for_arrays = metrics.fd_interface_factors(direction)
+            equations = []
+            for ar, factor in zip(other_block_arrays, factor_for_arrays):
+                equations += [OpenSBLIEq(ar, factor*ar)]
+            # Remove non equations
+            equations = [eq for eq in equations if isinstance(eq, OpenSBLIEq)]
+            kernel.add_equation(equations)
+            kernel.halo_ranges[direction][side] = other_block.boundary_halos[direction][side]
+            kernel.update_block_datasets(other_block)
+            kernels += [kernel]
+        from sympy import pprint
+        # for eqn in kernel.equations:
+        #     pprint(eqn)
+        # exit()
+        return kernels
 
 class MetricBoundaryCondition(BoundaryConditionBase):
     def __init__(self, boundary_direction, side, plane=True):

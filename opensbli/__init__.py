@@ -6,3 +6,4 @@ from .physical_models import *
 from .utilities import *
 from .initialisation import *
 from .optimisations import *
+from .multiblock import *

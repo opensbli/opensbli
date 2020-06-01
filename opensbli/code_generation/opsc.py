@@ -131,6 +131,11 @@ class OPSCCodePrinter(C99CodePrinter):
         else:
             raise ValueError("Did not find the OPS Access for %s " % expr.base)
 
+#MBCHANGE
+    def _print_IndexedBase(self, expr):
+        return str(expr)
+#MBCHANGE
+
     def _print_Indexed(self, expr):
         """ Print out an Indexed object.
 
@@ -252,28 +257,28 @@ class OPSC(object):
         :arg int OPS_diagnostics: OPS performance diagnostics. The default of 1 provides no kernel-based timing output
         A value of 5 gives a kernel breakdown of computational kernel and MPI exchange time."""
 
-        if not algorithm.MultiBlock:
-            self.operation_count = operation_count
-            self.OPS_diagnostics = OPS_diagnostics
-            self.MultiBlock = False
-            self.dtype = algorithm.dtype
-            # Check if the simulation monitoring should be written to an output log file
-            if algorithm.simulation_monitor:
-                if algorithm.simulation_monitor.output_file:
-                    self.monitoring_output_file = True
-            else:
-                self.monitoring_output_file = False
-            # First write the kernels, with this we will have the Rational constants to declare
-            self.write_kernels(algorithm)
-            def_decs = self.opsc_def_decs(algorithm)
-            end = self.ops_exit()
-            algorithm.prg.components = def_decs + algorithm.prg.components + end
-            code = algorithm.prg.opsc_code
-            code = self.before_main(algorithm) + code
-            f = open('opensbli.cpp', 'w')
-            f.write('\n'.join(code))
-            f.close()
-            print("Successfully generated the OPS C code.")
+        # if not algorithm.MultiBlock:
+        self.operation_count = operation_count
+        self.OPS_diagnostics = OPS_diagnostics
+        self.MultiBlock = False
+        self.dtype = algorithm.dtype
+        # Check if the simulation monitoring should be written to an output log file
+        if algorithm.simulation_monitor:
+            if algorithm.simulation_monitor.output_file:
+                self.monitoring_output_file = True
+        else:
+            self.monitoring_output_file = False
+        # First write the kernels, with this we will have the Rational constants to declare
+        self.write_kernels(algorithm)
+        def_decs = self.opsc_def_decs(algorithm)
+        end = self.ops_exit()
+        algorithm.prg.components = def_decs + algorithm.prg.components + end
+        code = algorithm.prg.opsc_code
+        code = self.before_main(algorithm) + code
+        f = open('opensbli.cpp', 'w')
+        f.write('\n'.join(code))
+        f.close()
+        print("Successfully generated the OPS C code.")
         return
 
     def wrap_long_lines(self, code_lines):
@@ -562,6 +567,10 @@ class OPSC(object):
         # dir in OPSC. WARNING: Not sure what it is, but 1 to ndim works.
         from_dir = [ind+1 for ind in range(len(instance.transfer_to))]
         to_dir = [ind+1 for ind in range(len(instance.transfer_to))]
+        # MBCHANGE
+        if instance.flip[-1]:
+            to_dir[instance.flip[1]] = -to_dir[instance.flip[1]]
+        # MBCHANGE
         code += ['int from_dir[] = {%s}%s' % (', '.join([str(ind) for ind in from_dir]), ";")]
         code += ['int to_dir[] = {%s}%s' % (', '.join([str(ind) for ind in to_dir]), ";")]
         # Process the arrays
@@ -693,7 +702,11 @@ class OPSC(object):
                                                                                dset.block_name, dtype.opsc(), dset, dset.input_file_name)
             out += [WriteString(temp)]
         else:
-            hm, hp = self.get_max_halos(dset.halo_ranges)
+            # Residual and time-advance arrays do not require halos
+            if ('Residual' in str(dset) or 'tempRK' in str(dset) or 'RKold' in str(dset)):
+                hm, hp = [0 for _ in range(len(dset.size))], [0 for _ in range(len(dset.size))]
+            else:
+                hm, hp = self.get_max_halos(dset.halo_ranges)
             halo_p = self.declare_inline_array("int", "halo_p", hp)
             halo_m = self.declare_inline_array("int", "halo_m", hm)
             sizes = self.declare_inline_array("int", "size", [str(s) for s in (dset.size)])

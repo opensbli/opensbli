@@ -215,7 +215,8 @@ Avg = RoeAverage([0, 1])
 LLF = LLFTeno(weno_order, averaging=Avg)
 schemes = {}
 schemes[LLF.name] = LLF
-cent = Central(4)
+fns = 'u0 u1 u2 T'
+cent = StoreSome(4, fns)
 schemes[cent.name] = cent
 rk = RungeKuttaLS(3, formulation='SSP')
 #rk = RungeKuttaLS(3)

@@ -61,3 +61,8 @@ class GridBasedInitialisation(NonSimulationEquations):
         """No boundary conditions in the Initialisation currently, any logic needed should be implemented here
         """
         return
+
+    def apply_interface_bc(cls, block, multiblock_descriptor):
+        """ No BC for initialisation."""
+        return
+

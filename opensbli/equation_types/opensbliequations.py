@@ -185,7 +185,10 @@ class OpenSBLIEquation(Equality):
         fns = []
         replacements = {}
         fns += list(cls.atoms(Function))
-
+        # # MBCHANGE
+        # from opensbli.core.opensblifunctions import LocalDerivative
+        # fns += list(cls.atoms(LocalDerivative))
+        # MBCHANGE
         for fn in fns:
             if not fn.is_homogeneous:
                 replacements[fn] = fn._sanitise
@@ -408,6 +411,14 @@ class SimulationEquations(Discretisation, Solution):
         cls.boundary_kernels += kernels
         return
 
+    # MBCHANGE
+    def apply_interface_bc(cls, block, multiblock_descriptor):
+        arrays = cls.time_advance_arrays
+        kernels = block.apply_interface_bc(arrays, multiblock_descriptor)
+        cls.boundary_kernels += kernels
+        return
+    # MBCHANGE
+
     @property
     def time_advance_arrays(cls):
         TD_fns = []
@@ -426,7 +437,7 @@ class SimulationEquations(Discretisation, Solution):
         return True
 
     def all_spatial_kernels(cls, block):
-        return cls.sort_constituents(block) + cls.Kernels
+        return flatten([cls.sort_constituents(block)] + [cls.Kernels])
 
 
 class ConstituentRelations(Discretisation, Solution):
@@ -443,6 +454,11 @@ class ConstituentRelations(Discretisation, Solution):
         for eq in flatten(cls.equations):
             eq.residual = eq.lhs
         return
+
+# MBCHANGE
+    def apply_interface_bc(cls, block, multiblock_descriptor):
+        return
+# MBCHANGE
 
     def spatial_discretisation(cls, block):
         """Applies the spatial discretisation of the equations by calling the discretisation of each spatial
