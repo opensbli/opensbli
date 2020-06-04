@@ -7,12 +7,12 @@ from sympy import Matrix
 class PeriodicBC(BoundaryConditionBase):
     """ Applies an exchange periodic boundary condition.
 
-    :arg int boundary_direction: Spatial direction to apply boundary condition to.
+    :arg int direction: Spatial direction to apply boundary condition to.
     :arg int side: Side 0 or 1 to apply the boundary condition for a given direction.
     :arg bool plane: True/False: Apply boundary condition to full range/split range only."""
 
-    def __init__(self, boundary_direction, side, plane=True):
-        BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
+    def __init__(self, direction, side, plane=True):
+        BoundaryConditionBase.__init__(self, direction, side, plane)
         return
 
     def halos(self):
@@ -40,17 +40,17 @@ class PeriodicBC(BoundaryConditionBase):
         return ex
 
     def get_transfers(self, idx, halos):
-        boundary_direction, side = self.direction, self.side
+        direction, side = self.direction, self.side
         transfer_from = [d[0] for d in halos]
         transfer_to = [d[0] for d in halos]
         if side == 0:
-            transfer_from[boundary_direction] = idx[boundary_direction].lower
-            transfer_to[boundary_direction] = idx[boundary_direction].upper
+            transfer_from[direction] = idx[direction].lower
+            transfer_to[direction] = idx[direction].upper
         else:
-            transfer_from[boundary_direction] = idx[boundary_direction].upper + halos[boundary_direction][0]
-            transfer_to[boundary_direction] = idx[boundary_direction].lower + halos[boundary_direction][0]
+            transfer_from[direction] = idx[direction].upper + halos[direction][0]
+            transfer_to[direction] = idx[direction].lower + halos[direction][0]
 
         transfer_size = Matrix([i.upper + i.lower for i in idx]) + \
             Matrix([abs(dire[0]) + abs(dire[1]) for dire in halos])
-        transfer_size[boundary_direction] = abs(halos[boundary_direction][side])
+        transfer_size[direction] = abs(halos[direction][side])
         return transfer_size, transfer_from, transfer_to

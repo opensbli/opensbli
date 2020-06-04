@@ -3,8 +3,8 @@ from sympy import flatten
 
 
 class ZeroGradientOutletBC(BoundaryConditionBase):
-    def __init__(self, boundary_direction, side, scheme=None, plane=True):
-        BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
+    def __init__(self, direction, side, scheme=None, plane=True):
+        BoundaryConditionBase.__init__(self, direction, side, plane)
         self.bc_name = 'ZeroGradientOutlet'
         return
 

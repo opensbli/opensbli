@@ -7,11 +7,10 @@ from opensbli.core.boundary_conditions.exchange import ExchangeSelf
 class MultiBlockBoundary(object):
     pass
 
-
 class InterfaceBC(BoundaryConditionBase, MultiBlockBoundary):
-    def __init__(self, boundary_direction, side, match=(None, None, None), plane=True):
+    def __init__(self, direction, side, match=(None, None, None), plane=True):
         # check if the match is a boundary type
-        BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
+        BoundaryConditionBase.__init__(self, direction, side, plane)
         self.match = match
         self.bc_name = "interface"
         return

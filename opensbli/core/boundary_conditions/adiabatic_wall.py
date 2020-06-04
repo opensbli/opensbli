@@ -11,13 +11,13 @@ class AdiabaticWallBC(ModifyCentralDerivative, BoundaryConditionBase):
     """ Adiabatic wall condition, zero gradient dT/dn = 0 over the boundary.
     # modified by Hiten Mulchandani (November 2019)
 
-    :arg int boundary_direction: Spatial direction to apply boundary condition to.
+    :arg int direction: Spatial direction to apply boundary condition to.
     :arg int side: Side 0 or 1 to apply the boundary condition for a given direction.
     :arg object scheme: Boundary scheme if required, defaults to Carpenter boundary treatment.
     :arg bool plane: True/False: Apply boundary condition to full range/split range only."""
 
-    def __init__(self, boundary_direction, side, scheme=None, plane=True):
-        BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
+    def __init__(self, direction, side, scheme=None, plane=True):
+        BoundaryConditionBase.__init__(self, direction, side, plane)
         self.bc_name = 'AdiabaticWall'
         if not scheme:
             self.modification_scheme = Carpenter()

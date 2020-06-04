@@ -14,14 +14,14 @@ class ForcingStripBC(ModifyCentralDerivative, BoundaryConditionBase):
     velocity components are zero on the wall. Temperature is fixed with a prescribed wall temperature,
     given as the rhoE equation passed to this BC. A wall normal velocity is set based on the equation passed by the user.
 
-    :arg int boundary_direction: Spatial direction to apply boundary condition to.
+    :arg int direction: Spatial direction to apply boundary condition to.
     :arg int side: Side 0 or 1 to apply the boundary condition for a given direction.
     :arg Eq equations: Equation for conservative variable rhoE to set on the wall with constant temperature.
     :arg object scheme: Boundary scheme if required, defaults to Carpenter boundary treatment.
     :arg bool plane: True/False: Apply boundary condition to full range/split range only."""
 
-    def __init__(self, boundary_direction, side, wall_normal_velocity, equations, scheme=None, plane=True):
-        BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
+    def __init__(self, direction, side, wall_normal_velocity, equations, scheme=None, plane=True):
+        BoundaryConditionBase.__init__(self, direction, side, plane)
         self.bc_name = 'ForcingStripWall'
         self.equations = equations
         self.wall_normal_velocity = wall_normal_velocity

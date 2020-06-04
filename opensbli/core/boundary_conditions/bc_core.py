@@ -59,16 +59,16 @@ class BoundaryConditionTypes(object):
 class BoundaryConditionBase(object):
     """ Base class for common functionality between all boundary conditions.
 
-    :arg int boundary_direction: Spatial direction to apply boundary condition to.
+    :arg int direction: Spatial direction to apply boundary condition to.
     :arg int side: Side 0 or 1 to apply the boundary condition for a given direction.
     :arg bool plane: True/False: Apply boundary condition to full range/split range only."""
 
-    def __init__(self, boundary_direction, side, plane):
+    def __init__(self, direction, side, plane):
         if plane:
             self.full_plane = True
         else:
             self.full_plane = False
-        self.direction = boundary_direction
+        self.direction = direction
         self.side = side
         self.equations = None
         return
@@ -195,8 +195,8 @@ class BoundaryConditionBase(object):
 class SplitBC(BoundaryConditionBase):
     """ Functionality to apply more then one boundary condition along a boundary."""
 
-    def __init__(self, boundary_direction, side, bcs, plane=False):
-        BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
+    def __init__(self, direction, side, bcs, plane=False):
+        BoundaryConditionBase.__init__(self, direction, side, plane)
         self.bc_types = bcs
         return
 

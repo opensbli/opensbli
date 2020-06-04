@@ -14,13 +14,13 @@ class PressureOutletBC(ModifyCentralDerivative, BoundaryConditionBase):
     """ Specified outlet (back) pressure boundary condition. Pressure is specified, density and velocity components
     are extrapolated from 1 point inside the boundary to the boundary point and the halos on that side.
 
-    :arg int boundary_direction: Spatial direction to apply boundary condition to.
+    :arg int direction: Spatial direction to apply boundary condition to.
     :arg int side: Side 0 or 1 to apply the boundary condition for a given direction.
     :arg float back_pressure: Numerical value of back pressure to set on the outlet.
     :arg object scheme: Boundary scheme if required, defaults to Carpenter boundary treatment.
     :arg bool plane: True/False: Apply boundary condition to full range/split range only."""
-    def __init__(self, boundary_direction, side, back_pressure, scheme=None, plane=True):
-        BoundaryConditionBase.__init__(self, boundary_direction, side, plane)
+    def __init__(self, direction, side, back_pressure, scheme=None, plane=True):
+        BoundaryConditionBase.__init__(self, direction, side, plane)
         self.bc_name = 'PressureOutlet'
         self.back_pressure = back_pressure
         if side != 1:
