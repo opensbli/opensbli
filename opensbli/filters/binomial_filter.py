@@ -1,7 +1,8 @@
-"""Three point filter. Original version by Alex Gillespie."""
+""" David J. Lusher: Binomial filter using the coefficients of (a-b)^n / 2^n for filter of order n.
+    Original three-point 2nd order version by Alex Gillespie."""
 
 from opensbli import *
-from sympy import symbols, exp, pprint, Piecewise
+from sympy import symbols, exp, pprint, Piecewise, binomial
 from opensbli.core.opensbliobjects import DataObject, ConstantObject, GroupedPiecewise
 from opensbli.equation_types.opensbliequations import OpenSBLIEquation
 from opensbli.postprocess.post_process_eq import *
@@ -9,33 +10,52 @@ from opensbli.core.kernel import ConstantsToDeclare as CTD
 from opensbli.code_generation.algorithm.common import *
 from opensbli.utilities.user_defined_kernels import UserDefinedEquations
 
-class Filter(object):
-    def __init__(self, block, grid_condition=None, sigma=0.05):
+class BinomialFilter(object):
+    def __init__(self, block, order, grid_condition=None, sigma=0.05):
         self.block = block
+        if (order % 2) != 0:
+            raise ValueError("The filter is only defined for even orders n.")
+        elif (order > 10):
+            raise ValueError("Increase the number of halo points in scheme.py for high order filters.")
+        else:
+            self.order = order
         # Spatial dependence of the filter
         self.grid_condition = grid_condition
+        # Width and weightings of the filter
+        self.generate_weights()
         sigma_symbol = ConstantObject('sigma_filt')
         sigma_symbol.value = sigma
         self.sigma = sigma_symbol
         self.equation_classes = []
-        self.weights = [0.25, 0.5, 0.25]
         # Create the filter equations
         self.create_filter()
         return
 
+    def generate_weights(self):
+        """ Creates the binomial coefficients for a filter of order N."""
+        N = self.order
+        self.weights = [binomial(N, i)/2.0**N for i in range(N + 1)]
+        self.locations = [i for i in range(-int(N/2.0), int(N/2.0)+1)]
+        print("Using a binomial filter of order %d." % N)
+        return
+
     def create_stencil(self, block, q, direction):
+        """ Indexes the datasets based on the width of the filter stencil."""
         output = []
         for dset in q:
             dset = block.location_dataset(dset)
-            dset = [increment_dataset(dset, direction, -1), dset, increment_dataset(dset, direction, 1)]
-            output += [dset]
+            dset_locations = []
+            for i, location in enumerate(self.locations):
+                dset_locations.append(increment_dataset(dset, direction, location))
+            output += [dset_locations]
         return output
 
     def filtered_equations(self, q_f, q_stencil):
-        a, b, c = self.weights
+        """ Creates the weighted sum for the binomial filter."""
         output = []
         for u_f, u_stencil in zip(q_f, q_stencil):
-            output += [OpenSBLIEquation(u_f, a*u_stencil[0] + b*u_stencil[1] + c*u_stencil[2])]
+            rhs = [self.weights[i]*u_stencil[i] for i, location in enumerate(self.locations)]
+            output += [OpenSBLIEquation(u_f, sum(rhs))]
         return output
 
     def conditional_expression(self, filter_equations):
@@ -56,7 +76,6 @@ class Filter(object):
             q = ['rho', 'rhou0', 'rhou1', 'rhoE']
         elif ndim == 3:
             q = ['rho', 'rhou0', 'rhou1', 'rhou2', 'rhoE']
-        # q = [DataObject('%s' % var) for var in cons_vars]
 
         # Create the three point stencils
         q_xstencil = self.create_stencil(block, q, 0)
@@ -72,7 +91,6 @@ class Filter(object):
         output_equations += self.filtered_equations(q_fy, q_ystencil)
         if ndim == 3:
             output_equations += self.filtered_equations(q_fz, q_zstencil)
-
         # Average the filter
         q_f = [GridVariable(u + "_filtered") for u in q]
         if ndim == 2:
@@ -97,7 +115,7 @@ class Filter(object):
         # Create a kernel at the end of the time loop, every iteration (no frequency)
         filter_class = UserDefinedEquations()
         filter_class.algorithm_place = InTheSimulation(frequency=False)
-        filter_class.computation_name = 'Three point filter'
+        filter_class.computation_name = 'Binomial filter'
         filter_class.add_equations(self.create_equations())
         self.equation_classes.append(filter_class)
         return
