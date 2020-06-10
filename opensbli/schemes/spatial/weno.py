@@ -282,7 +282,7 @@ class RightWenoReconstructionVariable(WenoReconstructionVariable):
 class WenoZ(object):
     def __init__(self, k):
         self.k = k
-        self.eps = 1e-16
+        self.eps = 1.0e-14
         return
 
     def global_smoothness_indicator(self, RV):
