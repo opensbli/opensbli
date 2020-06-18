@@ -1,10 +1,10 @@
 from opensbli.core.boundary_conditions.bc_core import BoundaryConditionBase
 from opensbli.core.boundary_conditions.Carpenter_scheme import Carpenter
-from sympy import flatten, Matrix, sqrt, pprint
+from sympy import flatten, Matrix, sqrt
 
 
-class SymmetryBC(BoundaryConditionBase):
-    """ Applies a symmetry condition on the boundary, normal velocity components set/evaluate to zero.
+class InviscidWallBC(BoundaryConditionBase):
+    """ Applies a InviscidWall condition on the boundary, normal velocity components set/evaluate to zero.
 
     :arg int direction: Spatial direction to apply boundary condition to.
     :arg int side: Side 0 or 1 to apply the boundary condition for a given direction.
@@ -45,10 +45,8 @@ class SymmetryBC(BoundaryConditionBase):
 
         transfer_indices = [tuple([from_side_factor*t, to_side_factor*t]) for t in range(1, abs(halos[direction][side]) + 1)]
         final_equations = self.create_boundary_equations(lhs_eqns, rhs_eqns, transfer_indices)
-        # transfer_indices = [tuple([0, to_side_factor])]
-        # final_equations += self.create_boundary_equations(lhs_eqns, boundary_values, transfer_indices)
-        for eqn in final_equations:
-            pprint(eqn)
+        transfer_indices = [tuple([0, to_side_factor])]
+        final_equations += self.create_boundary_equations(lhs_eqns, boundary_values, transfer_indices)
         kernel.add_equation(final_equations)
         kernel.update_block_datasets(block)
         return kernel
