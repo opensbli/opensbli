@@ -121,7 +121,7 @@ initial.add_equations(initial_equations)
 schemes = {}
 # Central scheme for spatial discretisation and add to the schemes dictionary
 ## Low storage optimisation for the central scheme
-fns = 'u0 u1 ub0 ub1 T Tb'
+# fns = 'u0 u1 ub0 ub1 T Tb'
 # cent = StoreSome(4, fns)
 cent = Central(4)
 schemes[cent.name] = cent
@@ -136,7 +136,7 @@ boundaries = []
 boundaries += [PeriodicBC(direction=0, side=0)]
 boundaries += [PeriodicBC(direction=0, side=1)]
 # Isothermal wall in x1 direction
-boundaries += [PrimitiveIsothermalWallBC(direction=1, side=0, wall_temperature=1.0)]
+boundaries += [PrimitiveIsothermalWallBC(direction=1, side=0)]
 # Far field boundary
 dirichlet_equations = [Eq(GridVariable('temp'), DataObject('x0'))]
 boundaries += [DirichletBC(direction=1, side=1, equations=dirichlet_equations)]

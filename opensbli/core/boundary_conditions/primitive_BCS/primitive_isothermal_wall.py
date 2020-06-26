@@ -10,7 +10,8 @@ from opensbli.core.grid import GridVariable
 
 class PrimitiveIsothermalWallBC(ModifyCentralDerivative, BoundaryConditionBase):
     """ Navier-Stokes specific boundary condition. Applies a no-slip viscous wall condition,
-    velocity components are zero on the wall. Temperature is fixed with a prescribed wall temperature.
+    velocity and temperature fluctuations are zero on the wall. Density fluctuations are left
+    to change based on the continuity equation.
 
     :arg int direction: Spatial direction to apply boundary condition to.
     :arg int side: Side 0 or 1 to apply the boundary condition for a given direction.
@@ -18,10 +19,9 @@ class PrimitiveIsothermalWallBC(ModifyCentralDerivative, BoundaryConditionBase):
     :arg object scheme: Boundary scheme if required, defaults to Carpenter boundary treatment.
     :arg bool plane: True/False: Apply boundary condition to full range/split range only."""
 
-    def __init__(self, direction, side, wall_temperature, scheme=None, plane=True):
+    def __init__(self, direction, side, scheme=None, plane=True):
         BoundaryConditionBase.__init__(self, direction, side, plane)
         self.bc_name = 'IsothermalWall'
-        self.wall_temperature = wall_temperature
         if not scheme:
             self.modification_scheme = Carpenter()
         else:
@@ -36,7 +36,7 @@ class PrimitiveIsothermalWallBC(ModifyCentralDerivative, BoundaryConditionBase):
         # Set wall conditions, velocity components are zeroed
         wall_eqns = [OpenSBLIEq(x, Float(S.Zero)) for x in velocity_components]
         # Set wall temperature, density is left to be evaluated
-        wall_eqns += [OpenSBLIEq(block.location_dataset('T'), self.wall_temperature)]
+        wall_eqns += [OpenSBLIEq(block.location_dataset('T'), 0)]
         kernel.add_equation(wall_eqns)
         kernel.update_block_datasets(block)
         return kernel
