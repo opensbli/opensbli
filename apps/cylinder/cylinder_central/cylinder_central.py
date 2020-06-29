@@ -155,7 +155,7 @@ block.set_block_boundaries(boundaries)
 kwargs = {'iotype': "Write"}
 h5 = iohdf5(save_every=100000, **kwargs)
 h5.add_arrays(simulation_eq.time_advance_arrays)
-h5.add_arrays([DataObject('x0'), DataObject('x1'),  DataObject('D00'), DataObject('D01'), DataObject('D10'), DataObject('D11')])
+h5.add_arrays([DataObject('x0'), DataObject('x1')]) #,  DataObject('rho_filt'), DataObject('rhou0_filt'), DataObject('rhou1_filt'), DataObject('rhoE_filt')])
 kwargs = {'iotype': "Read"}
 h5_read = iohdf5(**kwargs)
 h5_read.add_arrays([DataObject('x0'), DataObject('x1')])
