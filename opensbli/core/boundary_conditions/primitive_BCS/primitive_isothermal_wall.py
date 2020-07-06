@@ -32,11 +32,44 @@ class PrimitiveIsothermalWallBC(ModifyCentralDerivative, BoundaryConditionBase):
         halos, kernel = self.generate_boundary_kernel(block, self.bc_name)
         n_halos = abs(halos[self.direction][self.side])
         from_side_factor, to_side_factor = self.set_side_factor()
+        direction = self.direction
         velocity_components = [block.location_dataset('u%d' % i) for i in range(block.ndim)]
         # Set wall conditions, velocity components are zeroed
         wall_eqns = [OpenSBLIEq(x, Float(S.Zero)) for x in velocity_components]
         # Set wall temperature, density is left to be evaluated
-        wall_eqns += [OpenSBLIEq(block.location_dataset('T'), 0)]
+        wall_eqns += [OpenSBLIEq(block.location_dataset('T'), 0.0)]
         kernel.add_equation(wall_eqns)
+        # Set the halos
+        halo_eqns = []
+        # Reverse the velocity components over the wall
+        transfer_indices = [tuple([from_side_factor*t, to_side_factor*t]) for t in range(1, n_halos + 1)]
+        print(transfer_indices)
+        for index, component in enumerate(velocity_components):
+            for pair_index, pair in enumerate(transfer_indices):
+                left = increment_dataset(component, direction, pair[0])
+                right = increment_dataset(component, direction, pair[1])
+                halo_eqns += [OpenSBLIEq(left, -right)]
+        # Set the temperature in the halo points T[-i] = i*T[0]
+        T = block.location_dataset('T')
+        T1 = increment_dataset(T, direction, 1*to_side_factor)
+        halo_eqns += [OpenSBLIEq(increment_dataset(T, direction, -i*to_side_factor), -i*T1) for i in range(1, n_halos+1)]
+        # Wall pressure
+        gama, Minf = ConstantObject('gama'), ConstantObject('Minf')
+        rho, T = block.location_dataset('rho'), block.location_dataset('T')
+        pw = OpenSBLIEq(GridVariable('pw'), rho*T/(gama*Minf**2))
+        # Base flow wall pressure
+        rhob, Tb = block.location_dataset('rhob'), block.location_dataset('Tb')
+        pwb = OpenSBLIEq(GridVariable('pwb'), rhob*Tb/(gama*Minf**2))
+        halo_eqns += [pw, pwb]
+        # Set density in the halos
+        for i in range(1, n_halos+1):
+            T_halo, Tb_halo = increment_dataset(T, direction, -i*to_side_factor), increment_dataset(Tb, direction, i*to_side_factor)
+            rhs = Minf**2 * gama * pwb.lhs/Tb_halo * (pw.lhs/pwb.lhs - T_halo/Tb_halo)
+            rho_lhs = increment_dataset(rho, direction, -i*to_side_factor)
+            halo_eqns += [OpenSBLIEq(rho_lhs, rhs)]
+        kernel.add_equation(halo_eqns)
+        print("Printing the wall boundary equations:\n")
+        for eqn in kernel.equations:
+            pprint(eqn)
         kernel.update_block_datasets(block)
         return kernel
