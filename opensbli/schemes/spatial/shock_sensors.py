@@ -1,4 +1,4 @@
-from sympy import Rational, Min, Abs, sqrt, tanh
+from sympy import Rational, Min, Abs, sqrt, tanh, pprint
 from opensbli.core.opensblifunctions import CentralDerivative as CD
 from opensbli.core.parsing import EinsteinEquation as EE
 from opensbli.core.opensbliobjects import ConstantObject, CoordinateObject, DataObject
@@ -9,12 +9,11 @@ class ShockSensor(object):
     def __init__(self):
         return
 
-    def ducros_equations(self, block, coordinate_symbol, metrics=None, modified=True):
+    def ducros_equations(self, block, coordinate_symbol, metrics=None, name='theta'):
         """ Create the non-discretized equations for the modified Ducros shock sensor and applies a metric transformation if required.
         :arg object block: OpenSBLI simulation block.
         :arg string coordinate_symbol: Coordinate symbol to perform the derivatives with.
-        :arg object metrics: OpenSBLI metric class to apply curvilinear coordinates to the sensor if required.
-        :arg bool modified: If True applies the tanh filter to deactivate the sensor in positive dilatation regions of expansion."""
+        :arg object metrics: OpenSBLI metric class to apply curvilinear coordinates to the sensor if required."""
 
         ndim = block.ndim
         substitutions, constants, output_eqns = [], [], []
@@ -22,7 +21,8 @@ class ShockSensor(object):
         cartesian_coordinates = [cart.apply_index(cart.indices[0], dim) for dim in range(ndim)]
 
         epsilon, Minf = ConstantObject('epsilon'), ConstantObject('Minf')
-        theta = block.location_dataset('theta')
+        sensor_array = block.location_dataset('%s' % name)
+        epsilon.value = 1.0e-12
         # Calculate vorticity
         if block.ndim == 2:
             x0, x1 = cartesian_coordinates[0], cartesian_coordinates[1]
@@ -43,11 +43,7 @@ class ShockSensor(object):
             vorticity_sq = metrics.apply_transformation(vorticity_sq)
             divergence = metrics.apply_transformation(divergence)
 
-        if modified:
-            a = 75.0  # Higher values increase the activation
-            inv_M = Minf*Abs(block.location_dataset('a') / block.location_dataset('u%d' % 0))
-            tanh_filter = Rational(1, 2)*(1 - tanh(2.5*(1 + a*divergence.rhs)))
-
-        output_eqns += [OpenSBLIEq(theta, Min(1, tanh_filter*Abs(divergence.rhs) * inv_M**4 / (Abs(divergence.rhs) + sqrt(vorticity_sq)*inv_M**6 + epsilon)))]
-        sensor_array = output_eqns[0].lhs
+        a = 100.0
+        tanh_filter = Rational(1, 2)*(1 - tanh(2.5*(1 + a*divergence.rhs)))
+        output_eqns += [OpenSBLIEq(sensor_array, tanh_filter*divergence.rhs**2 / (divergence.rhs**2 + vorticity_sq + epsilon))]
         return output_eqns, sensor_array

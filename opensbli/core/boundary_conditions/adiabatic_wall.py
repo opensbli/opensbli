@@ -1,4 +1,4 @@
-from opensbli.core.boundary_conditions.bc_core import BoundaryConditionBase, ModifyCentralDerivative
+from opensbli.core.boundary_conditions.bc_core import BoundaryConditionBase, ModifyCentralDerivative, WallBC
 from opensbli.core.boundary_conditions.Carpenter_scheme import Carpenter
 from opensbli.utilities.helperfunctions import increment_dataset
 from opensbli.equation_types.opensbliequations import OpenSBLIEq
@@ -7,7 +7,7 @@ from opensbli.core.opensbliobjects import ConstantObject
 from sympy import Rational
 
 
-class AdiabaticWallBC(ModifyCentralDerivative, BoundaryConditionBase):
+class AdiabaticWallBC(ModifyCentralDerivative, BoundaryConditionBase, WallBC):
     """ Adiabatic wall condition, zero gradient dT/dn = 0 over the boundary.
     # modified by Hiten Mulchandani (November 2019)
 

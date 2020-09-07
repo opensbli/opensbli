@@ -6,7 +6,7 @@
 
 from sympy import Symbol, Rational, zeros, Abs, Matrix, flatten, Max, diag, Function
 from sympy.core.numbers import Zero
-from opensbli.core.opensbliobjects import EinsteinTerm, DataSetBase, ConstantObject, DataSet
+from opensbli.core.opensbliobjects import EinsteinTerm, DataSetBase, ConstantObject, DataSet, DataObject
 from opensbli.equation_types.opensbliequations import OpenSBLIEq
 from opensbli.core.kernel import Kernel, ConstantsToDeclare
 from opensbli.core.grid import GridVariable
@@ -14,7 +14,6 @@ from opensbli.utilities.helperfunctions import increment_dataset
 from opensbli.physical_models.euler_eigensystem import EulerEquations
 from sympy import factor, pprint
 from opensbli.schemes.spatial.averaging import SimpleAverage
-
 
 class ShockCapturing(object):
     """ Class that contains functions common to all shock capturing schemes."""
@@ -40,7 +39,7 @@ class ShockCapturing(object):
             for i in range(expression_matrix.shape[0]):
                 settings = derivatives[i].settings
                 if "combine_reconstructions" in settings and settings["combine_reconstructions"]:
-                    name = "Recon_%d_%d" % (self.direction, i)
+                    name = "Recon_%d" % i
                 else:
                     name = 'L_X%d_%d' % (self.direction, i)
                 lv = type(self.reconstruction_classes[1])(name)
@@ -58,7 +57,7 @@ class ShockCapturing(object):
             for i in range(expression_matrix.shape[0]):
                 settings = derivatives[i].settings
                 if "combine_reconstructions" in settings and settings["combine_reconstructions"]:
-                    name = "Recon_%d_%d" % (self.direction, i)
+                    name = "Recon_%d" % i
                 else:
                     name = 'R_X%d_%d' % (self.direction, i)
                 rv = type(self.reconstruction_classes[0])(name)
@@ -88,6 +87,12 @@ class ShockCapturing(object):
                 rv.evaluate_quantities()
                 # Add all of the current equations
                 output_eqns += [rv.final_equations]
+                # Apply a sensor to each characteristic wave if using filtering methods
+                if self.sensor_evaluation is not None:
+                    if isinstance(rv, type(self.reconstruction_classes[0])):
+                        output_eqns += [OpenSBLIEq(GridVariable('rj%d' % no), self.sensor_evaluation[0].rhs)]
+                    elif isinstance(rv, type(self.reconstruction_classes[1])):
+                        output_eqns += [OpenSBLIEq(GridVariable('rj%d' % no), Max(GridVariable('rj%d' % no),self.sensor_evaluation[1].rhs))] 
         return output_eqns
 
     def update_constituent_relation_symbols(self, sym, direction):
@@ -256,7 +261,7 @@ class Characteristic(EigenSystem):
             derivatives[i].update_settings(**settings)
         pre_process_eqns = self.pre_process(direction, derivatives, solution_vector, block)
         interpolated_eqns = self.interpolate_reconstruction_variables(derivatives)
-        post_process_eqns = self.post_process(direction, derivatives)
+        post_process_eqns = self.post_process(direction, derivatives, block)
         return [pre_process_eqns, interpolated_eqns, post_process_eqns]
 
     def remove_zero_equations(self, equations):
@@ -392,7 +397,25 @@ class LLFCharacteristic(Characteristic):
         pre_process_equations = self.replace_gamma_factor(pre_process_equations)
         return pre_process_equations
 
-    def post_process(self, direction, derivatives):
+
+    def central_diff_formula(self, component, reconstruction_variable):
+        """ Central difference formula based on the f_i = 0.5*(f_(i+1/2) - f_(i-1/2)) half-node locations. Applied in characteristic space
+        using the CF local variables."""
+        if (self.order+1) == 4:
+            weights = [Rational(-1,12), Rational(7,12), Rational(7,12), Rational(-1,12)]
+        elif (self.order+1) == 6:
+            weights = [Rational(1,60), Rational(-8,60), Rational(37,60), Rational(37,60), Rational(-8,60), Rational(1,60)]
+        elif (self.order+1) == 8:
+            weights = [Rational(-1,280), Rational(29, 840), Rational(-139,840), Rational(533, 840), Rational(533,840), Rational(-139,840), Rational(29,840), Rational(-1, 280)]
+        else:
+            raise NotImplementedError("Only 4th, 6th, and 8th order Central are implemented for the WENO-Filter.")
+        # Take a central difference of the characteristic fluxes
+        terms = [GridVariable('CF_%d%d' % (component, j)) for j in range(len(weights))]
+        formula = factor(sum([x*y for (x,y) in zip(weights, terms)]))
+        output_equation = [OpenSBLIEq(reconstruction_variable, GridVariable('rj%d' % component)*(reconstruction_variable - formula))]
+        return output_equation
+
+    def post_process(self, direction, derivatives, block):
         """ Transforms the characteristic WENO interpolated fluxes back into real space by multiplying by the right
         eigenvector matrix.
 
@@ -413,6 +436,11 @@ class LLFCharacteristic(Characteristic):
                 term = term.replace(old, new)
             avg_REV_values[i] = term
         reconstructed_characteristics = Matrix([d.evaluate_reconstruction for d in derivatives])
+        # Apply a shock sensor if the WENO is being applied as a filter step
+        if block.shock_filter:
+            for i, recon in enumerate(reconstructed_characteristics):
+                post_process_equations += flatten([self.central_diff_formula(i, recon)])
+
         reconstructed_flux = avg_REV_values*reconstructed_characteristics
         reconstructed_work = [d.reconstruction_work for d in derivatives]
         post_process_equations += [OpenSBLIEq(x, y) for x, y in zip(reconstructed_work, reconstructed_flux)]
@@ -487,6 +515,7 @@ class LLFCharacteristic(Characteristic):
         stencil_points = sorted(list(set(self.reconstruction_classes[0].func_points + self.reconstruction_classes[1].func_points)))
         ev = self.eigen_value[direction]
         out = zeros(*ev.shape)
+        # stencil_points = [0,1]
         for p in stencil_points:
             location_ev = self.convert_symbolic_to_dataset(ev, p, direction, block)
             for no, val in enumerate(location_ev):

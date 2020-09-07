@@ -4,7 +4,7 @@
    @details
 """
 from opensbli.core.grid import Grid
-from sympy import Equality
+from sympy import Equality, pprint
 from opensbli.core.boundary_conditions.bc_core import BoundaryConditionTypes
 from opensbli.core.opensbliobjects import ConstantObject, DataObject, DataSetBase, GroupedPiecewise
 from opensbli.equation_types.opensbliequations import OpenSBLIEq, ConstituentRelations
@@ -12,6 +12,7 @@ from opensbli.equation_types.metric import MetricsEquation
 from sympy import flatten, eye
 _known_equation_types = (GroupedPiecewise, OpenSBLIEq)
 from opensbli.schemes.spatial.scheme import CentralHalos_defdec
+from opensbli.utilities.user_defined_kernels import UserDefinedEquations
 
 
 class KernelCounter():
@@ -69,6 +70,7 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes):
         self.block_stencils = {}
         self.InputOutput = []
         self.list_of_equation_classes = []
+        self.shock_filter = False
         return
 
     @property
@@ -145,10 +147,12 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes):
     @property
     def known_datasets(self):
         """Collects all of the datasets present in each of the equation classes.
-        This is used for sorting the relations for a equation class."""
+        This is used for sorting the relations for an equation class."""
         known_dsets = set()
         for eq in self.list_of_equation_classes:
-            known_dsets = known_dsets.union(eq.evaluated_datasets)
+            # No sorting applied to UserDefinedEquations
+            if not isinstance(eq, UserDefinedEquations):
+                known_dsets = known_dsets.union(eq.evaluated_datasets)
         for io in self.InputOutput:
             known_dsets = known_dsets.union(io.evaluated_datasets)
         return known_dsets

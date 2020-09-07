@@ -13,7 +13,12 @@ side_names = {0: 'left', 1: 'right'}
 
 
 class ModifyCentralDerivative(object):
-    """ A place holder for the boundary conditions on which the central derivative should be modified"""
+    """ A place holder for the boundary conditions on which the central derivative should be modified."""
+    pass
+
+
+class WallBC(object):
+    """ A place holder for wall boundaries which require modification for the WENO shock-filter methods."""
     pass
 
 

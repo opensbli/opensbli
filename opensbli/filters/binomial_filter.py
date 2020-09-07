@@ -116,6 +116,8 @@ class BinomialFilter(object):
         filter_class = UserDefinedEquations()
         filter_class.algorithm_place = InTheSimulation(frequency=False)
         filter_class.computation_name = 'Binomial filter'
+        # Place the filter at the very end
+        filter_class.order = 10000
         filter_class.add_equations(self.create_equations())
         self.equation_classes.append(filter_class)
         return

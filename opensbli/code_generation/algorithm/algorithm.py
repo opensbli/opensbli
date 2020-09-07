@@ -393,19 +393,13 @@ class TraditionalAlgorithmRK(object):
             raise NotImplementedError("")
         else:
             b = blocks[0]
-            bc_kernels = []
-            inner_temporal_advance_kernels = []
-            temporal_start = []
-            temporal_end = []
-            spatial_kernels = []
-            before_time = []
-            after_time = []
-            in_time = []
-            non_simulation_eqs = []
-            # Raise an error if there are more than one temporal scheme
+            bc_kernels, inner_temporal_advance_kernels, temporal_start, temporal_end, spatial_kernels, = [], [], [], [], []
+            before_time, after_time, in_time, non_simulation_eqs = [], [], [], []
+
+            # Raise an error if there is more than one temporal scheme
             if len(b.get_temporal_schemes) > 1:
-                raise ValueError("Found more than one temporal scheme on the \
-                    block")
+                raise ValueError("Found more than one temporal scheme on the block")
+            # Ordering of the kernels within the algorithm
             for scheme in b.get_temporal_schemes:
                 for key, value in scheme.solution.items():
                     if isinstance(key, SimulationEquations):
@@ -424,8 +418,6 @@ class TraditionalAlgorithmRK(object):
             for key in sorted(non_simulation_eqs, key=lambda x: x.order):
                 for place in key.algorithm_place:
                     if isinstance(place, BeforeSimulationStarts):
-                        # print(key)
-                        # print(key.order)
                         before_time += key.Kernels
                     elif isinstance(place, AfterSimulationEnds):
                         after_time += key.Kernels

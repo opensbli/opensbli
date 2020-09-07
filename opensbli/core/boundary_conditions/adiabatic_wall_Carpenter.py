@@ -1,4 +1,4 @@
-from opensbli.core.boundary_conditions.bc_core import BoundaryConditionBase, ModifyCentralDerivative
+from opensbli.core.boundary_conditions.bc_core import BoundaryConditionBase, ModifyCentralDerivative, WallBC
 from opensbli.physical_models.ns_physics import NSphysics
 from opensbli.core.boundary_conditions.Carpenter_scheme import Carpenter
 from sympy import sqrt, Matrix, pprint
@@ -8,7 +8,7 @@ from opensbli.utilities.helperfunctions import increment_dataset
 from opensbli.core.grid import GridVariable
 
 
-class AdiabaticWall_CarpenterBC(ModifyCentralDerivative, BoundaryConditionBase):
+class AdiabaticWall_CarpenterBC(ModifyCentralDerivative, BoundaryConditionBase, WallBC):
     """ Adiabatic wall condition, zero gradient dT/dn = 0 over the boundary. (G.N. Coleman)
     :arg int direction: Spatial direction to apply boundary condition to.
     :arg int side: Side 0 or 1 to apply the boundary condition for a given direction.

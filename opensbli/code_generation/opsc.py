@@ -500,6 +500,8 @@ class OPSC(object):
             elif isinstance(d, StencilObject):
                 store_stencils.append(d)
             else:
+                print(d)
+                print(type(d))
                 raise TypeError("Not a stencil or dataset declaration.")
         dsets_to_declare = dict([(str(x), x) for x in store_dsets])
 

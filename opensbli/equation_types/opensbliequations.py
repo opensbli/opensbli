@@ -311,6 +311,7 @@ class SimulationEquations(Discretisation, Solution):
                 else:
                     # raise ValueError("Constituent relation is not found for %s"%key)
                     cls.requires[key] = value
+        # Get kernels for CRs not in the governing equations
         missing_CR_datasets += list(cls.get_required_constituents.difference(cls.constituent_relations_kernels.keys()))
         for dset in missing_CR_datasets:
             # Evaluation of missing dataset is required
@@ -507,3 +508,26 @@ class NonSimulationEquations(Discretisation):
     """ Dummy place holder for all the equations that are not simulated but needs to be evaluated
     e.g, metrics or post process equations or user defined kernels"""
     pass
+
+    def create_residual_arrays(cls, block):
+        """Creates the residual datasets for each of the simulation equations.
+
+        :param SimulationBlock block: the block on which the equations are solved
+        :return: None """
+        for no, eq in enumerate(flatten(cls.equations)):
+            if not hasattr(eq, 'residual'):
+                eq.residual = block.location_dataset('Residual%d' % no)
+        return
+
+    @property
+    def time_advance_arrays(cls):
+        TD_fns = []
+        for c in cls.equations:
+            if isinstance(c, list):
+                local = []
+                for c1 in c:
+                    local += [td.time_advance_array for td in c1.atoms(TemporalDerivative)]
+                TD_fns += [local]
+            else:
+                TD_fns += [td.time_advance_array for td in c.atoms(TemporalDerivative)]
+        return TD_fns

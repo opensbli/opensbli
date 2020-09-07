@@ -481,15 +481,18 @@ class LLFTeno(LLFCharacteristic, Teno):
         self.store_sensor = store_sensor
         Teno.__init__(self, order, formulation)
         self.formulation = formulation
+        # Variables used for the Nonlinear WENO filter only
+        self.sensor_evaluation = None 
+        self.shock_filter = False
         return
 
     def discretise(self, type_of_eq, block):
         """ This is the place where the logic of vector form of equations are implemented.
         Find physical fluxes by grouping derivatives by direction --> in central, copy over
         Then the physical fluxes are transformed to characteristic space ---> a function in Characteristic
-        For each f+ and f-, find f_hat of i+1/2, i-1/2, (L+R) are evaluated  ----> Function in WENO scheme, called from in here
-        flux at i+1/2 evaluated -- > Function in WENO scheme
-        Then WENO derivative class is instantiated with the flux at i+1/2 array --> Function in WENO scheme, called from in here
+        For each f+ and f-, find f_hat of i+1/2, i-1/2, (L+R) are evaluated  ----> Function in TENO scheme, called from in here
+        flux at i+1/2 evaluated -- > Function in TENO scheme
+        Then TENO derivative class is instantiated with the flux at i+1/2 array --> Function in TENO scheme, called from in here
         Final derivatives are evaluated from Weno derivative class --> Using WD.discretise."""
         if isinstance(type_of_eq, SimulationEquations):
             eqs = flatten(type_of_eq.equations)

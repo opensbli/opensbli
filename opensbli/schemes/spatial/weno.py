@@ -6,10 +6,11 @@
 
 from sympy import IndexedBase, Symbol, Rational, solve, interpolating_poly, integrate, Abs, Float, flatten, S
 from opensbli.core.opensblifunctions import WenoDerivative
-from opensbli.equation_types.opensbliequations import SimulationEquations, OpenSBLIEq
+from opensbli.core.opensbliobjects import ConstantObject
+from opensbli.equation_types.opensbliequations import SimulationEquations, OpenSBLIEq, NonSimulationEquations
 from opensbli.core.grid import GridVariable
 from .scheme import Scheme
-from sympy import horner
+from sympy import horner, pprint
 from opensbli.schemes.spatial.shock_capturing import ShockCapturing, LLFCharacteristic
 
 
@@ -396,6 +397,7 @@ class Weno(Scheme, ShockCapturing):
         # Generate smoothness coefficients and store configurations for left and right reconstructions.
         self.reconstruction_classes = [RightWenoReconstructionVariable('right'), LeftWenoReconstructionVariable('left')]
         # Populate the quantities required by WENO for the left and right reconstruction variable.
+        sensor_evaluations = []
         for no, side in enumerate([1, -1]):
             WenoConfig = ConfigureWeno(self.k, side)
             RV = self.reconstruction_classes[no]
@@ -407,7 +409,9 @@ class Weno(Scheme, ShockCapturing):
             # Final reconstruction is the same for WENO-JS and WENO-Z
             self.generate_reconstruction(RV, WenoConfig)
             self.reconstruction_classes[no] = RV
-        return
+            # Evaluate a shock sensor equation
+            sensor_evaluations.append(self.compute_sensor(WenoConfig, normalised=True))
+        return sensor_evaluations
 
     def reconstruction_halotype(self, order, reconstruction=True):
         return WenoHalos(order, reconstruction)
@@ -428,6 +432,24 @@ class Weno(Scheme, ShockCapturing):
             else:
                 grouped[direction] = [cd]
         return grouped
+
+    def compute_sensor(self, WC, normalised=True):
+        """ Individual shock sensor based on the non-linear WENO weights. Applied to each characteristic wave in turn."""
+        opt_weights = [WC.opt_weights.get((0, r)) for r in range(self.k)]
+        formula = 0
+        import numpy
+        if normalised:
+            theta = ConstantObject('sensor_theta')
+            theta.value = 4.0
+            for L in range(self.k):
+                formula += Abs(GridVariable('omega_%d' % L)/opt_weights[L] - 1.0)**theta
+            denominator = Abs(1.0/numpy.min(opt_weights) - 1.0)**theta + (self.k-1)
+            sensor_equation = OpenSBLIEq(GridVariable('rj'), formula/denominator)          
+        else:
+            for r in range(self.k):
+                formula += Abs(GridVariable('omega_%d' % r)  - opt_weights[r])
+            sensor_equation = OpenSBLIEq(GridVariable('rj'), formula)
+        return sensor_equation
 
     def generate_reconstruction(self, RV, WenoConfig):
         """ Create the final WENO stencil by summing the stencil points, ENO coefficients and WENO weights.
@@ -450,10 +472,15 @@ class LLFWeno(LLFCharacteristic, Weno):
     :arg object physics: Physics object, defaults to NSPhysics.
     :arg object averaging: The averaging procedure to be applied for characteristics, defaults to Simple averaging. """
 
-    def __init__(self, order, physics=None, averaging=None, formulation="JS"):
+    def __init__(self, order, physics=None, averaging=None, shock_filter=None, formulation="JS"):
         print("Local Lax-Friedrich flux splitting.")
         LLFCharacteristic.__init__(self, physics, averaging)
-        Weno.__init__(self, order, formulation)
+        if shock_filter is not None:
+            self.shock_filter = shock_filter
+            self.sensor_evaluation = Weno.__init__(self, order, formulation)
+        else:
+            Weno.__init__(self, order, formulation)
+            self.sensor_evaluation = None
         return
 
     def discretise(self, type_of_eq, block):
@@ -492,3 +519,30 @@ class LLFWeno(LLFCharacteristic, Weno):
                 type_of_eq.Kernels += [self.evaluate_residuals(block, eqs, all_derivatives_evaluated_locally)]
                 constituent_relations = self.check_constituent_relations(block, eqs, constituent_relations)
             return constituent_relations
+        # Apply WENO as a non-linear filter step
+        elif isinstance(type_of_eq, NonSimulationEquations):
+            eqs = flatten(type_of_eq.equations)
+            grouped = self.group_by_direction(eqs)
+            all_derivatives_evaluated_locally = []
+            reconstruction_halos = self.reconstruction_halotype(self.order, reconstruction=True)
+            solution_vector = flatten(type_of_eq.time_advance_arrays)
+            # Instantiate eigensystems with block, but don't add metrics yet
+            self.instantiate_eigensystem(block)
+            for direction, derivatives in sorted(grouped.items()):
+                all_derivatives_evaluated_locally += derivatives
+                for no, deriv in enumerate(derivatives):
+                    deriv.create_reconstruction_work_array(block)
+                # Kernel for the reconstruction in this direction
+                kernel = self.create_reconstruction_kernel(direction, reconstruction_halos, block)
+                # Get the pre, interpolations and post equations for characteristic reconstruction
+                pre_process, interpolated, post_process = self.get_characteristic_equations(direction, derivatives, solution_vector, block)
+                # Add the equations to the kernel and add the kernel to SimulationEquations
+                kernel.add_equation(pre_process + interpolated + post_process)
+                type_of_eq.reconstruction_kernels += [kernel]
+            # Generate kernels for the constituent relations
+            if grouped:
+                # constituent_relations = self.generate_constituent_relations_kernels(block)
+                constituent_relations = None
+                type_of_eq.residual_kernels += [self.evaluate_residuals(block, eqs, all_derivatives_evaluated_locally)]
+                # constituent_relations = self.check_constituent_relations(block, eqs, constituent_relations)
+            return constituent_relations, solution_vector
