@@ -19,7 +19,9 @@ directories = [\
 '/channel_flow/compressible_TCF_TENO/',
 '/Delery_bump/inviscid/',
 '/Delery_bump/viscous/',
-'/transitional_SBLI/'
+'/transitional_SBLI/',
+'/cylinder/cylinder_central/',
+'/cylinder/supersonic_cylinder/'
 ]
 file_names = [\
 'wave.py',
@@ -39,7 +41,9 @@ file_names = [\
 'turbulent_channel.py',
 'inviscid_shock_delery_aerofoil_forced.py',
 'viscous_shock_delery_aerofoil.py',
-'transitional_SBLI.py'
+'transitional_SBLI.py',
+'cylinder_central.py',
+'supersonic_cylinder.py'
 ]
 
 assert len(directories) == len(file_names)
