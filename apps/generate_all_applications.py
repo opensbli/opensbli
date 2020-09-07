@@ -7,6 +7,8 @@ directories = [\
 '/shu_osher/',
 '/Sod_shock_tube/',
 '/taylor_green_vortex/',
+'/taylor_green_vortex/TGsym/',
+'/taylor_green_vortex/TGsym/',
 '/viscous_shock_tube/',
 '/kelvin_helmholtz/',
 '/inviscid_shock_reflection/',
@@ -14,7 +16,10 @@ directories = [\
 '/channel_flow/laminar_2D/',
 '/channel_flow/turbulent_3D/',
 '/channel_flow/compressible_TCF_Central/',
-'/channel_flow/compressible_TCF_TENO/'
+'/channel_flow/compressible_TCF_TENO/',
+'/Delery_bump/inviscid/',
+'/Delery_bump/viscous/',
+'/transitional_SBLI/'
 ]
 file_names = [\
 'wave.py',
@@ -22,6 +27,8 @@ file_names = [\
 'shu_osher.py',
 'Sod_shock_tube.py',
 'taylor_green_vortex.py',
+'TG_IsoT.py',
+'TGsym.py',
 'viscous_shock_tube.py',
 'kelvin_helmholtz.py',
 'inviscid_shock.py',
@@ -29,7 +36,10 @@ file_names = [\
 'laminar_channel.py',
 'turbulent_channel.py',
 'turbulent_channel.py',
-'turbulent_channel.py'
+'turbulent_channel.py',
+'inviscid_shock_delery_aerofoil_forced.py',
+'viscous_shock_delery_aerofoil.py',
+'transitional_SBLI.py'
 ]
 
 assert len(directories) == len(file_names)
