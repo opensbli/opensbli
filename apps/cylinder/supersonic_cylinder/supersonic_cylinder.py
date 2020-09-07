@@ -154,13 +154,6 @@ SimulationDataType.set_datatype(Double)
 
 # Write the code for the algorithm
 OPSC(alg)
-f = h5py.File('grid.h5', 'r')
-x0, x1 = f['x0'].value, f['x1'].value
-print(x1.shape)
-npoints = [357, 179]
-halos = [(-5, 5), (-5, 5)]
-arrays, array_names = [x0, x1], ['x0', 'x1']
-output_hdf5(arrays, array_names, halos, npoints, block)
 # Simulation parameters
 constants = ['Re', 'gama', 'Minf', 'Pr', 'dt', 'niter', 'block0np0', 'block0np1', 'Delta0block0', 'Delta1block0', 'Twall']
 values = ['100.0', '1.4', '1.5', '0.71', '0.0001', '50000', '357', '179', '120.0/(block0np0-1)', '120.0/(block0np1-1)', '1.0']

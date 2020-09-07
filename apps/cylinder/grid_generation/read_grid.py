@@ -4,6 +4,8 @@ The HDF5 file should then be given the metadata required by OPS in the cylinder 
 import h5py
 import matplotlib
 import numpy as np
+from opensbli import *
+import os
 
 # Read the grid data
 data = np.genfromtxt('./Cyl-grid_Inc.dat')
@@ -89,3 +91,16 @@ gf = h5py.File('grid.h5', 'w')
 gf.create_dataset('x0', data=full_x)
 gf.create_dataset('x1', data=full_y)
 gf.close()
+# Add HDF5 meta-data to the grid file
+b = SimulationBlock(2, block_number=0)
+print(b.blockname)
+print(b.__dict__)
+f = h5py.File('grid.h5', 'r')
+x0, x1 = f['x0'], f['x1']
+npoints = [nx, ny]
+halos = [(-nhalo, nhalo), (-nhalo, nhalo)]
+arrays, array_names = [x0, x1], ['x0', 'x1']
+output_hdf5(arrays, array_names, halos, npoints, b)
+f.close()
+os.remove('grid.h5')
+print("The cylinder grid has been written to the data.h5 file.")
