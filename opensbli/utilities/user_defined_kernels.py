@@ -101,3 +101,8 @@ class UserDefinedEquations(NonSimulationEquations, Discretisation, Solution):
 
     def apply_boundary_conditions(cls, block):
         return
+
+# MBCHANGE
+    def apply_interface_bc(cls, block, multiblock_descriptor):
+        return
+# MBCHANGE
