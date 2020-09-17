@@ -2,6 +2,7 @@
 from opensbli.core.block import SimulationBlock
 from opensbli.core.boundary_conditions.multi_block import MultiBlockBoundary
 import copy
+from sympy import flatten
 
 # MBCHANGE
 @property
@@ -41,23 +42,23 @@ class MultiBlock():
         return self.blocks[number]
 
     def set_discretisation_schemes(self, schemes):
-        """
-        """
         for i in range(self.nblocks):
             schemes1 = copy.deepcopy(schemes)
             self.blocks[i].set_discretisation_schemes(schemes1)
         return
 
     def set_equations(self, list_of_equations):
-        """
-        """
         for b in self.blocks:
             b.set_equations([copy.deepcopy(e) for e in list_of_equations])
         return
+
+    def set_filters(self, list_of_filters):
+        for i, b in enumerate(self.blocks):
+            filt = flatten(list_of_filters[i])
+            b.set_equations(filt)
+        return
     
-    def set_block_boundaries(self, bclist):
-        """
-        """        
+    def set_block_boundaries(self, bclist):    
         if len(bclist.keys()) != self.nblocks:
             raise ValueError("")
         for b in self.blocks:
@@ -78,8 +79,6 @@ class MultiBlock():
         return
             
     def setio(self, list_of_ios):
-        """
-        """
         for b in self.blocks:
             copied_io = [copy.deepcopy(io) for io in list_of_ios]
             b.setio(copied_io)

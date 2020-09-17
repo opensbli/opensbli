@@ -9,10 +9,12 @@ from opensbli.postprocess.post_process_eq import *
 from opensbli.core.kernel import ConstantsToDeclare as CTD
 from opensbli.code_generation.algorithm.common import *
 from opensbli.utilities.user_defined_kernels import UserDefinedEquations
+from opensbli.core.block import SimulationBlock
+from opensbli.multiblock.blockcollection import MultiBlock
 
 class BinomialFilter(object):
     def __init__(self, block, order, grid_condition=None, sigma=0.05):
-        self.block = block
+        self.filter_no = block.blocknumber
         if (order % 2) != 0:
             raise ValueError("The filter is only defined for even orders n.")
         elif (order > 10):
@@ -28,7 +30,7 @@ class BinomialFilter(object):
         self.sigma = sigma_symbol
         self.equation_classes = []
         # Create the filter equations
-        self.create_filter()
+        self.create_filter(block)
         return
 
     def generate_weights(self):
@@ -36,7 +38,7 @@ class BinomialFilter(object):
         N = self.order
         self.weights = [binomial(N, i)/2.0**N for i in range(N + 1)]
         self.locations = [i for i in range(-int(N/2.0), int(N/2.0)+1)]
-        print("Using a binomial filter of order %d." % N)
+        print("Using a binomial filter of order %d for block %d." % (N, self.filter_no))
         return
 
     def create_stencil(self, block, q, direction):
@@ -67,9 +69,7 @@ class BinomialFilter(object):
             output_equations += [OpenSBLIEquation(eqn.lhs, Piecewise(condition, (eqn.lhs, True)))]
         return output_equations
 
-
-    def create_equations(self):
-        block = self.block
+    def create_equations(self, block):
         ndim = block.ndim
         # Conservative variables
         if ndim == 2:
@@ -111,13 +111,13 @@ class BinomialFilter(object):
             output_equations += blended_equations
         return output_equations
 
-    def create_filter(self):
+    def create_filter(self, block):
         # Create a kernel at the end of the time loop, every iteration (no frequency)
         filter_class = UserDefinedEquations()
         filter_class.algorithm_place = InTheSimulation(frequency=False)
         filter_class.computation_name = 'Binomial filter'
         # Place the filter at the very end
         filter_class.order = 10000
-        filter_class.add_equations(self.create_equations())
+        filter_class.add_equations(self.create_equations(block))
         self.equation_classes.append(filter_class)
         return

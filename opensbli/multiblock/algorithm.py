@@ -488,15 +488,18 @@ class TraditionalAlgorithmRKMB(object):
                             if not isinstance(key, ConstituentRelations):
                                 print "NOT classified", type(key)
                                 raise ValueError("Equations class can not be classified: %s" % key)
-            #exit()
-            for key in sorted(non_simulation_eqs, cmp=self.comapre_no_sims):
+            # Place the non-simulation equation kernels in the appropriate position in the simulation code
+            for key in sorted(non_simulation_eqs, key=lambda x: x.order):
                 for place in key.algorithm_place:
                     if isinstance(place, BeforeSimulationStarts):
                         before_time += key.Kernels
                     elif isinstance(place, AfterSimulationEnds):
                         after_time += key.Kernels
                     else:
-                        raise NotImplementedError("In Nonsimulation equations")
+                        if place.frequency:
+                            raise NotImplementedError("In Non-simulation equations")
+                        else:
+                            in_time += key.Kernels
             # Process the metircs we will control here it self later we will move this to multi block
             # The first derivatives this includes bc application
             for m in metrics:
@@ -522,17 +525,11 @@ class TraditionalAlgorithmRKMB(object):
             tloop.add_components(innerloop)
             tloop.add_components(in_time)
             tloop.add_components(temporal_end)
-            ## tloop.write_latex(latex)
-            ## Process the initial conditions and Diagnostics if any here
-            #print before_time
-            #print innerloop
-            #print temporal_start
-            #exit()
+            # Create a time loop and add the components to it
             timed_tloop = self.add_timers(tloop)
             self.prg.add_components(before_time)
             self.prg.add_components(timed_tloop)
             self.prg.add_components(after_time)
-            # self.prg.write_latex(latex)
         latex.close()
         return
     

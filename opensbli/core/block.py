@@ -295,7 +295,7 @@ class SimulationBlock(Grid, KernelCounter, BoundaryConditionTypes):
         if len(metric_class) == 0:
             return None
         if len(metric_class) > 1:
-            raise ValueError("more than one metric class found in the equations")
+            raise ValueError("More than one metric class found in the equations.")
         else:
             return metric_class[0]
 
