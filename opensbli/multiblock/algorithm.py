@@ -539,6 +539,8 @@ class TraditionalAlgorithmRKMB(object):
             b = blocks.get_block(block_number)
             for io in b.InputOutput:
                 io.block_number = block_number # MBCHANGE
+                # Check all of the datasets added to the IO classes have been defined elsewhere in the simulation
+                io.check_datasets(b)
                 for place in io.algorithm_place:
                     if isinstance(place, BeforeSimulationStarts):
                         io_copy = copy.deepcopy(io)

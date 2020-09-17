@@ -52,6 +52,15 @@ class iohdf5(opensbliIO):
         cls.arrays += flatten(arrays)
         return
 
+    def check_datasets(cls, block):
+        """ Checks if the user has added any datasets to the IO class that are not defined within the simulation."""
+        simulation_dsets = [str(ar) for ar in block.block_datasets.keys()]
+        io_dsets = [str(ar) for ar in cls.arrays]
+        missing_dsets = [x for x in io_dsets if x not in simulation_dsets]
+        if len(missing_dsets) > 0:
+            raise ValueError("The dataset(s): '%s' added to the HDF5 class are not defined in the simulation code. Please check the HDF5 add_arrays input in the problem script." % str(', '.join(missing_dsets)))
+        return
+
     def set_read_from_hdf5_arrays(cls, block):
         if cls.kwargs['iotype'] == "read":
             if 'filename' in cls.kwargs:

@@ -442,6 +442,8 @@ class TraditionalAlgorithmRK(object):
             temporal_start = bc_kernels + temporal_start
             # Input output of intermediate data writing
             for io in b.InputOutput:
+                # Check all of the datasets added to the IO classes have been defined elsewhere in the simulation
+                io.check_datasets(b)
                 for place in io.algorithm_place:
                     if isinstance(place, BeforeSimulationStarts):
                         io_copy = copy.deepcopy(io)
