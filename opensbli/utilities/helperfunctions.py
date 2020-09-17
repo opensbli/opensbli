@@ -4,7 +4,7 @@
    @details
 """
 
-from opensbli.core.opensbliobjects import DataSet, ConstantIndexed
+from opensbli.core.opensbliobjects import DataSet, ConstantIndexed, DataObject
 import h5py
 from opensbli.code_generation.opsc import rc
 from sympy import pprint
@@ -35,8 +35,10 @@ def increment_dataset(expression, direction, value):
     arg: object: expression: A SymPy expression containing datasets to have their indices updated.
     arg: int: direction: The integer direction to apply the increment. (which DataSet axis to apply to)
     arg: int: value: The positive or negative change to apply to the DataSet's index.
-    returns: object: expression: The original expression updated to the new DataSet location.
-    """
+    returns: object: expression: The original expression updated to the new DataSet location."""
+    d_objs = expression.atoms(DataObject)
+    if len(d_objs) > 0:
+        raise TypeError("DataObjects found in the increment_dataset function: %s. These should be converted to DataSets." % ', '.join([str(x) for x in d_objs]))
     for dset in expression.atoms(DataSet):
         loc = list(dset.indices)
         loc[direction] = loc[direction] + value
