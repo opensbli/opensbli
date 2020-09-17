@@ -1,10 +1,10 @@
 from sympy import flatten, simplify, symbols
-from opensbli.core.opensbliobjects import ConstantObject, CoordinateObject, DataObject
+from opensbli.core.opensbliobjects import ConstantObject, CoordinateObject, DataObject, DataSet
 from opensbli.core.grid import GridVariable
 from opensbli.core.opensblifunctions import CentralDerivative
 from opensbli.core.kernel import Kernel
 from opensbli.schemes.spatial import Central
-from opensbli.equation_types.opensbliequations import OpenSBLIEq, SimulationEquations
+from opensbli.equation_types.opensbliequations import OpenSBLIEq, SimulationEquations, ConstituentRelations
 
 
 class StoreSome(Central):
@@ -49,6 +49,24 @@ class StoreSome(Central):
             else:
                 pass
             return self.required_constituent_relations
+
+    def check_missing_constituent_relations(self, block, list_of_eq):
+        """ Checks that there are no missing constituent relations kernels. These are CRs
+        that don't include derivatives."""
+        arrays = []
+        for eq in flatten(list_of_eq):
+            arrays += list(eq.atoms(DataSet))
+        arrays = set(arrays)
+        undefined = arrays.difference(self.required_constituent_relations.keys())
+        # Find the user's constituent relations
+        CR = [eqn_class for eqn_class in block.list_of_equation_classes if isinstance(eqn_class, ConstituentRelations)]
+        CR_LHS = set([str(eqn.lhs) for eqn in flatten(CR[0].equations)])
+
+        for dset in undefined:
+            if str(dset) in CR_LHS:
+                self.required_constituent_relations[dset] = Kernel(block, computation_name="CR%s" % dset)
+                self.required_constituent_relations[dset].set_grid_range(block)
+        return
 
     def sbli_rhs_discretisation(self, type_of_eq, block):
         """ Function that performs the discretisation to the convective and viscous terms."""
@@ -113,6 +131,8 @@ class StoreSome(Central):
             viscous_kernel.update_block_datasets(block)
             type_of_eq.Kernels += [viscous_kernel]
         block.reset_work_index
+        # Check for missing constituent relation kernels
+        self.check_missing_constituent_relations(block, equations)
         return self.required_constituent_relations
 
     def SS(self, equations, block, equation_type, group=True, level=1):
