@@ -14,13 +14,13 @@ momentum = "Eq(Der(rhou_i,t) , - Skew(rhou_i*u_j, x_j) - Der(p,x_i)  + Der(tau_i
 energy = "Eq(Der(rhoE,t), - Skew(rhoE*u_j,x_j) - Conservative(p*u_j,x_j)  - Dot(c_j, u_j) + Der(q_j,x_j) + Der(u_i*tau_i_j ,x_j))"
 
 # Substitutions used in the equations
-stress_tensor = "Eq(tau_i_j, (1.0/Re)*(Der(u_i,x_j)+ Der(u_j,x_i)- (2/3)* KD(_i,_j)* Der(u_k,x_k)))"
-heat_flux = "Eq(q_j, (1.0/((gama-1)*Minf*Minf*Pr*Re))*Der(T,x_j))"
+stress_tensor = "Eq(tau_i_j, (mu/Re)*(Der(u_i,x_j)+ Der(u_j,x_i)- (2/3)* KD(_i,_j)* Der(u_k,x_k)))"
+heat_flux = "Eq(q_j, (mu/((gama-1)*Minf*Minf*Pr*Re))*Der(T,x_j))"
 
 substitutions = [stress_tensor, heat_flux]
 
 # Constants that are used
-constants = ["Re", "Pr", "gama", "Minf", "mu", "c_j"]
+constants = ["Re", "Pr", "gama", "Minf", "c_j", "RefT", "SuthT"]
 
 # symbol for the coordinate system in the equations
 coordinate_symbol = "x"
@@ -29,6 +29,7 @@ coordinate_symbol = "x"
 velocity = "Eq(u_i, rhou_i/rho)"
 pressure = "Eq(p, (gama-1)*(rhoE - rho*(1/2)*(KD(_i,_j)*u_i*u_j)))"
 temperature = "Eq(T, p*gama*Minf*Minf/(rho))"
+viscosity = "Eq(mu, (T**(1.5)*(1.0+SuthT/RefT)/(T+SuthT/RefT)))"
 
 # Instantiate EinsteinEquation class for expanding the Einstein indices in the equations
 einstein_eq = EinsteinEquation()
@@ -63,18 +64,22 @@ constituent.add_equations(eqns)
 eqns = einstein_eq.expand(temperature, ndim, coordinate_symbol, substitutions, constants)
 constituent.add_equations(eqns)
 
-# Write the expanded equations to a Latex file with a given name and titile
-latex = LatexWriter()
-latex.open('equations.tex', "Einstein Expansion of the simulation equations")
-latex.write_string("Simulation equations\n")
-for index, eq in enumerate(flatten(simulation_eq.equations)):
-    latex.write_expression(eq)
+# Expand temperature add the expanded equations to the constituent relations
+eqns = einstein_eq.expand(viscosity, ndim, coordinate_symbol, substitutions, constants)
+constituent.add_equations(eqns)
 
-latex.write_string("Constituent relations\n")
-for index, eq in enumerate(flatten(constituent.equations)):
-    latex.write_expression(eq)
+# # Write the expanded equations to a Latex file with a given name and titile
+# latex = LatexWriter()
+# latex.open('equations.tex', "Einstein Expansion of the simulation equations")
+# latex.write_string("Simulation equations\n")
+# for index, eq in enumerate(flatten(simulation_eq.equations)):
+#     latex.write_expression(eq)
 
-latex.close()
+# latex.write_string("Constituent relations\n")
+# for index, eq in enumerate(flatten(constituent.equations)):
+#     latex.write_expression(eq)
+
+# latex.close()
 
 # Create a simulation block
 block = SimulationBlock(ndim, block_number=0)
@@ -100,24 +105,25 @@ boundaries += [PeriodicBC(direction, side=0)]
 boundaries += [PeriodicBC(direction, side=1)]
 
 # Isothermal wall in x1 direction
-# Energy on the wall is set
-Twall = ConstantObject("Twall")
-wall_energy = [Eq(q_vector[3], Twall*q_vector[0] / (gama * Minf**2.0 * (gama - S.One)))]
+local_dict = {"block": block, "GridVariable": GridVariable, "DataObject": DataObject}
 
-direction = 1
+# Energy on the wall is set
+wall_const = ["Minf", "Twall"]
+for con in wall_const:
+    local_dict[con] = ConstantObject(con)
+# Isothermal wall condition
+rhoE_wall = [parse_expr("Eq(DataObject(rhoE), DataObject(rho)*Twall/(gama*(gama-1.0)*Minf**2.0))", local_dict=local_dict)]
 # Side 0 (bottom wall) boundary
-lower_wall_eq = wall_energy[:]
-boundaries += [IsothermalWallBC(direction, 0, lower_wall_eq, scheme=ReducedAccess())]
+boundaries += [IsothermalWallBC(direction=1, side=0, equations=rhoE_wall)]
 
 # Side 1 (top) boundary
 # Select one adiabatic wall one isothermal wall. Otherwise two isothermal walls
 mixed_wall_condition = False
 
 if mixed_wall_condition:
-	boundaries += [AdiabaticWallBC(direction, 1, scheme=ReducedAccess())]
+	boundaries += [AdiabaticWallBC(direction=1, side=1)]
 else:
-	upper_wall_eq = wall_energy[:]
-	boundaries += [IsothermalWallBC(direction, 1, lower_wall_eq, scheme=ReducedAccess())]
+	boundaries += [IsothermalWallBC(direction=1, side=1, equations=rhoE_wall)]
 
 # set the boundaries for the block
 block.set_block_boundaries(boundaries)
@@ -128,23 +134,22 @@ block.set_block_boundaries(boundaries)
 # Create the grid and intial conditions
 # Arrays to store x and y coordinates, i.e (x0 and x1)
 x, y = symbols('x0:%d' % ndim, **{'cls': DataObject})
-grid_equations = []
 # Equations for generating the grid, simple equispacing grid
-grid_equations += [Eq(x, i * dx), Eq(y, -1.0 + j * dy)]
+grid_equations = [Eq(x, i * dx), Eq(y, -1.0 + j * dy)]
 
 # Initialisation equations
 initial_equations = []
 # local varibales for temperature and pressure
 temperature, pressure = symbols('T p', **{'cls': GridVariable})
 # Equations for pressure and temperature
-initial_equations += [Eq(pressure, S.One / (gama * Minf**2.0))]
-initial_equations += [Eq(temperature, S.One + 0.01944 * (S.One - (y - S.One)**4))]
+initial_equations += [Eq(pressure, 1.0 / (gama * Minf**2.0))]
+initial_equations += [Eq(temperature, 1.0 + 0.01944 * (1.0 - (y - 1.0)**4))]
 
 # Initialise the conservative vector
-initial_equations += [Eq(q_vector[0], S.One / temperature)]
-initial_equations += [Eq(q_vector[1], S.Zero)]
-initial_equations += [Eq(q_vector[2], S.Zero)]
-initial_equations += [Eq(q_vector[3], pressure / (gama - S.One))]
+initial_equations += [Eq(q_vector[0], 1.0 / temperature)]
+initial_equations += [Eq(q_vector[1], 0.0)]
+initial_equations += [Eq(q_vector[2], 0.0)]
+initial_equations += [Eq(q_vector[3], pressure / (gama - 1.0))]
 
 # Instantiate a grid based initialisation classes
 initial = GridBasedInitialisation()
@@ -159,7 +164,9 @@ block.set_equations([constituent, simulation_eq, initial])
 # Create the dictionary of schemes
 schemes = {}
 # Central scheme for spatial discretisation and add to the schemes dictionary
-cent = Central(4)
+fns = 'u0 u1 T'
+# cent = Central(4)
+cent = StoreSome(4, fns)
 schemes[cent.name] = cent
 # RungeKutta scheme for temporal discretisation and add to the schemes dictionary
 rk = RungeKuttaLS(3)
@@ -193,7 +200,7 @@ OPSC(alg)
 # Populate the values of the constants like Re, Pr etc and the number of points for the
 # simulation etc. In the future reading thes from HDF5 would be provided
 
-constants = ['Re', 'gama', 'Minf', 'Pr', 'dt', 'niter', 'block0np0', 'block0np1', 'Delta0block0', 'Delta1block0', "c0", "c1", "Twall"]
-values = ['90.0', '1.4', '0.01', '0.72', '0.0002', '5000000', '32', '64', '2.0*M_PI/block0np0', '2.0/(block0np1-1)', '-1', '0', "1.0"]
+constants = ['Re', 'gama', 'Minf', 'Pr', 'dt', 'niter', 'block0np0', 'block0np1', 'Delta0block0', 'Delta1block0', "c0", "c1", "SuthT", "RefT", "Twall"]
+values = ['90.0', '1.4', '0.1', '0.72', '0.0002', '5000000', '16', '64', '2.0*M_PI/block0np0', '2.0/(block0np1-1)', '-1', '0', "110.4", "273.0", "1.0"]
 substitute_simulation_parameters(constants, values)
 print_iteration_ops(NaN_check='rho_B0')
