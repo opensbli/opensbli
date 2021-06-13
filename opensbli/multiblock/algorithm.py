@@ -448,7 +448,7 @@ class TraditionalAlgorithmRKMB(object):
     def spatial_solution(self, blocks):
         """ Add the spatial kernels to the temporal solution i.e temporalscheme.solution
         """
-        print "Writing algorithm"
+        print("Writing algorithm")
         fname = 'algorithm.tex'
         latex = LatexWriter()
         latex.open(fname, "Algorithm for the equations")
@@ -486,7 +486,7 @@ class TraditionalAlgorithmRKMB(object):
                             non_simulation_eqs += [key]
                         else:
                             if not isinstance(key, ConstituentRelations):
-                                print "NOT classified", type(key)
+                                print("NOT classified", type(key))
                                 raise ValueError("Equations class can not be classified: %s" % key)
             # Place the non-simulation equation kernels in the appropriate position in the simulation code
             for key in sorted(non_simulation_eqs, key=lambda x: x.order):

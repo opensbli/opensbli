@@ -101,7 +101,8 @@ boundaries += [PeriodicBC(direction, side=1)]
 
 # Isothermal wall in x1 direction
 # Energy on the wall is set
-wall_energy = [Eq(q_vector[3], q_vector[0] / (gama * Minf**2.0 * (gama - S.One)))]
+Twall = ConstantObject("Twall")
+wall_energy = [Eq(q_vector[3], Twall*q_vector[0] / (gama * Minf**2.0 * (gama - S.One)))]
 
 direction = 1
 # Side 0 (bottom wall) boundary
@@ -192,7 +193,7 @@ OPSC(alg)
 # Populate the values of the constants like Re, Pr etc and the number of points for the
 # simulation etc. In the future reading thes from HDF5 would be provided
 
-constants = ['Re', 'gama', 'Minf', 'Pr', 'dt', 'niter', 'block0np0', 'block0np1', 'Delta0block0', 'Delta1block0', "c0", "c1"]
-values = ['90.0', '1.4', '0.01', '0.72', '0.0002', '5000000', '32', '64', '2.0*M_PI/block0np0', '2.0/(block0np1-1)', '-1', '0']
+constants = ['Re', 'gama', 'Minf', 'Pr', 'dt', 'niter', 'block0np0', 'block0np1', 'Delta0block0', 'Delta1block0', "c0", "c1", "Twall"]
+values = ['90.0', '1.4', '0.01', '0.72', '0.0002', '5000000', '32', '64', '2.0*M_PI/block0np0', '2.0/(block0np1-1)', '-1', '0', "1.0"]
 substitute_simulation_parameters(constants, values)
 print_iteration_ops(NaN_check='rho_B0')

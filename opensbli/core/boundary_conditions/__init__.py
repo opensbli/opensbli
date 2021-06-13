@@ -18,5 +18,4 @@ from .multi_block import *
 from .inviscid_wall2D import *
 from .inlet_Lawal import *
 from .pressure_outlet import *
-from .primitive_BCS import *
 

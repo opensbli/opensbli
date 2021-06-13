@@ -118,6 +118,8 @@ boundaries[direction][side] = ExtrapolationBC(direction, side, order=0, scheme=R
 local_dict['Lx1'] = ConstantObject('Lx1')
 local_dict['by'] = ConstantObject('by')
 direction, side = 1, 0
+from opensbli.core.kernel import ConstantsToDeclare as CTD
+CTD.add_constant(ConstantObject('Twall'))
 rhoE_wall = parse_expr("Eq(DataObject(rhoE), DataObject(rho)*Twall/(gama*(gama-1.0)*Minf**2.0))", local_dict=local_dict)
 wall_eqns = [rhoE_wall]
 boundaries[direction][side] = IsothermalWallBC(direction, side, wall_eqns, scheme=ReducedAccess())
