@@ -1,4 +1,4 @@
-from sympy import Sum, Symbol, Function, flatten, S, pprint, Mul, Expr, Eq
+from sympy import Sum, Symbol, Function, flatten, S, pprint, Mul, Expr
 from sympy.tensor import IndexedBase, Indexed, get_contraction_structure
 from sympy.tensor.index_methods import get_indices as get_indices_sympy
 from sympy import Derivative, preorder_traversal, postorder_traversal
@@ -105,8 +105,8 @@ def expand_expr(expr, ndim):
 
 def expand_free_indices(expr, indices, ndim):
     """Expands the free indices, i.e they are not Summed in Einstein expansion.
-    For example: In a vector $u_i$, the free index is $i$ this would be expanded to
-    $\left[u0, u1, u2\right]$ for ndim 3.
+    For example: In a vector $u_i$, the free index is $i$ this would be expanded
+    to $\left[u0, u1, u2\right]$ for ndim 3.
 
     :param expr: the expression to which free indices are to be applied.
     :param indices: the indices that are to be applied
@@ -270,7 +270,6 @@ class EinsteinStructure(object):
         pot = preorder_traversal(expression)
         for p in pot:
             if isinstance(p, Sum):
-                # pprint(p,)
                 expression = expression.xreplace({p: expansion_subs[p]})
                 pot.skip()
             else:
@@ -526,7 +525,6 @@ class CentralDerivative(Function, BasicDiscretisation, DerPrint):
         modifications = block.check_modify_central()
         dire = cls.get_direction[0]
         if dire in modifications:
-            # print "YES", dire, cls
             boundary_mods = [k for k in modifications[dire] if k]
             expression_condition_pairs = []
             for b in boundary_mods:
@@ -534,36 +532,6 @@ class CentralDerivative(Function, BasicDiscretisation, DerPrint):
             expression_condition_pairs += [ExprCondPair(form, True)]
             form = Piecewise(*expression_condition_pairs, **{'evaluate': False})
         return form
-
-    # def apply_boundary_derivative_modification(cls, block, scheme, work):
-    #     """Apply the boundary modifications this returns a list of kernels if modification
-    #     is required else returns an empty list
-    #     WARNING This is not working but keeping it while reverting back
-    #     TODO V2 JAMMY IMPLEMENTATION of different kernels for carpenter
-    #     """
-    #     from opensbli.core.kernel import Kernel
-    #     dire = cls.get_direction[0]
-    #     order = cls.order
-    #     modifications = block.check_modify_central()
-    #     kernels = []
-    #     if dire in modifications:
-    #         # print "YES", dire, cls
-    #         boundary_mods = [k for k in modifications[dire] if k]
-    #         pprint(cls.args[0])
-    #         expr = cls.args[0]
-    #         for b in boundary_mods:
-    #             ker = Kernel(block)
-    #             ker.add_equation(expr)
-    #             ker.set_computation_name("Carpenter scheme %s " % (str(cls)))
-    #             ker.set_grid_range(block)
-    #             # modify the range to the number of points
-    #             expression_condition_pairs, ranges = b.modification_scheme.expr_cond_pairs(cls.args[0], b.direction, b.side, order, block)
-    #             ker.ranges[dire] = [ranges[0], ranges[-1]+1]
-    #             expression_condition_pairs += [ExprCondPair(0, True)]
-    #             form = Piecewise(*expression_condition_pairs, **{'evaluate': False})
-    #             ker.add_equation(Eq(work, form))
-    #             kernels += [ker]
-    #     return kernels
 
     @property
     def simple_name(cls):
@@ -578,7 +546,6 @@ class CentralDerivative(Function, BasicDiscretisation, DerPrint):
             metric.sd_used = True
             metric_der = metric.classical_strong_differentiabilty_transformation_sd[tuple(cls.get_direction)]
             transformed_der = metric_der.subs(metric.general_function, cls.args[0])
-
         return transformed_der
 
 

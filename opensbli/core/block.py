@@ -4,7 +4,7 @@
    @details
 """
 from opensbli.core.grid import Grid
-from sympy import Equality, pprint
+from sympy import Equality
 from opensbli.core.boundary_conditions.bc_core import BoundaryConditionTypes
 from opensbli.core.opensbliobjects import ConstantObject, DataObject, DataSetBase, GroupedPiecewise
 from opensbli.equation_types.opensbliequations import OpenSBLIEq, ConstituentRelations
