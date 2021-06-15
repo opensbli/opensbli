@@ -5,7 +5,6 @@ from opensbli.equation_types.opensbliequations import OpenSBLIEq
 from opensbli.physical_models.ns_physics import NSphysics
 from opensbli.core.opensbliobjects import ConstantObject
 from sympy import Rational, S, Float
-from opensbli.schemes.spatial.weno import ShockCapturing
 from opensbli.core.grid import GridVariable
 
 

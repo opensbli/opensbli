@@ -6,8 +6,9 @@ from opensbli.physical_models.ns_physics import NSphysics
 from opensbli.core.grid import GridVariable
 from sympy import Rational
 
+
 class InletLawalBC(ModifyCentralDerivative, BoundaryConditionBase):
-    """ Velocity is extrapolated from 1 point inside the boundary to the boundary point and the halos on that side. 
+    """ Velocity is extrapolated from 1 point inside the boundary to the boundary point and the halos on that side.
     All primitive and conservative variables at the inlet and in the halos are then constructed from the extrapolated
     velocity. At present, only zeroth order extrapolation has been implemented.
 
@@ -27,7 +28,7 @@ class InletLawalBC(ModifyCentralDerivative, BoundaryConditionBase):
         return
 
     def apply(self, arrays, block):
-        NS = NSphysics(block) # using Navier Stokes physics object, create conservative variables
+        NS = NSphysics(block)  # using Navier Stokes physics object, create conservative variables
         gama = NS.specific_heat_ratio()
         halos, kernel = self.generate_boundary_kernel(block, self.bc_name)
         direction, side = self.direction, self.side
@@ -53,7 +54,7 @@ class InletLawalBC(ModifyCentralDerivative, BoundaryConditionBase):
         # set density in the halos based on interpolated velocities and calculated temperature
         rho_halo = (1.0+Rational(1, 2)*(gama-1.0)*(velocities_squared/T_halo))**(-1.0/(gama-1.0))
         # set energy in the halos based on the calculated density, temperature and interpolated velocities
-        energy_rhs = rho_halo*T_halo/(gama*(gama-1.0)) + Rational(1,2)*rho_halo*velocities_squared
+        energy_rhs = rho_halo*T_halo/(gama*(gama-1.0)) + Rational(1, 2)*rho_halo*velocities_squared
         for i in range(0, n_halos+1):
             # set momentum in the halos based on the interpolated density and velocity
             for index, momentum_comp in enumerate(NS.momentum()):

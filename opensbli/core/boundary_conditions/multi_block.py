@@ -7,6 +7,7 @@ from opensbli.core.boundary_conditions.exchange import ExchangeSelf
 class MultiBlockBoundary(object):
     pass
 
+
 class InterfaceBC(BoundaryConditionBase, MultiBlockBoundary):
     def __init__(self, direction, side, match=(None, None, None), plane=True):
         # check if the match is a boundary type
@@ -38,7 +39,7 @@ class InterfaceBC(BoundaryConditionBase, MultiBlockBoundary):
         return kernel
 
     def apply_interface(self, arrays, block, multiblock_descriptor, other_arrays=None):
-        #halos, kernel = self.generate_boundary_kernel(block, self.bc_name)
+        # halos, kernel = self.generate_boundary_kernel(block, self.bc_name)
         other_block = multiblock_descriptor.get_block(self.match[0])
         if other_arrays:
             other_block_arrays = other_arrays[:]
@@ -54,7 +55,7 @@ class InterfaceBC(BoundaryConditionBase, MultiBlockBoundary):
         to_location = [d[0] for d in halos_block2]
         direction_block1, side_block1 = self.direction, self.side
         direction_block2, side_block2 = self.match[1], self.match[2]
-        if self.full_plane == True:
+        if self.full_plane is True:
             # No need to check
             idx_block1 = block.Idxed_shape
             idx_block2 = other_block.Idxed_shape
@@ -94,7 +95,7 @@ class InterfaceBC(BoundaryConditionBase, MultiBlockBoundary):
 class SharedInterfaceBC(InterfaceBC, BoundaryConditionBase, MultiBlockBoundary):
 
     def apply_interface(self, arrays, block, multiblock_descriptor, other_arrays=None):
-        #halos, kernel = self.generate_boundary_kernel(block, self.bc_name)
+        # halos, kernel = self.generate_boundary_kernel(block, self.bc_name)
         other_block = multiblock_descriptor.get_block(self.match[0])
         if other_arrays:
             other_block_arrays = other_arrays[:]
@@ -110,7 +111,7 @@ class SharedInterfaceBC(InterfaceBC, BoundaryConditionBase, MultiBlockBoundary):
         to_location = [d[0] for d in halos_block2]
         direction_block1, side_block1 = self.direction, self.side
         direction_block2, side_block2 = self.match[1], self.match[2]
-        if self.full_plane == True:
+        if self.full_plane is True:
             # No need to check
             idx_block1 = block.Idxed_shape
             idx_block2 = other_block.Idxed_shape

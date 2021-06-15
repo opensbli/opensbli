@@ -1,6 +1,6 @@
 from opensbli.core.boundary_conditions.bc_core import BoundaryConditionBase
 from opensbli.core.boundary_conditions.Carpenter_scheme import Carpenter
-from sympy import flatten, Matrix, sqrt, pprint
+from sympy import flatten, Matrix, sqrt
 
 
 class SymmetryBC(BoundaryConditionBase):

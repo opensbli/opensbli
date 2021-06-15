@@ -1,13 +1,12 @@
 from opensbli.core.boundary_conditions.bc_core import BoundaryConditionBase, ModifyCentralDerivative
 from opensbli.core.boundary_conditions.Carpenter_scheme import Carpenter
-from opensbli.utilities.helperfunctions import increment_dataset, dot
+from opensbli.utilities.helperfunctions import dot
 from opensbli.equation_types.opensbliequations import OpenSBLIEq
 from opensbli.physical_models.ns_physics import NSphysics
 from opensbli.core.grid import GridVariable
 from sympy import flatten
 from opensbli.core.opensbliobjects import ConstantObject
-from opensbli.core.kernel import Kernel, ConstantsToDeclare
-
+from opensbli.core.kernel import ConstantsToDeclare
 
 
 class PressureOutletBC(ModifyCentralDerivative, BoundaryConditionBase):
@@ -34,19 +33,19 @@ class PressureOutletBC(ModifyCentralDerivative, BoundaryConditionBase):
     def apply(self, arrays, block):
         halos, kernel = self.generate_boundary_kernel(block, self.bc_name)
         NS = NSphysics(block)
-        cons_vars = flatten([NS.density(), NS.momentum(),NS.total_energy()])
+        cons_vars = flatten([NS.density(), NS.momentum(), NS.total_energy()])
         rhs = flatten([NS.density(), NS.momentum()])
         n_halos = abs(halos[self.direction][self.side])
         local_rhoE = OpenSBLIEq(GridVariable('local_rhoE'), NS.total_energy())
         kernel.add_equation(local_rhoE)
         # from_side_factor, to_side_factor = self.set_side_factor()
-        halo_points = [0] + [i for i in range(1,n_halos+1)]
+        halo_points = [0] + [i for i in range(1, n_halos+1)]
         # Set rhoE based on the specified back pressure and extrapolated density and velocities
         bp = ConstantObject('back_pressure')
         ConstantsToDeclare.add_constant(bp)
         bp._value = self.back_pressure
         rhs += [bp/(NS.specific_heat_ratio()-1.0) + 0.5*dot(NS.momentum(), NS.momentum())/NS.density()]
-        for i in halo_points: # Extrapolate rho, rhou, rhov, rhow from one point inside the domain
+        for i in halo_points:  # Extrapolate rho, rhou, rhov, rhow from one point inside the domain
             equations = self.create_boundary_equations(cons_vars, rhs, [(i, -1)])
             kernel.add_equation(equations)
         kernel.update_block_datasets(block)

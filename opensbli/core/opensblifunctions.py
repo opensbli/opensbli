@@ -1,4 +1,4 @@
-from sympy import Sum, Symbol, Function, flatten, S, pprint, Mul, Expr
+from sympy import Sum, Symbol, Function, flatten, S, pprint, Mul, Expr, Eq
 from sympy.tensor import IndexedBase, Indexed, get_contraction_structure
 from sympy.tensor.index_methods import get_indices as get_indices_sympy
 from sympy import Derivative, preorder_traversal, postorder_traversal

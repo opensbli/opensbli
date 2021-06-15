@@ -63,7 +63,7 @@ class AdiabaticWall_CarpenterBC(ModifyCentralDerivative, BoundaryConditionBase, 
         coeffs, grid_indices = self.deriv_coeffs[side], self.deriv_indices[side]
         # Evaluate temperature values at the wall and 5 points above/below it
         temperature_values = [GridVariable('T%d' % i) for i in range(len(grid_indices))]
-        temperature_evaluations = [OpenSBLIEq(temperature_values[i], increment_dataset(NS.temperature(relation=True, conservative=True), self.direction, i*to_side_factor))
+        temperature_evaluations = [OpenSBLIEq(temperature_values[i], increment_dataset(NS.temperature(relation=True, conservative=True), direction, i*to_side_factor))
                                    for i in range(1, len(temperature_values))]
 
         wall_eqns += temperature_evaluations

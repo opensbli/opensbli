@@ -1,14 +1,14 @@
 from opensbli.core.boundary_conditions.bc_core import BoundaryConditionBase
 from opensbli.physical_models.ns_physics import NSphysics
 from opensbli.utilities.helperfunctions import increment_dataset
-from sympy.functions.elementary.piecewise import ExprCondPair, Piecewise
+from sympy.functions.elementary.piecewise import Piecewise
 from opensbli.core.boundary_conditions.Carpenter_scheme import Carpenter
 from opensbli.equation_types.opensbliequations import OpenSBLIEq
 from opensbli.core.grid import GridVariable
 from sympy import sqrt, atan2, cos, sin, Matrix, Rational
 
 
-class InviscidWall2DBC(BoundaryConditionBase): # A.A. Lawal's method, see pg. 88 of his PhD thesis.
+class InviscidWall2DBC(BoundaryConditionBase):  # A.A. Lawal's method, see pg. 88 of his PhD thesis.
     """ Applies a slip condition on the boundary; normal velocity components evaluate to zero.
 
     :arg int direction: Spatial direction to apply boundary condition to.
@@ -70,7 +70,7 @@ class InviscidWall2DBC(BoundaryConditionBase): # A.A. Lawal's method, see pg. 88
         for index_1, tangent_index in enumerate(tangent_indices):
             y_arg = delta_y[index_1]
             x_arg = delta_x[index_1]
-            theta_calc += [OpenSBLIEq(GridVariable('theta_%d' % (1+tangent_index)), atan2(y_arg, x_arg))] # tangent angle at the wall
+            theta_calc += [OpenSBLIEq(GridVariable('theta_%d' % (1+tangent_index)), atan2(y_arg, x_arg))]  # tangent angle at the wall
             density_calc += [OpenSBLIEq(GridVariable('rho_%d' % (1+tangent_index)), increment_dataset(density_above, tangent_direction, tangent_index))]
             rho += [GridVariable('rho_%d' % (1+tangent_index))]
             for index_2, momentum_comp in enumerate(momentum_above):
@@ -96,11 +96,11 @@ class InviscidWall2DBC(BoundaryConditionBase): # A.A. Lawal's method, see pg. 88
             ut += [GridVariable('ut_%d' % (1+tangent_index))]
         kernel.add_equation(tangent_velocity)
         # calculate the size of the wall grid point
-        grid_size = Piecewise((sqrt((y[2]-y[1])**2+(x[2]-x[1])**2), theta[1]>=0), (sqrt((y[3]-y[2])**2+(x[3]-x[2])**2), True))
+        grid_size = Piecewise((sqrt((y[2]-y[1])**2+(x[2]-x[1])**2), theta[1] >= 0), (sqrt((y[3]-y[2])**2+(x[3]-x[2])**2), True))
         # calculate the difference in density, tangential velocity, and pressure at the ith grid point
-        density_delta = Piecewise(((rho[1]-rho[0]), theta[1]>=0), ((rho[1]-rho[2]), True))
-        tangent_velocity_delta = Piecewise(((ut[1]-ut[0]), theta[1]>=0), ((ut[1]-ut[2]), True))
-        pressure_delta = Piecewise(((p[1]-p[0]), theta[1]>=0), ((p[1]-p[2]), True))
+        density_delta = Piecewise(((rho[1]-rho[0]), theta[1] >= 0), ((rho[1]-rho[2]), True))
+        tangent_velocity_delta = Piecewise(((ut[1]-ut[0]), theta[1] >= 0), ((ut[1]-ut[2]), True))
+        pressure_delta = Piecewise(((p[1]-p[0]), theta[1] >= 0), ((p[1]-p[2]), True))
         # calculate the location of the grid point normal to the wall
         normal_grid_point = (x1-x1_wall)*sin(theta[1])/grid_size
         # calculate the density, tangent velocity, and pressure normal to ith grid point
@@ -111,11 +111,11 @@ class InviscidWall2DBC(BoundaryConditionBase): # A.A. Lawal's method, see pg. 88
         # assign density, momentum, and energy at the wall
         halo_densities += [OpenSBLIEq(increment_dataset(NS.density(), direction, 0), density_wall)]
         for index, momentum_comp in enumerate(NS.momentum()):
-            projection = unit_normals[1][index] # get tangent angle at the wall
-            velocity_wall = tangent_velocity_prime*projection # get u0, u1 components of velocity
-            momentum_wall += [density_wall*velocity_wall] # get momentum at the wall
+            projection = unit_normals[1][index]  # get tangent angle at the wall
+            velocity_wall = tangent_velocity_prime*projection  # get u0, u1 components of velocity
+            momentum_wall += [density_wall*velocity_wall]  # get momentum at the wall
             halo_momentum += [OpenSBLIEq(increment_dataset(momentum_comp, direction, 0), momentum_wall[index])]
-        energy_wall = pressure_wall/(gama-1) + Rational(1,2)*density_wall*(tangent_velocity_prime**2)
+        energy_wall = pressure_wall/(gama-1) + Rational(1, 2)*density_wall*(tangent_velocity_prime**2)
         halo_energy += [OpenSBLIEq(increment_dataset(NS.total_energy(), direction, 0), energy_wall)]
         # assign density, momentum, and energy in the halos (see section 8.2.1 in CFD textbook by J. Blazek for details)
         for i in range(1, n_halos+1):
