@@ -23,7 +23,7 @@ The following dependencies are required for generating a code and running a simu
 
 #### Note on previous version
 
-* The version 1.0 of OpenSBLI can be downloaded from [release][https://github.com/opensbli/opensbli/releases]
+* The version 1.0 of OpenSBLI can be downloaded from [release](https://github.com/opensbli/opensbli/releases)
 * No enhancements of version 1.0 are planned
 
 #### Postprocessing:
