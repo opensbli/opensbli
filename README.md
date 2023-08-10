@@ -10,7 +10,7 @@ First ensure that the following dependencies are satisfied:
 The following dependencies are required for generating a code and running a simulation:
 
 * Python 2.7
-* Sympy >= 1.0
+* Sympy == 1.1
 * Numpy
 * Scipy 0.19.1
 * OPS (to target the generated OPSC code towards different backends) [OPS project's repository](https://github.com/gihanmudalige/OPS).
