@@ -6,7 +6,7 @@ The current reference for OpenSBLI is:
 
 D.J. Lusher, S.P. Jammy, N.D. Sandham. OpenSBLI: Automated code-generation for heterogeneous computing architectures applied to compressible fluid dynamics on structured grids. Computer Physics Communications Vol. 267, October 2021, 108063.
  
-```bash
+```
 @article{OpenSBLI_LJS2021,
 title = {{OpenSBLI: Automated code-generation for heterogeneous computing architectures applied to compressible fluid dynamics on structured grids}},
 journal = {Computer Physics Communications},
