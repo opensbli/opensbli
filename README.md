@@ -72,23 +72,26 @@ export PYTHONPATH=$PYTHONPATH:/path/to/OpenSBLI/base/directory
 -->
 
 ## Recent applications of OpenSBLI
-1. A Musawi, ND Sandham. Effects of thermal non-equilibrium during transition to turbulence of a high enthalpy free shear layer. **Physics of Fluids 38 (1) (2026)**.
-2. B Siklósi, PK Sharma, DJ Lusher, IZ Reguly, ND Sandham. Reduced and mixed precision turbulent flow simulations using explicit finite difference schemes. **Future Generation Computer Systems, 175, 108111 (2026)**.
-3. A Musawi, ND Sandham. Efficient viscosity and thermal conductivity formulation for scale-resolved hypersonic flow simulations. **AIAA Journal 63 (12), 5123-5135 (2025)**.
-4. M Mauriello, PK Sharma, L Larchevêque, N Sandham. Role of nonlinearities induced by deterministic forcing in the low-frequency dynamics of transitional shock wave/boundary layer interaction. **Journal of Fluid Mechanics 1016, A6 (2025)**.
-5. DJ Lusher, A Sansica, A Hashimoto. *Implicit large eddy simulations of three-dimensional turbulent transonic buffet on wide-span infinite wings*. **Journal of Fluid Mechanics (2025)**.
-6. JB Chapelier, DJ Lusher, et al. *Comparison of high-order numerical methodologies for the simulation of the supersonic Taylor–Green vortex flow*. **Physics of Fluids 36, 055146 (2024).**
-7. DJ Lusher, A Sansica, A Hashimoto. *Effect of Tripping and Domain Width on Transonic Buffet on Periodic NASA-CRM Airfoils*. **AIAA Journal 62 (11), 4411-4430 (2024)**.
-8. A Hamzehloo, DJ Lusher, ND Sandham. *Direct numerical simulations and spectral proper orthogonal decomposition analysis of shocklet-containing turbulent channel counter-flows*. **International Journal of Heat and Fluid Flow, 104, 109229 (2023)**.
-9. A Gillespie, ND Sandham. *Numerical study of the effect of sidewalls on shock train behaviour*. **Flow 3, E12 (2023)**.
-10. DJ Lusher, GN Coleman. *Numerical Study of Compressible Wall-Bounded Turbulence–the Effect of Thermal Wall Conditions on the Turbulent Prandtl Number in the Low-Supersonic Regime*. **International Journal of Computational Fluid Dynamics 36 (9), 797-815 (2022)**.
-11. A Gillespie, ND Sandham. *Shock train response to high-frequency backpressure forcing*. **AIAA Journal 60 (6), 3736-3748 (2022)**.
-12. A Hamzehloo, DJ Lusher, S Laizet, ND Sandham. *Direct numerical simulation of compressible turbulence in a counter-flow channel configuration*. **Physical Review Fluids 6 (9), 094603 (2021)**.
-13. DJ Lusher, ND Sandham. *Assessment of low-dissipative shock-capturing schemes for the compressible Taylor–Green vortex*. **AIAA Journal 59 (2), 533-545 (2021)**.
-14. A Hamzehloo, DJ Lusher, S Laizet, ND Sandham. *On the performance of WENO/TENO schemes to resolve turbulence in DNS/LES of high‐speed compressible flows*. **International Journal for Numerical Methods in Fluids 93 (1), 176-196 (2021)**.
-15. DJ Lusher, ND Sandham. *Shock-wave/boundary-layer interactions in transitional rectangular duct flows*. **Flow, Turbulence and Combustion 105, 649-670 (2020)**.
-16. DJ Lusher, ND Sandham. *The effect of flow confinement on laminar shock-wave/boundary-layer interactions*. **Journal of Fluid Mechanics 897, A18 (2020)**.
-17. DJ Lusher, SP Jammy, ND Sandham. *Shock-wave/boundary-layer interactions in the automatic source-code generation framework OpenSBLI*. **Computers & Fluids 173, 17-21 (2018)**.
+1. DJ Lusher, A Sansica, GN Coleman, PR Spalart. Study of a system of turbulent shear layers and vortices. Part I: direct numerical simulation and theoretical considerations. **Theoretical and Computational Fluid Dynamics 40 (4), 21 (2026)**.
+2. MC Walker, ND Sandham. Direct Numerical Simulation of Hypersonic Flow over a Gaussian Bump. **AIAA Journal, 1-11 (2026)**.
+3. DJ Lusher, A Sansica. Scale-resolving simulations and data-driven modal analysis of turbulent transonic buffet cells on infinite swept wings. **Physical Review Fluids 11 (5), 053401 (2026)**.
+4. A Musawi, ND Sandham. Effects of thermal non-equilibrium during transition to turbulence of a high enthalpy free shear layer. **Physics of Fluids 38 (1) (2026)**.
+5. B Siklósi, PK Sharma, DJ Lusher, IZ Reguly, ND Sandham. Reduced and mixed precision turbulent flow simulations using explicit finite difference schemes. **Future Generation Computer Systems, 175, 108111 (2026)**.
+6. A Musawi, ND Sandham. Efficient viscosity and thermal conductivity formulation for scale-resolved hypersonic flow simulations. **AIAA Journal 63 (12), 5123-5135 (2025)**.
+7. M Mauriello, PK Sharma, L Larchevêque, N Sandham. Role of nonlinearities induced by deterministic forcing in the low-frequency dynamics of transitional shock wave/boundary layer interaction. **Journal of Fluid Mechanics 1016, A6 (2025)**.
+8. DJ Lusher, A Sansica, A Hashimoto. *Implicit large eddy simulations of three-dimensional turbulent transonic buffet on wide-span infinite wings*. **Journal of Fluid Mechanics (2025)**.
+9. JB Chapelier, DJ Lusher, et al. *Comparison of high-order numerical methodologies for the simulation of the supersonic Taylor–Green vortex flow*. **Physics of Fluids 36, 055146 (2024).**
+10. DJ Lusher, A Sansica, A Hashimoto. *Effect of Tripping and Domain Width on Transonic Buffet on Periodic NASA-CRM Airfoils*. **AIAA Journal 62 (11), 4411-4430 (2024)**.
+11. A Hamzehloo, DJ Lusher, ND Sandham. *Direct numerical simulations and spectral proper orthogonal decomposition analysis of shocklet-containing turbulent channel counter-flows*. **International Journal of Heat and Fluid Flow, 104, 109229 (2023)**.
+12. A Gillespie, ND Sandham. *Numerical study of the effect of sidewalls on shock train behaviour*. **Flow 3, E12 (2023)**.
+13. DJ Lusher, GN Coleman. *Numerical Study of Compressible Wall-Bounded Turbulence–the Effect of Thermal Wall Conditions on the Turbulent Prandtl Number in the Low-Supersonic Regime*. **International Journal of Computational Fluid Dynamics 36 (9), 797-815 (2022)**.
+14. A Gillespie, ND Sandham. *Shock train response to high-frequency backpressure forcing*. **AIAA Journal 60 (6), 3736-3748 (2022)**.
+15. A Hamzehloo, DJ Lusher, S Laizet, ND Sandham. *Direct numerical simulation of compressible turbulence in a counter-flow channel configuration*. **Physical Review Fluids 6 (9), 094603 (2021)**.
+16. DJ Lusher, ND Sandham. *Assessment of low-dissipative shock-capturing schemes for the compressible Taylor–Green vortex*. **AIAA Journal 59 (2), 533-545 (2021)**.
+17. A Hamzehloo, DJ Lusher, S Laizet, ND Sandham. *On the performance of WENO/TENO schemes to resolve turbulence in DNS/LES of high‐speed compressible flows*. **International Journal for Numerical Methods in Fluids 93 (1), 176-196 (2021)**.
+18. DJ Lusher, ND Sandham. *Shock-wave/boundary-layer interactions in transitional rectangular duct flows*. **Flow, Turbulence and Combustion 105, 649-670 (2020)**.
+19. DJ Lusher, ND Sandham. *The effect of flow confinement on laminar shock-wave/boundary-layer interactions*. **Journal of Fluid Mechanics 897, A18 (2020)**.
+20. DJ Lusher, SP Jammy, ND Sandham. *Shock-wave/boundary-layer interactions in the automatic source-code generation framework OpenSBLI*. **Computers & Fluids 173, 17-21 (2018)**.
 
 ## Contact
 If you wish to report a bug with the software, please contact [Satya P. Jammy](mailto:satya.jammy@ddn.upes.ac.in) or [David J. Lusher](mailto:lusher.david@jaxa.jp)
